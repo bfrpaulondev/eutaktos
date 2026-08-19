@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192" role="img" aria-label="Eutaktos">
+  <rect width="192" height="192" rx="46" fill="#FAFAFA"/>
+  <rect x="18" y="18" width="156" height="156" rx="38" fill="#F2F2F2" stroke="#6B6B6B" stroke-opacity=".22"/>
+  <circle cx="96" cy="96" r="48" fill="#3B82F6"/>
+  <path d="M72 63h54v15H89v11h32v15H89v11h38v15H72V63z" fill="#FAFAFA"/>
+</svg>
