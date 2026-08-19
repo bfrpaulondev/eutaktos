@@ -61,8 +61,7 @@ Preferences are individual and must not unexpectedly alter congregation-wide set
 Supported preference model:
 - language;
 - locale formatting;
-- light/dark/system theme;
-- accessible accent palette;
+- one of the six approved Eutaktos palette presets, with **Neutral Classic** as the default;
 - standard / high-contrast presentation;
 - font size scale;
 - readable-font option;
@@ -70,7 +69,9 @@ Supported preference model:
 - reduced motion;
 - reduced transparency where applicable.
 
-Custom colors are constrained through accessible design tokens. The system may adjust foreground/background combinations to preserve contrast rather than permit an unreadable theme.
+The product does **not** expose an arbitrary color picker. The approved presets and their exact source colors are defined in `docs/UI-COMPONENTS.md` and the application theme source. Some supplied accent/muted colors are intentionally subtle; when one is not suitable for normal text or a focus indicator, semantic component roles must reuse another color from the same preset rather than silently changing the supplied palette. Automated contrast tests protect these mappings.
+
+Material UI is the common component foundation. Eutaktos theme overrides, spacing, hierarchy and Quiet Glass treatment provide the product identity; default Material Design styling is not the product design.
 
 ## Internationalization
 
@@ -152,14 +153,17 @@ Budgets will be formalized after the technology ADR, but principles are:
 
 Automated tools do not certify accessibility. Every release candidate with major UI changes includes manual testing.
 
+Minimum automated checks include all six approved palettes for text/action contrast, plus component/unit checks for persisted accessibility preferences.
+
 Minimum manual matrix:
 - keyboard-only desktop;
 - VoiceOver + Safari;
 - TalkBack + Android Chrome;
 - 200% and 400% zoom/reflow;
 - increased OS/browser text;
-- light/dark/high-contrast modes;
+- all six palette presets plus high-contrast mode;
 - reduced motion;
+- reduced transparency;
 - portrait/landscape;
 - narrow phone / tablet / desktop;
 - long translated strings.
