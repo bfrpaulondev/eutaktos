@@ -1,8 +1,14 @@
 export type TenantId = string;
 export type PersonId = string;
 export type AssignmentTypeId = string;
+export type AvailabilityPeriodId = string;
 
 export interface AvailabilityPeriod {
+  /**
+   * Legacy/imported periods may temporarily omit an id. New application writes
+   * always create a stable identifier so edits/deletions do not rely on dates.
+   */
+  id?: AvailabilityPeriodId;
   startsAt: string;
   endsAt: string;
   reasonCode?: 'away' | 'unavailable' | 'other';
@@ -42,6 +48,7 @@ export function validateAvailability(period: AvailabilityPeriod): AvailabilityPe
   const startsAt = parseInstant(period.startsAt);
   const endsAt = parseInstant(period.endsAt);
   if (endsAt <= startsAt) throw new Error('Availability period must end after it starts');
+  if (period.id !== undefined && !period.id.trim()) throw new Error('availabilityPeriodId is required when provided');
   return period;
 }
 
@@ -73,12 +80,13 @@ export function recordEligibilityDecision(
   input: EligibilityDecisionInput,
 ): CongregationPerson {
   parseInstant(input.decidedAt);
-  if (!input.assignmentTypeId.trim()) throw new Error('assignmentTypeId is required');
+  const assignmentTypeId = input.assignmentTypeId.trim();
+  if (!assignmentTypeId) throw new Error('assignmentTypeId is required');
   if (!input.decidedBy.trim()) throw new Error('decidedBy is required');
 
   return {
     ...person,
-    eligibility: [...person.eligibility, { ...input }],
+    eligibility: [...person.eligibility, { ...input, assignmentTypeId }],
   };
 }
 
