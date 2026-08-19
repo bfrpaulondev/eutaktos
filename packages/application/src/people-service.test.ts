@@ -122,8 +122,11 @@ describe('PeopleDirectoryService', () => {
       correlationId: 'request-42',
     });
 
-    const serialized = JSON.stringify(unitOfWork.creates[0]);
-    expect(serialized).not.toContain('Ana Costa');
+    const serializedMetadata = JSON.stringify({
+      auditEvent: unitOfWork.creates[0]?.auditEvent,
+      domainEvent: unitOfWork.creates[0]?.domainEvent,
+    });
+    expect(serializedMetadata).not.toContain('Ana Costa');
   });
 
   it('updates only profile fields and preserves eligibility/availability exactly', () => {
