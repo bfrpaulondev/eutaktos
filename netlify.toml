@@ -1,0 +1,3 @@
+[build]
+command = "npm --workspace @eutaktos/web-pwa run build"
+publish = "apps/web-pwa/dist"
