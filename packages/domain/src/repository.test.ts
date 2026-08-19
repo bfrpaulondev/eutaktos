@@ -71,6 +71,33 @@ describe('InMemoryTenantRepository', () => {
     expect(repository.findById(tenantB, 'person-1')?.value).toBe('B');
   });
 
+  it('inserts only when the tenant-scoped id is new', () => {
+    const repository = new InMemoryTenantRepository<RecordFixture>('people.read', 'people.write');
+    const tenantA = context('tenant-a', ['people.read', 'people.write']);
+    const tenantB = context('tenant-b', ['people.read', 'people.write']);
+
+    repository.insert(tenantA, { id: 'person-1', tenantId: 'tenant-a', value: 'A' });
+    expect(() => repository.insert(tenantA, { id: 'person-1', tenantId: 'tenant-a', value: 'again' })).toThrow(
+      'Tenant resource already exists',
+    );
+
+    expect(() => repository.insert(tenantB, { id: 'person-1', tenantId: 'tenant-b', value: 'B' })).not.toThrow();
+  });
+
+  it('replaces only an existing record in the active tenant', () => {
+    const repository = new InMemoryTenantRepository<RecordFixture>('people.read', 'people.write', [
+      { id: 'person-1', tenantId: 'tenant-a', value: 'before' },
+    ]);
+    const tenantA = context('tenant-a', ['people.read', 'people.write']);
+
+    repository.replace(tenantA, { id: 'person-1', tenantId: 'tenant-a', value: 'after' });
+    expect(repository.findById(tenantA, 'person-1')?.value).toBe('after');
+
+    expect(() => repository.replace(tenantA, { id: 'missing', tenantId: 'tenant-a', value: 'x' })).toThrow(
+      'Tenant resource does not exist',
+    );
+  });
+
   it('deletes only within the active tenant', () => {
     const repository = new InMemoryTenantRepository<RecordFixture>('people.read', 'people.write', [
       { id: 'person-1', tenantId: 'tenant-a', value: 'A' },
