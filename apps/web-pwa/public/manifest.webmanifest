@@ -1,0 +1,13 @@
+{
+  "name": "Eutaktos",
+  "short_name": "Eutaktos",
+  "description": "Organização de congregação com privacidade, acessibilidade e decisões humanas.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f8f7",
+  "theme_color": "#315c54",
+  "lang": "pt-PT",
+  "dir": "ltr",
+  "icons": []
+}
