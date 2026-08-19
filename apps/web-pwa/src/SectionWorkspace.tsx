@@ -1,6 +1,7 @@
-import { Box, Button, Card, CardContent, Chip, Paper, Stack, Typography } from '@mui/material';
+import { Box, Button, Card, CardContent, Chip, Paper } from '@mui/material';
 import type { Locale } from './lib/preferences';
 import { getWorkspaceCopy, type WorkspaceSection } from './lib/sectionData';
+import { Stack, Typography } from './ui/MuiCompat';
 
 interface SectionWorkspaceProps {
   locale: Locale;
