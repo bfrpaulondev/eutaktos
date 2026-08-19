@@ -25,6 +25,8 @@ jobs:
         run: npm run typecheck
       - name: Unit tests
         run: npm test
+      - name: PWA installability and cache policy
+        run: node scripts/validate-pwa.mjs
       - name: Production build
         run: npm run build
       - name: Runtime dependency audit
