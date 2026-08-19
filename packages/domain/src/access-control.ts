@@ -1,0 +1,88 @@
+import type { PersonId, TenantId } from './people';
+
+export type Capability =
+  | 'people.read'
+  | 'people.write'
+  | 'eligibility.read'
+  | 'eligibility.write'
+  | 'availability.read'
+  | 'availability.write'
+  | 'responsibilities.read'
+  | 'responsibilities.write'
+  | 'schedule.read'
+  | 'schedule.write'
+  | 'reports.read'
+  | 'reports.write'
+  | 'review.read'
+  | 'review.write'
+  | 'audit.read'
+  | 'tenant.manage';
+
+export interface AccessContext {
+  tenantId: TenantId;
+  actorId: PersonId;
+  capabilities: readonly Capability[];
+}
+
+export interface TenantScopedResource {
+  tenantId: TenantId;
+}
+
+function required(value: string, field: string): string {
+  const normalized = value.trim();
+  if (!normalized) throw new Error(`${field} is required`);
+  return normalized;
+}
+
+export function createAccessContext(input: AccessContext): Readonly<AccessContext> {
+  required(input.tenantId, 'tenantId');
+  required(input.actorId, 'actorId');
+
+  const capabilities = [...new Set(input.capabilities)].sort();
+  return Object.freeze({ ...input, capabilities: Object.freeze(capabilities) });
+}
+
+export function hasCapability(context: AccessContext, capability: Capability): boolean {
+  return context.capabilities.includes(capability);
+}
+
+export function assertCapability(context: AccessContext, capability: Capability): void {
+  if (!hasCapability(context, capability)) {
+    throw new Error(`Access denied: missing capability ${capability}`);
+  }
+}
+
+export function assertResourceTenant(context: AccessContext, resource: TenantScopedResource): void {
+  if (resource.tenantId !== context.tenantId) {
+    throw new Error('Cross-tenant access denied');
+  }
+}
+
+export function authorizeResource(
+  context: AccessContext,
+  resource: TenantScopedResource,
+  capability: Capability,
+): void {
+  assertResourceTenant(context, resource);
+  assertCapability(context, capability);
+}
+
+export function canAccessResource(
+  context: AccessContext,
+  resource: TenantScopedResource,
+  capability: Capability,
+): boolean {
+  return resource.tenantId === context.tenantId && hasCapability(context, capability);
+}
+
+/**
+ * Highly sensitive capabilities are deliberately separate from general tenant
+ * administration. A platform/congregation administrator must not gain Review
+ * Center or eligibility access merely by holding `tenant.manage`.
+ */
+export const SENSITIVE_CAPABILITIES: readonly Capability[] = Object.freeze([
+  'eligibility.write',
+  'review.read',
+  'review.write',
+  'audit.read',
+]);
