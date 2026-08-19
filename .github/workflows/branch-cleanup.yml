@@ -10,11 +10,11 @@ permissions:
   contents: write
 
 jobs:
-  delete-merged-head:
-    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.event.pull_request.head.repo.full_name == github.repository
+  delete-closed-head:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
-      - name: Delete merged feature branch
+      - name: Delete closed feature branch
         env:
           GH_TOKEN: ${{ github.token }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
@@ -27,7 +27,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - name: Remove superseded bootstrap branches
+      - name: Remove known superseded branches
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -39,6 +39,7 @@ jobs:
             "feat/epic-01-pwa-foundation-v5"
             "feat/interactive-workspaces"
             "feat/liquid-glass-design-system"
+            "feat/pwa-installability-hardening"
           )
 
           for branch in "${branches[@]}"; do
