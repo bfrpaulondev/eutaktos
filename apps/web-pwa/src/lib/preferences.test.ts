@@ -7,8 +7,21 @@ describe('normalizePreferences', () => {
   });
 
   it('preserves supported preferences', () => {
-    expect(normalizePreferences({ theme: 'dark', density: 'compact', locale: 'en', reducedMotion: true, highContrast: true }))
-      .toEqual({ theme: 'dark', density: 'compact', locale: 'en', reducedMotion: true, highContrast: true });
+    expect(normalizePreferences({
+      theme: 'dark',
+      density: 'compact',
+      locale: 'en',
+      reducedMotion: true,
+      reducedTransparency: true,
+      highContrast: true,
+    })).toEqual({
+      theme: 'dark',
+      density: 'compact',
+      locale: 'en',
+      reducedMotion: true,
+      reducedTransparency: true,
+      highContrast: true,
+    });
   });
 
   it('falls back when persisted values are unsupported', () => {
