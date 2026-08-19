@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "npm run dev --workspace @eutaktos/web-pwa",
     "build": "npm run build --workspace @eutaktos/web-pwa",
-    "typecheck": "npm run typecheck --workspace @eutaktos/web-pwa",
-    "test": "npm run test --workspace @eutaktos/web-pwa && node scripts/check-pwa.mjs"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present && node scripts/check-pwa.mjs"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
