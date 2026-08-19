@@ -25,6 +25,28 @@ interface ThemeOptionsInput {
   highContrast: boolean;
 }
 
+function linearize(channel: number): number {
+  const value = channel / 255;
+  return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+}
+
+export function relativeLuminance(hex: string): number {
+  const value = hex.replace('#', '');
+  const red = linearize(Number.parseInt(value.slice(0, 2), 16));
+  const green = linearize(Number.parseInt(value.slice(2, 4), 16));
+  const blue = linearize(Number.parseInt(value.slice(4, 6), 16));
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+}
+
+export function contrastRatio(first: string, second: string): number {
+  const [lighter, darker] = [relativeLuminance(first), relativeLuminance(second)].sort((a, b) => b - a);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function isReadableOnBoth(foreground: string, background: string, surface: string, minimum = 4.5): boolean {
+  return contrastRatio(foreground, background) >= minimum && contrastRatio(foreground, surface) >= minimum;
+}
+
 export function buildEutaktosTheme({
   paletteId,
   density,
@@ -37,13 +59,22 @@ export function buildEutaktosTheme({
   const compact = density === 'compact';
   const transparentSurface = reducedTransparency ? surface : alpha(surface, selected.mode === 'dark' ? 0.86 : 0.78);
 
+  // The supplied palettes are immutable brand presets. Some fourth/accent colors are intentionally
+  // subtle and do not meet normal-text contrast on their own. Semantic roles therefore select only
+  // contrast-safe colors from the same preset instead of changing the user's chosen hex values.
+  const secondaryText = isReadableOnBoth(muted, background, surface) ? muted : text;
+  const focusColor = isReadableOnBoth(accent, background, surface, 3) ? accent : text;
+
   let theme = createTheme({
     palette: {
       mode: selected.mode,
-      primary: { main: accent, contrastText: background },
+      // Primary is the palette's strong text color so contained controls always keep AA contrast.
+      // The fifth supplied color remains the visual accent through secondary/decorative roles.
+      primary: { main: text, contrastText: background },
+      secondary: { main: accent, contrastText: text },
       background: { default: background, paper: surface },
-      text: { primary: text, secondary: muted },
-      divider: highContrast ? text : alpha(muted, 0.28),
+      text: { primary: text, secondary: secondaryText },
+      divider: highContrast ? text : alpha(muted, 0.32),
     },
     shape: { borderRadius: 18 },
     spacing: compact ? 7 : 8,
@@ -75,7 +106,7 @@ export function buildEutaktosTheme({
           },
           '*': { boxSizing: 'border-box' },
           '*:focus-visible': {
-            outline: `3px solid ${accent}`,
+            outline: `3px solid ${focusColor}`,
             outlineOffset: 3,
           },
           '@media (prefers-reduced-motion: reduce)': {
@@ -89,7 +120,7 @@ export function buildEutaktosTheme({
           root: {
             backgroundColor: transparentSurface,
             backgroundImage: 'none',
-            border: `${highContrast ? 2 : 1}px solid ${highContrast ? text : alpha(muted, 0.20)}`,
+            border: `${highContrast ? 2 : 1}px solid ${highContrast ? text : alpha(muted, 0.24)}`,
             backdropFilter: reducedTransparency ? 'none' : 'blur(18px) saturate(118%)',
             WebkitBackdropFilter: reducedTransparency ? 'none' : 'blur(18px) saturate(118%)',
           },
@@ -100,7 +131,7 @@ export function buildEutaktosTheme({
         styleOverrides: {
           root: {
             backgroundColor: transparentSurface,
-            border: `${highContrast ? 2 : 1}px solid ${highContrast ? text : alpha(muted, 0.20)}`,
+            border: `${highContrast ? 2 : 1}px solid ${highContrast ? text : alpha(muted, 0.24)}`,
             transition: reducedMotion ? 'none' : 'transform 160ms ease, border-color 160ms ease',
           },
         },
@@ -117,11 +148,24 @@ export function buildEutaktosTheme({
           },
         },
       },
-      MuiSelect: {
-        defaultProps: { size: compact ? 'small' : 'medium' },
+      MuiLinearProgress: {
+        styleOverrides: {
+          root: { backgroundColor: alpha(accent, 0.18) },
+          bar: { backgroundColor: accent },
+        },
       },
       MuiSwitch: {
-        defaultProps: { color: 'primary' },
+        styleOverrides: {
+          switchBase: {
+            '&.Mui-checked': {
+              color: accent,
+              '& + .MuiSwitch-track': { backgroundColor: accent, opacity: 0.5 },
+            },
+          },
+        },
+      },
+      MuiSelect: {
+        defaultProps: { size: compact ? 'small' : 'medium' },
       },
     },
   });
