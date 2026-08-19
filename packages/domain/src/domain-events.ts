@@ -50,8 +50,15 @@ export function createDomainEvent(input: DomainEvent): Readonly<DomainEvent> {
   validateInstant(input.occurredAt);
   if (input.schemaVersion !== 1) throw new Error('Unsupported domain event schema version');
 
-  const correlationId = input.correlationId ? required(input.correlationId, 'correlationId') : undefined;
-  return Object.freeze({ ...input, correlationId });
+  if (input.correlationId) {
+    return Object.freeze({
+      ...input,
+      correlationId: required(input.correlationId, 'correlationId'),
+    });
+  }
+
+  const { correlationId: _omitted, ...event } = input;
+  return Object.freeze(event);
 }
 
 export function assertEventTenant(event: DomainEvent, tenantId: TenantId): void {
