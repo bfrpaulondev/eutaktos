@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="pt-PT" data-theme="system" data-density="comfortable">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#315c54">
+  <meta name="description" content="Eutaktos — protótipo PWA acessível para organização de congregação.">
+  <title>Eutaktos — Preview</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Saltar para o conteúdo principal</a>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Navegação principal">
+      <div class="brand" aria-label="Eutaktos">
+        <span class="brand-mark" aria-hidden="true">E</span>
+        <span class="brand-copy"><strong>Eutaktos</strong><small data-i18n="tagline">Everything in good order.</small></span>
+      </div>
+
+      <nav class="nav-list" aria-label="Secções">
+        <button class="nav-item is-active" data-view="home" aria-current="page"><span aria-hidden="true">⌂</span><span data-i18n="navHome">Início</span></button>
+        <button class="nav-item" data-view="agenda"><span aria-hidden="true">▦</span><span data-i18n="navAgenda">Agenda</span></button>
+        <button class="nav-item" data-view="assignments"><span aria-hidden="true">✓</span><span data-i18n="navAssignments">Designações</span></button>
+        <button class="nav-item" data-view="people"><span aria-hidden="true">◉</span><span data-i18n="navPeople">Pessoas</span></button>
+        <button class="nav-item" data-view="service"><span aria-hidden="true">⌖</span><span data-i18n="navService">Serviço</span></button>
+        <button class="nav-item" data-view="territories"><span aria-hidden="true">◇</span><span data-i18n="navTerritories">Territórios</span></button>
+        <button class="nav-item" data-view="reports"><span aria-hidden="true">▤</span><span data-i18n="navReports">Relatórios</span></button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button class="nav-item" data-view="settings"><span aria-hidden="true">⚙</span><span data-i18n="navSettings">Preferências</span></button>
+        <div class="privacy-pill"><span aria-hidden="true">●</span><span data-i18n="privacyLabel">Privacidade primeiro</span></div>
+      </div>
+    </aside>
+
+    <div class="workspace">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow" data-i18n="congregation">Congregação Exemplo</p>
+          <h1 id="page-title" data-i18n="homeTitle">Hoje</h1>
+        </div>
+        <div class="topbar-actions">
+          <button class="icon-button" id="quickSearch" aria-label="Pesquisa rápida" title="Pesquisa rápida">⌕</button>
+          <button class="icon-button notification-button" aria-label="Notificações: 2 por ler" title="Notificações"><span aria-hidden="true">♢</span><span class="notification-dot">2</span></button>
+          <button class="avatar-button" aria-label="Abrir perfil"><span aria-hidden="true">BP</span></button>
+        </div>
+      </header>
+
+      <main id="main" tabindex="-1">
+        <section id="view-home" class="view is-visible" aria-labelledby="home-heading">
+          <div class="welcome-row">
+            <div>
+              <p class="eyebrow" data-i18n="welcomeEyebrow">Quarta-feira, 19 de agosto</p>
+              <h2 id="home-heading" data-i18n="welcomeTitle">Tudo o que precisa da tua atenção.</h2>
+              <p class="muted" data-i18n="welcomeSubtitle">Sem procurar em vários menus. O Eutaktos reúne o que importa agora.</p>
+            </div>
+            <button class="button secondary" id="prepareMeeting" data-i18n="prepareMeeting">Preparar próxima reunião</button>
+          </div>
+
+          <section class="attention-grid" aria-label="Resumo de pendências">
+            <button class="stat-card" data-target="assignments"><span class="stat-value">3</span><span data-i18n="pendingConfirmations">Por confirmar</span><small data-i18n="pendingConfirmationsSub">designações</small></button>
+            <button class="stat-card warning" data-target="assignments"><span class="stat-value">1</span><span data-i18n="needsReplacement">Precisa substituto</span><small data-i18n="needsReplacementSub">esta semana</small></button>
+            <button class="stat-card" data-target="reports"><span class="stat-value">2</span><span data-i18n="missingReports">Relatórios em falta</span><small data-i18n="missingReportsSub">mês atual</small></button>
+            <button class="stat-card calm" data-target="review"><span class="stat-value">4</span><span data-i18n="reviewSuggestions">Sugestões de análise</span><small data-i18n="reviewSuggestionsSub">acesso restrito</small></button>
+          </section>
+
+          <div class="dashboard-grid">
+            <section class="panel next-panel" aria-labelledby="next-title">
+              <div class="panel-header">
+                <div><p class="eyebrow" data-i18n="nextEyebrow">A seguir</p><h3 id="next-title" data-i18n="nextTitle">Próximas designações</h3></div>
+                <button class="text-button" data-view-jump="agenda" data-i18n="seeAgenda">Ver agenda</button>
+              </div>
+
+              <article class="assignment-card accent-card">
+                <div class="date-tile"><strong>25</strong><span data-i18n="aug">AGO</span></div>
+                <div class="assignment-main">
+                  <div class="assignment-topline"><span class="badge success" data-i18n="confirmed">Confirmada</span><span class="muted">19:30</span></div>
+                  <h4 data-i18n="treasures">Pérolas Espirituais</h4>
+                  <p class="muted" data-i18n="midweekMeeting">Reunião do meio da semana</p>
+                  <div class="inline-actions"><button class="button small secondary" data-i18n="openDetails">Ver detalhes</button><button class="button small ghost" data-i18n="addCalendar">Adicionar ao calendário</button></div>
+                </div>
+              </article>
+
+              <article class="assignment-card">
+                <div class="date-tile"><strong>29</strong><span data-i18n="aug">AGO</span></div>
+                <div class="assignment-main">
+                  <div class="assignment-topline"><span class="badge waiting" data-i18n="awaiting">Aguardando confirmação</span><span class="muted">09:00</span></div>
+                  <h4 data-i18n="audio">Áudio</h4>
+                  <p class="muted" data-i18n="weekendMeeting">Reunião do fim de semana</p>
+                  <div class="inline-actions"><button class="button small" data-i18n="confirm">Confirmar</button><button class="button small ghost" data-i18n="cantDo">Não posso</button></div>
+                </div>
+              </article>
+            </section>
+
+            <section class="panel smart-panel" aria-labelledby="smart-title">
+              <div class="panel-header">
+                <div><p class="eyebrow" data-i18n="smartEyebrow">Smart Assign</p><h3 id="smart-title" data-i18n="smartTitle">Equilíbrio da Escola</h3></div>
+                <span class="score" aria-label="92 de 100">92</span>
+              </div>
+              <p class="muted" data-i18n="smartText">Há irmãos elegíveis que não recebem uma leitura há bastante mais tempo do que a média.</p>
+              <div class="insight-list">
+                <div class="insight-row"><div><strong>Carlos M.</strong><small data-i18n="eligibleReading">Elegível para leitura</small></div><span><strong>126</strong> <span data-i18n="days">dias</span></span></div>
+                <div class="insight-row"><div><strong>André S.</strong><small data-i18n="eligibleReading">Elegível para leitura</small></div><span><strong>84</strong> <span data-i18n="days">dias</span></span></div>
+                <div class="insight-row"><div><strong>Miguel R.</strong><small data-i18n="eligibleReading">Elegível para leitura</small></div><span><strong>77</strong> <span data-i18n="days">dias</span></span></div>
+              </div>
+              <button class="button full" id="openSmartAssign" data-i18n="generateBalanced">Gerar proposta equilibrada</button>
+              <p class="fine-print" data-i18n="humanDecision">O sistema recomenda. O responsável decide.</p>
+            </section>
+
+            <section class="panel span-two" aria-labelledby="week-title">
+              <div class="panel-header"><div><p class="eyebrow" data-i18n="weekEyebrow">Esta semana</p><h3 id="week-title" data-i18n="weekTitle">Cobertura da reunião</h3></div><span class="badge success" data-i18n="almostReady">Quase pronta</span></div>
+              <div class="coverage-list">
+                <div class="coverage-row"><span class="status-icon ok" aria-label="Confirmado">✓</span><div><strong data-i18n="sound">Som</strong><small>Rui C.</small></div><span class="badge success" data-i18n="confirmed">Confirmada</span></div>
+                <div class="coverage-row"><span class="status-icon ok" aria-label="Confirmado">✓</span><div><strong data-i18n="video">Vídeo</strong><small>Tiago P.</small></div><span class="badge success" data-i18n="confirmed">Confirmada</span></div>
+                <div class="coverage-row"><span class="status-icon wait" aria-label="Aguardando">!</span><div><strong data-i18n="microphone1">Microfone 1</strong><small>João F.</small></div><span class="badge waiting" data-i18n="awaiting">Aguardando confirmação</span></div>
+                <div class="coverage-row"><span class="status-icon missing" aria-label="Em falta">×</span><div><strong data-i18n="attendant2">Indicador 2</strong><small data-i18n="notAssigned">Ainda sem designação</small></div><button class="text-button" data-i18n="resolve">Resolver</button></div>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section id="view-agenda" class="view" aria-labelledby="agenda-heading">
+          <div class="section-heading"><div><p class="eyebrow" data-i18n="agendaEyebrow">Calendário pessoal</p><h2 id="agenda-heading" data-i18n="agendaTitle">Agenda</h2><p class="muted" data-i18n="agendaSubtitle">Designações, reuniões e tarefas numa única linha temporal.</p></div><button class="button secondary" data-i18n="syncCalendar">Sincronizar calendário</button></div>
+          <div class="timeline panel">
+            <article class="timeline-item"><time datetime="2026-08-25T19:30"><strong>25 AGO</strong><span>19:30</span></time><div><span class="badge success" data-i18n="confirmed">Confirmada</span><h3 data-i18n="treasures">Pérolas Espirituais</h3><p class="muted" data-i18n="midweekMeeting">Reunião do meio da semana</p></div></article>
+            <article class="timeline-item"><time datetime="2026-08-29T09:00"><strong>29 AGO</strong><span>09:00</span></time><div><span class="badge waiting" data-i18n="awaiting">Aguardando confirmação</span><h3 data-i18n="audio">Áudio</h3><p class="muted" data-i18n="weekendMeeting">Reunião do fim de semana</p></div></article>
+            <article class="timeline-item"><time datetime="2026-09-05T09:30"><strong>05 SET</strong><span>09:30</span></time><div><span class="badge neutral" data-i18n="info">Informação</span><h3 data-i18n="fieldService">Serviço de campo</h3><p class="muted" data-i18n="groupMeeting">Saída do grupo 2</p></div></article>
+          </div>
+        </section>
+
+        <section id="view-assignments" class="view" aria-labelledby="assignments-heading">
+          <div class="section-heading"><div><p class="eyebrow" data-i18n="assignmentsEyebrow">Planeamento inteligente</p><h2 id="assignments-heading" data-i18n="assignmentsTitle">Designações</h2><p class="muted" data-i18n="assignmentsSubtitle">Histórico, disponibilidade e equilíbrio visíveis antes de decidir.</p></div><button class="button" id="openSmartAssign2" data-i18n="generateSchedule">Gerar setembro</button></div>
+          <section class="panel table-panel" aria-labelledby="candidate-title">
+            <div class="panel-header"><div><p class="eyebrow" data-i18n="example">Exemplo</p><h3 id="candidate-title" data-i18n="candidateTitle">Leitura da Bíblia — candidatos</h3></div><span class="badge neutral" data-i18n="decisionSupport">Apoio à decisão</span></div>
+            <div class="responsive-table" role="region" aria-label="Candidatos à leitura" tabindex="0">
+              <table>
+                <thead><tr><th scope="col" data-i18n="person">Pessoa</th><th scope="col" data-i18n="lastReading">Última leitura</th><th scope="col" data-i18n="daysWithout">Dias sem leitura</th><th scope="col" data-i18n="assignments90">Designações 90d</th><th scope="col" data-i18n="availability">Disponível</th><th scope="col" data-i18n="recommendation">Recomendação</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">Carlos M.</th><td>12/05</td><td>126</td><td>1</td><td><span class="sr-only" data-i18n="yes">Sim</span>✓</td><td><strong>98%</strong></td></tr>
+                  <tr><th scope="row">André S.</th><td>23/06</td><td>84</td><td>2</td><td><span class="sr-only" data-i18n="yes">Sim</span>✓</td><td><strong>86%</strong></td></tr>
+                  <tr><th scope="row">Miguel R.</th><td>30/06</td><td>77</td><td>2</td><td><span class="sr-only" data-i18n="yes">Sim</span>✓</td><td><strong>81%</strong></td></tr>
+                  <tr><th scope="row">Bruno P.</th><td>04/08</td><td>15</td><td>4</td><td><span class="sr-only" data-i18n="yes">Sim</span>✓</td><td><strong>42%</strong></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="explanation-box"><strong data-i18n="whyCarlos">Por que Carlos aparece primeiro?</strong><p data-i18n="whyCarlosText">Está elegível, disponível, sem conflito nessa semana e é quem está há mais tempo sem esta designação entre os candidatos apresentados.</p></div>
+          </section>
+        </section>
+
+        <section id="view-people" class="view" aria-labelledby="people-heading">
+          <div class="section-heading"><div><p class="eyebrow" data-i18n="peopleEyebrow">Diretório</p><h2 id="people-heading" data-i18n="peopleTitle">Pessoas</h2><p class="muted" data-i18n="peopleSubtitle">Informação operacional com permissões e auditoria.</p></div><button class="button" data-i18n="addPerson">Adicionar pessoa</button></div>
+          <div class="people-grid">
+            <article class="person-card panel"><div class="person-avatar">CM</div><div><h3>Carlos M.</h3><p class="muted" data-i18n="group2">Grupo 2</p><div class="chip-row"><span class="badge neutral" data-i18n="student">Estudante</span><span class="badge neutral" data-i18n="av">AV</span></div></div><button class="icon-button" aria-label="Mais opções para Carlos">•••</button></article>
+            <article class="person-card panel"><div class="person-avatar">AS</div><div><h3>André S.</h3><p class="muted" data-i18n="group1">Grupo 1</p><div class="chip-row"><span class="badge neutral" data-i18n="student">Estudante</span></div></div><button class="icon-button" aria-label="Mais opções para André">•••</button></article>
+            <article class="person-card panel"><div class="person-avatar">MR</div><div><h3>Miguel R.</h3><p class="muted" data-i18n="group3">Grupo 3</p><div class="chip-row"><span class="badge neutral" data-i18n="student">Estudante</span><span class="badge neutral" data-i18n="microphones">Microfones</span></div></div><button class="icon-button" aria-label="Mais opções para Miguel">•••</button></article>
+          </div>
+        </section>
+
+        <section id="view-settings" class="view" aria-labelledby="settings-heading">
+          <div class="section-heading"><div><p class="eyebrow" data-i18n="settingsEyebrow">Só para ti</p><h2 id="settings-heading" data-i18n="settingsTitle">Preferências</h2><p class="muted" data-i18n="settingsSubtitle">Estas opções não alteram a experiência dos outros utilizadores.</p></div></div>
+          <div class="settings-grid">
+            <section class="panel settings-card" aria-labelledby="language-title"><h3 id="language-title" data-i18n="language">Idioma</h3><label for="languageSelect" data-i18n="appLanguage">Idioma da aplicação</label><select id="languageSelect"><option value="pt-PT">Português</option><option value="en">English</option><option value="es">Español</option></select><p class="fine-print" data-i18n="languageHelp">Independente do idioma definido para a congregação.</p></section>
+            <section class="panel settings-card" aria-labelledby="theme-title"><h3 id="theme-title" data-i18n="appearance">Aparência</h3><fieldset><legend data-i18n="theme">Tema</legend><div class="segmented"><button type="button" data-theme-choice="light" data-i18n="light">Claro</button><button type="button" data-theme-choice="dark" data-i18n="dark">Escuro</button><button type="button" data-theme-choice="system" class="is-selected" data-i18n="system">Sistema</button></div></fieldset><fieldset><legend data-i18n="accent">Cor de destaque</legend><div class="accent-choices" id="accentChoices"><button class="accent-choice accent-green is-selected" data-accent="green" aria-label="Verde"></button><button class="accent-choice accent-blue" data-accent="blue" aria-label="Azul"></button><button class="accent-choice accent-purple" data-accent="purple" aria-label="Roxo"></button><button class="accent-choice accent-amber" data-accent="amber" aria-label="Âmbar"></button></div></fieldset></section>
+            <section class="panel settings-card" aria-labelledby="reading-title"><h3 id="reading-title" data-i18n="reading">Leitura e conforto</h3><label for="textSize" data-i18n="textSize">Tamanho do texto</label><input id="textSize" type="range" min="0" max="2" step="1" value="1" aria-describedby="textSizeValue"><output id="textSizeValue" for="textSize" data-i18n="normal">Normal</output><label class="switch-row"><span><strong data-i18n="readableFont">Fonte de alta legibilidade</strong><small data-i18n="readableFontHelp">Mais espaço entre letras e linhas.</small></span><input id="readableFont" type="checkbox" role="switch"></label><label class="switch-row"><span><strong data-i18n="highContrast">Contraste elevado</strong><small data-i18n="highContrastHelp">Reforça bordas e contraste visual.</small></span><input id="highContrast" type="checkbox" role="switch"></label></section>
+            <section class="panel settings-card" aria-labelledby="motion-title"><h3 id="motion-title" data-i18n="interaction">Interação</h3><label class="switch-row"><span><strong data-i18n="reducedMotion">Reduzir movimento</strong><small data-i18n="reducedMotionHelp">Evita animações não essenciais.</small></span><input id="reducedMotion" type="checkbox" role="switch"></label><fieldset><legend data-i18n="density">Densidade</legend><div class="segmented"><button type="button" data-density-choice="comfortable" class="is-selected" data-i18n="comfortable">Confortável</button><button type="button" data-density-choice="compact" data-i18n="compact">Compacta</button></div></fieldset></section>
+          </div>
+        </section>
+
+        <section id="view-placeholder" class="view" aria-labelledby="placeholder-heading">
+          <div class="empty-state panel"><span class="empty-icon" aria-hidden="true">◇</span><h2 id="placeholder-heading" data-i18n="previewTitle">Módulo em protótipo</h2><p class="muted" data-i18n="previewText">Esta área fará parte da PWA completa. O preview concentra-se primeiro na experiência, acessibilidade e Smart Assign.</p><button class="button secondary" data-view-jump="home" data-i18n="backHome">Voltar ao início</button></div>
+        </section>
+      </main>
+
+      <nav class="bottom-nav" aria-label="Navegação móvel">
+        <button class="bottom-item is-active" data-view="home" aria-current="page"><span aria-hidden="true">⌂</span><small data-i18n="navHome">Início</small></button>
+        <button class="bottom-item" data-view="agenda"><span aria-hidden="true">▦</span><small data-i18n="navAgenda">Agenda</small></button>
+        <button class="bottom-item" data-view="assignments"><span aria-hidden="true">✓</span><small data-i18n="navAssignments">Designações</small></button>
+        <button class="bottom-item" data-view="settings"><span aria-hidden="true">⚙</span><small data-i18n="navSettings">Preferências</small></button>
+      </nav>
+    </div>
+  </div>
+
+  <dialog id="smartDialog" aria-labelledby="smart-dialog-title">
+    <form method="dialog" class="dialog-card">
+      <div class="dialog-header"><div><p class="eyebrow" data-i18n="smartEyebrow">Smart Assign</p><h2 id="smart-dialog-title" data-i18n="proposalTitle">Proposta para setembro</h2></div><button class="icon-button" value="cancel" aria-label="Fechar">×</button></div>
+      <div class="dialog-summary"><div><strong>26</strong><span data-i18n="assignmentsCreated">designações propostas</span></div><div><strong>0</strong><span data-i18n="conflicts">conflitos</span></div><div><strong>92%</strong><span data-i18n="balance">equilíbrio</span></div></div>
+      <div class="proposal-list">
+        <article><div><span class="badge success">98%</span><h3>Carlos M.</h3><p class="muted" data-i18n="proposalCarlos">Leitura — 15/09 · 126 dias desde a última leitura · sem conflitos</p></div><button type="button" class="text-button" data-i18n="why">Por quê?</button></article>
+        <article><div><span class="badge success">91%</span><h3>André S.</h3><p class="muted" data-i18n="proposalAndre">Leitura — 29/09 · 98 dias projetados · nenhuma outra designação na semana</p></div><button type="button" class="text-button" data-i18n="why">Por quê?</button></article>
+      </div>
+      <div class="explanation-box" id="dialogExplanation"><strong data-i18n="transparentReasons">Razões transparentes</strong><p data-i18n="transparentReasonsText">Elegibilidade e disponibilidade são regras obrigatórias. A ordenação usa histórico e carga para ajudar o responsável, nunca para decidir qualificação espiritual.</p></div>
+      <div class="dialog-actions"><button class="button ghost" value="cancel" data-i18n="cancel">Cancelar</button><button class="button" value="default" id="acceptDraft" data-i18n="reviewDraft">Rever proposta completa</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="searchDialog" aria-labelledby="search-dialog-title">
+    <form method="dialog" class="dialog-card search-card">
+      <div class="dialog-header"><h2 id="search-dialog-title" data-i18n="quickSearch">Pesquisa rápida</h2><button class="icon-button" value="cancel" aria-label="Fechar">×</button></div>
+      <label class="search-field"><span class="sr-only" data-i18n="search">Pesquisar</span><input id="searchInput" type="search" placeholder="Carlos, áudio, setembro…" autocomplete="off"><kbd>Esc</kbd></label>
+      <div class="search-results" aria-live="polite"><button type="button"><span><strong>Carlos M.</strong><small data-i18n="searchPersonHint">Pessoa · Grupo 2 · últimas designações</small></span><span aria-hidden="true">›</span></button><button type="button"><span><strong data-i18n="audioSeptember">Áudio · setembro</strong><small data-i18n="searchScheduleHint">Programa · 4 semanas</small></span><span aria-hidden="true">›</span></button></div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+  <script src="./app.js" defer></script>
+</body>
+</html>
