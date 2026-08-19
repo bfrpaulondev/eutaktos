@@ -1,0 +1,25 @@
+name: Bug report
+description: Report a reproducible non-security bug
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: "Do not include real congregation/member data. Security vulnerabilities must not be filed publicly."
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction using synthetic data
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
