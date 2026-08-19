@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Eutaktos">
+  <rect width="512" height="512" fill="#FAFAFA"/>
+  <circle cx="256" cy="256" r="176" fill="#3B82F6"/>
+  <path d="M184 158h160v44H234v32h95v44h-95v32h112v44H184V158z" fill="#FAFAFA"/>
+</svg>
