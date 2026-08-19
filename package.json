@@ -1,0 +1,21 @@
+{
+  "name": "eutaktos",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "npm run dev --workspace @eutaktos/web-pwa",
+    "build": "npm run build --workspace @eutaktos/web-pwa",
+    "typecheck": "npm run typecheck --workspace @eutaktos/web-pwa",
+    "test": "npm run test --workspace @eutaktos/web-pwa"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.0.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.1",
+    "vitest": "^4.1.10"
+  },
+  "engines": { "node": ">=24" }
+}
