@@ -40,6 +40,7 @@ jobs:
             "feat/interactive-workspaces"
             "feat/liquid-glass-design-system"
             "feat/pwa-installability-hardening"
+            "chore/closed-branch-cleanup"
           )
 
           for branch in "${branches[@]}"; do
