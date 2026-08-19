@@ -4,3 +4,4 @@ export * from './audit';
 export * from './access-control';
 export * from './congregation';
 export * from './domain-events';
+export * from './repository';
