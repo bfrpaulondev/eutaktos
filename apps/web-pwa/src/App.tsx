@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import {
   Avatar,
   Box,
@@ -55,12 +55,12 @@ const copy = {
   es: {
     skip: 'Saltar al contenido principal', home: 'Inicio', agenda: 'Agenda', assignments: 'Asignaciones', people: 'Personas', prefs: 'Preferencias',
     eyebrow: 'Miércoles, 19 de agosto', title: 'Todo en buen orden.', subtitle: 'Lo que necesita tu atención aparece primero, sin ruido ni menús agotadores.',
-    privacy: 'Privacidad primero', prepare: 'Preparar próxima reunión', focus: 'Ahora', nextAssignment: 'Próxima asignación', gems: 'Perlas espirituales', midweek: 'Reunión de entre semana · 20:00', confirmed: 'Confirmada',
+    privacy: 'Privacidad primero', prepare: 'Preparar próxima reunião', focus: 'Ahora', nextAssignment: 'Próxima asignación', gems: 'Perlas espirituales', midweek: 'Reunión de entre semana · 20:00', confirmed: 'Confirmada',
     pending: 'Por confirmar', pendingSub: 'asignaciones', openRoles: 'Sin asignar', openRolesSub: 'función esta semana', reports: 'Informes pendientes', reportsSub: 'mes actual',
     smart: 'Smart Assign', balance: 'Equilibrio de la Escuela', fairnessText: 'Hay hermanos elegibles que llevan mucho más tiempo sin una lectura. El sistema muestra razones transparentes; el responsable decide.',
     candidate: 'Elegible para lectura', days: 'días', generate: 'Generar propuesta equilibrada', human: 'Recomendación objetiva. Decisión humana.',
     ready: 'Cobertura de la reunión', almostReady: 'Casi lista', sound: 'Sonido', video: 'Vídeo', microphone: 'Micrófono 1', attendant: 'Acomodador 2', missing: 'Aún sin asignar',
-    personal: 'Solo para ti', palette: 'Paleta', density: 'Densidad', contrast: 'Contraste alto', motion: 'Reducir movimiento', transparency: 'Reducir transparencia', language: 'Idioma', comfortable: 'Cómoda', compact: 'Compacta',
+    personal: 'Solo para ti', palette: 'Paleta', density: 'Densidad', contrast: 'Contraste alto', motion: 'Reducir movimiento', transparency: 'Reducir transparência', language: 'Idioma', comfortable: 'Cómoda', compact: 'Compacta',
     palettes: ['Neutro Clásico', 'Neutro Cálido', 'Monocromático + Verde', 'Azul Pastel', 'Modo Oscuro Minimalista', 'Pastel Suave'],
   },
 } as const;
@@ -98,7 +98,7 @@ export default function App() {
 
 interface AppShellProps {
   preferences: Preferences;
-  setPreferences: React.Dispatch<React.SetStateAction<Preferences>>;
+  setPreferences: Dispatch<SetStateAction<Preferences>>;
 }
 
 function AppShell({ preferences, setPreferences }: AppShellProps) {
