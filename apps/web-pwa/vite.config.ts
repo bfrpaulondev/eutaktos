@@ -8,9 +8,4 @@ export default defineConfig({
     target: 'es2022',
     sourcemap: true,
   },
-  test: {
-    environment: 'node',
-    globals: true,
-    include: ['src/**/*.test.ts'],
-  },
 });
