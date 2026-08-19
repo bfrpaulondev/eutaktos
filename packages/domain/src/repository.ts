@@ -8,6 +8,8 @@ export interface IdentifiedTenantResource extends TenantScopedResource {
 export interface TenantRepository<T extends IdentifiedTenantResource> {
   list(context: AccessContext): readonly T[];
   findById(context: AccessContext, id: string): T | undefined;
+  insert(context: AccessContext, resource: T): T;
+  replace(context: AccessContext, resource: T): T;
   save(context: AccessContext, resource: T): T;
   delete(context: AccessContext, id: string): boolean;
 }
@@ -55,6 +57,24 @@ export class InMemoryTenantRepository<T extends IdentifiedTenantResource>
   findById(context: AccessContext, id: string): T | undefined {
     assertCapability(context, this.#readCapability);
     return this.#records.get(storageKey(context.tenantId, id));
+  }
+
+  insert(context: AccessContext, resource: T): T {
+    assertCapability(context, this.#writeCapability);
+    assertResourceTenant(context, resource);
+    const key = storageKey(context.tenantId, resource.id);
+    if (this.#records.has(key)) throw new Error('Tenant resource already exists');
+    this.#records.set(key, resource);
+    return resource;
+  }
+
+  replace(context: AccessContext, resource: T): T {
+    assertCapability(context, this.#writeCapability);
+    assertResourceTenant(context, resource);
+    const key = storageKey(context.tenantId, resource.id);
+    if (!this.#records.has(key)) throw new Error('Tenant resource does not exist');
+    this.#records.set(key, resource);
+    return resource;
   }
 
   save(context: AccessContext, resource: T): T {
