@@ -1,9 +1,9 @@
-export type Theme = 'light' | 'dark' | 'system';
 export type Density = 'comfortable' | 'compact';
 export type Locale = 'pt-PT' | 'en' | 'es';
+export type PaletteId = 'classic' | 'warm' | 'green' | 'blue' | 'dark' | 'pastel';
 
 export interface Preferences {
-  theme: Theme;
+  paletteId: PaletteId;
   density: Density;
   locale: Locale;
   reducedMotion: boolean;
@@ -12,7 +12,7 @@ export interface Preferences {
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
-  theme: 'system',
+  paletteId: 'classic',
   density: 'comfortable',
   locale: 'pt-PT',
   reducedMotion: false,
@@ -20,12 +20,17 @@ export const DEFAULT_PREFERENCES: Preferences = {
   highContrast: false,
 };
 
+const PALETTE_IDS: readonly PaletteId[] = ['classic', 'warm', 'green', 'blue', 'dark', 'pastel'];
+
 export function normalizePreferences(input: Partial<Preferences> | null | undefined): Preferences {
-  const theme: Theme = input?.theme === 'light' || input?.theme === 'dark' ? input.theme : 'system';
+  const paletteId: PaletteId = PALETTE_IDS.includes(input?.paletteId as PaletteId)
+    ? (input?.paletteId as PaletteId)
+    : 'classic';
   const density: Density = input?.density === 'compact' ? 'compact' : 'comfortable';
   const locale: Locale = input?.locale === 'en' || input?.locale === 'es' ? input.locale : 'pt-PT';
+
   return {
-    theme,
+    paletteId,
     density,
     locale,
     reducedMotion: Boolean(input?.reducedMotion),
