@@ -14,7 +14,7 @@ const copy = {
     smart: 'Smart Assign', balance: 'Equilíbrio da Escola', fairnessText: 'Há irmãos elegíveis que estão há bastante mais tempo sem uma leitura. O sistema apresenta razões transparentes; o responsável decide.',
     candidate: 'Elegível para leitura', days: 'dias', generate: 'Gerar proposta equilibrada', human: 'Recomendação objetiva. Decisão humana.',
     ready: 'Cobertura da reunião', almostReady: 'Quase pronta', sound: 'Som', video: 'Vídeo', microphone: 'Microfone 1', attendant: 'Indicador 2', missing: 'Ainda sem designação',
-    personal: 'Só para ti', theme: 'Tema', density: 'Densidade', contrast: 'Contraste elevado', motion: 'Reduzir movimento', language: 'Idioma', system: 'Sistema', light: 'Claro', dark: 'Escuro', comfortable: 'Confortável', compact: 'Compacta',
+    personal: 'Só para ti', theme: 'Tema', density: 'Densidade', contrast: 'Contraste elevado', motion: 'Reduzir movimento', transparency: 'Reduzir transparência', language: 'Idioma', system: 'Sistema', light: 'Claro', dark: 'Escuro', comfortable: 'Confortável', compact: 'Compacta',
   },
   en: {
     skip: 'Skip to main content', home: 'Home', agenda: 'Agenda', assignments: 'Assignments', people: 'People', prefs: 'Preferences',
@@ -24,7 +24,7 @@ const copy = {
     smart: 'Smart Assign', balance: 'School balance', fairnessText: 'Some eligible brothers have gone significantly longer without a reading. The system shows transparent reasons; the responsible brother decides.',
     candidate: 'Eligible for reading', days: 'days', generate: 'Generate balanced proposal', human: 'Objective recommendation. Human decision.',
     ready: 'Meeting coverage', almostReady: 'Almost ready', sound: 'Sound', video: 'Video', microphone: 'Microphone 1', attendant: 'Attendant 2', missing: 'Not assigned yet',
-    personal: 'Just for you', theme: 'Theme', density: 'Density', contrast: 'High contrast', motion: 'Reduce motion', language: 'Language', system: 'System', light: 'Light', dark: 'Dark', comfortable: 'Comfortable', compact: 'Compact',
+    personal: 'Just for you', theme: 'Theme', density: 'Density', contrast: 'High contrast', motion: 'Reduce motion', transparency: 'Reduce transparency', language: 'Language', system: 'System', light: 'Light', dark: 'Dark', comfortable: 'Comfortable', compact: 'Compact',
   },
   es: {
     skip: 'Saltar al contenido principal', home: 'Inicio', agenda: 'Agenda', assignments: 'Asignaciones', people: 'Personas', prefs: 'Preferencias',
@@ -34,7 +34,7 @@ const copy = {
     smart: 'Smart Assign', balance: 'Equilibrio de la Escuela', fairnessText: 'Hay hermanos elegibles que llevan mucho más tiempo sin una lectura. El sistema muestra razones transparentes; el responsable decide.',
     candidate: 'Elegible para lectura', days: 'días', generate: 'Generar propuesta equilibrada', human: 'Recomendación objetiva. Decisión humana.',
     ready: 'Cobertura de la reunión', almostReady: 'Casi lista', sound: 'Sonido', video: 'Vídeo', microphone: 'Micrófono 1', attendant: 'Acomodador 2', missing: 'Aún sin asignar',
-    personal: 'Solo para ti', theme: 'Tema', density: 'Densidad', contrast: 'Contraste alto', motion: 'Reducir movimiento', language: 'Idioma', system: 'Sistema', light: 'Claro', dark: 'Oscuro', comfortable: 'Cómoda', compact: 'Compacta',
+    personal: 'Solo para ti', theme: 'Tema', density: 'Densidad', contrast: 'Contraste alto', motion: 'Reducir movimiento', transparency: 'Reducir transparencia', language: 'Idioma', system: 'Sistema', light: 'Claro', dark: 'Oscuro', comfortable: 'Cómoda', compact: 'Compacta',
   },
 } as const;
 
@@ -56,6 +56,7 @@ export default function App() {
     root.dataset.density = preferences.density;
     root.dataset.contrast = preferences.highContrast ? 'high' : 'normal';
     root.dataset.motion = preferences.reducedMotion ? 'reduced' : 'full';
+    root.dataset.transparency = preferences.reducedTransparency ? 'reduced' : 'full';
   }, [preferences]);
 
   const update = <K extends keyof Preferences>(key: K, value: Preferences[K]) => setPreferences(current => ({ ...current, [key]: value }));
@@ -120,6 +121,7 @@ export default function App() {
             <label>{text.density}<select value={preferences.density} onChange={e => update('density', e.target.value as Preferences['density'])}><option value="comfortable">{text.comfortable}</option><option value="compact">{text.compact}</option></select></label>
             <label className="toggle-row"><input type="checkbox" checked={preferences.highContrast} onChange={e => update('highContrast', e.target.checked)} /><span>{text.contrast}</span></label>
             <label className="toggle-row"><input type="checkbox" checked={preferences.reducedMotion} onChange={e => update('reducedMotion', e.target.checked)} /><span>{text.motion}</span></label>
+            <label className="toggle-row"><input type="checkbox" checked={preferences.reducedTransparency} onChange={e => update('reducedTransparency', e.target.checked)} /><span>{text.transparency}</span></label>
           </div>
         </article>
       </section>
