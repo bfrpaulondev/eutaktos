@@ -6,16 +6,20 @@ describe('normalizePreferences', () => {
     expect(normalizePreferences(undefined)).toEqual(DEFAULT_PREFERENCES);
   });
 
+  it('uses Neutral Classic as the default palette', () => {
+    expect(DEFAULT_PREFERENCES.paletteId).toBe('classic');
+  });
+
   it('preserves supported preferences', () => {
     expect(normalizePreferences({
-      theme: 'dark',
+      paletteId: 'dark',
       density: 'compact',
       locale: 'en',
       reducedMotion: true,
       reducedTransparency: true,
       highContrast: true,
     })).toEqual({
-      theme: 'dark',
+      paletteId: 'dark',
       density: 'compact',
       locale: 'en',
       reducedMotion: true,
@@ -25,7 +29,7 @@ describe('normalizePreferences', () => {
   });
 
   it('falls back when persisted values are unsupported', () => {
-    const unsafe = { theme: 'neon', density: 'tiny', locale: 'xx' } as never;
+    const unsafe = { paletteId: 'neon', density: 'tiny', locale: 'xx' } as never;
     expect(normalizePreferences(unsafe)).toEqual(DEFAULT_PREFERENCES);
   });
 });
