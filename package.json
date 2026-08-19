@@ -1,0 +1,17 @@
+{
+  "name": "eutaktos",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Privacy-first, accessible congregation management PWA.",
+  "workspaces": ["apps/*", "packages/*"],
+  "engines": {"node": ">=22.12.0"},
+  "scripts": {
+    "dev": "npm --workspace @eutaktos/web-pwa run dev",
+    "build": "npm --workspace @eutaktos/web-pwa run build",
+    "test": "npm --workspace @eutaktos/web-pwa run test",
+    "test:e2e": "npm --workspace @eutaktos/web-pwa run test:e2e",
+    "typecheck": "npm --workspace @eutaktos/web-pwa run typecheck",
+    "validate:repo": "node scripts/validate-repo.mjs",
+    "check": "npm run validate:repo && npm run typecheck && npm run test && npm run build"
+  }
+}
