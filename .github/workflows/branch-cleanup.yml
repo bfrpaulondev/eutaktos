@@ -10,24 +10,23 @@ permissions:
   contents: write
 
 jobs:
-  delete-merged-head:
-    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.event.pull_request.head.repo.full_name == github.repository
+  delete-closed-head:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref != 'main'
     runs-on: ubuntu-latest
     steps:
-      - name: Delete merged feature branch
+      - name: Delete completed or abandoned feature branch
         env:
           GH_TOKEN: ${{ github.token }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
-          if [ "$HEAD_REF" != "main" ]; then
-            gh api -X DELETE "repos/${GITHUB_REPOSITORY}/git/refs/heads/${HEAD_REF}" || true
-          fi
+          echo "Deleting closed PR branch ${HEAD_REF}"
+          gh api -X DELETE "repos/${GITHUB_REPOSITORY}/git/refs/heads/${HEAD_REF}" || true
 
   cleanup-legacy-branches:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - name: Remove superseded bootstrap branches
+      - name: Remove superseded branches
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -39,6 +38,7 @@ jobs:
             "feat/epic-01-pwa-foundation-v5"
             "feat/interactive-workspaces"
             "feat/liquid-glass-design-system"
+            "feat/pwa-installability-hardening"
           )
 
           for branch in "${branches[@]}"; do
