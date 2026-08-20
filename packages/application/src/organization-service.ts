@@ -43,12 +43,21 @@ export interface HouseholdChange {
   domainEvent: Readonly<DomainEvent>;
 }
 
+export interface OrganizationDeletionChange {
+  auditEvent: Readonly<AuditEvent>;
+  domainEvent: Readonly<DomainEvent>;
+}
+
 export interface HouseholdUnitOfWork {
   listHouseholds(context: AccessContext): readonly Household[];
   findHouseholdById(context: AccessContext, id: HouseholdId): Household | undefined;
   commitHouseholdCreate(context: AccessContext, change: HouseholdChange): Household;
   commitHouseholdUpdate(context: AccessContext, change: HouseholdChange): Household;
-  commitHouseholdDelete(context: AccessContext, id: HouseholdId): boolean;
+  commitHouseholdDelete(
+    context: AccessContext,
+    id: HouseholdId,
+    change: OrganizationDeletionChange,
+  ): boolean;
 }
 
 // ---- Service Group ----
@@ -80,7 +89,11 @@ export interface ServiceGroupUnitOfWork {
   findServiceGroupById(context: AccessContext, id: ServiceGroupId): ServiceGroup | undefined;
   commitServiceGroupCreate(context: AccessContext, change: ServiceGroupChange): ServiceGroup;
   commitServiceGroupUpdate(context: AccessContext, change: ServiceGroupChange): ServiceGroup;
-  commitServiceGroupDelete(context: AccessContext, id: ServiceGroupId): boolean;
+  commitServiceGroupDelete(
+    context: AccessContext,
+    id: ServiceGroupId,
+    change: OrganizationDeletionChange,
+  ): boolean;
 }
 
 // ---- Responsibility ----
@@ -281,10 +294,7 @@ export class OrganizationService {
       ...eventCorrelation(metadata),
     });
 
-    // The delete UoW method does not need the change; we just log audit/event.
-    // The UoW implementation is responsible for persisting them.
-    const result = this.#householdUow.commitHouseholdDelete(context, id);
-    return result;
+    return this.#householdUow.commitHouseholdDelete(context, id, { auditEvent, domainEvent });
   }
 
   // ---- Service Group use cases ----
@@ -438,7 +448,31 @@ export class OrganizationService {
     if (!existing) throw new Error('Service group not found');
     assertResourceTenant(context, existing);
 
-    return this.#serviceGroupUow.commitServiceGroupDelete(context, id);
+    const occurredAt = this.#runtime.now();
+
+    const auditEvent = createAuditEvent({
+      id: this.#runtime.nextId('audit'),
+      tenantId: context.tenantId,
+      resourceType: 'service-group',
+      resourceId: id,
+      action: 'delete',
+      actorId: context.actorId,
+      occurredAt,
+      changedFields: [],
+    });
+
+    const domainEvent = createDomainEvent({
+      id: this.#runtime.nextId('event'),
+      tenantId: context.tenantId,
+      type: 'ServiceGroupDeleted',
+      aggregateId: id,
+      actorId: context.actorId,
+      occurredAt,
+      schemaVersion: 1,
+      ...eventCorrelation(metadata),
+    });
+
+    return this.#serviceGroupUow.commitServiceGroupDelete(context, id, { auditEvent, domainEvent });
   }
 
   // ---- Responsibility use cases ----
