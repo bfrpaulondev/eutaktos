@@ -2,11 +2,13 @@ import { describe, expect, it, vi } from 'vitest';
 import { createPeopleApi, parsePeopleResponse } from './peopleApi';
 
 describe('People API client', () => {
-  it('parses only minimal directory DTOs', () => {
+  it('parses and minimizes directory DTOs', () => {
     expect(parsePeopleResponse([{ id: 'p1', displayName: 'Ana Costa', preferredLocale: 'pt-PT', active: true }])).toEqual([
       { id: 'p1', displayName: 'Ana Costa', preferredLocale: 'pt-PT', active: true },
     ]);
-    expect(() => parsePeopleResponse([{ id: 'p1', displayName: 'Ana', active: true, eligibility: [] }])).not.toThrow();
+    expect(parsePeopleResponse([{ id: 'p1', displayName: 'Ana', active: true, eligibility: [], availability: [] }])).toEqual([
+      { id: 'p1', displayName: 'Ana', active: true },
+    ]);
     expect(() => parsePeopleResponse([{ id: 'p1', displayName: 'Ana' }])).toThrow('Invalid People API response');
   });
 
