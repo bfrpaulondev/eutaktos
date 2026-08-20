@@ -1,5 +1,6 @@
 import { alpha, createTheme, responsiveFontSizes, type Theme } from '@mui/material/styles';
 import type { Density, PaletteId } from './lib/preferences';
+import { textDirectionForLocale } from './lib/textDirection';
 
 export interface EutaktosPalette {
   id: PaletteId;
@@ -20,6 +21,7 @@ export const EUTAKTOS_PALETTES: Record<PaletteId, EutaktosPalette> = {
 interface ThemeOptionsInput {
   paletteId: PaletteId;
   density: Density;
+  locale?: string;
   reducedMotion: boolean;
   reducedTransparency: boolean;
   highContrast: boolean;
@@ -50,6 +52,7 @@ function isReadableOnBoth(foreground: string, background: string, surface: strin
 export function buildEutaktosTheme({
   paletteId,
   density,
+  locale = 'en',
   reducedMotion,
   reducedTransparency,
   highContrast,
@@ -59,17 +62,13 @@ export function buildEutaktosTheme({
   const compact = density === 'compact';
   const transparentSurface = reducedTransparency ? surface : alpha(surface, selected.mode === 'dark' ? 0.86 : 0.78);
 
-  // The supplied palettes are immutable brand presets. Some fourth/accent colors are intentionally
-  // subtle and do not meet normal-text contrast on their own. Semantic roles therefore select only
-  // contrast-safe colors from the same preset instead of changing the user's chosen hex values.
   const secondaryText = isReadableOnBoth(muted, background, surface) ? muted : text;
   const focusColor = isReadableOnBoth(accent, background, surface, 3) ? accent : text;
 
   let theme = createTheme({
+    direction: textDirectionForLocale(locale),
     palette: {
       mode: selected.mode,
-      // Primary is the palette's strong text color so contained controls always keep AA contrast.
-      // The fifth supplied color remains the visual accent through secondary/decorative roles.
       primary: { main: text, contrastText: background },
       secondary: { main: accent, contrastText: text },
       background: { default: background, paper: surface },
