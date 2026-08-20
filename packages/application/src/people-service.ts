@@ -47,9 +47,11 @@ export interface PeopleUnitOfWork {
   commitUpdate(context: AccessContext, change: PersonChange): CongregationPerson;
 }
 
+export type ApplicationIdScope = 'person' | 'availability' | 'audit' | 'event';
+
 export interface ApplicationRuntime {
   now(): string;
-  nextId(scope: 'person' | 'audit' | 'event'): string;
+  nextId(scope: ApplicationIdScope): string;
 }
 
 function normalizeLocale(value: string): string {
@@ -64,7 +66,7 @@ function normalizeLocale(value: string): string {
   }
 }
 
-function eventCorrelation(metadata: RequestMetadata): Pick<DomainEvent, 'correlationId'> | Record<string, never> {
+export function eventCorrelation(metadata: RequestMetadata): Pick<DomainEvent, 'correlationId'> | Record<string, never> {
   return metadata.correlationId ? { correlationId: metadata.correlationId } : {};
 }
 
@@ -184,7 +186,7 @@ export class PeopleDirectoryService {
       ...(preferredLocale ? { preferredLocale } : { preferredLocale: undefined }),
       active,
       // Eligibility and availability are protected subdomains. Generic profile edits
-      // must preserve them exactly; dedicated use cases will require their own capabilities.
+      // must preserve them exactly; dedicated use cases require their own capabilities.
       availability: existing.availability,
       eligibility: existing.eligibility,
     };

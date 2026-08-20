@@ -46,7 +46,7 @@ class FakePeopleUnitOfWork implements PeopleUnitOfWork {
 }
 
 function runtime(): ApplicationRuntime {
-  const counters = { person: 0, audit: 0, event: 0 };
+  const counters = { person: 0, availability: 0, audit: 0, event: 0 };
   return {
     now: () => '2026-08-20T00:00:00.000Z',
     nextId: scope => `${scope}-${++counters[scope]}`,
@@ -69,7 +69,7 @@ function personFixture(overrides: Partial<CongregationPerson> = {}): Congregatio
     preferredLocale: 'pt-PT',
     active: true,
     availability: [
-      { startsAt: '2026-09-01T00:00:00Z', endsAt: '2026-09-08T00:00:00Z', reasonCode: 'away' },
+      { id: 'availability-legacy', startsAt: '2026-09-01T00:00:00Z', endsAt: '2026-09-08T00:00:00Z', reasonCode: 'away' },
     ],
     eligibility: [
       {

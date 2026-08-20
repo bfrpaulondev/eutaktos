@@ -5,6 +5,7 @@ import {
   isPersonAvailableAt,
   normalizeDisplayName,
   recordEligibilityDecision,
+  validateAvailability,
   type CongregationPerson,
 } from './people';
 
@@ -43,16 +44,41 @@ describe('people domain', () => {
     expect(isExplicitlyEligible(revoked, 'bible-reading')).toBe(false);
   });
 
+  it('normalizes assignment type identifiers when recording an explicit decision', () => {
+    const enabled = recordEligibilityDecision(basePerson, {
+      assignmentTypeId: '  bible-reading  ',
+      enabled: true,
+      decidedBy: 'elder-1',
+      decidedAt: '2026-08-19T20:00:00Z',
+    });
+
+    expect(enabled.eligibility[0]?.assignmentTypeId).toBe('bible-reading');
+    expect(isExplicitlyEligible(enabled, 'bible-reading')).toBe(true);
+  });
+
   it('treats away periods as unavailable using an exclusive end boundary', () => {
     const person = {
       ...basePerson,
-      availability: [{ startsAt: '2026-09-12T00:00:00Z', endsAt: '2026-09-22T00:00:00Z', reasonCode: 'away' as const }],
+      availability: [{ id: 'away-1', startsAt: '2026-09-12T00:00:00Z', endsAt: '2026-09-22T00:00:00Z', reasonCode: 'away' as const }],
     };
 
     expect(isPersonAvailableAt(person, '2026-09-11T23:59:59Z')).toBe(true);
     expect(isPersonAvailableAt(person, '2026-09-12T00:00:00Z')).toBe(false);
     expect(isPersonAvailableAt(person, '2026-09-21T23:59:59Z')).toBe(false);
     expect(isPersonAvailableAt(person, '2026-09-22T00:00:00Z')).toBe(true);
+  });
+
+  it('accepts legacy periods without ids but rejects blank ids on new records', () => {
+    expect(() => validateAvailability({
+      startsAt: '2026-09-12T00:00:00Z',
+      endsAt: '2026-09-22T00:00:00Z',
+    })).not.toThrow();
+
+    expect(() => validateAvailability({
+      id: '   ',
+      startsAt: '2026-09-12T00:00:00Z',
+      endsAt: '2026-09-22T00:00:00Z',
+    })).toThrow('availabilityPeriodId is required when provided');
   });
 
   it('blocks inactive people regardless of absence data', () => {
