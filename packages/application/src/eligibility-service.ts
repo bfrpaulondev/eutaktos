@@ -8,7 +8,7 @@ import {
   type AccessContext,
   type AssignmentTypeId,
   type CongregationPerson,
-  type EligibilityDecision,
+  type EligibilityGrant,
   type PersonId,
 } from '@eutaktos/domain';
 import {
@@ -40,7 +40,7 @@ export class EligibilityService {
     this.#runtime = runtime;
   }
 
-  listEligibility(context: AccessContext, personId: PersonId): readonly EligibilityDecision[] {
+  listEligibility(context: AccessContext, personId: PersonId): readonly EligibilityGrant[] {
     assertCapability(context, 'people.read');
     assertCapability(context, 'eligibility.read');
 
