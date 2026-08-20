@@ -10,3 +10,4 @@ export * from './csrf-origin';
 export * from './security-headers';
 export * from './audit-history-http';
 export * from './access-grant-http';
+export * from './responsibility-http';
