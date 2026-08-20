@@ -1,4 +1,4 @@
-const CACHE_NAME = 'eutaktos-static-v2';
+const CACHE_NAME = 'eutaktos-static-v3';
 const STATIC_DESTINATIONS = new Set(['script', 'style', 'font', 'image', 'manifest']);
 
 function isSafeStaticRequest(request) {
@@ -16,7 +16,9 @@ function offlineDocument() {
   );
 }
 
-self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('message', event => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
+});
 
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {

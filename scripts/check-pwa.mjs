@@ -5,10 +5,14 @@ const root = resolve(process.cwd(), 'apps/web-pwa');
 const manifestPath = resolve(root, 'public/manifest.webmanifest');
 const serviceWorkerPath = resolve(root, 'public/sw.js');
 const indexPath = resolve(root, 'index.html');
+const mainPath = resolve(root, 'src/main.tsx');
+const updateRecoveryPath = resolve(root, 'src/PwaUpdateRecovery.tsx');
 
 const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
 const sw = await readFile(serviceWorkerPath, 'utf8');
 const index = await readFile(indexPath, 'utf8');
+const main = await readFile(mainPath, 'utf8');
+const updateRecovery = await readFile(updateRecoveryPath, 'utf8');
 
 function assert(condition, message) {
   if (!condition) throw new Error(`PWA check failed: ${message}`);
@@ -36,5 +40,10 @@ assert(sw.includes("url.pathname.startsWith('/api/')"), 'service worker must exp
 assert(sw.includes("url.pathname.startsWith('/auth/')"), 'service worker must explicitly exclude auth routes');
 assert(sw.includes("new Set(['script', 'style', 'font', 'image', 'manifest'])"), 'service worker cache allowlist must stay static-only');
 assert(!sw.includes("request.destination!=='document'"), 'legacy broad cache rule must not return');
+assert(sw.includes("event.data?.type === 'SKIP_WAITING'"), 'service worker updates must require the explicit SKIP_WAITING message');
+assert(!sw.includes("self.addEventListener('install', () => self.skipWaiting())"), 'updates must not silently force activation during install');
+assert(main.includes('<PwaUpdateRecovery />'), 'application root must render the update/recovery experience');
+assert(updateRecovery.includes('registerPwaUpdateController'), 'update/recovery experience must use the controlled update flow');
+assert(updateRecovery.includes('aria-live="polite"'), 'update notice must announce itself accessibly');
 
-console.log('PWA installability and safe-cache checks passed.');
+console.log('PWA installability, safe-cache and controlled-update checks passed.');
