@@ -5,3 +5,4 @@ export * from './observability';
 export * from './session-memory';
 export * from './audit-history-memory';
 export * from './access-grant-memory';
+export * from './household-memory';
