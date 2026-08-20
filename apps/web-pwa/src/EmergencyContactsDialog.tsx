@@ -6,13 +6,11 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  IconButton,
   List,
   ListItem,
   ListItemText,
   TextField,
 } from '@mui/material';
-import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
 import type { Locale } from './lib/preferences';
 import {
   emergencyContactsApi,
@@ -21,9 +19,9 @@ import {
 import { Stack, Typography } from './ui/MuiCompat';
 
 const copy = {
-  'pt-PT': { title: 'Contactos de emergência', loading: 'A carregar…', empty: 'Sem contactos de emergência.', name: 'Nome', phone: 'Telefone', relationship: 'Relação', add: 'Adicionar', close: 'Fechar', remove: 'Remover contacto', restricted: 'Esta informação é restrita e requer permissão específica.' },
-  en: { title: 'Emergency contacts', loading: 'Loading…', empty: 'No emergency contacts.', name: 'Name', phone: 'Phone', relationship: 'Relationship', add: 'Add', close: 'Close', remove: 'Remove contact', restricted: 'This information is restricted and requires a specific permission.' },
-  es: { title: 'Contactos de emergencia', loading: 'Cargando…', empty: 'Sin contactos de emergencia.', name: 'Nombre', phone: 'Teléfono', relationship: 'Relación', add: 'Añadir', close: 'Cerrar', remove: 'Eliminar contacto', restricted: 'Esta información está restringida y requiere un permiso específico.' },
+  'pt-PT': { title: 'Contactos de emergência', loading: 'A carregar…', empty: 'Sem contactos de emergência.', name: 'Nome', phone: 'Telefone', relationship: 'Relação', add: 'Adicionar', close: 'Fechar', remove: 'Remover', restricted: 'Esta informação é restrita e requer permissão específica.' },
+  en: { title: 'Emergency contacts', loading: 'Loading…', empty: 'No emergency contacts.', name: 'Name', phone: 'Phone', relationship: 'Relationship', add: 'Add', close: 'Close', remove: 'Remove', restricted: 'This information is restricted and requires a specific permission.' },
+  es: { title: 'Contactos de emergencia', loading: 'Cargando…', empty: 'Sin contactos de emergencia.', name: 'Nombre', phone: 'Teléfono', relationship: 'Relación', add: 'Añadir', close: 'Cerrar', remove: 'Eliminar', restricted: 'Esta información está restringida y requiere un permiso específico.' },
 } as const;
 
 export function EmergencyContactsDialog({
@@ -61,7 +59,7 @@ export function EmergencyContactsDialog({
       })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [open, personId]);
+  }, [open, personId, text.restricted]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -110,11 +108,7 @@ export function EmergencyContactsDialog({
                 <ListItem
                   key={contact.id}
                   divider
-                  secondaryAction={
-                    <IconButton aria-label={`${text.remove}: ${contact.name}`} onClick={() => void remove(contact.id)}>
-                      <DeleteOutlineRoundedIcon />
-                    </IconButton>
-                  }
+                  secondaryAction={<Button size="small" onClick={() => void remove(contact.id)}>{text.remove}</Button>}
                 >
                   <ListItemText
                     primary={contact.name}
