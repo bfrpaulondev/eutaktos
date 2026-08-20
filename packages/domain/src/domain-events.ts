@@ -3,6 +3,12 @@ import type { PersonId, TenantId } from './people';
 export type DomainEventType =
   | 'PersonCreated'
   | 'PersonUpdated'
+  | 'HouseholdCreated'
+  | 'HouseholdUpdated'
+  | 'HouseholdDeleted'
+  | 'ServiceGroupCreated'
+  | 'ServiceGroupUpdated'
+  | 'ServiceGroupDeleted'
   | 'AvailabilityChanged'
   | 'EligibilityChanged'
   | 'EmergencyContactChanged'

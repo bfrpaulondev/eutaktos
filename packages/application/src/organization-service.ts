@@ -175,7 +175,7 @@ export class OrganizationService {
     const domainEvent = createDomainEvent({
       id: this.#runtime.nextId('event'),
       tenantId: context.tenantId,
-      type: 'PersonCreated',
+      type: 'HouseholdCreated',
       aggregateId: household.id,
       actorId: context.actorId,
       occurredAt,
@@ -235,7 +235,7 @@ export class OrganizationService {
     const domainEvent = createDomainEvent({
       id: this.#runtime.nextId('event'),
       tenantId: context.tenantId,
-      type: 'PersonUpdated',
+      type: 'HouseholdUpdated',
       aggregateId: household.id,
       actorId: context.actorId,
       occurredAt,
@@ -273,7 +273,7 @@ export class OrganizationService {
     const domainEvent = createDomainEvent({
       id: this.#runtime.nextId('event'),
       tenantId: context.tenantId,
-      type: 'PersonUpdated',
+      type: 'HouseholdDeleted',
       aggregateId: id,
       actorId: context.actorId,
       occurredAt,
@@ -333,7 +333,7 @@ export class OrganizationService {
     const domainEvent = createDomainEvent({
       id: this.#runtime.nextId('event'),
       tenantId: context.tenantId,
-      type: 'PersonCreated',
+      type: 'ServiceGroupCreated',
       aggregateId: serviceGroup.id,
       actorId: context.actorId,
       occurredAt,
@@ -416,7 +416,7 @@ export class OrganizationService {
     const domainEvent = createDomainEvent({
       id: this.#runtime.nextId('event'),
       tenantId: context.tenantId,
-      type: 'PersonUpdated',
+      type: 'ServiceGroupUpdated',
       aggregateId: serviceGroup.id,
       actorId: context.actorId,
       occurredAt,
