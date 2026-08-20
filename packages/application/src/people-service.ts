@@ -47,7 +47,7 @@ export interface PeopleUnitOfWork {
   commitUpdate(context: AccessContext, change: PersonChange): CongregationPerson;
 }
 
-export type ApplicationIdScope = 'person' | 'availability' | 'audit' | 'event';
+export type ApplicationIdScope = 'person' | 'availability' | 'emergency-contact' | 'audit' | 'event';
 
 export interface ApplicationRuntime {
   now(): string;
@@ -109,6 +109,7 @@ export class PeopleDirectoryService {
       active: input.active ?? true,
       availability: [],
       eligibility: [],
+      emergencyContacts: [],
     };
 
     const changedFields = preferredLocale
@@ -185,10 +186,10 @@ export class PeopleDirectoryService {
       displayName,
       ...(preferredLocale ? { preferredLocale } : { preferredLocale: undefined }),
       active,
-      // Eligibility and availability are protected subdomains. Generic profile edits
-      // must preserve them exactly; dedicated use cases require their own capabilities.
+      // Protected subdomains must be preserved exactly by generic profile edits.
       availability: existing.availability,
       eligibility: existing.eligibility,
+      emergencyContacts: existing.emergencyContacts,
     };
 
     const occurredAt = this.#runtime.now();
