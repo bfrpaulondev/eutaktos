@@ -2,6 +2,7 @@ export type TenantId = string;
 export type PersonId = string;
 export type AssignmentTypeId = string;
 export type AvailabilityPeriodId = string;
+export type EmergencyContactId = string;
 
 export interface AvailabilityPeriod {
   /**
@@ -21,6 +22,13 @@ export interface EligibilityGrant {
   decidedAt: string;
 }
 
+export interface EmergencyContact {
+  id: EmergencyContactId;
+  name: string;
+  phone: string;
+  relationship?: string;
+}
+
 export interface CongregationPerson {
   id: PersonId;
   tenantId: TenantId;
@@ -29,6 +37,8 @@ export interface CongregationPerson {
   active: boolean;
   availability: readonly AvailabilityPeriod[];
   eligibility: readonly EligibilityGrant[];
+  /** Legacy/imported records may omit this until normalized by an application write. */
+  emergencyContacts?: readonly EmergencyContact[];
 }
 
 export interface EligibilityDecisionInput {
@@ -42,6 +52,13 @@ function parseInstant(value: string): number {
   const timestamp = Date.parse(value);
   if (!Number.isFinite(timestamp)) throw new Error(`Invalid ISO date: ${value}`);
   return timestamp;
+}
+
+function normalizeShortText(value: string, field: string, maxLength: number): string {
+  const normalized = value.trim().replace(/\s+/g, ' ');
+  if (!normalized) throw new Error(`${field} is required`);
+  if (normalized.length > maxLength) throw new Error(`${field} is too long`);
+  return normalized;
 }
 
 export function validateAvailability(period: AvailabilityPeriod): AvailabilityPeriod {
@@ -88,6 +105,26 @@ export function recordEligibilityDecision(
     ...person,
     eligibility: [...person.eligibility, { ...input, assignmentTypeId }],
   };
+}
+
+export function normalizeEmergencyContact(contact: EmergencyContact): EmergencyContact {
+  const id = contact.id.trim();
+  if (!id) throw new Error('emergencyContactId is required');
+  const name = normalizeShortText(contact.name, 'emergencyContactName', 120);
+  const phone = normalizeShortText(contact.phone, 'emergencyContactPhone', 40);
+  const relationship = contact.relationship?.trim().replace(/\s+/g, ' ');
+  if (relationship && relationship.length > 80) throw new Error('emergencyContactRelationship is too long');
+
+  return {
+    id,
+    name,
+    phone,
+    ...(relationship ? { relationship } : {}),
+  };
+}
+
+export function emergencyContactsOf(person: CongregationPerson): readonly EmergencyContact[] {
+  return person.emergencyContacts ?? [];
 }
 
 export function assertTenantScope(person: CongregationPerson, tenantId: TenantId): void {
