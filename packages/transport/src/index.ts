@@ -5,6 +5,7 @@ export * from './eligibility-http';
 export * from './congregation-http';
 export * from './delegation-http';
 export * from './session-cookie';
+export * from './session-http';
 export * from './csrf-origin';
 export * from './security-headers';
 export * from './audit-history-http';
