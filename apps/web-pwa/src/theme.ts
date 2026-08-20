@@ -1,5 +1,5 @@
 import { alpha, createTheme, responsiveFontSizes, type Theme } from '@mui/material/styles';
-import type { Density, PaletteId } from './lib/preferences';
+import type { Density, PaletteId, TextSize } from './lib/preferences';
 import { textDirectionForLocale } from './lib/textDirection';
 
 export interface EutaktosPalette {
@@ -18,10 +18,18 @@ export const EUTAKTOS_PALETTES: Record<PaletteId, EutaktosPalette> = {
   pastel: { id: 'pastel', label: '6. Pastel Suave', colors: ['#FDF8F4', '#F8EDE8', '#3F3A37', '#8C8179', '#D4A5A5'], mode: 'light' },
 };
 
+const TEXT_SIZE_PERCENT: Record<TextSize, number> = {
+  small: 87.5,
+  default: 100,
+  large: 112.5,
+  'extra-large': 125,
+};
+
 interface ThemeOptionsInput {
   paletteId: PaletteId;
   density: Density;
   locale?: string;
+  textSize: TextSize;
   reducedMotion: boolean;
   reducedTransparency: boolean;
   highContrast: boolean;
@@ -53,6 +61,7 @@ export function buildEutaktosTheme({
   paletteId,
   density,
   locale = 'en',
+  textSize,
   reducedMotion,
   reducedTransparency,
   highContrast,
@@ -95,6 +104,7 @@ export function buildEutaktosTheme({
           ':root': {
             colorScheme: selected.mode,
             backgroundColor: background,
+            fontSize: `${TEXT_SIZE_PERCENT[textSize]}%`,
           },
           body: {
             backgroundColor: background,
