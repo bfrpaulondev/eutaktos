@@ -8,6 +8,7 @@ import {
   type AccessContext,
   type AssignmentTypeId,
   type CongregationPerson,
+  type EligibilityGrant,
   type PersonId,
 } from '@eutaktos/domain';
 import {
@@ -37,6 +38,16 @@ export class EligibilityService {
   constructor(unitOfWork: PeopleUnitOfWork, runtime: ApplicationRuntime) {
     this.#unitOfWork = unitOfWork;
     this.#runtime = runtime;
+  }
+
+  listEligibility(context: AccessContext, personId: PersonId): readonly EligibilityGrant[] {
+    assertCapability(context, 'people.read');
+    assertCapability(context, 'eligibility.read');
+
+    const person = this.#unitOfWork.findById(context, personId);
+    if (!person) throw new Error('Person not found');
+    assertResourceTenant(context, person);
+    return person.eligibility;
   }
 
   setEligibility(

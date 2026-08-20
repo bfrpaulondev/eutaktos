@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { AccessContext, CongregationPerson } from '@eutaktos/domain';
+import type { AccessContext, CongregationPerson, EligibilityGrant } from '@eutaktos/domain';
 import type { RequestMetadata, SetEligibilityInput } from '@eutaktos/application';
 import { EligibilityHttpTransport, type EligibilityPort } from './eligibility-http';
 import type { TransportRequest } from './people-http';
@@ -8,6 +8,33 @@ class FakeEligibilityPort implements EligibilityPort {
   lastContext?: AccessContext;
   lastInput?: SetEligibilityInput;
   lastMetadata?: RequestMetadata;
+
+  listEligibility(context: AccessContext, personId: string): readonly EligibilityGrant[] {
+    this.lastContext = context;
+    if (!context.capabilities.includes('people.read')) throw new Error('Access denied: missing capability people.read');
+    if (!context.capabilities.includes('eligibility.read')) throw new Error('Access denied: missing capability eligibility.read');
+    if (personId === 'missing') throw new Error('Person not found');
+    return [
+      {
+        assignmentTypeId: 'bible-reading',
+        enabled: true,
+        decidedBy: 'elder-sensitive',
+        decidedAt: '2026-08-01T00:00:00.000Z',
+      },
+      {
+        assignmentTypeId: 'bible-reading',
+        enabled: false,
+        decidedBy: 'elder-sensitive',
+        decidedAt: '2026-08-20T14:00:00.000Z',
+      },
+      {
+        assignmentTypeId: 'microphones',
+        enabled: true,
+        decidedBy: 'elder-sensitive',
+        decidedAt: '2026-08-10T14:00:00.000Z',
+      },
+    ];
+  }
 
   setEligibility(
     context: AccessContext,
@@ -59,6 +86,45 @@ describe('EligibilityHttpTransport', () => {
       status: 401,
       body: { error: 'Unauthorized' },
     });
+    expect(transport.list(request({ principal: undefined }))).toEqual({
+      status: 401,
+      body: { error: 'Unauthorized' },
+    });
+  });
+
+  it('returns only current minimized decisions for authorized reads', () => {
+    const port = new FakeEligibilityPort();
+    const transport = new EligibilityHttpTransport(port);
+    const response = transport.list(request({
+      principal: {
+        tenantId: 'tenant-a',
+        actorId: 'elder-1',
+        capabilities: ['people.read', 'eligibility.read'],
+      },
+      body: undefined,
+    }));
+
+    expect(response).toEqual({
+      status: 200,
+      body: [
+        { assignmentTypeId: 'bible-reading', enabled: false, decidedAt: '2026-08-20T14:00:00.000Z' },
+        { assignmentTypeId: 'microphones', enabled: true, decidedAt: '2026-08-10T14:00:00.000Z' },
+      ],
+    });
+    const serialized = JSON.stringify(response.body);
+    expect(serialized).not.toContain('decidedBy');
+    expect(serialized).not.toContain('elder-sensitive');
+  });
+
+  it('does not let generic people.write substitute for eligibility.read', () => {
+    const transport = new EligibilityHttpTransport(new FakeEligibilityPort());
+    expect(transport.list(request({
+      principal: {
+        tenantId: 'tenant-a',
+        actorId: 'elder-1',
+        capabilities: ['people.read', 'people.write'],
+      },
+    }))).toEqual({ status: 403, body: { error: 'Forbidden' } });
   });
 
   it('derives tenant actor and capabilities only from the verified principal', () => {
@@ -131,6 +197,17 @@ describe('EligibilityHttpTransport', () => {
   it('maps missing people without leaking persistence details', () => {
     const transport = new EligibilityHttpTransport(new FakeEligibilityPort());
     expect(transport.set(request({ params: { personId: 'missing' } }))).toEqual({
+      status: 404,
+      body: { error: 'Person not found' },
+    });
+    expect(transport.list(request({
+      principal: {
+        tenantId: 'tenant-a',
+        actorId: 'elder-1',
+        capabilities: ['people.read', 'eligibility.read'],
+      },
+      params: { personId: 'missing' },
+    }))).toEqual({
       status: 404,
       body: { error: 'Person not found' },
     });

@@ -19,25 +19,26 @@ import {
 import type { Locale } from './lib/preferences';
 import { peopleApi, type PersonProfileDto } from './lib/peopleApi';
 import { EmergencyContactsDialog } from './EmergencyContactsDialog';
+import { EligibilityDialog } from './EligibilityDialog';
 import { Stack, Typography } from './ui/MuiCompat';
 
 const copy = {
   'pt-PT': {
     eyebrow: 'Diretório seguro', title: 'Pessoas', subtitle: 'Perfis operacionais mínimos, carregados pelo boundary seguro de People.',
     search: 'Procurar pessoa', add: 'Adicionar pessoa', active: 'Ativo', inactive: 'Inativo', locale: 'Idioma', empty: 'Nenhuma pessoa encontrada.',
-    loading: 'A carregar diretório…', retry: 'Tentar novamente', unavailable: 'Não foi possível carregar o diretório.', contacts: 'Contactos de emergência',
+    loading: 'A carregar diretório…', retry: 'Tentar novamente', unavailable: 'Não foi possível carregar o diretório.', contacts: 'Contactos de emergência', eligibility: 'Elegibilidade',
     dialogTitle: 'Nova pessoa', name: 'Nome', preferredLocale: 'Idioma preferido', enabled: 'Perfil ativo', cancel: 'Cancelar', save: 'Guardar', saving: 'A guardar…',
   },
   en: {
     eyebrow: 'Secure directory', title: 'People', subtitle: 'Minimal operational profiles loaded through the secure People boundary.',
     search: 'Search people', add: 'Add person', active: 'Active', inactive: 'Inactive', locale: 'Language', empty: 'No people found.',
-    loading: 'Loading directory…', retry: 'Try again', unavailable: 'The directory could not be loaded.', contacts: 'Emergency contacts',
+    loading: 'Loading directory…', retry: 'Try again', unavailable: 'The directory could not be loaded.', contacts: 'Emergency contacts', eligibility: 'Eligibility',
     dialogTitle: 'New person', name: 'Name', preferredLocale: 'Preferred language', enabled: 'Active profile', cancel: 'Cancel', save: 'Save', saving: 'Saving…',
   },
   es: {
     eyebrow: 'Directorio seguro', title: 'Personas', subtitle: 'Perfiles operativos mínimos cargados mediante el boundary seguro de People.',
     search: 'Buscar persona', add: 'Añadir persona', active: 'Activo', inactive: 'Inactivo', locale: 'Idioma', empty: 'No se encontraron personas.',
-    loading: 'Cargando directorio…', retry: 'Intentar de nuevo', unavailable: 'No se pudo cargar el directorio.', contacts: 'Contactos de emergencia',
+    loading: 'Cargando directorio…', retry: 'Intentar de nuevo', unavailable: 'No se pudo cargar el directorio.', contacts: 'Contactos de emergencia', eligibility: 'Elegibilidad',
     dialogTitle: 'Nueva persona', name: 'Nombre', preferredLocale: 'Idioma preferido', enabled: 'Perfil activo', cancel: 'Cancelar', save: 'Guardar', saving: 'Guardando…',
   },
 } as const;
@@ -50,6 +51,7 @@ export function PeopleDirectory({ locale }: { locale: Locale }) {
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [contactsPerson, setContactsPerson] = useState<PersonProfileDto | null>(null);
+  const [eligibilityPerson, setEligibilityPerson] = useState<PersonProfileDto | null>(null);
   const [saving, setSaving] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [preferredLocale, setPreferredLocale] = useState<string>(locale);
@@ -151,9 +153,14 @@ export function PeopleDirectory({ locale }: { locale: Locale }) {
                       </Box>
                       <Chip label={person.active ? text.active : text.inactive} size="small" variant="outlined" color={person.active ? 'primary' : 'default'} />
                     </Stack>
-                    <Button size="small" variant="text" onClick={() => setContactsPerson(person)} sx={{ alignSelf: 'flex-start' }}>
-                      {text.contacts}
-                    </Button>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                      <Button size="small" variant="text" onClick={() => setContactsPerson(person)}>
+                        {text.contacts}
+                      </Button>
+                      <Button size="small" variant="text" onClick={() => setEligibilityPerson(person)}>
+                        {text.eligibility}
+                      </Button>
+                    </Stack>
                   </Stack>
                 </CardContent>
               </Card>
@@ -186,6 +193,16 @@ export function PeopleDirectory({ locale }: { locale: Locale }) {
           locale={locale}
           open
           onClose={() => setContactsPerson(null)}
+        />
+      ) : null}
+
+      {eligibilityPerson ? (
+        <EligibilityDialog
+          personId={eligibilityPerson.id}
+          personName={eligibilityPerson.displayName}
+          locale={locale}
+          open
+          onClose={() => setEligibilityPerson(null)}
         />
       ) : null}
     </Box>
