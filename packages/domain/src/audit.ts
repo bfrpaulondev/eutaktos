@@ -8,7 +8,8 @@ export type AuditedResourceType =
   | 'service-group'
   | 'responsibility'
   | 'eligibility'
-  | 'availability';
+  | 'availability'
+  | 'emergency-contact';
 
 export interface AuditEvent {
   id: AuditEventId;
