@@ -44,6 +44,17 @@ export class AvailabilityService {
     this.#runtime = runtime;
   }
 
+  list(context: AccessContext, personId: PersonId): readonly AvailabilityPeriod[] {
+    assertCapability(context, 'people.read');
+    assertCapability(context, 'availability.read');
+
+    const person = this.#unitOfWork.findById(context, personId);
+    if (!person) throw new Error('Person not found');
+    assertResourceTenant(context, person);
+
+    return person.availability.map(period => ({ ...period }));
+  }
+
   addUnavailability(
     context: AccessContext,
     input: AddUnavailabilityInput,
