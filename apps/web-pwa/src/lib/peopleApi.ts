@@ -20,22 +20,29 @@ interface ErrorBody {
   error?: unknown;
 }
 
-function isPersonProfile(value: unknown): value is PersonProfileDto {
-  if (!value || typeof value !== 'object') return false;
+function parsePersonProfile(value: unknown): PersonProfileDto {
+  if (!value || typeof value !== 'object') throw new Error('Invalid People API response');
   const candidate = value as Record<string, unknown>;
-  return (
-    typeof candidate.id === 'string' &&
-    typeof candidate.displayName === 'string' &&
-    typeof candidate.active === 'boolean' &&
-    (candidate.preferredLocale === undefined || typeof candidate.preferredLocale === 'string')
-  );
+  if (
+    typeof candidate.id !== 'string' ||
+    typeof candidate.displayName !== 'string' ||
+    typeof candidate.active !== 'boolean' ||
+    (candidate.preferredLocale !== undefined && typeof candidate.preferredLocale !== 'string')
+  ) {
+    throw new Error('Invalid People API response');
+  }
+
+  return {
+    id: candidate.id,
+    displayName: candidate.displayName,
+    ...(typeof candidate.preferredLocale === 'string' ? { preferredLocale: candidate.preferredLocale } : {}),
+    active: candidate.active,
+  };
 }
 
 export function parsePeopleResponse(value: unknown): readonly PersonProfileDto[] {
-  if (!Array.isArray(value) || !value.every(isPersonProfile)) {
-    throw new Error('Invalid People API response');
-  }
-  return value;
+  if (!Array.isArray(value)) throw new Error('Invalid People API response');
+  return value.map(parsePersonProfile);
 }
 
 async function readJson(response: Response): Promise<unknown> {
@@ -74,8 +81,7 @@ export function createPeopleApi(fetcher: typeof fetch = fetch): PeopleApi {
       });
       const body = await readJson(response);
       if (!response.ok) throw apiError(response.status, body);
-      if (!isPersonProfile(body)) throw new Error('Invalid People API response');
-      return body;
+      return parsePersonProfile(body);
     },
   };
 }
