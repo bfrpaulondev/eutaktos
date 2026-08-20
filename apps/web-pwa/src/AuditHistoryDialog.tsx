@@ -25,7 +25,7 @@ import { Stack, Typography } from './ui/MuiCompat';
 
 const resourceTypes: readonly AuditResourceType[] = [
   'person', 'household', 'service-group', 'responsibility', 'delegation', 'congregation',
-  'eligibility', 'availability', 'emergency-contact',
+  'eligibility', 'availability', 'emergency-contact', 'access-grant',
 ];
 const actions: readonly AuditAction[] = ['create', 'update', 'delete', 'grant', 'revoke'];
 

@@ -2,6 +2,7 @@ export * from './people';
 export * from './organization';
 export * from './audit';
 export * from './access-control';
+export * from './access-grants';
 export * from './congregation';
 export * from './domain-events';
 export * from './repository';

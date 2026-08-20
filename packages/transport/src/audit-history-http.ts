@@ -20,6 +20,7 @@ const RESOURCE_TYPES: readonly AuditedResourceType[] = [
   'eligibility',
   'availability',
   'emergency-contact',
+  'access-grant',
 ];
 const ACTIONS: readonly AuditAction[] = ['create', 'update', 'delete', 'grant', 'revoke'];
 

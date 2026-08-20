@@ -11,7 +11,8 @@ export type AuditedResourceType =
   | 'congregation'
   | 'eligibility'
   | 'availability'
-  | 'emergency-contact';
+  | 'emergency-contact'
+  | 'access-grant';
 
 export interface AuditEvent {
   id: AuditEventId;

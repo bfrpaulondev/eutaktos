@@ -7,3 +7,4 @@ export * from './congregation-service';
 export * from './delegation-service';
 export * from './session-service';
 export * from './audit-history-service';
+export * from './access-grant-service';

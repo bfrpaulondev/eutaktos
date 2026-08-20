@@ -17,6 +17,8 @@ export type DomainEventType =
   | 'ResponsibilityChanged'
   | 'DelegationGranted'
   | 'DelegationRevoked'
+  | 'CapabilityGranted'
+  | 'CapabilityRevoked'
   | 'AssignmentCreated'
   | 'AssignmentDeclined'
   | 'AssignmentReplaced'
@@ -47,12 +49,6 @@ function validateInstant(value: string): string {
   return value;
 }
 
-/**
- * The base event envelope intentionally contains identifiers and event type only.
- * Personal names, notes, contact details and spiritual/review content must not be
- * copied into general-purpose event metadata. Domain-specific consumers fetch the
- * minimum authorized state they need from the source domain.
- */
 export function createDomainEvent(input: DomainEvent): Readonly<DomainEvent> {
   required(input.id, 'eventId');
   required(input.tenantId, 'tenantId');
