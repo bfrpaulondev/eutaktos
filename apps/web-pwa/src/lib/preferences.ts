@@ -1,11 +1,13 @@
 export type Density = 'comfortable' | 'compact';
 export type Locale = 'pt-PT' | 'en' | 'es';
 export type PaletteId = 'classic' | 'warm' | 'green' | 'blue' | 'dark' | 'pastel';
+export type TextSize = 'small' | 'default' | 'large' | 'extra-large';
 
 export interface Preferences {
   paletteId: PaletteId;
   density: Density;
   locale: Locale;
+  textSize: TextSize;
   reducedMotion: boolean;
   reducedTransparency: boolean;
   highContrast: boolean;
@@ -15,12 +17,14 @@ export const DEFAULT_PREFERENCES: Preferences = {
   paletteId: 'classic',
   density: 'comfortable',
   locale: 'pt-PT',
+  textSize: 'default',
   reducedMotion: false,
   reducedTransparency: false,
   highContrast: false,
 };
 
 const PALETTE_IDS: readonly PaletteId[] = ['classic', 'warm', 'green', 'blue', 'dark', 'pastel'];
+const TEXT_SIZES: readonly TextSize[] = ['small', 'default', 'large', 'extra-large'];
 
 export function normalizePreferences(input: Partial<Preferences> | null | undefined): Preferences {
   const paletteId: PaletteId = PALETTE_IDS.includes(input?.paletteId as PaletteId)
@@ -28,11 +32,15 @@ export function normalizePreferences(input: Partial<Preferences> | null | undefi
     : 'classic';
   const density: Density = input?.density === 'compact' ? 'compact' : 'comfortable';
   const locale: Locale = input?.locale === 'en' || input?.locale === 'es' ? input.locale : 'pt-PT';
+  const textSize: TextSize = TEXT_SIZES.includes(input?.textSize as TextSize)
+    ? (input?.textSize as TextSize)
+    : 'default';
 
   return {
     paletteId,
     density,
     locale,
+    textSize,
     reducedMotion: Boolean(input?.reducedMotion),
     reducedTransparency: Boolean(input?.reducedTransparency),
     highContrast: Boolean(input?.highContrast),
