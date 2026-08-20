@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { AccessContext, CongregationPerson, EligibilityDecision } from '@eutaktos/domain';
+import type { AccessContext, CongregationPerson, EligibilityGrant } from '@eutaktos/domain';
 import type { RequestMetadata, SetEligibilityInput } from '@eutaktos/application';
 import { EligibilityHttpTransport, type EligibilityPort } from './eligibility-http';
 import type { TransportRequest } from './people-http';
@@ -9,7 +9,7 @@ class FakeEligibilityPort implements EligibilityPort {
   lastInput?: SetEligibilityInput;
   lastMetadata?: RequestMetadata;
 
-  listEligibility(context: AccessContext, personId: string): readonly EligibilityDecision[] {
+  listEligibility(context: AccessContext, personId: string): readonly EligibilityGrant[] {
     this.lastContext = context;
     if (!context.capabilities.includes('people.read')) throw new Error('Access denied: missing capability people.read');
     if (!context.capabilities.includes('eligibility.read')) throw new Error('Access denied: missing capability eligibility.read');
