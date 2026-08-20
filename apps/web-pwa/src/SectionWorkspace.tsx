@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { Box, Button, Card, CardContent, Chip, Paper } from '@mui/material';
+import { AuditHistoryDialog } from './AuditHistoryDialog';
 import { PeopleDirectory } from './PeopleDirectory';
 import type { Locale } from './lib/preferences';
 import { getWorkspaceCopy, type WorkspaceSection } from './lib/sectionData';
@@ -9,8 +11,23 @@ interface SectionWorkspaceProps {
   section: WorkspaceSection;
 }
 
+function PeopleWorkspace({ locale }: { locale: Locale }) {
+  const [auditOpen, setAuditOpen] = useState(false);
+  const auditLabel = locale === 'pt-PT' ? 'Histórico de auditoria' : locale === 'es' ? 'Historial de auditoría' : 'Audit history';
+
+  return (
+    <Stack spacing={1.5}>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <Button variant="outlined" onClick={() => setAuditOpen(true)}>{auditLabel}</Button>
+      </Box>
+      <PeopleDirectory locale={locale} />
+      <AuditHistoryDialog locale={locale} open={auditOpen} onClose={() => setAuditOpen(false)} />
+    </Stack>
+  );
+}
+
 export function SectionWorkspace({ locale, section }: SectionWorkspaceProps) {
-  if (section === 'people') return <PeopleDirectory locale={locale} />;
+  if (section === 'people') return <PeopleWorkspace locale={locale} />;
 
   const content = getWorkspaceCopy(locale, section);
   const detailsLabel = locale === 'pt-PT' ? 'Ver detalhes' : locale === 'es' ? 'Ver detalles' : 'View details';
