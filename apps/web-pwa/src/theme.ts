@@ -29,7 +29,7 @@ interface ThemeOptionsInput {
   paletteId: PaletteId;
   density: Density;
   locale?: string;
-  textSize: TextSize;
+  textSize?: TextSize;
   reducedMotion: boolean;
   reducedTransparency: boolean;
   highContrast: boolean;
@@ -61,7 +61,7 @@ export function buildEutaktosTheme({
   paletteId,
   density,
   locale = 'en',
-  textSize,
+  textSize = 'default',
   reducedMotion,
   reducedTransparency,
   highContrast,
