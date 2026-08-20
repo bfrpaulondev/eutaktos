@@ -24,7 +24,7 @@ import { DEFAULT_PREFERENCES, normalizePreferences, type PaletteId, type Prefere
 import { buildEutaktosTheme, EUTAKTOS_PALETTES } from './theme';
 import { Stack, Typography } from './ui/MuiCompat';
 
-const STORAGE_KEY = 'eutaktos.preferences.v2';
+const STORAGE_KEY = 'eutaktos.preferences.v3';
 
 type Section = 'home' | 'agenda' | 'assignments' | 'people' | 'preferences';
 
@@ -37,7 +37,8 @@ const copy = {
     smart: 'Smart Assign', balance: 'Equilíbrio da Escola', fairnessText: 'Há irmãos elegíveis que estão há bastante mais tempo sem uma leitura. O sistema apresenta razões transparentes; o responsável decide.',
     candidate: 'Elegível para leitura', days: 'dias', generate: 'Gerar proposta equilibrada', human: 'Recomendação objetiva. Decisão humana.',
     ready: 'Cobertura da reunião', almostReady: 'Quase pronta', sound: 'Som', video: 'Vídeo', microphone: 'Microfone 1', attendant: 'Indicador 2', missing: 'Ainda sem designação',
-    personal: 'Só para ti', palette: 'Paleta', density: 'Densidade', contrast: 'Contraste elevado', motion: 'Reduzir movimento', transparency: 'Reduzir transparência', language: 'Idioma', comfortable: 'Confortável', compact: 'Compacta',
+    personal: 'Só para ti', palette: 'Paleta', density: 'Densidade', textSize: 'Tamanho do texto', contrast: 'Contraste elevado', motion: 'Reduzir movimento', transparency: 'Reduzir transparência', language: 'Idioma', comfortable: 'Confortável', compact: 'Compacta',
+    textSizes: { small: 'Pequeno', default: 'Padrão', large: 'Grande', 'extra-large': 'Muito grande' },
     palettes: ['Neutro Clássico', 'Neutro Quente', 'Monocromático + Verde', 'Azul Pastel', 'Dark Mode Minimalista', 'Pastel Suave'],
   },
   en: {
@@ -48,7 +49,8 @@ const copy = {
     smart: 'Smart Assign', balance: 'School balance', fairnessText: 'Some eligible brothers have gone significantly longer without a reading. The system shows transparent reasons; the responsible brother decides.',
     candidate: 'Eligible for reading', days: 'days', generate: 'Generate balanced proposal', human: 'Objective recommendation. Human decision.',
     ready: 'Meeting coverage', almostReady: 'Almost ready', sound: 'Sound', video: 'Video', microphone: 'Microphone 1', attendant: 'Attendant 2', missing: 'Not assigned yet',
-    personal: 'Just for you', palette: 'Palette', density: 'Density', contrast: 'High contrast', motion: 'Reduce motion', transparency: 'Reduce transparency', language: 'Language', comfortable: 'Comfortable', compact: 'Compact',
+    personal: 'Just for you', palette: 'Palette', density: 'Density', textSize: 'Text size', contrast: 'High contrast', motion: 'Reduce motion', transparency: 'Reduce transparency', language: 'Language', comfortable: 'Comfortable', compact: 'Compact',
+    textSizes: { small: 'Small', default: 'Default', large: 'Large', 'extra-large': 'Extra large' },
     palettes: ['Neutral Classic', 'Neutral Warm', 'Monochrome + Green', 'Pastel Blue', 'Minimal Dark', 'Soft Pastel'],
   },
   es: {
@@ -59,17 +61,21 @@ const copy = {
     smart: 'Smart Assign', balance: 'Equilibrio de la Escuela', fairnessText: 'Hay hermanos elegibles que llevan mucho más tiempo sin una lectura. El sistema muestra razones transparentes; el responsable decide.',
     candidate: 'Elegible para lectura', days: 'días', generate: 'Generar propuesta equilibrada', human: 'Recomendación objetiva. Decisión humana.',
     ready: 'Cobertura de la reunión', almostReady: 'Casi lista', sound: 'Sonido', video: 'Vídeo', microphone: 'Micrófono 1', attendant: 'Acomodador 2', missing: 'Aún sin asignar',
-    personal: 'Solo para ti', palette: 'Paleta', density: 'Densidad', contrast: 'Contraste alto', motion: 'Reducir movimiento', transparency: 'Reducir transparencia', language: 'Idioma', comfortable: 'Cómoda', compact: 'Compacta',
+    personal: 'Solo para ti', palette: 'Paleta', density: 'Densidad', textSize: 'Tamaño del texto', contrast: 'Contraste alto', motion: 'Reducir movimiento', transparency: 'Reducir transparencia', language: 'Idioma', comfortable: 'Cómoda', compact: 'Compacta',
+    textSizes: { small: 'Pequeño', default: 'Predeterminado', large: 'Grande', 'extra-large': 'Muy grande' },
     palettes: ['Neutro Clásico', 'Neutro Cálido', 'Monocromático + Verde', 'Azul Pastel', 'Modo Oscuro Minimalista', 'Pastel Suave'],
   },
 } as const;
 
 const paletteIds = Object.keys(EUTAKTOS_PALETTES) as PaletteId[];
+const textSizes: Preferences['textSize'][] = ['small', 'default', 'large', 'extra-large'];
 
 function loadPreferences(): Preferences {
   try {
     const next = localStorage.getItem(STORAGE_KEY);
     if (next) return normalizePreferences(JSON.parse(next));
+    const v2 = localStorage.getItem('eutaktos.preferences.v2');
+    if (v2) return normalizePreferences(JSON.parse(v2));
     const legacy = localStorage.getItem('eutaktos.preferences.v1');
     return normalizePreferences(legacy ? JSON.parse(legacy) : null);
   } catch {
@@ -85,6 +91,7 @@ export default function App() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
     document.documentElement.lang = preferences.locale;
     document.documentElement.dataset.palette = preferences.paletteId;
+    document.documentElement.dataset.textSize = preferences.textSize;
   }, [preferences]);
 
   return (
@@ -166,7 +173,7 @@ function AppShell({ preferences, setPreferences }: AppShellProps) {
             <Box>
               <Typography variant="overline" color="text.secondary" fontWeight={800}>{text.eyebrow}</Typography>
               <Typography variant="h1" sx={{ fontSize: { xs: '2.35rem', sm: '3.1rem', lg: '4rem' }, maxWidth: 760 }}>{text.title}</Typography>
-              <Typography color="text.secondary" sx={{ mt: 1, maxWidth: 720, fontSize: { xs: 15, sm: 17 } }}>{text.subtitle}</Typography>
+              <Typography color="text.secondary" sx={{ mt: 1, maxWidth: 720, fontSize: { xs: '0.94rem', sm: '1.06rem' } }}>{text.subtitle}</Typography>
             </Box>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }}>
               <Chip label={text.privacy} variant="outlined" />
@@ -236,6 +243,7 @@ function PreferenceControls({ text, preferences, update }: PreferencesProps) {
         <FormControl fullWidth><InputLabel>{text.language}</InputLabel><Select label={text.language} value={preferences.locale} onChange={event => update('locale', event.target.value as Preferences['locale'])}><MenuItem value="pt-PT">Português</MenuItem><MenuItem value="en">English</MenuItem><MenuItem value="es">Español</MenuItem></Select></FormControl>
         <FormControl fullWidth><InputLabel>{text.palette}</InputLabel><Select label={text.palette} value={preferences.paletteId} onChange={event => update('paletteId', event.target.value as PaletteId)}>{paletteIds.map((id, index) => <MenuItem value={id} key={id}><Stack direction="row" spacing={1} alignItems="center"><Stack direction="row" spacing={0.35}>{EUTAKTOS_PALETTES[id].colors.map(color => <Box key={color} sx={{ width: 11, height: 11, borderRadius: '50%', bgcolor: color, border: '1px solid', borderColor: 'divider' }} />)}</Stack><span>{index + 1}. {text.palettes[index]}</span></Stack></MenuItem>)}</Select></FormControl>
         <FormControl fullWidth><InputLabel>{text.density}</InputLabel><Select label={text.density} value={preferences.density} onChange={event => update('density', event.target.value as Preferences['density'])}><MenuItem value="comfortable">{text.comfortable}</MenuItem><MenuItem value="compact">{text.compact}</MenuItem></Select></FormControl>
+        <FormControl fullWidth><InputLabel>{text.textSize}</InputLabel><Select label={text.textSize} value={preferences.textSize} onChange={event => update('textSize', event.target.value as Preferences['textSize'])}>{textSizes.map(value => <MenuItem key={value} value={value}>{text.textSizes[value]}</MenuItem>)}</Select></FormControl>
       </Box>
       <Stack direction={{ xs: 'column', sm: 'row' }} flexWrap="wrap" gap={0.5}>
         <FormControlLabel control={<Switch checked={preferences.highContrast} onChange={(_, checked) => update('highContrast', checked)} />} label={text.contrast} />
