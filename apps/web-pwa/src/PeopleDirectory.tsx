@@ -20,25 +20,26 @@ import type { Locale } from './lib/preferences';
 import { peopleApi, type PersonProfileDto } from './lib/peopleApi';
 import { EmergencyContactsDialog } from './EmergencyContactsDialog';
 import { EligibilityDialog } from './EligibilityDialog';
+import { CongregationSettingsDialog } from './CongregationSettingsDialog';
 import { Stack, Typography } from './ui/MuiCompat';
 
 const copy = {
   'pt-PT': {
     eyebrow: 'Diretório seguro', title: 'Pessoas', subtitle: 'Perfis operacionais mínimos, carregados pelo boundary seguro de People.',
     search: 'Procurar pessoa', add: 'Adicionar pessoa', active: 'Ativo', inactive: 'Inativo', locale: 'Idioma', empty: 'Nenhuma pessoa encontrada.',
-    loading: 'A carregar diretório…', retry: 'Tentar novamente', unavailable: 'Não foi possível carregar o diretório.', contacts: 'Contactos de emergência', eligibility: 'Elegibilidade',
+    loading: 'A carregar diretório…', retry: 'Tentar novamente', unavailable: 'Não foi possível carregar o diretório.', contacts: 'Contactos de emergência', eligibility: 'Elegibilidade', congregation: 'Configurações da congregação',
     dialogTitle: 'Nova pessoa', name: 'Nome', preferredLocale: 'Idioma preferido', enabled: 'Perfil ativo', cancel: 'Cancelar', save: 'Guardar', saving: 'A guardar…',
   },
   en: {
     eyebrow: 'Secure directory', title: 'People', subtitle: 'Minimal operational profiles loaded through the secure People boundary.',
     search: 'Search people', add: 'Add person', active: 'Active', inactive: 'Inactive', locale: 'Language', empty: 'No people found.',
-    loading: 'Loading directory…', retry: 'Try again', unavailable: 'The directory could not be loaded.', contacts: 'Emergency contacts', eligibility: 'Eligibility',
+    loading: 'Loading directory…', retry: 'Try again', unavailable: 'The directory could not be loaded.', contacts: 'Emergency contacts', eligibility: 'Eligibility', congregation: 'Congregation settings',
     dialogTitle: 'New person', name: 'Name', preferredLocale: 'Preferred language', enabled: 'Active profile', cancel: 'Cancel', save: 'Save', saving: 'Saving…',
   },
   es: {
     eyebrow: 'Directorio seguro', title: 'Personas', subtitle: 'Perfiles operativos mínimos cargados mediante el boundary seguro de People.',
     search: 'Buscar persona', add: 'Añadir persona', active: 'Activo', inactive: 'Inactivo', locale: 'Idioma', empty: 'No se encontraron personas.',
-    loading: 'Cargando directorio…', retry: 'Intentar de nuevo', unavailable: 'No se pudo cargar el directorio.', contacts: 'Contactos de emergencia', eligibility: 'Elegibilidad',
+    loading: 'Cargando directorio…', retry: 'Intentar de nuevo', unavailable: 'No se pudo cargar el directorio.', contacts: 'Contactos de emergencia', eligibility: 'Elegibilidad', congregation: 'Configuración de la congregación',
     dialogTitle: 'Nueva persona', name: 'Nombre', preferredLocale: 'Idioma preferido', enabled: 'Perfil activo', cancel: 'Cancelar', save: 'Guardar', saving: 'Guardando…',
   },
 } as const;
@@ -50,6 +51,7 @@ export function PeopleDirectory({ locale }: { locale: Locale }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [contactsPerson, setContactsPerson] = useState<PersonProfileDto | null>(null);
   const [eligibilityPerson, setEligibilityPerson] = useState<PersonProfileDto | null>(null);
   const [saving, setSaving] = useState(false);
@@ -118,7 +120,10 @@ export function PeopleDirectory({ locale }: { locale: Locale }) {
             <Typography variant="h2" id="people-directory-title" sx={{ fontSize: { xs: '2rem', sm: '2.6rem' } }}>{text.title}</Typography>
             <Typography color="text.secondary" sx={{ mt: 1, maxWidth: 760 }}>{text.subtitle}</Typography>
           </Box>
-          <Button variant="contained" onClick={() => setOpen(true)}>{text.add}</Button>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }}>
+            <Button variant="outlined" onClick={() => setSettingsOpen(true)}>{text.congregation}</Button>
+            <Button variant="contained" onClick={() => setOpen(true)}>{text.add}</Button>
+          </Stack>
         </Stack>
       </Paper>
 
@@ -205,6 +210,12 @@ export function PeopleDirectory({ locale }: { locale: Locale }) {
           onClose={() => setEligibilityPerson(null)}
         />
       ) : null}
+
+      <CongregationSettingsDialog
+        locale={locale}
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+      />
     </Box>
   );
 }
