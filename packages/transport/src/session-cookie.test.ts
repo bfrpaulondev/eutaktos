@@ -54,7 +54,9 @@ describe('session cookie boundary', () => {
 
   it('returns unauthenticated when the session is absent, expired or revoked', () => {
     const sessions: SessionIdentityResolver = { resolve: vi.fn(() => undefined) };
-    const authorization: CapabilityResolver = { capabilitiesFor: vi.fn(() => ['people.read']) };
+    const authorization: CapabilityResolver = {
+      capabilitiesFor: vi.fn((_identity: Readonly<SessionIdentity>) => ['people.read'] as readonly Capability[]),
+    };
 
     expect(resolveVerifiedPrincipalFromCookie(`${SESSION_COOKIE_NAME}=expired-session`, sessions, authorization)).toBeUndefined();
     expect(authorization.capabilitiesFor).not.toHaveBeenCalled();
