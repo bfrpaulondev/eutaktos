@@ -79,6 +79,7 @@ function personFixture(overrides: Partial<CongregationPerson> = {}): Congregatio
         decidedAt: '2026-07-01T12:00:00Z',
       },
     ],
+    emergencyContacts: [{ id: 'contact-1', name: 'Maria Silva', phone: '+351 900 000 000' }],
     ...overrides,
   };
 }
@@ -102,6 +103,7 @@ describe('PeopleDirectoryService', () => {
       active: true,
       availability: [],
       eligibility: [],
+      emergencyContacts: [],
     });
     expect(unitOfWork.creates).toHaveLength(1);
     expect(unitOfWork.creates[0]?.auditEvent).toMatchObject({
@@ -129,7 +131,7 @@ describe('PeopleDirectoryService', () => {
     expect(serializedMetadata).not.toContain('Ana Costa');
   });
 
-  it('updates only profile fields and preserves eligibility/availability exactly', () => {
+  it('updates only profile fields and preserves protected subdomains exactly', () => {
     const original = personFixture();
     const unitOfWork = new FakePeopleUnitOfWork([original]);
     const service = new PeopleDirectoryService(unitOfWork, runtime());
@@ -144,6 +146,7 @@ describe('PeopleDirectoryService', () => {
     expect(updated.active).toBe(false);
     expect(updated.availability).toBe(original.availability);
     expect(updated.eligibility).toBe(original.eligibility);
+    expect(updated.emergencyContacts).toBe(original.emergencyContacts);
     expect(unitOfWork.updates[0]?.auditEvent.changedFields).toEqual([
       'active',
       'displayName',
@@ -165,6 +168,7 @@ describe('PeopleDirectoryService', () => {
     expect(updated.preferredLocale).toBeUndefined();
     expect(updated.availability).toBe(original.availability);
     expect(updated.eligibility).toBe(original.eligibility);
+    expect(updated.emergencyContacts).toBe(original.emergencyContacts);
   });
 
   it('does not create audit noise for a no-op profile update', () => {
