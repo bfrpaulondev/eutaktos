@@ -3,7 +3,7 @@ import {
   type AccessContext,
   type AssignmentTypeId,
   type CongregationPerson,
-  type EligibilityDecision,
+  type EligibilityGrant,
   type PersonId,
 } from '@eutaktos/domain';
 import type { RequestMetadata, SetEligibilityInput } from '@eutaktos/application';
@@ -16,7 +16,7 @@ export interface EligibilityDecisionDto {
 }
 
 export interface EligibilityPort {
-  listEligibility(context: AccessContext, personId: PersonId): readonly EligibilityDecision[];
+  listEligibility(context: AccessContext, personId: PersonId): readonly EligibilityGrant[];
   setEligibility(
     context: AccessContext,
     input: SetEligibilityInput,
@@ -62,7 +62,7 @@ function safeError(error: unknown): TransportResponse<{ error: string }> {
   return { status: 500, body: { error: 'Internal server error' } };
 }
 
-function toDecisionDto(decision: EligibilityDecision): EligibilityDecisionDto {
+function toDecisionDto(decision: EligibilityGrant): EligibilityDecisionDto {
   return {
     assignmentTypeId: decision.assignmentTypeId,
     enabled: decision.enabled,
@@ -70,8 +70,8 @@ function toDecisionDto(decision: EligibilityDecision): EligibilityDecisionDto {
   };
 }
 
-function currentDecisions(decisions: readonly EligibilityDecision[]): readonly EligibilityDecisionDto[] {
-  const latest = new Map<AssignmentTypeId, EligibilityDecision>();
+function currentDecisions(decisions: readonly EligibilityGrant[]): readonly EligibilityDecisionDto[] {
+  const latest = new Map<AssignmentTypeId, EligibilityGrant>();
   for (const decision of decisions) {
     const current = latest.get(decision.assignmentTypeId);
     if (!current || Date.parse(decision.decidedAt) > Date.parse(current.decidedAt)) latest.set(decision.assignmentTypeId, decision);
