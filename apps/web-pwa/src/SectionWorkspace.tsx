@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Box, Button, Card, CardContent, Chip, Paper } from '@mui/material';
+import { AccessManagementDialog } from './AccessManagementDialog';
 import { AuditHistoryDialog } from './AuditHistoryDialog';
 import { PeopleDirectory } from './PeopleDirectory';
 import type { Locale } from './lib/preferences';
@@ -13,15 +14,19 @@ interface SectionWorkspaceProps {
 
 function PeopleWorkspace({ locale }: { locale: Locale }) {
   const [auditOpen, setAuditOpen] = useState(false);
+  const [accessOpen, setAccessOpen] = useState(false);
   const auditLabel = locale === 'pt-PT' ? 'Histórico de auditoria' : locale === 'es' ? 'Historial de auditoría' : 'Audit history';
+  const accessLabel = locale === 'pt-PT' ? 'Gerir acessos' : locale === 'es' ? 'Gestionar accesos' : 'Manage access';
 
   return (
     <Stack spacing={1.5}>
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, flexWrap: 'wrap' }}>
         <Button variant="outlined" onClick={() => setAuditOpen(true)}>{auditLabel}</Button>
+        <Button variant="outlined" onClick={() => setAccessOpen(true)}>{accessLabel}</Button>
       </Box>
       <PeopleDirectory locale={locale} />
       <AuditHistoryDialog locale={locale} open={auditOpen} onClose={() => setAuditOpen(false)} />
+      <AccessManagementDialog locale={locale} open={accessOpen} onClose={() => setAccessOpen(false)} />
     </Stack>
   );
 }
