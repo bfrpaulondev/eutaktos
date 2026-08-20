@@ -7,3 +7,4 @@ export * from './congregation';
 export * from './domain-events';
 export * from './repository';
 export * from './session';
+export * from './notification-preferences';
