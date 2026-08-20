@@ -8,8 +8,10 @@ import {
 } from '@eutaktos/domain';
 import {
   OrganizationService,
+  type HouseholdDeleteChange,
   type HouseholdUnitOfWork,
   type HouseholdChange,
+  type ServiceGroupDeleteChange,
   type ServiceGroupUnitOfWork,
   type ServiceGroupChange,
   type ResponsibilityUnitOfWork,
@@ -23,7 +25,7 @@ class FakeHouseholdUow implements HouseholdUnitOfWork {
   readonly records = new Map<string, Household>();
   readonly creates: HouseholdChange[] = [];
   readonly updates: HouseholdChange[] = [];
-  readonly deletes: string[] = [];
+  readonly deletes: HouseholdDeleteChange[] = [];
 
   constructor(seed: readonly Household[] = []) {
     for (const h of seed) this.records.set(`${h.tenantId}:${h.id}`, h);
@@ -53,10 +55,10 @@ class FakeHouseholdUow implements HouseholdUnitOfWork {
     return change.household;
   }
 
-  commitHouseholdDelete(context: AccessContext, id: string): boolean {
-    const key = `${context.tenantId}:${id}`;
+  commitHouseholdDelete(context: AccessContext, change: HouseholdDeleteChange): boolean {
+    const key = `${context.tenantId}:${change.householdId}`;
     const deleted = this.records.delete(key);
-    if (deleted) this.deletes.push(id);
+    if (deleted) this.deletes.push(change);
     return deleted;
   }
 }
@@ -65,7 +67,7 @@ class FakeServiceGroupUow implements ServiceGroupUnitOfWork {
   readonly records = new Map<string, ServiceGroup>();
   readonly creates: ServiceGroupChange[] = [];
   readonly updates: ServiceGroupChange[] = [];
-  readonly deletes: string[] = [];
+  readonly deletes: ServiceGroupDeleteChange[] = [];
 
   constructor(seed: readonly ServiceGroup[] = []) {
     for (const g of seed) this.records.set(`${g.tenantId}:${g.id}`, g);
@@ -95,10 +97,10 @@ class FakeServiceGroupUow implements ServiceGroupUnitOfWork {
     return change.serviceGroup;
   }
 
-  commitServiceGroupDelete(context: AccessContext, id: string): boolean {
-    const key = `${context.tenantId}:${id}`;
+  commitServiceGroupDelete(context: AccessContext, change: ServiceGroupDeleteChange): boolean {
+    const key = `${context.tenantId}:${change.serviceGroupId}`;
     const deleted = this.records.delete(key);
-    if (deleted) this.deletes.push(id);
+    if (deleted) this.deletes.push(change);
     return deleted;
   }
 }
@@ -155,7 +157,11 @@ function ctx(capabilities: readonly string[]): Readonly<AccessContext> {
   });
 }
 
-function createService(householdSeed?: readonly Household[], groupSeed?: readonly ServiceGroup[], respSeed?: readonly ResponsibilityAssignment[]) {
+function createService(
+  householdSeed?: readonly Household[],
+  groupSeed?: readonly ServiceGroup[],
+  respSeed?: readonly ResponsibilityAssignment[],
+) {
   return new OrganizationService(
     new FakeHouseholdUow(householdSeed),
     new FakeServiceGroupUow(groupSeed),
@@ -222,6 +228,21 @@ describe('OrganizationService — Households', () => {
     expect(noOp.name).toBe('Silva');
   });
 
+  it('no-ops when memberIds are identical', () => {
+    const uow = new FakeHouseholdUow([
+      { id: 'h-1', tenantId: 'tenant-a', name: 'Silva', memberIds: ['p-1', 'p-2'] },
+    ]);
+    const service = new OrganizationService(uow, new FakeServiceGroupUow(), new FakeResponsibilityUow(), runtime());
+
+    const result = service.updateHousehold(ctx(['people.read', 'people.write']), {
+      id: 'h-1',
+      memberIds: ['p-1', 'p-2'],
+    });
+
+    expect(result.name).toBe('Silva');
+    expect(uow.updates).toHaveLength(0);
+  });
+
   it('updates household name and member list', () => {
     const service = createService([
       { id: 'h-1', tenantId: 'tenant-a', name: 'Silva', memberIds: ['p-1'] },
@@ -237,14 +258,40 @@ describe('OrganizationService — Households', () => {
     expect(updated.memberIds).toEqual(['p-1', 'p-3']);
   });
 
-  it('deletes a household', () => {
-    const service = createService([
+  it('deletes a household and delivers atomic audit and domain events', () => {
+    const uow = new FakeHouseholdUow([
       { id: 'h-1', tenantId: 'tenant-a', name: 'Silva', memberIds: ['p-1'] },
     ]);
+    const service = new OrganizationService(uow, new FakeServiceGroupUow(), new FakeResponsibilityUow(), runtime());
 
-    const result = service.deleteHousehold(ctx(['people.write']), 'h-1');
+    const result = service.deleteHousehold(
+      ctx(['people.write']),
+      'h-1',
+      { correlationId: 'delete-req-1' },
+    );
+
     expect(result).toBe(true);
     expect(service.listHouseholds(ctx(['people.read']))).toHaveLength(0);
+
+    expect(uow.deletes).toHaveLength(1);
+    const del = uow.deletes[0]!;
+    expect(del.householdId).toBe('h-1');
+
+    // Audit event correctness
+    expect(del.auditEvent.resourceType).toBe('household');
+    expect(del.auditEvent.resourceId).toBe('h-1');
+    expect(del.auditEvent.action).toBe('delete');
+    expect(del.auditEvent.tenantId).toBe('tenant-a');
+    expect(del.auditEvent.actorId).toBe('elder-1');
+    expect(del.auditEvent.changedFields).toEqual([]);
+
+    // Domain event correctness
+    expect(del.domainEvent.type).toBe('HouseholdDeleted');
+    expect(del.domainEvent.aggregateId).toBe('h-1');
+    expect(del.domainEvent.tenantId).toBe('tenant-a');
+    expect(del.domainEvent.actorId).toBe('elder-1');
+    expect(del.domainEvent.correlationId).toBe('delete-req-1');
+    expect(del.domainEvent.schemaVersion).toBe(1);
   });
 
   it('rejects household operations without proper capabilities', () => {
@@ -367,13 +414,74 @@ describe('OrganizationService — Service Groups', () => {
     expect(result.name).toBe('Grupo 1');
   });
 
-  it('deletes a service group', () => {
-    const service = createService(undefined, [
+  it('no-ops when memberIds are identical', () => {
+    const uow = new FakeServiceGroupUow([
+      { id: 'g-1', tenantId: 'tenant-a', name: 'Grupo 1', memberIds: ['p-1', 'p-2'] },
+    ]);
+    const service = new OrganizationService(new FakeHouseholdUow(), uow, new FakeResponsibilityUow(), runtime());
+
+    const result = service.updateServiceGroup(ctx(['people.read', 'people.write']), {
+      id: 'g-1',
+      memberIds: ['p-1', 'p-2'],
+    });
+
+    expect(result.name).toBe('Grupo 1');
+    expect(uow.updates).toHaveLength(0);
+  });
+
+  it('no-ops when overseerId and assistantId are unchanged', () => {
+    const uow = new FakeServiceGroupUow([
+      {
+        id: 'g-1', tenantId: 'tenant-a', name: 'Grupo 1',
+        memberIds: ['p-1', 'p-2'], overseerId: 'p-1', assistantId: 'p-2',
+      },
+    ]);
+    const service = new OrganizationService(new FakeHouseholdUow(), uow, new FakeResponsibilityUow(), runtime());
+
+    const result = service.updateServiceGroup(ctx(['people.read', 'people.write']), {
+      id: 'g-1',
+      overseerId: 'p-1',
+      assistantId: 'p-2',
+    });
+
+    expect(uow.updates).toHaveLength(0);
+    expect(result).toBe(uow.records.get('tenant-a:g-1'));
+  });
+
+  it('deletes a service group and delivers atomic audit and domain events', () => {
+    const uow = new FakeServiceGroupUow([
       { id: 'g-1', tenantId: 'tenant-a', name: 'Grupo 1', memberIds: ['p-1'] },
     ]);
+    const service = new OrganizationService(new FakeHouseholdUow(), uow, new FakeResponsibilityUow(), runtime());
 
-    expect(service.deleteServiceGroup(ctx(['people.write']), 'g-1')).toBe(true);
+    const result = service.deleteServiceGroup(
+      ctx(['people.write']),
+      'g-1',
+      { correlationId: 'delete-req-2' },
+    );
+
+    expect(result).toBe(true);
     expect(service.listServiceGroups(ctx(['people.read']))).toHaveLength(0);
+
+    expect(uow.deletes).toHaveLength(1);
+    const del = uow.deletes[0]!;
+    expect(del.serviceGroupId).toBe('g-1');
+
+    // Audit event correctness
+    expect(del.auditEvent.resourceType).toBe('service-group');
+    expect(del.auditEvent.resourceId).toBe('g-1');
+    expect(del.auditEvent.action).toBe('delete');
+    expect(del.auditEvent.tenantId).toBe('tenant-a');
+    expect(del.auditEvent.actorId).toBe('elder-1');
+    expect(del.auditEvent.changedFields).toEqual([]);
+
+    // Domain event correctness
+    expect(del.domainEvent.type).toBe('ServiceGroupDeleted');
+    expect(del.domainEvent.aggregateId).toBe('g-1');
+    expect(del.domainEvent.tenantId).toBe('tenant-a');
+    expect(del.domainEvent.actorId).toBe('elder-1');
+    expect(del.domainEvent.correlationId).toBe('delete-req-2');
+    expect(del.domainEvent.schemaVersion).toBe(1);
   });
 
   it('rejects service group operations without proper capabilities', () => {

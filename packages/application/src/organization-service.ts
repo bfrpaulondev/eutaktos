@@ -43,12 +43,18 @@ export interface HouseholdChange {
   domainEvent: Readonly<DomainEvent>;
 }
 
+export interface HouseholdDeleteChange {
+  householdId: HouseholdId;
+  auditEvent: Readonly<AuditEvent>;
+  domainEvent: Readonly<DomainEvent>;
+}
+
 export interface HouseholdUnitOfWork {
   listHouseholds(context: AccessContext): readonly Household[];
   findHouseholdById(context: AccessContext, id: HouseholdId): Household | undefined;
   commitHouseholdCreate(context: AccessContext, change: HouseholdChange): Household;
   commitHouseholdUpdate(context: AccessContext, change: HouseholdChange): Household;
-  commitHouseholdDelete(context: AccessContext, id: HouseholdId): boolean;
+  commitHouseholdDelete(context: AccessContext, change: HouseholdDeleteChange): boolean;
 }
 
 // ---- Service Group ----
@@ -75,12 +81,18 @@ export interface ServiceGroupChange {
   domainEvent: Readonly<DomainEvent>;
 }
 
+export interface ServiceGroupDeleteChange {
+  serviceGroupId: ServiceGroupId;
+  auditEvent: Readonly<AuditEvent>;
+  domainEvent: Readonly<DomainEvent>;
+}
+
 export interface ServiceGroupUnitOfWork {
   listServiceGroups(context: AccessContext): readonly ServiceGroup[];
   findServiceGroupById(context: AccessContext, id: ServiceGroupId): ServiceGroup | undefined;
   commitServiceGroupCreate(context: AccessContext, change: ServiceGroupChange): ServiceGroup;
   commitServiceGroupUpdate(context: AccessContext, change: ServiceGroupChange): ServiceGroup;
-  commitServiceGroupDelete(context: AccessContext, id: ServiceGroupId): boolean;
+  commitServiceGroupDelete(context: AccessContext, change: ServiceGroupDeleteChange): boolean;
 }
 
 // ---- Responsibility ----
@@ -109,6 +121,16 @@ export interface ResponsibilityUnitOfWork {
   findResponsibilityById(context: AccessContext, id: ResponsibilityId): ResponsibilityAssignment | undefined;
   commitResponsibilityCreate(context: AccessContext, change: ResponsibilityChange): ResponsibilityAssignment;
   commitResponsibilityUpdate(context: AccessContext, change: ResponsibilityChange): ResponsibilityAssignment;
+}
+
+// ---- Helpers ----
+
+function arraysEqual(a: readonly string[], b: readonly string[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
 }
 
 // ---- Service ----
@@ -212,8 +234,10 @@ export class OrganizationService {
     }
 
     if (input.memberIds !== undefined) {
-      memberIds = [...input.memberIds];
-      changedFields.push('memberIds');
+      if (!arraysEqual(input.memberIds, existing.memberIds)) {
+        memberIds = [...input.memberIds];
+        changedFields.push('memberIds');
+      }
     }
 
     if (changedFields.length === 0) return existing;
@@ -281,10 +305,11 @@ export class OrganizationService {
       ...eventCorrelation(metadata),
     });
 
-    // The delete UoW method does not need the change; we just log audit/event.
-    // The UoW implementation is responsible for persisting them.
-    const result = this.#householdUow.commitHouseholdDelete(context, id);
-    return result;
+    return this.#householdUow.commitHouseholdDelete(context, {
+      householdId: id,
+      auditEvent,
+      domainEvent,
+    });
   }
 
   // ---- Service Group use cases ----
@@ -357,47 +382,52 @@ export class OrganizationService {
     assertResourceTenant(context, existing);
 
     const changedFields: string[] = [];
-    const nextInput: CreateServiceGroupInput = {
-      id: existing.id,
-      name: existing.name,
-      memberIds: [...existing.memberIds],
-      overseerId: existing.overseerId,
-      assistantId: existing.assistantId,
-    };
+    let name = existing.name;
+    let memberIds = existing.memberIds;
+    let overseerId = existing.overseerId;
+    let assistantId = existing.assistantId;
 
     if (input.name !== undefined) {
       const next = input.name.trim().replace(/\s+/g, ' ');
       if (!next) throw new Error('service group name is required');
       if (next !== existing.name) {
-        nextInput.name = next;
+        name = next;
         changedFields.push('name');
       }
     }
 
     if (input.memberIds !== undefined) {
-      nextInput.memberIds = [...input.memberIds];
-      changedFields.push('memberIds');
+      if (!arraysEqual(input.memberIds, existing.memberIds)) {
+        memberIds = [...input.memberIds];
+        changedFields.push('memberIds');
+      }
     }
 
     if (input.overseerId !== undefined) {
-      nextInput.overseerId = input.overseerId ?? undefined;
-      changedFields.push('overseerId');
+      const next = input.overseerId ?? undefined;
+      if (next !== existing.overseerId) {
+        overseerId = next;
+        changedFields.push('overseerId');
+      }
     }
 
     if (input.assistantId !== undefined) {
-      nextInput.assistantId = input.assistantId ?? undefined;
-      changedFields.push('assistantId');
+      const next = input.assistantId ?? undefined;
+      if (next !== existing.assistantId) {
+        assistantId = next;
+        changedFields.push('assistantId');
+      }
     }
 
     if (changedFields.length === 0) return existing;
 
     const serviceGroup = createServiceGroup({
-      id: nextInput.id,
+      id: existing.id,
       tenantId: context.tenantId,
-      name: nextInput.name,
-      memberIds: nextInput.memberIds,
-      overseerId: nextInput.overseerId,
-      assistantId: nextInput.assistantId,
+      name,
+      memberIds,
+      overseerId,
+      assistantId,
     });
 
     const occurredAt = this.#runtime.now();
@@ -438,7 +468,35 @@ export class OrganizationService {
     if (!existing) throw new Error('Service group not found');
     assertResourceTenant(context, existing);
 
-    return this.#serviceGroupUow.commitServiceGroupDelete(context, id);
+    const occurredAt = this.#runtime.now();
+
+    const auditEvent = createAuditEvent({
+      id: this.#runtime.nextId('audit'),
+      tenantId: context.tenantId,
+      resourceType: 'service-group',
+      resourceId: id,
+      action: 'delete',
+      actorId: context.actorId,
+      occurredAt,
+      changedFields: [],
+    });
+
+    const domainEvent = createDomainEvent({
+      id: this.#runtime.nextId('event'),
+      tenantId: context.tenantId,
+      type: 'ServiceGroupDeleted',
+      aggregateId: id,
+      actorId: context.actorId,
+      occurredAt,
+      schemaVersion: 1,
+      ...eventCorrelation(metadata),
+    });
+
+    return this.#serviceGroupUow.commitServiceGroupDelete(context, {
+      serviceGroupId: id,
+      auditEvent,
+      domainEvent,
+    });
   }
 
   // ---- Responsibility use cases ----
