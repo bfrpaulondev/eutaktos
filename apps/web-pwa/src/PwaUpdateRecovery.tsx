@@ -57,7 +57,7 @@ export function PwaUpdateRecovery() {
   const controllerRef = useRef<PwaUpdateController | null>(null);
   const text = copy[locale];
   const theme = useMemo(
-    () => buildEutaktosTheme({ ...currentPreferences(), locale }),
+    () => buildEutaktosTheme(currentPreferences()),
     [available, activating, error, locale],
   );
 

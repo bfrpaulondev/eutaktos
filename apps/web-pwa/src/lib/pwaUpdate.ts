@@ -8,7 +8,7 @@ export interface PwaWorkerLike {
 export interface PwaRegistrationLike {
   readonly waiting: PwaWorkerLike | null;
   readonly installing: PwaWorkerLike | null;
-  update(): Promise<void>;
+  update(): Promise<unknown>;
   addEventListener(type: 'updatefound', listener: () => void): void;
   removeEventListener(type: 'updatefound', listener: () => void): void;
 }
