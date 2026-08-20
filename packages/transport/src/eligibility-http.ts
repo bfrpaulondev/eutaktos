@@ -3,6 +3,7 @@ import {
   type AccessContext,
   type AssignmentTypeId,
   type CongregationPerson,
+  type EligibilityDecision,
   type PersonId,
 } from '@eutaktos/domain';
 import type { RequestMetadata, SetEligibilityInput } from '@eutaktos/application';
@@ -15,6 +16,7 @@ export interface EligibilityDecisionDto {
 }
 
 export interface EligibilityPort {
+  listEligibility(context: AccessContext, personId: PersonId): readonly EligibilityDecision[];
   setEligibility(
     context: AccessContext,
     input: SetEligibilityInput,
@@ -60,13 +62,32 @@ function safeError(error: unknown): TransportResponse<{ error: string }> {
   return { status: 500, body: { error: 'Internal server error' } };
 }
 
+function toDecisionDto(decision: EligibilityDecision): EligibilityDecisionDto {
+  return {
+    assignmentTypeId: decision.assignmentTypeId,
+    enabled: decision.enabled,
+    decidedAt: decision.decidedAt,
+  };
+}
+
+function currentDecisions(decisions: readonly EligibilityDecision[]): readonly EligibilityDecisionDto[] {
+  const latest = new Map<AssignmentTypeId, EligibilityDecision>();
+  for (const decision of decisions) {
+    const current = latest.get(decision.assignmentTypeId);
+    if (!current || Date.parse(decision.decidedAt) > Date.parse(current.decidedAt)) latest.set(decision.assignmentTypeId, decision);
+  }
+  return [...latest.values()]
+    .sort((a, b) => a.assignmentTypeId.localeCompare(b.assignmentTypeId))
+    .map(toDecisionDto);
+}
+
 function latestDecision(person: CongregationPerson, assignmentTypeId: AssignmentTypeId): EligibilityDecisionDto {
   const normalized = assignmentTypeId.trim();
   const decision = [...person.eligibility]
     .filter(item => item.assignmentTypeId === normalized)
     .sort((a, b) => Date.parse(b.decidedAt) - Date.parse(a.decidedAt))[0];
   if (!decision) throw new Error('Eligibility decision was not recorded');
-  return { assignmentTypeId: decision.assignmentTypeId, enabled: decision.enabled, decidedAt: decision.decidedAt };
+  return toDecisionDto(decision);
 }
 
 export class EligibilityHttpTransport {
@@ -74,6 +95,19 @@ export class EligibilityHttpTransport {
 
   constructor(eligibility: EligibilityPort) {
     this.#eligibility = eligibility;
+  }
+
+  list(request: TransportRequest): TransportResponse<readonly EligibilityDecisionDto[] | { error: string }> {
+    const context = toContext(request.principal);
+    if (!context) return { status: 401, body: { error: 'Unauthorized' } };
+    const personId = request.params?.personId?.trim();
+    if (!personId) return { status: 400, body: { error: 'personId is required' } };
+
+    try {
+      return { status: 200, body: currentDecisions(this.#eligibility.listEligibility(context, personId)) };
+    } catch (error) {
+      return safeError(error);
+    }
   }
 
   set(request: TransportRequest): TransportResponse<EligibilityDecisionDto | { error: string }> {
