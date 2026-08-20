@@ -65,6 +65,36 @@ function fixture(overrides: Partial<CongregationPerson> = {}): CongregationPerso
 }
 
 describe('AvailabilityService', () => {
+  it('lists unavailability only with dedicated read capability', () => {
+    const period = {
+      id: 'availability-1',
+      startsAt: '2026-09-12T00:00:00Z',
+      endsAt: '2026-09-22T00:00:00Z',
+      reasonCode: 'away' as const,
+    };
+    const unitOfWork = new FakePeopleUnitOfWork(fixture({ availability: [period] }));
+    const service = new AvailabilityService(unitOfWork, runtime());
+
+    expect(service.list(context(['people.read', 'availability.read']), 'person-1')).toEqual([period]);
+    expect(() => service.list(context(['people.read']), 'person-1')).toThrow(
+      'Access denied: missing capability availability.read',
+    );
+  });
+
+  it('returns cloned periods so callers cannot mutate persisted availability', () => {
+    const period = {
+      id: 'availability-1',
+      startsAt: '2026-09-12T00:00:00Z',
+      endsAt: '2026-09-22T00:00:00Z',
+      reasonCode: 'away' as const,
+    };
+    const unitOfWork = new FakePeopleUnitOfWork(fixture({ availability: [period] }));
+    const service = new AvailabilityService(unitOfWork, runtime());
+
+    const listed = service.list(context(['people.read', 'availability.read']), 'person-1');
+    expect(listed[0]).not.toBe(unitOfWork.person.availability[0]);
+  });
+
   it('adds an identified unavailability period without requiring generic people.write', () => {
     const original = fixture();
     const unitOfWork = new FakePeopleUnitOfWork(original);
