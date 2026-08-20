@@ -1,0 +1,39 @@
+import { describe, expect, it, vi } from 'vitest';
+import { createPeopleApi, parsePeopleResponse } from './peopleApi';
+
+describe('People API client', () => {
+  it('parses only minimal directory DTOs', () => {
+    expect(parsePeopleResponse([{ id: 'p1', displayName: 'Ana Costa', preferredLocale: 'pt-PT', active: true }])).toEqual([
+      { id: 'p1', displayName: 'Ana Costa', preferredLocale: 'pt-PT', active: true },
+    ]);
+    expect(() => parsePeopleResponse([{ id: 'p1', displayName: 'Ana', active: true, eligibility: [] }])).not.toThrow();
+    expect(() => parsePeopleResponse([{ id: 'p1', displayName: 'Ana' }])).toThrow('Invalid People API response');
+  });
+
+  it('uses same-origin credentials and surfaces safe API errors', async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ error: 'Forbidden' }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json' },
+    })) as unknown as typeof fetch;
+    const api = createPeopleApi(fetcher);
+
+    await expect(api.list()).rejects.toThrow('Forbidden');
+    expect(fetcher).toHaveBeenCalledWith('/api/people', expect.objectContaining({
+      method: 'GET',
+      credentials: 'same-origin',
+    }));
+  });
+
+  it('creates a person using the transport payload contract', async () => {
+    const fetcher = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      expect(JSON.parse(String(init?.body))).toEqual({ displayName: 'Ana Costa', preferredLocale: 'pt-PT' });
+      return new Response(JSON.stringify({ id: 'p1', displayName: 'Ana Costa', preferredLocale: 'pt-PT', active: true }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }) as unknown as typeof fetch;
+    const api = createPeopleApi(fetcher);
+
+    await expect(api.create({ displayName: 'Ana Costa', preferredLocale: 'pt-PT' })).resolves.toMatchObject({ id: 'p1' });
+  });
+});
