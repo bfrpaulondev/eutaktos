@@ -50,7 +50,7 @@ export function PeopleDirectory({ locale }: { locale: Locale }) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [displayName, setDisplayName] = useState('');
-  const [preferredLocale, setPreferredLocale] = useState(locale);
+  const [preferredLocale, setPreferredLocale] = useState<string>(locale);
   const [active, setActive] = useState(true);
 
   const load = async (signal?: AbortSignal) => {
@@ -125,7 +125,7 @@ export function PeopleDirectory({ locale }: { locale: Locale }) {
           onChange={event => setQuery(event.target.value)}
           type="search"
           fullWidth
-          inputProps={{ autoComplete: 'off' }}
+          slotProps={{ htmlInput: { autoComplete: 'off' } }}
         />
 
         {error ? <Alert severity="warning" action={<Button color="inherit" size="small" onClick={() => void load()}>{text.retry}</Button>}>{error}</Alert> : null}
@@ -162,8 +162,8 @@ export function PeopleDirectory({ locale }: { locale: Locale }) {
           <DialogTitle>{text.dialogTitle}</DialogTitle>
           <DialogContent>
             <Stack spacing={2} sx={{ pt: 1 }}>
-              <TextField label={text.name} value={displayName} onChange={event => setDisplayName(event.target.value)} required autoFocus inputProps={{ maxLength: 120 }} />
-              <TextField label={text.preferredLocale} value={preferredLocale} onChange={event => setPreferredLocale(event.target.value)} inputProps={{ maxLength: 35 }} />
+              <TextField label={text.name} value={displayName} onChange={event => setDisplayName(event.target.value)} required autoFocus slotProps={{ htmlInput: { maxLength: 120 } }} />
+              <TextField label={text.preferredLocale} value={preferredLocale} onChange={event => setPreferredLocale(event.target.value)} slotProps={{ htmlInput: { maxLength: 35 } }} />
               <FormControlLabel control={<Switch checked={active} onChange={event => setActive(event.target.checked)} />} label={text.enabled} />
             </Stack>
           </DialogContent>
