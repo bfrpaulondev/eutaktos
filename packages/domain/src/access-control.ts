@@ -7,6 +7,8 @@ export type Capability =
   | 'eligibility.write'
   | 'availability.read'
   | 'availability.write'
+  | 'emergency-contacts.read'
+  | 'emergency-contacts.write'
   | 'responsibilities.read'
   | 'responsibilities.write'
   | 'schedule.read'
@@ -78,10 +80,12 @@ export function canAccessResource(
 /**
  * Highly sensitive capabilities are deliberately separate from general tenant
  * administration. A platform/congregation administrator must not gain Review
- * Center or eligibility access merely by holding `tenant.manage`.
+ * Center, eligibility or emergency-contact access merely by holding `tenant.manage`.
  */
 export const SENSITIVE_CAPABILITIES: readonly Capability[] = Object.freeze([
   'eligibility.write',
+  'emergency-contacts.read',
+  'emergency-contacts.write',
   'review.read',
   'review.write',
   'audit.read',
