@@ -54,24 +54,23 @@ function context(capabilities: AccessContext['capabilities']): Readonly<AccessCo
 }
 
 function runtime(): ApplicationRuntime {
-  const counters: Record<'person' | 'availability' | 'emergency-contact' | 'audit' | 'event', number> = {
-    person: 0,
-    availability: 0,
-    'emergency-contact': 0,
-    audit: 0,
-    event: 0,
-  };
+  const counters = { person: 0, availability: 0, audit: 0, event: 0, emergency: 0 };
   return {
     now: () => '2026-08-20T10:00:00.000Z',
     nextId: scope => `${scope}-${++counters[scope]}`,
+    nextEntityId: () => `emergency-contact-${++counters.emergency}`,
   };
+}
+
+function emergencyAccess(): Readonly<AccessContext> {
+  return context(['people.read', 'emergency-contacts.read', 'emergency-contacts.write']);
 }
 
 describe('EmergencyContactService', () => {
   it('stores normalized emergency contacts with dedicated authorization and privacy-minimized metadata', () => {
     const unitOfWork = new FakePeopleUnitOfWork(fixture());
     const service = new EmergencyContactService(unitOfWork, runtime());
-    const access = context(['emergency-contacts.read', 'emergency-contacts.write']);
+    const access = emergencyAccess();
 
     const contact = service.upsert(access, {
       personId: 'person-1',
@@ -110,7 +109,7 @@ describe('EmergencyContactService', () => {
       emergencyContacts: [{ id: 'contact-1', name: 'Maria', phone: '111', relationship: 'irmã' }],
     });
     const service = new EmergencyContactService(unitOfWork, runtime());
-    const access = context(['emergency-contacts.read', 'emergency-contacts.write']);
+    const access = emergencyAccess();
 
     service.upsert(access, {
       personId: 'person-1',
@@ -134,7 +133,7 @@ describe('EmergencyContactService', () => {
     expect(() => service.list(context(['people.read']), 'person-1')).toThrow(
       'Access denied: missing capability emergency-contacts.read',
     );
-    expect(() => service.upsert(context(['emergency-contacts.read']), {
+    expect(() => service.upsert(context(['people.read', 'emergency-contacts.read']), {
       personId: 'person-1', name: 'Maria', phone: '111',
     })).toThrow('Access denied: missing capability emergency-contacts.write');
   });
@@ -142,7 +141,7 @@ describe('EmergencyContactService', () => {
   it('does not expose another tenant through a misbehaving adapter', () => {
     const unitOfWork = new FakePeopleUnitOfWork({ ...fixture(), tenantId: 'tenant-b' });
     const service = new EmergencyContactService(unitOfWork, runtime());
-    expect(() => service.list(context(['emergency-contacts.read']), 'person-1')).toThrow(
+    expect(() => service.list(context(['people.read', 'emergency-contacts.read']), 'person-1')).toThrow(
       'Cross-tenant access denied',
     );
   });
