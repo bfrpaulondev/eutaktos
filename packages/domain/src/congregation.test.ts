@@ -58,9 +58,21 @@ describe('delegation', () => {
     expect(isDelegationActiveAt(created, '2026-08-20T10:00:00Z', 'requests.submit')).toBe(false);
   });
 
-  it('rejects self delegation and invalid windows', () => {
+  it('makes a revoked delegation inactive without mutating its original validity window', () => {
+    const revoked = createDelegation({ ...delegation, revokedAt: '2026-08-15T12:00:00Z' });
+    expect(isDelegationActiveAt(revoked, '2026-08-15T11:59:59Z', 'reports.submit')).toBe(true);
+    expect(isDelegationActiveAt(revoked, '2026-08-15T12:00:00Z', 'reports.submit')).toBe(false);
+    expect(revoked.endsAt).toBe(delegation.endsAt);
+  });
+
+  it('rejects self delegation, invalid windows, invalid revocation and unsupported scopes', () => {
     expect(() => createDelegation({ ...delegation, delegateId: 'person-a' })).toThrow('delegate to themselves');
     expect(() => createDelegation({ ...delegation, endsAt: delegation.startsAt })).toThrow('end after it starts');
     expect(() => createDelegation({ ...delegation, scopes: [] })).toThrow('at least one scope');
+    expect(() => createDelegation({ ...delegation, revokedAt: '2026-07-30T00:00:00Z' })).toThrow('revoked before');
+    expect(() => createDelegation({
+      ...delegation,
+      scopes: ['reports.submit', 'unknown.submit'] as unknown as typeof delegation.scopes,
+    })).toThrow('Unsupported delegation scope');
   });
 });

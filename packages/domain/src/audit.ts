@@ -4,10 +4,11 @@ export type AuditEventId = string;
 
 export type AuditedResourceType =
   | 'person'
-  | 'congregation'
   | 'household'
   | 'service-group'
   | 'responsibility'
+  | 'delegation'
+  | 'congregation'
   | 'eligibility'
   | 'availability'
   | 'emergency-contact';
