@@ -47,11 +47,12 @@ export interface PeopleUnitOfWork {
   commitUpdate(context: AccessContext, change: PersonChange): CongregationPerson;
 }
 
-export type ApplicationIdScope = 'person' | 'availability' | 'emergency-contact' | 'audit' | 'event';
+export type ApplicationIdScope = 'person' | 'availability' | 'audit' | 'event';
 
 export interface ApplicationRuntime {
   now(): string;
   nextId(scope: ApplicationIdScope): string;
+  nextEntityId?(scope: 'emergency-contact'): string;
 }
 
 function normalizeLocale(value: string): string {
@@ -186,7 +187,6 @@ export class PeopleDirectoryService {
       displayName,
       ...(preferredLocale ? { preferredLocale } : { preferredLocale: undefined }),
       active,
-      // Protected subdomains must be preserved exactly by generic profile edits.
       availability: existing.availability,
       eligibility: existing.eligibility,
       emergencyContacts: existing.emergencyContacts,
