@@ -1,4 +1,5 @@
 import { Box, Button, Card, CardContent, Chip, Paper } from '@mui/material';
+import { PeopleDirectory } from './PeopleDirectory';
 import type { Locale } from './lib/preferences';
 import { getWorkspaceCopy, type WorkspaceSection } from './lib/sectionData';
 import { Stack, Typography } from './ui/MuiCompat';
@@ -9,6 +10,8 @@ interface SectionWorkspaceProps {
 }
 
 export function SectionWorkspace({ locale, section }: SectionWorkspaceProps) {
+  if (section === 'people') return <PeopleDirectory locale={locale} />;
+
   const content = getWorkspaceCopy(locale, section);
   const detailsLabel = locale === 'pt-PT' ? 'Ver detalhes' : locale === 'es' ? 'Ver detalles' : 'View details';
 
