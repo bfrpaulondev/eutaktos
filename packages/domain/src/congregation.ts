@@ -21,6 +21,12 @@ export type DelegatedScope =
   | 'reports.submit'
   | 'requests.submit';
 
+export const DELEGATED_SCOPES: readonly DelegatedScope[] = Object.freeze([
+  'availability.submit',
+  'reports.submit',
+  'requests.submit',
+]);
+
 export interface Delegation {
   tenantId: TenantId;
   grantorId: PersonId;
@@ -29,6 +35,7 @@ export interface Delegation {
   startsAt: string;
   endsAt?: string;
   grantedAt: string;
+  revokedAt?: string;
 }
 
 function required(value: string, field: string): string {
@@ -106,10 +113,17 @@ export function createDelegation(input: Delegation): Readonly<Delegation> {
   const startsAt = parseInstant(input.startsAt);
   const grantedAt = parseInstant(input.grantedAt);
   const endsAt = input.endsAt ? parseInstant(input.endsAt) : Number.POSITIVE_INFINITY;
+  const revokedAt = input.revokedAt ? parseInstant(input.revokedAt) : Number.POSITIVE_INFINITY;
   if (endsAt <= startsAt) throw new Error('Delegation must end after it starts');
   if (grantedAt > startsAt) throw new Error('Delegation cannot be granted after it starts');
+  if (revokedAt < grantedAt) throw new Error('Delegation cannot be revoked before it is granted');
 
-  const scopes = [...new Set(input.scopes)].sort();
+  const allowed = new Set<DelegatedScope>(DELEGATED_SCOPES);
+  const normalizedScopes = input.scopes.map(scope => required(scope, 'delegated scope'));
+  for (const scope of normalizedScopes) {
+    if (!allowed.has(scope as DelegatedScope)) throw new Error(`Unsupported delegation scope: ${scope}`);
+  }
+  const scopes = [...new Set(normalizedScopes as DelegatedScope[])].sort();
   if (scopes.length === 0) throw new Error('Delegation requires at least one scope');
 
   return Object.freeze({ ...input, scopes: Object.freeze(scopes) });
@@ -120,5 +134,6 @@ export function isDelegationActiveAt(input: Delegation, instant: string, scope: 
   const target = parseInstant(instant);
   const startsAt = parseInstant(delegation.startsAt);
   const endsAt = delegation.endsAt ? parseInstant(delegation.endsAt) : Number.POSITIVE_INFINITY;
-  return delegation.scopes.includes(scope) && target >= startsAt && target < endsAt;
+  const revokedAt = delegation.revokedAt ? parseInstant(delegation.revokedAt) : Number.POSITIVE_INFINITY;
+  return delegation.scopes.includes(scope) && target >= startsAt && target < endsAt && target < revokedAt;
 }

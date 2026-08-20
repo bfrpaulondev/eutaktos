@@ -4,3 +4,4 @@ export * from './availability-service';
 export * from './emergency-contact-service';
 export * from './organization-service';
 export * from './congregation-service';
+export * from './delegation-service';
