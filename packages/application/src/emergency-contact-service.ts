@@ -36,6 +36,7 @@ export class EmergencyContactService {
   }
 
   list(context: AccessContext, personId: PersonId): readonly EmergencyContact[] {
+    assertCapability(context, 'people.read');
     assertCapability(context, 'emergency-contacts.read');
     const person = this.#getPerson(context, personId);
     return emergencyContactsOf(person).map(contact => ({ ...contact }));
@@ -46,11 +47,15 @@ export class EmergencyContactService {
     input: UpsertEmergencyContactInput,
     metadata: RequestMetadata = {},
   ): EmergencyContact {
+    assertCapability(context, 'people.read');
     assertCapability(context, 'emergency-contacts.read');
     assertCapability(context, 'emergency-contacts.write');
     const existing = this.#getPerson(context, input.personId);
     const contacts = [...emergencyContactsOf(existing)];
-    const contactId = input.contactId?.trim() || this.#runtime.nextId('emergency-contact');
+    const generatedId = this.#runtime.nextEntityId
+      ? this.#runtime.nextEntityId('emergency-contact')
+      : `emergency-contact-${this.#runtime.nextId('event')}`;
+    const contactId = input.contactId?.trim() || generatedId;
     const contact = normalizeEmergencyContact({
       id: contactId,
       name: input.name,
@@ -95,6 +100,7 @@ export class EmergencyContactService {
     contactId: EmergencyContactId,
     metadata: RequestMetadata = {},
   ): void {
+    assertCapability(context, 'people.read');
     assertCapability(context, 'emergency-contacts.read');
     assertCapability(context, 'emergency-contacts.write');
     const existing = this.#getPerson(context, personId);
