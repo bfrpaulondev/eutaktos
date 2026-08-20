@@ -5,6 +5,7 @@ export type DomainEventType =
   | 'PersonUpdated'
   | 'AvailabilityChanged'
   | 'EligibilityChanged'
+  | 'EmergencyContactChanged'
   | 'ResponsibilityChanged'
   | 'AssignmentCreated'
   | 'AssignmentDeclined'
