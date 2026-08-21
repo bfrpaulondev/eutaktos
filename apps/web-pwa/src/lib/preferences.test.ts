@@ -41,4 +41,26 @@ describe('normalizePreferences', () => {
     const unsafe = { paletteId: 'neon', density: 'tiny', locale: 'xx', textSize: 'huge' } as never;
     expect(normalizePreferences(unsafe)).toEqual(DEFAULT_PREFERENCES);
   });
+
+  it.each([
+    ['string true', 'true'],
+    ['string false', 'false'],
+    ['number one', 1],
+    ['number zero', 0],
+    ['null', null],
+    ['object', {}],
+    ['array', []],
+  ])('does not coerce malformed accessibility booleans: %s', (_label, value) => {
+    const unsafe = {
+      reducedMotion: value,
+      reducedTransparency: value,
+      highContrast: value,
+    } as unknown as Partial<import('./preferences').Preferences>;
+
+    expect(normalizePreferences(unsafe)).toMatchObject({
+      reducedMotion: false,
+      reducedTransparency: false,
+      highContrast: false,
+    });
+  });
 });
