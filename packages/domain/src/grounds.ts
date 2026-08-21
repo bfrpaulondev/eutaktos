@@ -1,83 +1,66 @@
 import type { TenantId } from './people';
 
 export type GroundsId = string;
-
 export interface GroundsSchedule {
-  readonly id: GroundsId;
-  readonly tenantId: TenantId;
-  readonly area: string;
-  readonly scheduleReference: string;
-  readonly assigneeReferences: readonly string[];
-  readonly active: boolean;
-  readonly validFrom: string;
-  readonly validUntil: string | null;
+  readonly id: GroundsId; readonly tenantId: TenantId; readonly area: string;
+  readonly scheduleReference: string; readonly assigneeReferences: readonly string[];
+  readonly active: boolean; readonly validFrom: string; readonly validUntil: string | null;
   readonly createdAt: string;
 }
 
 function required(value: string, field: string): string {
-  const n = value.trim();
-  if (!n) throw new Error(`${field} is required`);
-  return n;
+  if (typeof value !== 'string') throw new Error(`${field} must be a string`);
+  const normalized = value.trim(); if (!normalized) throw new Error(`${field} is required`); return normalized;
 }
-
 function validateInstant(value: string): void {
-  if (!Number.isFinite(Date.parse(value))) throw new Error(`Invalid ISO date: ${value}`);
+  if (typeof value !== 'string' || !Number.isFinite(Date.parse(value))) throw new Error(`Invalid ISO date: ${String(value)}`);
+}
+function normalizeAssignees(values: readonly string[]): readonly string[] {
+  if (!Array.isArray(values) || values.length === 0) throw new Error('At least one assignee is required');
+  if (values.length > 50) throw new Error('Too many assignees (max 50)');
+  return Object.freeze(values.map((value, index) => required(value, `assigneeReference[${index}]`)));
+}
+function validateWindow(validFrom: string, validUntil: string | null): void {
+  validateInstant(validFrom);
+  if (validUntil !== null) {
+    validateInstant(validUntil);
+    if (Date.parse(validUntil) < Date.parse(validFrom)) throw new Error('validUntil must not be before validFrom');
+  }
 }
 
 export function createGroundsSchedule(input: {
-  id: GroundsId;
-  tenantId: TenantId;
-  area: string;
-  scheduleReference: string;
-  assigneeReferences: readonly string[];
-  validFrom: string;
-  validUntil: string | null;
-  now: string;
+  id: GroundsId; tenantId: TenantId; area: string; scheduleReference: string;
+  assigneeReferences: readonly string[]; validFrom: string; validUntil: string | null; now: string;
 }): Readonly<GroundsSchedule> {
-  validateInstant(input.now);
-  validateInstant(input.validFrom);
-  if (input.validUntil !== null) validateInstant(input.validUntil);
-  if (input.assigneeReferences.length === 0) throw new Error('At least one assignee is required');
-  if (input.area.trim().length > 200) throw new Error('area is too long (max 200)');
-
+  validateInstant(input.now); validateWindow(input.validFrom, input.validUntil);
+  const area = required(input.area, 'area'); if (area.length > 200) throw new Error('area is too long (max 200)');
   return Object.freeze({
-    id: required(input.id, 'groundsId'),
-    tenantId: required(input.tenantId, 'tenantId'),
-    area: required(input.area, 'area'),
+    id: required(input.id, 'groundsId'), tenantId: required(input.tenantId, 'tenantId'), area,
     scheduleReference: required(input.scheduleReference, 'scheduleReference'),
-    assigneeReferences: Object.freeze(input.assigneeReferences.map((a, i) => required(a, `assigneeReference[${i}]`))),
-    active: true,
-    validFrom: input.validFrom,
-    validUntil: input.validUntil,
-    createdAt: input.now,
+    assigneeReferences: normalizeAssignees(input.assigneeReferences), active: true,
+    validFrom: input.validFrom, validUntil: input.validUntil, createdAt: input.now,
   });
 }
 
 export function isGroundsScheduleValid(grounds: Readonly<GroundsSchedule>, at: string): boolean {
-  validateInstant(at);
+  validateWindow(grounds.validFrom, grounds.validUntil); validateInstant(at);
   if (!grounds.active) return false;
-  const t = Date.parse(at);
-  if (t < Date.parse(grounds.validFrom)) return false;
-  if (grounds.validUntil !== null && t > Date.parse(grounds.validUntil)) return false;
-  return true;
+  const timestamp = Date.parse(at);
+  return timestamp >= Date.parse(grounds.validFrom)
+    && (grounds.validUntil === null || timestamp <= Date.parse(grounds.validUntil));
 }
-
 export function setGroundsActive(grounds: Readonly<GroundsSchedule>, active: boolean): Readonly<GroundsSchedule> {
+  if (typeof active !== 'boolean') throw new Error('active must be boolean');
   return Object.freeze({ ...grounds, active });
 }
-
 export function assertGroundsTenant(grounds: Readonly<GroundsSchedule>, tenantId: TenantId): void {
   if (grounds.tenantId !== tenantId) throw new Error('Cross-tenant grounds access denied');
 }
-
 export function normalizeGroundsSchedule(input: GroundsSchedule): Readonly<GroundsSchedule> {
-  required(input.id, 'groundsId');
-  required(input.tenantId, 'tenantId');
-  required(input.area, 'area');
-  required(input.scheduleReference, 'scheduleReference');
-  validateInstant(input.validFrom);
-  validateInstant(input.createdAt);
-  if (input.validUntil !== null) validateInstant(input.validUntil);
-  if (input.area.length > 200) throw new Error('area is too long (max 200)');
-  return Object.freeze({ ...input, assigneeReferences: Object.freeze([...input.assigneeReferences]) });
+  const id = required(input.id, 'groundsId'); const tenantId = required(input.tenantId, 'tenantId');
+  const area = required(input.area, 'area'); if (area.length > 200) throw new Error('area is too long (max 200)');
+  const scheduleReference = required(input.scheduleReference, 'scheduleReference');
+  validateWindow(input.validFrom, input.validUntil); validateInstant(input.createdAt);
+  if (typeof input.active !== 'boolean') throw new Error('active must be boolean');
+  return Object.freeze({ ...input, id, tenantId, area, scheduleReference, assigneeReferences: normalizeAssignees(input.assigneeReferences) });
 }
