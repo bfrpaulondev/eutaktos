@@ -28,3 +28,18 @@ export * from './hospitality';
 export * from './custom-schedules';
 export * from './co-visit';
 export * from './student-assignment';
+export {
+  type NonStudentAssignmentId,
+  type NonStudentRole,
+  type NonStudentAssignmentState,
+  type NonStudentAssignment,
+  NON_STUDENT_ASSIGNMENT_STATES,
+  createNonStudentAssignment,
+  cancelNonStudentAssignment,
+  completeNonStudentAssignment,
+  reassignNonStudentAssignment,
+  assertNonStudentAssignmentTenant,
+  filterByTenant as filterNonStudentAssignmentsByTenant,
+  filterByMeeting,
+  filterByRole,
+} from './non-student-assignment';
