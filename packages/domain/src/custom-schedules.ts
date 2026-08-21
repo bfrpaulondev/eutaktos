@@ -33,7 +33,11 @@ function normalizeSlots(slots: readonly DatedSlot[]): readonly Readonly<DatedSlo
     const date = validateDateOnly(slot.date, `slot[${index}].date`);
     validateInstant(slot.startsAt); validateInstant(slot.endsAt);
     if (Date.parse(slot.endsAt) <= Date.parse(slot.startsAt)) throw new Error(`Slot ${index}: endsAt must be after startsAt`);
-    const locationReference = slot.locationReference === null ? null : required(slot.locationReference, `slot[${index}].locationReference`);
+    let locationReference: string | null = null;
+    if (slot.locationReference !== null) {
+      if (typeof slot.locationReference !== 'string' || !slot.locationReference.trim()) throw new Error(`Slot ${index}: locationReference must not be blank`);
+      locationReference = slot.locationReference.trim();
+    }
     return Object.freeze({ date, startsAt: slot.startsAt, endsAt: slot.endsAt, locationReference });
   }));
 }
