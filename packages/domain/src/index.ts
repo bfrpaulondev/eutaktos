@@ -58,6 +58,9 @@ export {
   personsAssignedInDateRange,
   uniquePartTypesForPerson,
 } from './student-history-queries';
+export * from './conflict-engine';
+export * from './away-conflict-adapter';
+export * from './eligibility-constraints';
 export * from './weekend-meeting';
 export * from './public-speaker';
 export * from './talk-outline';
