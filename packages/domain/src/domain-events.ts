@@ -23,6 +23,8 @@ export type DomainEventType =
   | 'AssignmentDeclined'
   | 'AssignmentReplaced'
   | 'AssignmentCancelled'
+  | 'MidweekMeetingCreated'
+  | 'MidweekMeetingUpdated'
   | 'MidweekMeetingPublished'
   | 'MidweekMeetingArchived'
   | 'ReviewRequested'
