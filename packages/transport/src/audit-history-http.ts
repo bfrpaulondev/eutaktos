@@ -21,6 +21,11 @@ const RESOURCE_TYPES: readonly AuditedResourceType[] = [
   'availability',
   'emergency-contact',
   'access-grant',
+  'midweek-meeting',
+  'student-assignment',
+  'non-student-assignment',
+  'weekend-meeting',
+  'public-talk-assignment',
 ];
 const ACTIONS: readonly AuditAction[] = ['create', 'update', 'delete', 'grant', 'revoke'];
 
