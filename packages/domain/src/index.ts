@@ -43,3 +43,5 @@ export {
   filterByMeeting,
   filterByRole,
 } from './non-student-assignment';
+export * from './meeting-classes';
+export * from './assignment-history';
