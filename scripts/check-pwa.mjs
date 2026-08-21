@@ -6,12 +6,14 @@ const manifestPath = resolve(root, 'public/manifest.webmanifest');
 const serviceWorkerPath = resolve(root, 'public/sw.js');
 const indexPath = resolve(root, 'index.html');
 const mainPath = resolve(root, 'src/main.tsx');
+const appPath = resolve(root, 'src/App.tsx');
 const updateRecoveryPath = resolve(root, 'src/PwaUpdateRecovery.tsx');
 
 const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
 const sw = await readFile(serviceWorkerPath, 'utf8');
 const index = await readFile(indexPath, 'utf8');
 const main = await readFile(mainPath, 'utf8');
+const app = await readFile(appPath, 'utf8');
 const updateRecovery = await readFile(updateRecoveryPath, 'utf8');
 
 function assert(condition, message) {
@@ -42,7 +44,8 @@ assert(sw.includes("new Set(['script', 'style', 'font', 'image', 'manifest'])"),
 assert(!sw.includes("request.destination!=='document'"), 'legacy broad cache rule must not return');
 assert(sw.includes("event.data?.type === 'SKIP_WAITING'"), 'service worker updates must require the explicit SKIP_WAITING message');
 assert(!sw.includes("self.addEventListener('install', () => self.skipWaiting())"), 'updates must not silently force activation during install');
-assert(main.includes('<PwaUpdateRecovery />'), 'application root must render the update/recovery experience');
+assert(main.includes('<App />'), 'application root must render the App shell');
+assert(app.includes('<PwaUpdateRecovery />'), 'App shell must render the update/recovery experience under the active theme');
 assert(updateRecovery.includes('registerPwaUpdateController'), 'update/recovery experience must use the controlled update flow');
 assert(updateRecovery.includes('aria-live="polite"'), 'update notice must announce itself accessibly');
 

@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Button, Snackbar, ThemeProvider } from '@mui/material';
-import { DEFAULT_PREFERENCES, normalizePreferences, type Locale, type Preferences } from './lib/preferences';
+import { useEffect, useRef, useState } from 'react';
+import { Alert, Button, Snackbar } from '@mui/material';
+import type { Locale } from './lib/preferences';
 import { registerPwaUpdateController, type PwaUpdateController } from './lib/pwaUpdate';
-import { buildEutaktosTheme } from './theme';
+import { resolvePwaScriptUrl } from './lib/pwaUrl';
 
-const STORAGE_KEY = 'eutaktos.preferences.v2';
 
 const copy = {
   'pt-PT': {
@@ -40,15 +39,6 @@ function currentLocale(): Locale {
   return 'en';
 }
 
-function currentPreferences(): Preferences {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return normalizePreferences(stored ? JSON.parse(stored) : null);
-  } catch {
-    return DEFAULT_PREFERENCES;
-  }
-}
-
 export function PwaUpdateRecovery() {
   const [available, setAvailable] = useState(false);
   const [activating, setActivating] = useState(false);
@@ -56,10 +46,6 @@ export function PwaUpdateRecovery() {
   const [locale, setLocale] = useState<Locale>(currentLocale);
   const controllerRef = useRef<PwaUpdateController | null>(null);
   const text = copy[locale];
-  const theme = useMemo(
-    () => buildEutaktosTheme(currentPreferences()),
-    [available, activating, error, locale],
-  );
 
   useEffect(() => {
     const observer = new MutationObserver(() => setLocale(currentLocale()));
@@ -71,7 +57,7 @@ export function PwaUpdateRecovery() {
     if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
 
     let disposed = false;
-    const scriptUrl = new URL('sw.js', import.meta.env.BASE_URL).toString();
+    const scriptUrl = resolvePwaScriptUrl(import.meta.env.BASE_URL, window.location.origin);
 
     void registerPwaUpdateController({
       serviceWorker: navigator.serviceWorker,
@@ -131,7 +117,6 @@ export function PwaUpdateRecovery() {
   };
 
   return (
-    <ThemeProvider theme={theme}>
       <Snackbar
         open={available || activating || error}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
@@ -161,6 +146,5 @@ export function PwaUpdateRecovery() {
           </Alert>
         )}
       </Snackbar>
-    </ThemeProvider>
   );
 }

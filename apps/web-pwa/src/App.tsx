@@ -7,6 +7,8 @@ import {
   CardContent,
   Chip,
   CssBaseline,
+  Divider,
+  Drawer,
   FormControl,
   FormControlLabel,
   InputLabel,
@@ -19,65 +21,65 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
+import { PwaUpdateRecovery } from './PwaUpdateRecovery';
 import { SectionWorkspace } from './SectionWorkspace';
-import { DEFAULT_PREFERENCES, normalizePreferences, type PaletteId, type Preferences } from './lib/preferences';
+import {
+  DEFAULT_PREFERENCES,
+  normalizePreferences,
+  resolvePaletteId,
+  type PaletteId,
+  type Preferences,
+} from './lib/preferences';
 import { buildEutaktosTheme, EUTAKTOS_PALETTES } from './theme';
 import { Stack, Typography } from './ui/MuiCompat';
 
-const STORAGE_KEY = 'eutaktos.preferences.v3';
-
+const STORAGE_KEY = 'eutaktos.preferences.v4';
 type Section = 'home' | 'agenda' | 'assignments' | 'people' | 'preferences';
 
 const copy = {
   'pt-PT': {
-    skip: 'Saltar para o conteúdo principal', home: 'Início', agenda: 'Agenda', assignments: 'Designações', people: 'Pessoas', prefs: 'Preferências',
-    eyebrow: 'Quarta-feira, 19 de agosto', title: 'Tudo em boa ordem.', subtitle: 'O que precisa da tua atenção aparece primeiro, sem ruído e sem menus cansativos.',
-    privacy: 'Privacidade primeiro', prepare: 'Preparar próxima reunião', focus: 'Agora', nextAssignment: 'Próxima designação', gems: 'Pérolas Espirituais', midweek: 'Reunião do meio da semana · 20:00', confirmed: 'Confirmada',
-    pending: 'Por confirmar', pendingSub: 'designações', openRoles: 'Por preencher', openRolesSub: 'função esta semana', reports: 'Relatórios em falta', reportsSub: 'mês atual',
-    smart: 'Smart Assign', balance: 'Equilíbrio da Escola', fairnessText: 'Há irmãos elegíveis que estão há bastante mais tempo sem uma leitura. O sistema apresenta razões transparentes; o responsável decide.',
-    candidate: 'Elegível para leitura', days: 'dias', generate: 'Gerar proposta equilibrada', human: 'Recomendação objetiva. Decisão humana.',
+    skip: 'Saltar para o conteúdo principal', navigation: 'Navegação principal', home: 'Início', agenda: 'Agenda', assignments: 'Designações', people: 'Pessoas', prefs: 'Preferências', more: 'Mais', close: 'Fechar',
+    eyebrow: 'O teu espaço de organização', title: 'Tudo em boa ordem.', subtitle: 'Encontra primeiro o que pede atenção, com contexto claro e sem ruído.', privacy: 'Privacidade primeiro', preview: 'Dados de exemplo', previewDetail: 'Esta visão apresenta uma pré-visualização. Os fluxos reais serão ligados quando o scheduling estiver disponível.', viewAgenda: 'Ver agenda',
+    nextAssignment: 'Próxima designação', gems: 'Pérolas Espirituais', midweek: 'Reunião do meio da semana · 20:00', confirmed: 'Confirmada', pending: 'Por confirmar', pendingSub: 'designações', openRoles: 'Por preencher', openRolesSub: 'função esta semana', reports: 'Relatórios em falta', reportsSub: 'mês atual',
+    balance: 'Equilíbrio da Escola', fairnessText: 'As recomendações futuras vão mostrar razões claras e manter a decisão humana no centro.', candidate: 'Elegível para leitura', days: 'dias', viewPlanning: 'Ver planeamento', human: 'Preview de planeamento. Decisão humana.',
     ready: 'Cobertura da reunião', almostReady: 'Quase pronta', sound: 'Som', video: 'Vídeo', microphone: 'Microfone 1', attendant: 'Indicador 2', missing: 'Ainda sem designação',
-    personal: 'Só para ti', palette: 'Paleta', density: 'Densidade', textSize: 'Tamanho do texto', contrast: 'Contraste elevado', motion: 'Reduzir movimento', transparency: 'Reduzir transparência', language: 'Idioma', comfortable: 'Confortável', compact: 'Compacta',
-    textSizes: { small: 'Pequeno', default: 'Padrão', large: 'Grande', 'extra-large': 'Muito grande' },
-    palettes: ['Neutro Clássico', 'Neutro Quente', 'Monocromático + Verde', 'Azul Pastel', 'Dark Mode Minimalista', 'Pastel Suave'],
+    personal: 'As tuas escolhas', palette: 'Paleta', theme: 'Modo de cor', density: 'Densidade', textSize: 'Tamanho do texto', contrast: 'Contraste elevado', motion: 'Reduzir movimento', transparency: 'Reduzir transparência', language: 'Idioma', comfortable: 'Confortável', compact: 'Compacta',
+    textSizes: { small: 'Pequeno', default: 'Padrão', large: 'Grande', 'extra-large': 'Muito grande' }, themes: { light: 'Claro', dark: 'Escuro', system: 'Sistema' }, palettes: ['Clássica', 'Acolhedora', 'Calma', 'Foco', 'Noturna', 'Alto contraste'],
   },
   en: {
-    skip: 'Skip to main content', home: 'Home', agenda: 'Agenda', assignments: 'Assignments', people: 'People', prefs: 'Preferences',
-    eyebrow: 'Wednesday, 19 August', title: 'Everything in good order.', subtitle: 'What needs your attention comes first, without noise or tiring menus.',
-    privacy: 'Privacy first', prepare: 'Prepare next meeting', focus: 'Now', nextAssignment: 'Next assignment', gems: 'Spiritual Gems', midweek: 'Midweek meeting · 20:00', confirmed: 'Confirmed',
-    pending: 'Awaiting confirmation', pendingSub: 'assignments', openRoles: 'Unfilled', openRolesSub: 'role this week', reports: 'Missing reports', reportsSub: 'current month',
-    smart: 'Smart Assign', balance: 'School balance', fairnessText: 'Some eligible brothers have gone significantly longer without a reading. The system shows transparent reasons; the responsible brother decides.',
-    candidate: 'Eligible for reading', days: 'days', generate: 'Generate balanced proposal', human: 'Objective recommendation. Human decision.',
+    skip: 'Skip to main content', navigation: 'Primary navigation', home: 'Home', agenda: 'Agenda', assignments: 'Assignments', people: 'People', prefs: 'Preferences', more: 'More', close: 'Close',
+    eyebrow: 'Your organization space', title: 'Everything in good order.', subtitle: 'Find what needs attention first, with clear context and no noise.', privacy: 'Privacy first', preview: 'Sample data', previewDetail: 'This view is a preview. Real workflows will be connected when scheduling is available.', viewAgenda: 'View agenda',
+    nextAssignment: 'Next assignment', gems: 'Spiritual Gems', midweek: 'Midweek meeting · 20:00', confirmed: 'Confirmed', pending: 'Awaiting confirmation', pendingSub: 'assignments', openRoles: 'Unfilled', openRolesSub: 'role this week', reports: 'Missing reports', reportsSub: 'current month',
+    balance: 'School balance', fairnessText: 'Future recommendations will show clear reasons and keep human decision-making at the center.', candidate: 'Eligible for reading', days: 'days', viewPlanning: 'View planning', human: 'Planning preview. Human decision.',
     ready: 'Meeting coverage', almostReady: 'Almost ready', sound: 'Sound', video: 'Video', microphone: 'Microphone 1', attendant: 'Attendant 2', missing: 'Not assigned yet',
-    personal: 'Just for you', palette: 'Palette', density: 'Density', textSize: 'Text size', contrast: 'High contrast', motion: 'Reduce motion', transparency: 'Reduce transparency', language: 'Language', comfortable: 'Comfortable', compact: 'Compact',
-    textSizes: { small: 'Small', default: 'Default', large: 'Large', 'extra-large': 'Extra large' },
-    palettes: ['Neutral Classic', 'Neutral Warm', 'Monochrome + Green', 'Pastel Blue', 'Minimal Dark', 'Soft Pastel'],
+    personal: 'Your choices', palette: 'Palette', theme: 'Color mode', density: 'Density', textSize: 'Text size', contrast: 'High contrast', motion: 'Reduce motion', transparency: 'Reduce transparency', language: 'Language', comfortable: 'Comfortable', compact: 'Compact',
+    textSizes: { small: 'Small', default: 'Default', large: 'Large', 'extra-large': 'Extra large' }, themes: { light: 'Light', dark: 'Dark', system: 'System' }, palettes: ['Classic', 'Welcoming', 'Calm', 'Focus', 'Night', 'High contrast'],
   },
   es: {
-    skip: 'Saltar al contenido principal', home: 'Inicio', agenda: 'Agenda', assignments: 'Asignaciones', people: 'Personas', prefs: 'Preferencias',
-    eyebrow: 'Miércoles, 19 de agosto', title: 'Todo en buen orden.', subtitle: 'Lo que necesita tu atención aparece primero, sin ruido ni menús agotadores.',
-    privacy: 'Privacidad primero', prepare: 'Preparar próxima reunión', focus: 'Ahora', nextAssignment: 'Próxima asignación', gems: 'Perlas espirituales', midweek: 'Reunión de entre semana · 20:00', confirmed: 'Confirmada',
-    pending: 'Por confirmar', pendingSub: 'asignaciones', openRoles: 'Sin asignar', openRolesSub: 'función esta semana', reports: 'Informes pendientes', reportsSub: 'mes actual',
-    smart: 'Smart Assign', balance: 'Equilibrio de la Escuela', fairnessText: 'Hay hermanos elegibles que llevan mucho más tiempo sin una lectura. El sistema muestra razones transparentes; el responsable decide.',
-    candidate: 'Elegible para lectura', days: 'días', generate: 'Generar propuesta equilibrada', human: 'Recomendación objetiva. Decisión humana.',
+    skip: 'Saltar al contenido principal', navigation: 'Navegación principal', home: 'Inicio', agenda: 'Agenda', assignments: 'Asignaciones', people: 'Personas', prefs: 'Preferencias', more: 'Más', close: 'Cerrar',
+    eyebrow: 'Tu espacio de organización', title: 'Todo en buen orden.', subtitle: 'Encuentra primero lo que necesita atención, con contexto claro y sin ruido.', privacy: 'Privacidad primero', preview: 'Datos de ejemplo', previewDetail: 'Esta vista es una previsualización. Los flujos reales se conectarán cuando la planificación esté disponible.', viewAgenda: 'Ver agenda',
+    nextAssignment: 'Próxima asignación', gems: 'Perlas espirituales', midweek: 'Reunión de entre semana · 20:00', confirmed: 'Confirmada', pending: 'Por confirmar', pendingSub: 'asignaciones', openRoles: 'Sin asignar', openRolesSub: 'función esta semana', reports: 'Informes pendientes', reportsSub: 'mes actual',
+    balance: 'Equilibrio de la Escuela', fairnessText: 'Las recomendaciones futuras mostrarán razones claras y mantendrán la decisión humana en el centro.', candidate: 'Elegible para lectura', days: 'días', viewPlanning: 'Ver planificación', human: 'Previsualización de planificación. Decisión humana.',
     ready: 'Cobertura de la reunión', almostReady: 'Casi lista', sound: 'Sonido', video: 'Vídeo', microphone: 'Micrófono 1', attendant: 'Acomodador 2', missing: 'Aún sin asignar',
-    personal: 'Solo para ti', palette: 'Paleta', density: 'Densidad', textSize: 'Tamaño del texto', contrast: 'Contraste alto', motion: 'Reducir movimiento', transparency: 'Reducir transparencia', language: 'Idioma', comfortable: 'Cómoda', compact: 'Compacta',
-    textSizes: { small: 'Pequeño', default: 'Predeterminado', large: 'Grande', 'extra-large': 'Muy grande' },
-    palettes: ['Neutro Clásico', 'Neutro Cálido', 'Monocromático + Verde', 'Azul Pastel', 'Modo Oscuro Minimalista', 'Pastel Suave'],
+    personal: 'Tus elecciones', palette: 'Paleta', theme: 'Modo de color', density: 'Densidad', textSize: 'Tamaño del texto', contrast: 'Contraste alto', motion: 'Reducir movimiento', transparency: 'Reducir transparencia', language: 'Idioma', comfortable: 'Cómoda', compact: 'Compacta',
+    textSizes: { small: 'Pequeño', default: 'Predeterminado', large: 'Grande', 'extra-large': 'Muy grande' }, themes: { light: 'Claro', dark: 'Oscuro', system: 'Sistema' }, palettes: ['Clásica', 'Acogedora', 'Calma', 'Foco', 'Nocturna', 'Alto contraste'],
   },
 } as const;
 
+type AppCopy = (typeof copy)[keyof typeof copy];
 const paletteIds = Object.keys(EUTAKTOS_PALETTES) as PaletteId[];
 const textSizes: Preferences['textSize'][] = ['small', 'default', 'large', 'extra-large'];
+const navIcons: Record<Section, string> = { home: '⌂', agenda: '▦', assignments: '✓', people: '◌', preferences: '⚙' };
 
 function loadPreferences(): Preferences {
   try {
-    const next = localStorage.getItem(STORAGE_KEY);
-    if (next) return normalizePreferences(JSON.parse(next));
-    const v2 = localStorage.getItem('eutaktos.preferences.v2');
-    if (v2) return normalizePreferences(JSON.parse(v2));
-    const legacy = localStorage.getItem('eutaktos.preferences.v1');
-    return normalizePreferences(legacy ? JSON.parse(legacy) : null);
+    const current = localStorage.getItem(STORAGE_KEY);
+    if (current) return normalizePreferences(JSON.parse(current));
+    for (const key of ['eutaktos.preferences.v3', 'eutaktos.preferences.v2', 'eutaktos.preferences.v1']) {
+      const stored = localStorage.getItem(key);
+      if (stored) return normalizePreferences(JSON.parse(stored));
+    }
+    return DEFAULT_PREFERENCES;
   } catch {
     return DEFAULT_PREFERENCES;
   }
@@ -85,171 +87,131 @@ function loadPreferences(): Preferences {
 
 export default function App() {
   const [preferences, setPreferences] = useState<Preferences>(loadPreferences);
-  const theme = useMemo(() => buildEutaktosTheme(preferences), [preferences]);
+  const systemPrefersDark = useMediaQuery('(prefers-color-scheme: dark)', { noSsr: true });
+  const effectivePalette = resolvePaletteId(preferences.paletteId, preferences.colorMode, systemPrefersDark);
+  const theme = useMemo(() => buildEutaktosTheme({ ...preferences, paletteId: effectivePalette }), [effectivePalette, preferences]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
     document.documentElement.lang = preferences.locale;
-    document.documentElement.dataset.palette = preferences.paletteId;
+    document.documentElement.dataset.palette = effectivePalette;
     document.documentElement.dataset.textSize = preferences.textSize;
-  }, [preferences]);
+    document.documentElement.dataset.colorMode = preferences.colorMode;
+  }, [effectivePalette, preferences]);
 
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <AppShell preferences={preferences} setPreferences={setPreferences} />
+      <PwaUpdateRecovery />
     </ThemeProvider>
   );
 }
 
-interface AppShellProps {
-  preferences: Preferences;
-  setPreferences: Dispatch<SetStateAction<Preferences>>;
-}
+interface AppShellProps { preferences: Preferences; setPreferences: Dispatch<SetStateAction<Preferences>> }
 
 function AppShell({ preferences, setPreferences }: AppShellProps) {
   const [section, setSection] = useState<Section>('home');
+  const [moreOpen, setMoreOpen] = useState(false);
   const theme = useTheme();
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
   const text = copy[preferences.locale];
-
-  const update = <K extends keyof Preferences>(key: K, value: Preferences[K]) =>
-    setPreferences(current => ({ ...current, [key]: value }));
-
+  const update = <K extends keyof Preferences>(key: K, value: Preferences[K]) => setPreferences(current => ({ ...current, [key]: value }));
   const goToSection = (next: Section) => {
     setSection(next);
+    setMoreOpen(false);
     window.requestAnimationFrame(() => document.getElementById('main')?.focus({ preventScroll: true }));
   };
-
-  const nav: Array<[Section, string, string]> = [
-    ['home', text.home, '⌂'],
-    ['agenda', text.agenda, '▦'],
-    ['assignments', text.assignments, '✓'],
-    ['people', text.people, '◌'],
-    ['preferences', text.prefs, '⚙'],
-  ];
-
-  const glass = {
-    borderRadius: { xs: 3, md: 4 },
-    overflow: 'hidden',
-  } as const;
+  const nav: Section[] = ['home', 'agenda', 'assignments', 'people', 'preferences'];
+  const mobileNav: Section[] = ['home', 'agenda', 'people'];
 
   return (
-    <Box sx={{ minHeight: '100dvh', pb: { xs: 11, md: 0 } }}>
+    <Box sx={{ minHeight: '100dvh', pb: { xs: 'calc(84px + env(safe-area-inset-bottom))', md: 0 } }}>
       <Button className="skip-link" href="#main" variant="contained" size="small">{text.skip}</Button>
 
       {desktop ? (
-        <Paper component="aside" aria-label="Navegação principal" sx={{ position: 'fixed', inset: 16, right: 'auto', width: 236, p: 1.5, zIndex: 10, ...glass }}>
-          <Stack sx={{ height: '100%' }}>
-            <Stack direction="row" spacing={1.25} alignItems="center" sx={{ p: 1.25, mb: 1 }}>
-              <Avatar sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', width: 38, height: 38, fontWeight: 800 }}>E</Avatar>
-              <Box><Typography fontWeight={800}>Eutaktos</Typography><Typography variant="caption" color="text.secondary">Everything in good order.</Typography></Box>
-            </Stack>
-            <Stack component="nav" spacing={0.5} sx={{ flex: 1 }}>
-              {nav.map(([key, label, icon]) => (
-                <Button key={key} onClick={() => goToSection(key)} aria-current={section === key ? 'page' : undefined} variant={section === key ? 'contained' : 'text'} color={section === key ? 'primary' : 'inherit'} sx={{ justifyContent: 'flex-start', gap: 1.25 }}>
-                  <Box component="span" aria-hidden="true" sx={{ width: 22, textAlign: 'center' }}>{icon}</Box>{label}
-                </Button>
-              ))}
-            </Stack>
-            <Chip label={text.privacy} size="small" variant="outlined" sx={{ m: 1, justifyContent: 'flex-start' }} />
+        <Paper component="aside" aria-label={text.navigation} sx={{ position: 'fixed', inset: 16, right: 'auto', width: 264, p: 1.25, zIndex: 10, borderRadius: 4, display: 'flex', flexDirection: 'column' }}>
+          <Stack direction="row" spacing={1.25} alignItems="center" sx={{ p: 1.25, mb: 1.5 }}>
+            <Avatar sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', width: 42, height: 42, fontWeight: 800 }}>E</Avatar>
+            <Box><Typography fontWeight={800}>Eutaktos</Typography><Typography variant="caption" color="text.secondary">{text.privacy}</Typography></Box>
           </Stack>
+          <Stack component="nav" spacing={0.5} sx={{ flex: 1 }}>
+            {nav.map(key => <NavigationButton key={key} active={section === key} icon={navIcons[key]} label={text[key === 'preferences' ? 'prefs' : key]} onClick={() => goToSection(key)} />)}
+          </Stack>
+          <Paper variant="outlined" sx={{ p: 1.25, m: 0.5, borderRadius: 2, boxShadow: 'none', bgcolor: 'transparent' }}>
+            <Typography variant="caption" color="text.secondary">{text.preview}</Typography>
+            <Typography variant="caption" sx={{ mt: 0.25, display: 'block' }}>{text.privacy}</Typography>
+          </Paper>
         </Paper>
       ) : (
-        <Paper component="nav" aria-label="Navegação principal" sx={{ position: 'fixed', zIndex: 20, left: 8, right: 8, bottom: 'max(8px, env(safe-area-inset-bottom))', p: 0.5, borderRadius: 4 }}>
+        <Paper component="nav" aria-label={text.navigation} sx={{ position: 'fixed', zIndex: 20, left: 8, right: 8, bottom: 'max(8px, env(safe-area-inset-bottom))', px: 0.5, py: 0.65, borderRadius: 3 }}>
           <Stack direction="row" justifyContent="space-between">
-            {nav.map(([key, label, icon]) => (
-              <Button key={key} onClick={() => goToSection(key)} aria-current={section === key ? 'page' : undefined} color={section === key ? 'primary' : 'inherit'} sx={{ minWidth: 0, flex: 1, px: 0.5, display: 'grid', gap: 0.25, fontSize: 11 }}>
-                <Typography component="span" aria-hidden="true" sx={{ fontSize: 18, lineHeight: 1 }}>{icon}</Typography>{label}
-              </Button>
-            ))}
+            {mobileNav.map(key => <MobileNavigationButton key={key} active={section === key} icon={navIcons[key]} label={key === 'preferences' ? text.prefs : text[key]} onClick={() => goToSection(key)} />)}
+            <MobileNavigationButton active={section === 'assignments' || section === 'preferences'} icon="•••" label={text.more} onClick={() => setMoreOpen(true)} />
           </Stack>
         </Paper>
       )}
 
-      <Box component="main" id="main" tabIndex={-1} sx={{ ml: { md: '268px' }, width: { md: 'calc(100% - 268px)' }, px: { xs: 1.5, sm: 2.5, md: 2, lg: 4 }, py: { xs: 1.5, md: 2 }, maxWidth: 1540 }}>
-        <Paper component="header" sx={{ p: { xs: 2.25, sm: 3, lg: 4 }, mb: 2, ...glass }}>
-          <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2} alignItems={{ md: 'center' }}>
-            <Box>
-              <Typography variant="overline" color="text.secondary" fontWeight={800}>{text.eyebrow}</Typography>
-              <Typography variant="h1" sx={{ fontSize: { xs: '2.35rem', sm: '3.1rem', lg: '4rem' }, maxWidth: 760 }}>{text.title}</Typography>
-              <Typography color="text.secondary" sx={{ mt: 1, maxWidth: 720, fontSize: { xs: '0.94rem', sm: '1.06rem' } }}>{text.subtitle}</Typography>
-            </Box>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }}>
-              <Chip label={text.privacy} variant="outlined" />
-              <Button variant="contained" onClick={() => goToSection('agenda')}>{text.prepare} →</Button>
-            </Stack>
-          </Stack>
-        </Paper>
+      <Drawer anchor="bottom" open={moreOpen} onClose={() => setMoreOpen(false)} slotProps={{ paper: { sx: { borderTopLeftRadius: 24, borderTopRightRadius: 24, p: 2, pb: 'calc(16px + env(safe-area-inset-bottom))' } } }}>
+        <Stack spacing={1.25} sx={{ maxWidth: 560, width: '100%', mx: 'auto' }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center"><Typography variant="h6">{text.more}</Typography><Button onClick={() => setMoreOpen(false)}>{text.close}</Button></Stack>
+          <Divider />
+          {(['assignments', 'preferences'] as const).map(key => <Button key={key} variant={section === key ? 'contained' : 'outlined'} startIcon={<span aria-hidden="true">{navIcons[key]}</span>} onClick={() => goToSection(key)} sx={{ justifyContent: 'flex-start' }}>{text[key === 'preferences' ? 'prefs' : key]}</Button>)}
+        </Stack>
+      </Drawer>
 
-        {section === 'home' ? (
-          <HomeDashboard text={text} goToSection={goToSection} preferences={preferences} update={update} />
-        ) : section === 'preferences' ? (
-          <PreferencesPanel text={text} preferences={preferences} update={update} />
-        ) : (
-          <SectionWorkspace locale={preferences.locale} section={section} />
-        )}
+      <Box component="main" id="main" tabIndex={-1} sx={{ ml: { md: '296px' }, width: { md: 'calc(100% - 296px)' }, px: { xs: 1.5, sm: 2.5, lg: 4 }, py: { xs: 1.5, md: 2 }, maxWidth: 1640 }}>
+        <Header text={text} onAgenda={() => goToSection('agenda')} />
+        {section === 'home' ? <HomeDashboard text={text} onNavigate={goToSection} preferences={preferences} update={update} /> : section === 'preferences' ? <PreferencesPanel text={text} preferences={preferences} update={update} /> : <SectionWorkspace locale={preferences.locale} section={section} />}
       </Box>
     </Box>
   );
 }
 
-interface HomeDashboardProps {
-  text: (typeof copy)[keyof typeof copy];
-  goToSection: (section: Section) => void;
-  preferences: Preferences;
-  update: <K extends keyof Preferences>(key: K, value: Preferences[K]) => void;
+function NavigationButton({ active, icon, label, onClick }: { active: boolean; icon: string; label: string; onClick: () => void }) {
+  return <Button onClick={onClick} aria-current={active ? 'page' : undefined} variant={active ? 'contained' : 'text'} color={active ? 'primary' : 'inherit'} sx={{ justifyContent: 'flex-start', gap: 1.25, px: 1.5 }}><Box component="span" aria-hidden="true" sx={{ width: 22, textAlign: 'center' }}>{icon}</Box>{label}</Button>;
 }
 
-function HomeDashboard({ text, goToSection, preferences, update }: HomeDashboardProps) {
-  const metrics = [[text.pending, '2', text.pendingSub], [text.openRoles, '1', text.openRolesSub], [text.reports, '3', text.reportsSub]] as const;
-  return (
-    <Stack spacing={2}>
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 2 }}>
-        {metrics.map(([label, value, detail]) => <Card key={label}><CardContent><Typography variant="overline" color="text.secondary">{label}</Typography><Typography variant="h3" sx={{ my: 0.5 }}>{value}</Typography><Typography variant="body2" color="text.secondary">{detail}</Typography></CardContent></Card>)}
-      </Box>
+function MobileNavigationButton({ active, icon, label, onClick }: { active: boolean; icon: string; label: string; onClick: () => void }) {
+  return <Button onClick={onClick} aria-current={active ? 'page' : undefined} color={active ? 'primary' : 'inherit'} sx={{ minWidth: 0, flex: 1, px: 0.35, display: 'grid', gap: 0.15, fontSize: '0.68rem', lineHeight: 1.1, whiteSpace: 'normal' }}><Typography component="span" aria-hidden="true" sx={{ fontSize: 18, lineHeight: 1 }}>{icon}</Typography>{label}</Button>;
+}
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' }, gap: 2 }}>
-        <Card><CardContent><Stack spacing={2}><Stack direction="row" justifyContent="space-between" alignItems="flex-start"><Box><Typography variant="overline" color="text.secondary">{text.nextAssignment}</Typography><Typography variant="h4">{text.gems}</Typography></Box><Chip label={text.confirmed} color="primary" variant="outlined" /></Stack><Typography color="text.secondary">{text.midweek}</Typography><Button variant="text" onClick={() => goToSection('agenda')} sx={{ alignSelf: 'flex-start' }}>{text.agenda} →</Button></Stack></CardContent></Card>
-
-        <Card><CardContent><Stack spacing={1.5}><Stack direction="row" justifyContent="space-between"><Box><Typography variant="overline" color="text.secondary">{text.smart}</Typography><Typography variant="h4">{text.balance}</Typography></Box><Chip label="92%" color="primary" /></Stack><Typography color="text.secondary">{text.fairnessText}</Typography>{[['C', 'Carlos', 126], ['A', 'André', 98]].map(([initial, name, days]) => <Paper key={name} sx={{ p: 1.25 }}><Stack direction="row" alignItems="center" justifyContent="space-between"><Stack direction="row" spacing={1} alignItems="center"><Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', color: 'primary.contrastText' }}>{initial}</Avatar><Typography fontWeight={700}>{name}</Typography></Stack><Typography fontWeight={800}>{days} {text.days}</Typography></Stack></Paper>)}<Button variant="contained" onClick={() => goToSection('assignments')}>{text.generate}</Button><Typography variant="caption" color="text.secondary">{text.human}</Typography></Stack></CardContent></Card>
-
-        <Card><CardContent><Stack spacing={1.5}><Stack direction="row" justifyContent="space-between"><Box><Typography variant="overline" color="text.secondary">{text.ready}</Typography><Typography variant="h4">{text.almostReady}</Typography></Box><Chip label="75%" /></Stack><LinearProgress variant="determinate" value={75} sx={{ height: 8, borderRadius: 999 }} />{[[text.sound, 'Bruno'], [text.video, 'Carlos'], [text.microphone, 'André'], [text.attendant, text.missing]].map(([role, person]) => <Stack key={role} direction="row" justifyContent="space-between" sx={{ py: 0.75, borderBottom: 1, borderColor: 'divider' }}><Typography color="text.secondary">{role}</Typography><Typography fontWeight={700}>{person}</Typography></Stack>)}</Stack></CardContent></Card>
-
-        <PreferencesCard text={text} preferences={preferences} update={update} />
-      </Box>
+function Header({ text, onAgenda }: { text: AppCopy; onAgenda: () => void }) {
+  return <Paper component="header" sx={{ p: { xs: 2.25, sm: 3, lg: 4 }, mb: 2.5, borderRadius: { xs: 3, md: 4 } }}>
+    <Stack direction={{ xs: 'column', lg: 'row' }} justifyContent="space-between" spacing={{ xs: 2.5, lg: 4 }} alignItems={{ lg: 'center' }}>
+      <Box sx={{ maxWidth: 760 }}><Typography variant="overline" color="primary.main">{text.eyebrow}</Typography><Typography variant="h1" sx={{ fontSize: { xs: '2.35rem', sm: '3.1rem', xl: '4rem' } }}>{text.title}</Typography><Typography color="text.secondary" sx={{ mt: 1, maxWidth: 680, fontSize: { xs: '0.98rem', sm: '1.05rem' } }}>{text.subtitle}</Typography></Box>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }} sx={{ flexShrink: 0 }}><Chip label={text.preview} color="info" variant="outlined" /><Button variant="contained" onClick={onAgenda} sx={{ minWidth: { sm: 210 } }}>{text.viewAgenda}</Button></Stack>
     </Stack>
-  );
+  </Paper>;
 }
 
-interface PreferencesProps {
-  text: (typeof copy)[keyof typeof copy];
-  preferences: Preferences;
-  update: <K extends keyof Preferences>(key: K, value: Preferences[K]) => void;
+function HomeDashboard({ text, onNavigate, preferences, update }: { text: AppCopy; onNavigate: (section: Section) => void; preferences: Preferences; update: <K extends keyof Preferences>(key: K, value: Preferences[K]) => void }) {
+  const metrics: Array<[string, string, string, 'warning' | 'info' | 'error']> = [[text.pending, '2', text.pendingSub, 'warning'], [text.openRoles, '1', text.openRolesSub, 'info'], [text.reports, '3', text.reportsSub, 'error']];
+  return <Stack spacing={2.5}>
+    <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2.5, boxShadow: 'none', bgcolor: 'transparent' }}><Stack direction={{ xs: 'column', sm: 'row' }} gap={1} alignItems={{ sm: 'center' }}><Chip label={text.preview} color="info" size="small" /><Typography variant="body2" color="text.secondary">{text.previewDetail}</Typography></Stack></Paper>
+    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5 }}>{metrics.map(([label, value, detail, color]) => <Card key={label}><CardContent><Chip label={label} color={color} size="small" variant="outlined" /><Typography variant="h3" sx={{ mt: 1.5, mb: 0.25 }}>{value}</Typography><Typography variant="body2" color="text.secondary">{detail}</Typography></CardContent></Card>)}</Box>
+    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1.05fr) minmax(0, 0.95fr)' }, gap: 1.5 }}>
+      <Card><CardContent><Stack spacing={2}><Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={1}><Box><Typography variant="overline" color="text.secondary">{text.nextAssignment}</Typography><Typography variant="h4">{text.gems}</Typography></Box><Chip label={text.confirmed} color="success" size="small" variant="outlined" /></Stack><Typography color="text.secondary">{text.midweek}</Typography><Button variant="outlined" onClick={() => onNavigate('agenda')} sx={{ alignSelf: 'flex-start' }}>{text.viewAgenda}</Button></Stack></CardContent></Card>
+      <Card><CardContent><Stack spacing={1.5}><Stack direction="row" justifyContent="space-between" gap={1}><Box><Typography variant="overline" color="text.secondary">{text.preview}</Typography><Typography variant="h4">{text.balance}</Typography></Box><Chip label="92%" color="info" size="small" /></Stack><Typography color="text.secondary">{text.fairnessText}</Typography>{[['C', 'Carlos', 126], ['A', 'André', 98]].map(([initial, name, days]) => <Paper key={name} variant="outlined" sx={{ p: 1.15, borderRadius: 2, boxShadow: 'none', bgcolor: 'transparent' }}><Stack direction="row" alignItems="center" justifyContent="space-between"><Stack direction="row" spacing={1} alignItems="center"><Avatar sx={{ width: 30, height: 30, bgcolor: 'primary.main', color: 'primary.contrastText', fontSize: '0.85rem' }}>{initial}</Avatar><Typography fontWeight={700}>{name}</Typography></Stack><Typography variant="body2" fontWeight={800}>{days} {text.days}</Typography></Stack></Paper>)}<Button variant="outlined" onClick={() => onNavigate('assignments')} sx={{ alignSelf: 'flex-start' }}>{text.viewPlanning}</Button><Typography variant="caption" color="text.secondary">{text.human}</Typography></Stack></CardContent></Card>
+      <Card><CardContent><Stack spacing={1.5}><Stack direction="row" justifyContent="space-between"><Box><Typography variant="overline" color="text.secondary">{text.ready}</Typography><Typography variant="h4">{text.almostReady}</Typography></Box><Chip label="75%" color="warning" size="small" /></Stack><LinearProgress variant="determinate" value={75} sx={{ height: 7, borderRadius: 999 }} />{[[text.sound, 'Bruno'], [text.video, 'Carlos'], [text.microphone, 'André'], [text.attendant, text.missing]].map(([role, person]) => <Stack key={role} direction="row" justifyContent="space-between" gap={2} sx={{ py: 0.75, borderBottom: 1, borderColor: 'divider' }}><Typography color="text.secondary">{role}</Typography><Typography fontWeight={700} color={person === text.missing ? 'warning.main' : 'text.primary'}>{person}</Typography></Stack>)}</Stack></CardContent></Card>
+      <PreferencesCard text={text} preferences={preferences} update={update} />
+    </Box>
+  </Stack>;
 }
 
-function PreferencesCard(props: PreferencesProps) {
-  return <Card><CardContent><Typography variant="overline" color="text.secondary">{props.text.personal}</Typography><Typography variant="h4" sx={{ mb: 2 }}>{props.text.prefs}</Typography><PreferenceControls {...props} /></CardContent></Card>;
-}
+function PreferencesCard(props: PreferenceProps) { return <Card><CardContent><Typography variant="overline" color="text.secondary">{props.text.personal}</Typography><Typography variant="h4" sx={{ mb: 2 }}>{props.text.prefs}</Typography><PreferenceControls {...props} compact /></CardContent></Card>; }
+function PreferencesPanel(props: PreferenceProps) { return <Paper sx={{ p: { xs: 2, sm: 3 }, maxWidth: 980, borderRadius: 3 }}><Typography variant="overline" color="primary.main">{props.text.personal}</Typography><Typography variant="h3" sx={{ mb: 0.5 }}>{props.text.prefs}</Typography><Typography color="text.secondary" sx={{ mb: 3 }}>{props.text.personal}</Typography><PreferenceControls {...props} /></Paper>; }
 
-function PreferencesPanel(props: PreferencesProps) {
-  return <Paper sx={{ p: { xs: 2, sm: 3 }, maxWidth: 880 }}><Typography variant="h3" sx={{ mb: 0.5 }}>{props.text.prefs}</Typography><Typography color="text.secondary" sx={{ mb: 3 }}>{props.text.personal}</Typography><PreferenceControls {...props} /></Paper>;
-}
-
-function PreferenceControls({ text, preferences, update }: PreferencesProps) {
-  return (
-    <Stack spacing={2}>
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
-        <FormControl fullWidth><InputLabel>{text.language}</InputLabel><Select label={text.language} value={preferences.locale} onChange={event => update('locale', event.target.value as Preferences['locale'])}><MenuItem value="pt-PT">Português</MenuItem><MenuItem value="en">English</MenuItem><MenuItem value="es">Español</MenuItem></Select></FormControl>
-        <FormControl fullWidth><InputLabel>{text.palette}</InputLabel><Select label={text.palette} value={preferences.paletteId} onChange={event => update('paletteId', event.target.value as PaletteId)}>{paletteIds.map((id, index) => <MenuItem value={id} key={id}><Stack direction="row" spacing={1} alignItems="center"><Stack direction="row" spacing={0.35}>{EUTAKTOS_PALETTES[id].colors.map(color => <Box key={color} sx={{ width: 11, height: 11, borderRadius: '50%', bgcolor: color, border: '1px solid', borderColor: 'divider' }} />)}</Stack><span>{index + 1}. {text.palettes[index]}</span></Stack></MenuItem>)}</Select></FormControl>
-        <FormControl fullWidth><InputLabel>{text.density}</InputLabel><Select label={text.density} value={preferences.density} onChange={event => update('density', event.target.value as Preferences['density'])}><MenuItem value="comfortable">{text.comfortable}</MenuItem><MenuItem value="compact">{text.compact}</MenuItem></Select></FormControl>
-        <FormControl fullWidth><InputLabel>{text.textSize}</InputLabel><Select label={text.textSize} value={preferences.textSize} onChange={event => update('textSize', event.target.value as Preferences['textSize'])}>{textSizes.map(value => <MenuItem key={value} value={value}>{text.textSizes[value]}</MenuItem>)}</Select></FormControl>
-      </Box>
-      <Stack direction={{ xs: 'column', sm: 'row' }} flexWrap="wrap" gap={0.5}>
-        <FormControlLabel control={<Switch checked={preferences.highContrast} onChange={(_, checked) => update('highContrast', checked)} />} label={text.contrast} />
-        <FormControlLabel control={<Switch checked={preferences.reducedMotion} onChange={(_, checked) => update('reducedMotion', checked)} />} label={text.motion} />
-        <FormControlLabel control={<Switch checked={preferences.reducedTransparency} onChange={(_, checked) => update('reducedTransparency', checked)} />} label={text.transparency} />
-      </Stack>
-    </Stack>
-  );
+type PreferenceProps = { text: AppCopy; preferences: Preferences; update: <K extends keyof Preferences>(key: K, value: Preferences[K]) => void; compact?: boolean };
+function PreferenceControls({ text, preferences, update, compact = false }: PreferenceProps) {
+  return <Stack spacing={2}>
+    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
+      <FormControl fullWidth size={compact ? 'small' : undefined}><InputLabel>{text.language}</InputLabel><Select label={text.language} value={preferences.locale} onChange={event => update('locale', event.target.value as Preferences['locale'])}><MenuItem value="pt-PT">Português</MenuItem><MenuItem value="en">English</MenuItem><MenuItem value="es">Español</MenuItem></Select></FormControl>
+      <FormControl fullWidth size={compact ? 'small' : undefined}><InputLabel>{text.theme}</InputLabel><Select label={text.theme} value={preferences.colorMode} onChange={event => update('colorMode', event.target.value as Preferences['colorMode'])}>{(['light', 'dark', 'system'] as const).map(mode => <MenuItem key={mode} value={mode}>{text.themes[mode]}</MenuItem>)}</Select></FormControl>
+      <FormControl fullWidth size={compact ? 'small' : undefined}><InputLabel>{text.palette}</InputLabel><Select label={text.palette} value={preferences.paletteId} onChange={event => update('paletteId', event.target.value as PaletteId)}>{paletteIds.map((id, index) => <MenuItem value={id} key={id}><Stack direction="row" spacing={1} alignItems="center"><Stack direction="row" spacing={0.35}>{EUTAKTOS_PALETTES[id].colors.map(color => <Box key={color} sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: color, border: '1px solid', borderColor: 'divider' }} />)}</Stack><span>{index + 1}. {text.palettes[index]}</span></Stack></MenuItem>)}</Select></FormControl>
+      <FormControl fullWidth size={compact ? 'small' : undefined}><InputLabel>{text.density}</InputLabel><Select label={text.density} value={preferences.density} onChange={event => update('density', event.target.value as Preferences['density'])}><MenuItem value="comfortable">{text.comfortable}</MenuItem><MenuItem value="compact">{text.compact}</MenuItem></Select></FormControl>
+      <FormControl fullWidth size={compact ? 'small' : undefined}><InputLabel>{text.textSize}</InputLabel><Select label={text.textSize} value={preferences.textSize} onChange={event => update('textSize', event.target.value as Preferences['textSize'])}>{textSizes.map(value => <MenuItem key={value} value={value}>{text.textSizes[value]}</MenuItem>)}</Select></FormControl>
+    </Box>
+    <Stack direction={{ xs: 'column', sm: 'row' }} flexWrap="wrap" gap={0.5}><FormControlLabel control={<Switch checked={preferences.highContrast} onChange={(_, checked) => update('highContrast', checked)} />} label={text.contrast} /><FormControlLabel control={<Switch checked={preferences.reducedMotion} onChange={(_, checked) => update('reducedMotion', checked)} />} label={text.motion} /><FormControlLabel control={<Switch checked={preferences.reducedTransparency} onChange={(_, checked) => update('reducedTransparency', checked)} />} label={text.transparency} /></Stack>
+  </Stack>;
 }

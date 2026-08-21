@@ -1,19 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PREFERENCES, normalizePreferences } from './preferences';
+import { DEFAULT_PREFERENCES, normalizePreferences, resolvePaletteId } from './preferences';
 
 describe('normalizePreferences', () => {
   it('returns safe defaults for missing input', () => {
     expect(normalizePreferences(undefined)).toEqual(DEFAULT_PREFERENCES);
   });
 
-  it('uses Neutral Classic and default text size as defaults', () => {
+  it('uses Classic, system color mode and default text size as defaults', () => {
     expect(DEFAULT_PREFERENCES.paletteId).toBe('classic');
+    expect(DEFAULT_PREFERENCES.colorMode).toBe('system');
     expect(DEFAULT_PREFERENCES.textSize).toBe('default');
   });
 
   it('preserves supported preferences', () => {
     expect(normalizePreferences({
-      paletteId: 'dark',
+      paletteId: 'blue',
+      colorMode: 'light',
       density: 'compact',
       locale: 'en',
       textSize: 'large',
@@ -21,7 +23,8 @@ describe('normalizePreferences', () => {
       reducedTransparency: true,
       highContrast: true,
     })).toEqual({
-      paletteId: 'dark',
+      paletteId: 'blue',
+      colorMode: 'light',
       density: 'compact',
       locale: 'en',
       textSize: 'large',
@@ -38,7 +41,7 @@ describe('normalizePreferences', () => {
   });
 
   it('falls back when persisted values are unsupported', () => {
-    const unsafe = { paletteId: 'neon', density: 'tiny', locale: 'xx', textSize: 'huge' } as never;
+    const unsafe = { paletteId: 'neon', colorMode: 'sepia', density: 'tiny', locale: 'xx', textSize: 'huge' } as never;
     expect(normalizePreferences(unsafe)).toEqual(DEFAULT_PREFERENCES);
   });
 
@@ -62,5 +65,20 @@ describe('normalizePreferences', () => {
       reducedTransparency: false,
       highContrast: false,
     });
+  });
+});
+
+describe('resolvePaletteId', () => {
+  it('uses the selected light palette when light mode is explicit', () => {
+    expect(resolvePaletteId('blue', 'light', true)).toBe('blue');
+  });
+
+  it('uses the night identity when dark mode is explicit or inherited from the system', () => {
+    expect(resolvePaletteId('classic', 'dark', false)).toBe('dark');
+    expect(resolvePaletteId('classic', 'system', true)).toBe('dark');
+  });
+
+  it('keeps the night preset when it is selected directly', () => {
+    expect(resolvePaletteId('dark', 'light', false)).toBe('dark');
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildEutaktosTheme, contrastRatio, EUTAKTOS_PALETTES } from './theme';
+import { buildEutaktosTheme, contrastRatio, EUTAKTOS_PALETTES, EUTAKTOS_STATUS_KEYS, statusColor } from './theme';
 
 const paletteIds = Object.keys(EUTAKTOS_PALETTES) as Array<keyof typeof EUTAKTOS_PALETTES>;
 
@@ -13,47 +13,57 @@ function themeFor(paletteId: keyof typeof EUTAKTOS_PALETTES) {
   });
 }
 
-describe('Eutaktos palettes', () => {
-  it('keeps Neutral Classic as palette 1', () => {
-    expect(EUTAKTOS_PALETTES.classic.colors).toEqual(['#FAFAFA', '#F2F2F2', '#1A1A1A', '#6B6B6B', '#3B82F6']);
-  });
-
-  it('contains only the six approved presets', () => {
+describe('Eutaktos design system', () => {
+  it('keeps the six coherent user presets in their approved order', () => {
     expect(Object.keys(EUTAKTOS_PALETTES)).toEqual(['classic', 'warm', 'green', 'blue', 'dark', 'pastel']);
+    expect(paletteIds.map(id => EUTAKTOS_PALETTES[id].label)).toEqual([
+      'Clássica', 'Acolhedora', 'Calma', 'Foco', 'Noturna', 'Alto contraste',
+    ]);
   });
 
-  it('keeps each supplied accent unchanged in the MUI secondary role', () => {
-    for (const paletteId of paletteIds) {
-      const [, , , , accent] = EUTAKTOS_PALETTES[paletteId].colors;
-      expect(themeFor(paletteId).palette.secondary.main).toBe(accent);
-    }
-  });
-
-  it('maps palette 1 to the expected default Material UI roles', () => {
+  it('uses the Eutaktos teal identity as classic primary rather than reusing text as an action color', () => {
     const theme = themeFor('classic');
-    expect(theme.palette.background.default).toBe('#FAFAFA');
-    expect(theme.palette.background.paper).toBe('#F2F2F2');
-    expect(theme.palette.text.primary).toBe('#1A1A1A');
-    expect(theme.palette.text.secondary).toBe('#6B6B6B');
-    expect(theme.palette.primary.main).toBe('#1A1A1A');
-    expect(theme.palette.secondary.main).toBe('#3B82F6');
+    expect(theme.palette.primary.main).toBe('#2F6F73');
+    expect(theme.palette.primary.main).not.toBe(theme.palette.text.primary);
+    expect(theme.palette.primary.contrastText).toBe('#FFFFFF');
   });
 
-  it('keeps normal primary and secondary text at WCAG AA contrast on background and surface', () => {
+  it('keeps normal text and contained primary actions at WCAG AA contrast in every preset', () => {
     for (const paletteId of paletteIds) {
       const theme = themeFor(paletteId);
-      const surfaces = [theme.palette.background.default, theme.palette.background.paper];
+      const source = EUTAKTOS_PALETTES[paletteId];
+      const surfaces = [source.background, source.surface];
       for (const surface of surfaces) {
         expect(contrastRatio(theme.palette.text.primary, surface)).toBeGreaterThanOrEqual(4.5);
         expect(contrastRatio(theme.palette.text.secondary, surface)).toBeGreaterThanOrEqual(4.5);
       }
+      expect(contrastRatio(theme.palette.primary.main, theme.palette.primary.contrastText)).toBeGreaterThanOrEqual(4.5);
     }
   });
 
-  it('keeps contained primary action text at WCAG AA contrast in every palette', () => {
+  it('provides a complete semantic status vocabulary in every preset', () => {
     for (const paletteId of paletteIds) {
-      const theme = themeFor(paletteId);
-      expect(contrastRatio(theme.palette.primary.main, theme.palette.primary.contrastText)).toBeGreaterThanOrEqual(4.5);
+      for (const status of EUTAKTOS_STATUS_KEYS) {
+        expect(statusColor(paletteId, status)).toMatch(/^#[0-9A-F]{6}$/i);
+      }
     }
+  });
+
+  it('uses a layered, non-black night mode', () => {
+    const dark = EUTAKTOS_PALETTES.dark;
+    expect(dark.mode).toBe('dark');
+    expect(dark.background).toBe('#111B22');
+    expect(dark.surface).not.toBe(dark.background);
+    expect(dark.elevated).not.toBe(dark.surface);
+    expect(dark.primary).toBe('#6BC7C4');
+  });
+
+  it('makes high contrast and reduced transparency explicit rather than relying on glass', () => {
+    const highContrast = buildEutaktosTheme({
+      paletteId: 'classic', density: 'comfortable', highContrast: true, reducedMotion: false, reducedTransparency: true,
+    });
+    const paper = highContrast.components?.MuiPaper?.styleOverrides?.root as { border?: string; backdropFilter?: string };
+    expect(paper.border).toContain('2px');
+    expect(paper.backdropFilter).toBe('none');
   });
 });
