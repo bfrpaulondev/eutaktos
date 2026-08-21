@@ -44,6 +44,13 @@ describe('classifyDisplayWindow', () => {
       'bad',
     )).toThrow('Invalid ISO date');
   });
+
+  it('rejects impossible windows instead of classifying corrupted data', () => {
+    expect(() => classifyDisplayWindow(
+      { displayFrom: '2026-12-01T00:00:00Z', expiresAt: '2026-08-01T00:00:00Z' },
+      '2026-08-21T00:00:00Z',
+    )).toThrow('expiresAt must be after displayFrom');
+  });
 });
 
 describe('validateDisplayWindow', () => {
