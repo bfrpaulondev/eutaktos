@@ -5,6 +5,7 @@ import {
   createMidweekMeeting,
   createMidweekPartDefinition,
   createStudentAssignment,
+  type Capability,
   type CongregationPerson,
   type MidweekMeeting,
   type MidweekPartDefinition,
@@ -18,12 +19,11 @@ import {
 
 const now = '2026-08-21T10:00:00.000Z';
 
-function context(tenantId = 'tenant-a') {
-  return createAccessContext({
-    tenantId,
-    actorId: 'actor-1',
-    capabilities: ['schedule.write', 'eligibility.read', 'availability.read'],
-  });
+function context(
+  tenantId = 'tenant-a',
+  capabilities: readonly Capability[] = ['schedule.write', 'eligibility.read', 'availability.read'],
+) {
+  return createAccessContext({ tenantId, actorId: 'actor-1', capabilities });
 }
 
 function part(): Readonly<MidweekPartDefinition> {
@@ -95,6 +95,15 @@ describe('MidweekSchedulingService', () => {
     const { service } = harness({ meeting: meeting('tenant-b') });
     expect(() => service.addSlot(context('tenant-a'), 'meeting-1', { position: 1, durationMinutes: 5, titleKey: 'x' }))
       .toThrow('Cross-tenant access denied');
+  });
+
+  it('requires explicit eligibility and availability read capabilities for assignment decisions', () => {
+    const { service, changes } = harness();
+    expect(() => service.assignStudent(context('tenant-a', ['schedule.write']), { meetingId: 'meeting-1', slotId: 'slot-1', studentId: 'person-1' }))
+      .toThrow('missing capability eligibility.read');
+    expect(() => service.assignStudent(context('tenant-a', ['schedule.write', 'eligibility.read']), { meetingId: 'meeting-1', slotId: 'slot-1', studentId: 'person-1' }))
+      .toThrow('missing capability availability.read');
+    expect(changes).toHaveLength(0);
   });
 
   it('requires explicit eligibility before assigning a student', () => {
