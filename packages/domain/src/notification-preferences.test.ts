@@ -23,6 +23,17 @@ const TENANT_A = 'tenant-aaa';
 const TENANT_B = 'tenant-bbb';
 const PERSON_1 = 'person-001';
 const PERSON_2 = 'person-002';
+const MALFORMED_BOOLEAN_VALUES: readonly unknown[] = Object.freeze([
+  1,
+  0,
+  'true',
+  'false',
+  '',
+  null,
+  undefined,
+  {},
+  [],
+]);
 
 // ── createNotificationPreferences ───────────────────────────────────────
 
@@ -195,20 +206,35 @@ describe('normalizeNotificationPreferences', () => {
     expect(result.preferredChannel).toBeNull();
   });
 
-  it('coerces boolean-like values', () => {
-    const result = normalizeNotificationPreferences({
-      ...validPrefs,
-      channels: [
-        { channel: 'in-app', enabled: 1 as unknown as boolean, optedIn: '' as unknown as boolean },
-        { channel: 'push', enabled: false, optedIn: false },
-        { channel: 'email', enabled: false, optedIn: false },
-        { channel: 'whatsapp', enabled: false, optedIn: false },
-      ],
-    });
-    const inApp = result.channels.find(c => c.channel === 'in-app');
-    expect(inApp?.enabled).toBe(true);
-    expect(inApp?.optedIn).toBe(false);
-  });
+  it.each(MALFORMED_BOOLEAN_VALUES)(
+    'rejects malformed enabled value %p during normalization without coercion',
+    malformedValue => {
+      expect(() => normalizeNotificationPreferences({
+        ...validPrefs,
+        channels: [
+          { channel: 'in-app', enabled: malformedValue as boolean, optedIn: false },
+          { channel: 'push', enabled: false, optedIn: false },
+          { channel: 'email', enabled: false, optedIn: false },
+          { channel: 'whatsapp', enabled: false, optedIn: false },
+        ],
+      } as NotificationPreferences)).toThrow('channels[0].enabled must be a boolean');
+    },
+  );
+
+  it.each(MALFORMED_BOOLEAN_VALUES)(
+    'rejects malformed optedIn value %p during normalization without granting consent',
+    malformedValue => {
+      expect(() => normalizeNotificationPreferences({
+        ...validPrefs,
+        channels: [
+          { channel: 'in-app', enabled: false, optedIn: malformedValue as boolean },
+          { channel: 'push', enabled: false, optedIn: false },
+          { channel: 'email', enabled: false, optedIn: false },
+          { channel: 'whatsapp', enabled: false, optedIn: false },
+        ],
+      } as NotificationPreferences)).toThrow('channels[0].optedIn must be a boolean');
+    },
+  );
 
   it('trims id/tenantId/personId', () => {
     const result = normalizeNotificationPreferences({
@@ -316,6 +342,34 @@ describe('updateChannel', () => {
     const base = createNotificationPreferences({ id: 'np-uc5', tenantId: TENANT_A, personId: PERSON_1, now: NOW });
     expect(() => updateChannel(base, 'push', { enabled: true }, 'bad')).toThrow('Invalid ISO date');
   });
+
+  it.each(MALFORMED_BOOLEAN_VALUES)(
+    'rejects malformed enabled patch value %p without coercion',
+    malformedValue => {
+      const base = createNotificationPreferences({ id: 'np-uc-enabled', tenantId: TENANT_A, personId: PERSON_1, now: NOW });
+      expect(() => updateChannel(
+        base,
+        'push',
+        { enabled: malformedValue } as unknown as { enabled?: boolean; optedIn?: boolean },
+        NOW,
+      )).toThrow('patch.enabled must be a boolean');
+      expect(getChannelConfig(base, 'push')?.enabled).toBe(false);
+    },
+  );
+
+  it.each(MALFORMED_BOOLEAN_VALUES)(
+    'rejects malformed optedIn patch value %p without granting consent',
+    malformedValue => {
+      const base = createNotificationPreferences({ id: 'np-uc-opted-in', tenantId: TENANT_A, personId: PERSON_1, now: NOW });
+      expect(() => updateChannel(
+        base,
+        'push',
+        { optedIn: malformedValue } as unknown as { enabled?: boolean; optedIn?: boolean },
+        NOW,
+      )).toThrow('patch.optedIn must be a boolean');
+      expect(getChannelConfig(base, 'push')?.optedIn).toBe(false);
+    },
+  );
 });
 
 // ── setPreferredChannel ─────────────────────────────────────────────────

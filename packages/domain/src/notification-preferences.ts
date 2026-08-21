@@ -45,6 +45,16 @@ function validateInstant(value: string): void {
   if (!Number.isFinite(Date.parse(value))) throw new Error(`Invalid ISO date: ${value}`);
 }
 
+/**
+ * Consent and delivery settings are security-sensitive. Values must be literal
+ * booleans; malformed input is rejected rather than coerced to a truthy/falsy
+ * value that could accidentally grant consent.
+ */
+function assertBoolean(value: unknown, field: string): boolean {
+  if (typeof value !== 'boolean') throw new Error(`${field} must be a boolean`);
+  return value;
+}
+
 function assertValidChannel(channel: string): NotificationChannel {
   if (!NOTIFICATION_CHANNELS.includes(channel as NotificationChannel)) {
     throw new Error(`Unknown notification channel: ${channel}`);
@@ -116,8 +126,8 @@ export function normalizeNotificationPreferences(
     seen.add(channel);
     return Object.freeze({
       channel,
-      enabled: Boolean(cfg.enabled),
-      optedIn: Boolean(cfg.optedIn),
+      enabled: assertBoolean(cfg.enabled, `channels[${i}].enabled`),
+      optedIn: assertBoolean(cfg.optedIn, `channels[${i}].optedIn`),
     });
   });
 
@@ -173,7 +183,7 @@ export function getActiveChannels(
   prefs: Readonly<NotificationPreferences>,
 ): readonly NotificationChannel[] {
   return prefs.channels
-    .filter(c => c.enabled && c.optedIn)
+    .filter(c => c.enabled === true && c.optedIn === true)
     .map(c => c.channel);
 }
 
@@ -190,13 +200,19 @@ export function updateChannel(
   assertValidChannel(channel);
   validateInstant(now);
 
+  if (typeof patch !== 'object' || patch === null || Array.isArray(patch)) {
+    throw new Error('Notification channel patch must be an object');
+  }
+
+  const rawPatch = patch as Record<string, unknown>;
+  const hasEnabled = Object.prototype.hasOwnProperty.call(rawPatch, 'enabled');
+  const hasOptedIn = Object.prototype.hasOwnProperty.call(rawPatch, 'optedIn');
+
   const newChannels = prefs.channels.map(cfg => {
     if (cfg.channel !== channel) return cfg;
-    return Object.freeze({
-      channel,
-      enabled: patch.enabled !== undefined ? Boolean(patch.enabled) : cfg.enabled,
-      optedIn: patch.optedIn !== undefined ? Boolean(patch.optedIn) : cfg.optedIn,
-    });
+    const enabled = hasEnabled ? assertBoolean(rawPatch.enabled, 'patch.enabled') : cfg.enabled;
+    const optedIn = hasOptedIn ? assertBoolean(rawPatch.optedIn, 'patch.optedIn') : cfg.optedIn;
+    return Object.freeze({ channel, enabled, optedIn });
   });
 
   return Object.freeze({
