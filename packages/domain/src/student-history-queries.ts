@@ -1,4 +1,5 @@
 import type { AssignmentHistoryRecord } from './assignment-history';
+export type { AssignmentHistoryRecord } from './assignment-history';
 
 /**
  * K27 — Student History and Recency Queries
