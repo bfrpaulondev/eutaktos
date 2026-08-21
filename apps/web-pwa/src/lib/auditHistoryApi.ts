@@ -8,7 +8,12 @@ export type AuditResourceType =
   | 'eligibility'
   | 'availability'
   | 'emergency-contact'
-  | 'access-grant';
+  | 'access-grant'
+  | 'midweek-meeting'
+  | 'student-assignment'
+  | 'non-student-assignment'
+  | 'weekend-meeting'
+  | 'public-talk-assignment';
 
 export type AuditAction = 'create' | 'update' | 'delete' | 'grant' | 'revoke';
 
@@ -39,6 +44,8 @@ export interface AuditHistoryApi {
 const RESOURCE_TYPES = new Set<AuditResourceType>([
   'person', 'household', 'service-group', 'responsibility', 'delegation', 'congregation',
   'eligibility', 'availability', 'emergency-contact', 'access-grant',
+  'midweek-meeting', 'student-assignment', 'non-student-assignment', 'weekend-meeting',
+  'public-talk-assignment',
 ]);
 const ACTIONS = new Set<AuditAction>(['create', 'update', 'delete', 'grant', 'revoke']);
 const RESPONSE_KEYS = new Set(['id', 'resourceType', 'resourceId', 'action', 'actorId', 'occurredAt', 'changedFields']);
