@@ -8,6 +8,7 @@ export * from './delegation-service';
 export * from './session-service';
 export * from './audit-history-service';
 export * from './access-grant-service';
+export * from './midweek-scheduling-service';
 export * from './migration-schema';
 export * from './csv-import';
 export * from './csv-export';
