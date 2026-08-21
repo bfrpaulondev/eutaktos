@@ -4,13 +4,17 @@ import type { Locale } from './lib/preferences';
 import { auditHistoryApi, type AuditAction, type AuditHistoryDto, type AuditResourceType } from './lib/auditHistoryApi';
 import { Stack, Typography } from './ui/MuiCompat';
 
-const resourceTypes: readonly AuditResourceType[] = ['person', 'household', 'service-group', 'responsibility', 'delegation', 'congregation', 'eligibility', 'availability', 'emergency-contact', 'access-grant'];
+const resourceTypes: readonly AuditResourceType[] = [
+  'person', 'household', 'service-group', 'responsibility', 'delegation', 'congregation',
+  'eligibility', 'availability', 'emergency-contact', 'access-grant', 'midweek-meeting',
+  'student-assignment', 'non-student-assignment', 'weekend-meeting', 'public-talk-assignment',
+];
 const actions: readonly AuditAction[] = ['create', 'update', 'delete', 'grant', 'revoke'];
 
 const copy = {
-  'pt-PT': { title: 'Histórico de auditoria', subtitle: 'Registo de alterações operacionais autorizadas neste tenant.', allResources: 'Todos os recursos', allActions: 'Todas as ações', resource: 'Tipo de recurso', action: 'Ação', actor: 'ID do ator', from: 'A partir de', to: 'Até', loading: 'A carregar histórico…', empty: 'Nenhum evento corresponde aos filtros.', unavailable: 'Não foi possível carregar o histórico. Tenta novamente.', retry: 'Tentar novamente', refresh: 'Atualizar', close: 'Fechar', resourceId: 'Identificador do recurso', changed: 'Campos registados', by: 'Registado por', results: 'eventos apresentados', clear: 'Limpar filtros', filterHint: 'Os filtros são aplicados apenas aos eventos já carregados.', recorded: 'Registado em' },
-  en: { title: 'Audit history', subtitle: 'Record of authorized operational changes in this tenant.', allResources: 'All resources', allActions: 'All actions', resource: 'Resource type', action: 'Action', actor: 'Actor ID', from: 'From', to: 'To', loading: 'Loading audit history…', empty: 'No events match the filters.', unavailable: 'Audit history could not be loaded. Please try again.', retry: 'Try again', refresh: 'Refresh', close: 'Close', resourceId: 'Resource identifier', changed: 'Recorded fields', by: 'Recorded by', results: 'events shown', clear: 'Clear filters', filterHint: 'Filters apply only to events that are already loaded.', recorded: 'Recorded at' },
-  es: { title: 'Historial de auditoría', subtitle: 'Registro de cambios operativos autorizados en este tenant.', allResources: 'Todos los recursos', allActions: 'Todas las acciones', resource: 'Tipo de recurso', action: 'Acción', actor: 'ID del actor', from: 'Desde', to: 'Hasta', loading: 'Cargando historial…', empty: 'Ningún evento coincide con los filtros.', unavailable: 'No se pudo cargar el historial. Inténtalo de nuevo.', retry: 'Intentar de nuevo', refresh: 'Actualizar', close: 'Cerrar', resourceId: 'Identificador del recurso', changed: 'Campos registrados', by: 'Registrado por', results: 'eventos mostrados', clear: 'Limpiar filtros', filterHint: 'Los filtros se aplican solo a los eventos ya cargados.', recorded: 'Registrado el' },
+  'pt-PT': { title: 'Histórico de auditoria', subtitle: 'Registo de alterações operacionais autorizadas neste tenant.', allResources: 'Todos os recursos', allActions: 'Todas as ações', resource: 'Tipo de recurso', action: 'Ação', actor: 'ID do ator', from: 'A partir de', to: 'Até', loading: 'A carregar histórico…', empty: 'Nenhum evento corresponde aos filtros.', unavailable: 'Não foi possível carregar o histórico. Tenta novamente.', retry: 'Tentar novamente', refresh: 'Atualizar', close: 'Fechar', resourceId: 'Identificador do recurso', changed: 'Campos registados', by: 'Registado por', results: 'eventos apresentados', clear: 'Limpar filtros', filterHint: 'Os filtros são aplicados apenas aos eventos já carregados.' },
+  en: { title: 'Audit history', subtitle: 'Record of authorized operational changes in this tenant.', allResources: 'All resources', allActions: 'All actions', resource: 'Resource type', action: 'Action', actor: 'Actor ID', from: 'From', to: 'To', loading: 'Loading audit history…', empty: 'No events match the filters.', unavailable: 'Audit history could not be loaded. Please try again.', retry: 'Try again', refresh: 'Refresh', close: 'Close', resourceId: 'Resource identifier', changed: 'Recorded fields', by: 'Recorded by', results: 'events shown', clear: 'Clear filters', filterHint: 'Filters apply only to events that are already loaded.' },
+  es: { title: 'Historial de auditoría', subtitle: 'Registro de cambios operativos autorizados en este tenant.', allResources: 'Todos los recursos', allActions: 'Todas las acciones', resource: 'Tipo de recurso', action: 'Acción', actor: 'ID del actor', from: 'Desde', to: 'Hasta', loading: 'Cargando historial…', empty: 'Ningún evento coincide con los filtros.', unavailable: 'No se pudo cargar el historial. Inténtalo de nuevo.', retry: 'Intentar de nuevo', refresh: 'Actualizar', close: 'Cerrar', resourceId: 'Identificador del recurso', changed: 'Campos registrados', by: 'Registrado por', results: 'eventos mostrados', clear: 'Limpiar filtros', filterHint: 'Los filtros se aplican solo a los eventos ya cargados.' },
 } as const;
 
 const actionLabels: Record<Locale, Record<AuditAction, string>> = {
@@ -19,19 +23,55 @@ const actionLabels: Record<Locale, Record<AuditAction, string>> = {
   es: { create: 'Crear', update: 'Actualizar', delete: 'Eliminar', grant: 'Conceder', revoke: 'Revocar' },
 };
 const resourceLabels: Record<Locale, Record<AuditResourceType, string>> = {
-  'pt-PT': { person: 'Pessoa', household: 'Agregado', 'service-group': 'Grupo de serviço', responsibility: 'Responsabilidade', delegation: 'Delegação', congregation: 'Congregação', eligibility: 'Elegibilidade', availability: 'Disponibilidade', 'emergency-contact': 'Contacto de emergência', 'access-grant': 'Acesso' },
-  en: { person: 'Person', household: 'Household', 'service-group': 'Service group', responsibility: 'Responsibility', delegation: 'Delegation', congregation: 'Congregation', eligibility: 'Eligibility', availability: 'Availability', 'emergency-contact': 'Emergency contact', 'access-grant': 'Access grant' },
-  es: { person: 'Persona', household: 'Hogar', 'service-group': 'Grupo de servicio', responsibility: 'Responsabilidad', delegation: 'Delegación', congregation: 'Congregación', eligibility: 'Elegibilidad', availability: 'Disponibilidad', 'emergency-contact': 'Contacto de emergencia', 'access-grant': 'Acceso' },
+  'pt-PT': { person: 'Pessoa', household: 'Agregado', 'service-group': 'Grupo de serviço', responsibility: 'Responsabilidade', delegation: 'Delegação', congregation: 'Congregação', eligibility: 'Elegibilidade', availability: 'Disponibilidade', 'emergency-contact': 'Contacto de emergência', 'access-grant': 'Acesso', 'midweek-meeting': 'Reunião do meio da semana', 'student-assignment': 'Designação de estudante', 'non-student-assignment': 'Designação não estudantil', 'weekend-meeting': 'Reunião do fim de semana', 'public-talk-assignment': 'Designação de discurso público' },
+  en: { person: 'Person', household: 'Household', 'service-group': 'Service group', responsibility: 'Responsibility', delegation: 'Delegation', congregation: 'Congregation', eligibility: 'Eligibility', availability: 'Availability', 'emergency-contact': 'Emergency contact', 'access-grant': 'Access grant', 'midweek-meeting': 'Midweek meeting', 'student-assignment': 'Student assignment', 'non-student-assignment': 'Non-student assignment', 'weekend-meeting': 'Weekend meeting', 'public-talk-assignment': 'Public talk assignment' },
+  es: { person: 'Persona', household: 'Hogar', 'service-group': 'Grupo de servicio', responsibility: 'Responsabilidad', delegation: 'Delegación', congregation: 'Congregación', eligibility: 'Elegibilidad', availability: 'Disponibilidad', 'emergency-contact': 'Contacto de emergencia', 'access-grant': 'Acceso', 'midweek-meeting': 'Reunión de entre semana', 'student-assignment': 'Asignación de estudiante', 'non-student-assignment': 'Asignación no estudiantil', 'weekend-meeting': 'Reunión del fin de semana', 'public-talk-assignment': 'Asignación de discurso público' },
 };
 
-function formatDate(value: string, locale: Locale): string { return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)); }
-function inDateRange(occurredAt: string, from: string, to: string): boolean {
-  const eventDate = occurredAt.slice(0, 10);
-  return (!from || eventDate >= from) && (!to || eventDate <= to);
+function formatDate(value: string, locale: Locale): string {
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
 }
-export function filterAuditEvents(events: readonly AuditHistoryDto[], filters: { resourceType: AuditResourceType | ''; action: AuditAction | ''; actorId: string; from: string; to: string }): readonly AuditHistoryDto[] {
+
+function resolvedTimeZone(): string {
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; }
+  catch { return 'UTC'; }
+}
+
+export function auditLocalDateKey(occurredAt: string, timeZone: string): string {
+  const date = new Date(occurredAt);
+  if (!Number.isFinite(date.getTime())) return '';
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const values = new Map(parts.map(part => [part.type, part.value]));
+  const year = values.get('year');
+  const month = values.get('month');
+  const day = values.get('day');
+  return year && month && day ? `${year}-${month}-${day}` : '';
+}
+
+function inDateRange(occurredAt: string, from: string, to: string, timeZone: string): boolean {
+  const eventDate = auditLocalDateKey(occurredAt, timeZone);
+  return Boolean(eventDate) && (!from || eventDate >= from) && (!to || eventDate <= to);
+}
+
+export function filterAuditEvents(
+  events: readonly AuditHistoryDto[],
+  filters: { resourceType: AuditResourceType | ''; action: AuditAction | ''; actorId: string; from: string; to: string },
+  timeZone = resolvedTimeZone(),
+): readonly AuditHistoryDto[] {
   const actor = filters.actorId.trim().toLocaleLowerCase();
-  return events.filter(event => (!filters.resourceType || event.resourceType === filters.resourceType) && (!filters.action || event.action === filters.action) && (!actor || event.actorId.toLocaleLowerCase().includes(actor)) && inDateRange(event.occurredAt, filters.from, filters.to)).slice().sort((first, second) => Date.parse(second.occurredAt) - Date.parse(first.occurredAt));
+  return events
+    .filter(event =>
+      (!filters.resourceType || event.resourceType === filters.resourceType) &&
+      (!filters.action || event.action === filters.action) &&
+      (!actor || event.actorId.toLocaleLowerCase().includes(actor)) &&
+      inDateRange(event.occurredAt, filters.from, filters.to, timeZone))
+    .slice()
+    .sort((first, second) => Date.parse(second.occurredAt) - Date.parse(first.occurredAt));
 }
 
 export function AuditHistoryDialog({ locale, open, onClose }: { locale: Locale; open: boolean; onClose(): void }) {
