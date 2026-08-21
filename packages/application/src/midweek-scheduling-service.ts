@@ -47,10 +47,9 @@ export interface MidweekSchedulingChange {
 }
 
 /**
- * All reads are context-scoped. `commit` is the transaction boundary: production
- * adapters must persist the business entity, audit rows and outbox events atomically.
- * The window resolver is trusted server-side infrastructure; the HTTP payload never
- * supplies UTC instants used for conflict decisions.
+ * Every repository read is scoped by the trusted AccessContext. `commit` is the
+ * transaction boundary: entity, audit rows and outbox events must succeed or fail
+ * together. UTC slot windows come from trusted infrastructure, never request input.
  */
 export interface MidweekSchedulingUnitOfWork {
   findMeeting(context: AccessContext, meetingId: string): Readonly<MidweekMeeting> | undefined;
@@ -65,7 +64,13 @@ export interface MidweekSchedulingUnitOfWork {
   commit(context: AccessContext, change: MidweekSchedulingChange): void;
 }
 
-export type SchedulingIdScope = 'midweek-meeting' | 'slot' | 'student-assignment' | 'non-student-assignment' | 'audit' | 'event';
+export type SchedulingIdScope =
+  | 'midweek-meeting'
+  | 'slot'
+  | 'student-assignment'
+  | 'non-student-assignment'
+  | 'audit'
+  | 'event';
 
 export interface MidweekSchedulingRuntime {
   now(): string;
@@ -117,8 +122,14 @@ function meetingEvent(
   metadata: RequestMetadata,
 ): Readonly<DomainEvent> {
   return createDomainEvent({
-    id: runtime.nextId('event'), tenantId: context.tenantId, type, aggregateId: meetingId,
-    actorId: context.actorId, occurredAt, schemaVersion: 1, ...eventCorrelation(metadata),
+    id: runtime.nextId('event'),
+    tenantId: context.tenantId,
+    type,
+    aggregateId: meetingId,
+    actorId: context.actorId,
+    occurredAt,
+    schemaVersion: 1,
+    ...eventCorrelation(metadata),
   });
 }
 
@@ -131,8 +142,14 @@ function assignmentEvent(
   metadata: RequestMetadata,
 ): Readonly<DomainEvent> {
   return createDomainEvent({
-    id: runtime.nextId('event'), tenantId: context.tenantId, type, aggregateId: assignmentId,
-    actorId: context.actorId, occurredAt, schemaVersion: 1, ...eventCorrelation(metadata),
+    id: runtime.nextId('event'),
+    tenantId: context.tenantId,
+    type,
+    aggregateId: assignmentId,
+    actorId: context.actorId,
+    occurredAt,
+    schemaVersion: 1,
+    ...eventCorrelation(metadata),
   });
 }
 
@@ -145,15 +162,25 @@ export class MidweekSchedulingService {
     this.#runtime = runtime;
   }
 
-  #meeting(context: AccessContext, meetingId: string): Readonly<MidweekMeeting> {
-    const meeting = this.#uow.findMeeting(context, id(meetingId, 'meetingId'));
+  #assertWrite(context: AccessContext): void {
+    assertCapability(context, 'schedule.write');
+  }
+
+  #assertAssignmentReads(context: AccessContext): void {
+    this.#assertWrite(context);
+    assertCapability(context, 'eligibility.read');
+    assertCapability(context, 'availability.read');
+  }
+
+  #meeting(context: AccessContext, meetingIdInput: string): Readonly<MidweekMeeting> {
+    const meeting = this.#uow.findMeeting(context, id(meetingIdInput, 'meetingId'));
     if (!meeting) throw new Error('Meeting not found');
     assertResourceTenant(context, meeting);
     return meeting;
   }
 
-  #person(context: AccessContext, personId: string): CongregationPerson {
-    const person = this.#uow.findPerson(context, id(personId, 'personId'));
+  #person(context: AccessContext, personIdInput: string): CongregationPerson {
+    const person = this.#uow.findPerson(context, id(personIdInput, 'personId'));
     if (!person) throw new Error('Person not found');
     assertResourceTenant(context, person);
     if (!person.active) throw new Error('Inactive person cannot receive an assignment');
@@ -169,8 +196,14 @@ export class MidweekSchedulingService {
     occurredAt: string,
   ): Readonly<AuditEvent> {
     return createAuditEvent({
-      id: this.#runtime.nextId('audit'), tenantId: context.tenantId, resourceType, resourceId,
-      action, actorId: context.actorId, occurredAt, changedFields,
+      id: this.#runtime.nextId('audit'),
+      tenantId: context.tenantId,
+      resourceType,
+      resourceId,
+      action,
+      actorId: context.actorId,
+      occurredAt,
+      changedFields,
     });
   }
 
@@ -180,18 +213,20 @@ export class MidweekSchedulingService {
     person: CongregationPerson,
     window: SchedulingWindow,
   ): void {
-    const unavailable = unavailableIntervalsForPerson(person, context.tenantId);
     const candidate: ConflictAssignment = {
-      tenantId: context.tenantId, assignmentId, personId: person.id,
-      startsAt: window.startsAt, endsAt: window.endsAt,
+      tenantId: context.tenantId,
+      assignmentId,
+      personId: person.id,
+      startsAt: window.startsAt,
+      endsAt: window.endsAt,
     };
     const conflicts = detectSchedulingConflicts({
       tenantId: context.tenantId,
       candidate,
       assignments: this.#uow.listConflictAssignments(context, [person.id]),
-      unavailable,
+      unavailable: unavailableIntervalsForPerson(person, context.tenantId),
     });
-    if (conflicts.length) throw new Error('Scheduling conflict detected');
+    if (conflicts.length > 0) throw new Error('Scheduling conflict detected');
   }
 
   createDraftMeeting(
@@ -199,17 +234,27 @@ export class MidweekSchedulingService {
     input: CreateMidweekMeetingInput,
     metadata: RequestMetadata = {},
   ): Readonly<MidweekMeeting> {
-    assertCapability(context, 'schedule.write');
+    this.#assertWrite(context);
     const occurredAt = this.#runtime.now();
     const meeting = createMidweekMeeting({
-      id: this.#runtime.nextId('midweek-meeting'), tenantId: context.tenantId,
-      date: input.date, localTime: input.localTime, timezone: input.timezone,
+      id: this.#runtime.nextId('midweek-meeting'),
+      tenantId: context.tenantId,
+      date: input.date,
+      localTime: input.localTime,
+      timezone: input.timezone,
       ...(input.locationId !== undefined ? { locationId: input.locationId } : {}),
       now: occurredAt,
     });
     this.#uow.commit(context, {
       meeting,
-      auditEvents: [this.#audit(context, 'midweek-meeting', meeting.id, 'create', ['date', 'localTime', 'timezone', ...(meeting.locationId ? ['locationId'] : [])], occurredAt)],
+      auditEvents: [this.#audit(
+        context,
+        'midweek-meeting',
+        meeting.id,
+        'create',
+        ['date', 'localTime', 'timezone', ...(meeting.locationId ? ['locationId'] : [])],
+        occurredAt,
+      )],
       domainEvents: [meetingEvent(this.#runtime, context, 'MidweekMeetingCreated', meeting.id, occurredAt, metadata)],
     });
     return meeting;
@@ -221,15 +266,17 @@ export class MidweekSchedulingService {
     input: AddMidweekSlotInput,
     metadata: RequestMetadata = {},
   ): Readonly<MidweekMeeting> {
-    assertCapability(context, 'schedule.write');
+    this.#assertWrite(context);
     const current = this.#meeting(context, meetingId);
     const occurredAt = this.#runtime.now();
     const slot: MeetingSlot = {
-      id: this.#runtime.nextId('slot'), position: input.position, durationMinutes: input.durationMinutes,
-      titleKey: input.titleKey, ...(input.partDefinitionId !== undefined ? { partDefinitionId: input.partDefinitionId } : {}),
+      id: this.#runtime.nextId('slot'),
+      position: input.position,
+      durationMinutes: input.durationMinutes,
+      titleKey: input.titleKey,
+      ...(input.partDefinitionId !== undefined ? { partDefinitionId: input.partDefinitionId } : {}),
     };
-    const withSlot = addMeetingSlot(current, slot);
-    const meeting = Object.freeze({ ...withSlot, updatedAt: occurredAt });
+    const meeting = Object.freeze({ ...addMeetingSlot(current, slot), updatedAt: occurredAt });
     this.#uow.commit(context, {
       meeting,
       auditEvents: [this.#audit(context, 'midweek-meeting', meeting.id, 'update', ['slots'], occurredAt)],
@@ -244,17 +291,16 @@ export class MidweekSchedulingService {
     slotIdInput: string,
     metadata: RequestMetadata = {},
   ): Readonly<MidweekMeeting> {
-    assertCapability(context, 'schedule.write');
+    this.#assertWrite(context);
     const current = this.#meeting(context, meetingId);
     const slotId = id(slotIdInput, 'slotId');
     const occupied = [
       ...this.#uow.listStudentAssignments(context, current.id),
       ...this.#uow.listNonStudentAssignments(context, current.id),
-    ].some(a => a.slotId === slotId && a.state === 'assigned');
+    ].some(assignment => assignment.slotId === slotId && assignment.state === 'assigned');
     if (occupied) throw new Error('Cannot remove a slot with an active assignment');
     const occurredAt = this.#runtime.now();
-    const removed = removeMeetingSlot(current, slotId);
-    const meeting = Object.freeze({ ...removed, updatedAt: occurredAt });
+    const meeting = Object.freeze({ ...removeMeetingSlot(current, slotId), updatedAt: occurredAt });
     this.#uow.commit(context, {
       meeting,
       auditEvents: [this.#audit(context, 'midweek-meeting', meeting.id, 'update', ['slots'], occurredAt)],
@@ -269,13 +315,12 @@ export class MidweekSchedulingService {
     changes: Parameters<typeof updateMidweekMeeting>[1],
     metadata: RequestMetadata = {},
   ): Readonly<MidweekMeeting> {
-    assertCapability(context, 'schedule.write');
+    this.#assertWrite(context);
     const current = this.#meeting(context, meetingId);
     const occurredAt = this.#runtime.now();
     const meeting = updateMidweekMeeting(current, changes, occurredAt);
-    const changedFields = (['date', 'localTime', 'timezone', 'locationId'] as const)
-      .filter(field => Object.prototype.hasOwnProperty.call(changes, field));
-    if (!changedFields.length) return current;
+    const changedFields = (['date', 'localTime', 'timezone', 'locationId'] as const).filter(field => current[field] !== meeting[field]);
+    if (changedFields.length === 0) return current;
     this.#uow.commit(context, {
       meeting,
       auditEvents: [this.#audit(context, 'midweek-meeting', meeting.id, 'update', changedFields, occurredAt)],
@@ -289,7 +334,7 @@ export class MidweekSchedulingService {
     input: AssignStudentInput,
     metadata: RequestMetadata = {},
   ): Readonly<StudentAssignment> {
-    assertCapability(context, 'schedule.write');
+    this.#assertAssignmentReads(context);
     const meeting = this.#meeting(context, input.meetingId);
     if (meeting.state !== 'draft') throw new Error('Assignments can only be changed on draft meetings');
     const slot = findSlotById(meeting, id(input.slotId, 'slotId'));
@@ -303,8 +348,8 @@ export class MidweekSchedulingService {
     const assistant = input.assistantId ? this.#person(context, input.assistantId) : undefined;
     if (part.assistantRequirement === 'required' && !assistant) throw new Error('Assistant is required for this part');
     if (part.assistantRequirement === 'none' && assistant) throw new Error('Assistant is not allowed for this part');
-    const people = assistant ? [student, assistant] : [student];
-    const eligibility = buildEligibilityIndex(people, context.tenantId);
+
+    const eligibility = buildEligibilityIndex(assistant ? [student, assistant] : [student], context.tenantId);
     assertExplicitEligibility(eligibility, context.tenantId, student.id, part.id);
     if (assistant) assertExplicitEligibility(eligibility, context.tenantId, assistant.id, part.id);
 
@@ -315,13 +360,25 @@ export class MidweekSchedulingService {
     if (assistant) this.#assertNoConflict(context, `${assignmentId}:assistant`, assistant, window);
 
     const assignment = createStudentAssignment({
-      id: assignmentId, tenantId: context.tenantId, meetingId: meeting.id, slotId: slot.id,
-      studentId: student.id, assistantId: assistant?.id ?? null,
-      assistantIsRequired: part.assistantRequirement === 'required', now: occurredAt,
+      id: assignmentId,
+      tenantId: context.tenantId,
+      meetingId: meeting.id,
+      slotId: slot.id,
+      studentId: student.id,
+      assistantId: assistant?.id ?? null,
+      assistantIsRequired: part.assistantRequirement === 'required',
+      now: occurredAt,
     });
     this.#uow.commit(context, {
       studentAssignment: assignment,
-      auditEvents: [this.#audit(context, 'student-assignment', assignment.id, 'create', ['meetingId', 'slotId', 'studentId', ...(assistant ? ['assistantId'] : [])], occurredAt)],
+      auditEvents: [this.#audit(
+        context,
+        'student-assignment',
+        assignment.id,
+        'create',
+        ['meetingId', 'slotId', 'studentId', ...(assistant ? ['assistantId'] : [])],
+        occurredAt,
+      )],
       domainEvents: [assignmentEvent(this.#runtime, context, 'AssignmentCreated', assignment.id, occurredAt, metadata)],
     });
     return assignment;
@@ -332,7 +389,7 @@ export class MidweekSchedulingService {
     input: AssignNonStudentInput,
     metadata: RequestMetadata = {},
   ): Readonly<NonStudentAssignment> {
-    assertCapability(context, 'schedule.write');
+    this.#assertAssignmentReads(context);
     const meeting = this.#meeting(context, input.meetingId);
     if (meeting.state !== 'draft') throw new Error('Assignments can only be changed on draft meetings');
     const slot = findSlotById(meeting, id(input.slotId, 'slotId'));
@@ -347,12 +404,24 @@ export class MidweekSchedulingService {
     const window = this.#uow.resolveSlotWindow(context, meeting, slot.id);
     this.#assertNoConflict(context, assignmentId, person, window);
     const assignment = createNonStudentAssignment({
-      id: assignmentId, tenantId: context.tenantId, meetingId: meeting.id, slotId: slot.id,
-      personId: person.id, role, now: occurredAt,
+      id: assignmentId,
+      tenantId: context.tenantId,
+      meetingId: meeting.id,
+      slotId: slot.id,
+      personId: person.id,
+      role,
+      now: occurredAt,
     });
     this.#uow.commit(context, {
       nonStudentAssignment: assignment,
-      auditEvents: [this.#audit(context, 'non-student-assignment', assignment.id, 'create', ['meetingId', 'slotId', 'personId', 'role'], occurredAt)],
+      auditEvents: [this.#audit(
+        context,
+        'non-student-assignment',
+        assignment.id,
+        'create',
+        ['meetingId', 'slotId', 'personId', 'role'],
+        occurredAt,
+      )],
       domainEvents: [assignmentEvent(this.#runtime, context, 'AssignmentCreated', assignment.id, occurredAt, metadata)],
     });
     return assignment;
@@ -363,7 +432,7 @@ export class MidweekSchedulingService {
     assignmentIdInput: string,
     metadata: RequestMetadata = {},
   ): Readonly<StudentAssignment> {
-    assertCapability(context, 'schedule.write');
+    this.#assertWrite(context);
     const assignmentId = id(assignmentIdInput, 'assignmentId');
     const current = this.#uow.findStudentAssignment(context, assignmentId);
     if (!current) throw new Error('Student assignment not found');
@@ -383,7 +452,7 @@ export class MidweekSchedulingService {
     assignmentIdInput: string,
     metadata: RequestMetadata = {},
   ): Readonly<NonStudentAssignment> {
-    assertCapability(context, 'schedule.write');
+    this.#assertWrite(context);
     const assignmentId = id(assignmentIdInput, 'assignmentId');
     const current = this.#uow.findNonStudentAssignment(context, assignmentId);
     if (!current) throw new Error('Non-student assignment not found');
@@ -403,16 +472,16 @@ export class MidweekSchedulingService {
     meetingId: string,
     metadata: RequestMetadata = {},
   ): Readonly<MidweekMeeting> {
-    assertCapability(context, 'schedule.write');
+    this.#assertWrite(context);
     const current = this.#meeting(context, meetingId);
-    if (!current.slots.length) throw new Error('Cannot publish a meeting without slots');
-    const activeStudent = this.#uow.listStudentAssignments(context, current.id).filter(a => a.state === 'assigned');
-    const activeNonStudent = this.#uow.listNonStudentAssignments(context, current.id).filter(a => a.state === 'assigned');
-    [...activeStudent].forEach(a => assertStudentAssignmentTenant(a, context.tenantId));
-    [...activeNonStudent].forEach(a => assertNonStudentAssignmentTenant(a, context.tenantId));
-    const filled = new Set([...activeStudent, ...activeNonStudent].map(a => a.slotId));
-    const empty = current.slots.find(slot => !filled.has(slot.id));
-    if (empty) throw new Error('Cannot publish a meeting with an unassigned slot');
+    if (current.slots.length === 0) throw new Error('Cannot publish a meeting without slots');
+    const activeStudent = this.#uow.listStudentAssignments(context, current.id).filter(item => item.state === 'assigned');
+    const activeNonStudent = this.#uow.listNonStudentAssignments(context, current.id).filter(item => item.state === 'assigned');
+    activeStudent.forEach(item => assertStudentAssignmentTenant(item, context.tenantId));
+    activeNonStudent.forEach(item => assertNonStudentAssignmentTenant(item, context.tenantId));
+    const filled = new Set([...activeStudent, ...activeNonStudent].map(item => item.slotId));
+    if (current.slots.some(slot => !filled.has(slot.id))) throw new Error('Cannot publish a meeting with an unassigned slot');
+
     const occurredAt = this.#runtime.now();
     const meeting = publishMidweekMeeting(current, occurredAt);
     this.#uow.commit(context, {
@@ -428,7 +497,7 @@ export class MidweekSchedulingService {
     meetingId: string,
     metadata: RequestMetadata = {},
   ): Readonly<MidweekMeeting> {
-    assertCapability(context, 'schedule.write');
+    this.#assertWrite(context);
     const current = this.#meeting(context, meetingId);
     const occurredAt = this.#runtime.now();
     const meeting = archiveMidweekMeeting(current, occurredAt);
