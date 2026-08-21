@@ -8,12 +8,12 @@ import {
 import type { AuditHistoryQuery } from '@eutaktos/application';
 import { AuditHistoryHttpTransport, type AuditHistoryPort } from './audit-history-http';
 
-function event(): Readonly<AuditEvent> {
+function event(resourceType: AuditEvent['resourceType'] = 'person'): Readonly<AuditEvent> {
   return createAuditEvent({
     id: 'audit-1',
     tenantId: 'tenant-a',
-    resourceType: 'person',
-    resourceId: 'person-1',
+    resourceType,
+    resourceId: resourceType === 'person' ? 'person-1' : 'resource-1',
     action: 'update',
     actorId: 'actor-1',
     occurredAt: '2026-08-20T10:00:00.000Z',
@@ -71,6 +71,17 @@ describe('AuditHistoryHttpTransport', () => {
       to: '2026-08-21T00:00:00.000Z',
       limit: 25,
     });
+  });
+
+  it('accepts scheduling resource types introduced by the scheduling domain', () => {
+    const list = vi.fn((_context: AccessContext, _query?: AuditHistoryQuery) => [event('midweek-meeting')]);
+    const response = new AuditHistoryHttpTransport({ list }).list({
+      principal: principal(),
+      query: { resourceType: 'midweek-meeting' },
+    });
+    expect(response.status).toBe(200);
+    expect(list.mock.calls[0]?.[1]).toEqual({ resourceType: 'midweek-meeting' });
+    expect(response.body).toEqual([expect.objectContaining({ resourceType: 'midweek-meeting' })]);
   });
 
   it('does not expose tenantId in the audit DTO', () => {
