@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:production-mount": "npm run build && node scripts/verify-production-mount.mjs",
+    "test:ux-runtime": "node scripts/verify-ux-runtime.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

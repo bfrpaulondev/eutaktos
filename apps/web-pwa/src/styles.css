@@ -30,3 +30,33 @@ body,
     -webkit-backdrop-filter: none !important;
   }
 }
+
+body {
+  overflow-x: hidden;
+}
+
+button,
+[role='button'],
+a[href] {
+  touch-action: manipulation;
+}
+
+@media (max-width: 359px) {
+  .MuiDialog-paper {
+    width: calc(100% - 16px) !important;
+    margin: 8px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+@media (forced-colors: active) {
+  .MuiPaper-root,
+  .MuiCard-root {
+    border: 1px solid CanvasText !important;
+  }
+}
