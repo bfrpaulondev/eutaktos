@@ -8,4 +8,5 @@ export * from './access-grant-memory';
 export * from './household-memory';
 export * from './service-group-memory';
 export * from './responsibility-memory';
+export * from './midweek-memory';
 export * from './migration-log-memory';

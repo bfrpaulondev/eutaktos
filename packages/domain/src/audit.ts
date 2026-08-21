@@ -12,7 +12,12 @@ export type AuditedResourceType =
   | 'eligibility'
   | 'availability'
   | 'emergency-contact'
-  | 'access-grant';
+  | 'access-grant'
+  | 'midweek-meeting'
+  | 'student-assignment'
+  | 'non-student-assignment'
+  | 'weekend-meeting'
+  | 'public-talk-assignment';
 
 export interface AuditEvent {
   id: AuditEventId;
