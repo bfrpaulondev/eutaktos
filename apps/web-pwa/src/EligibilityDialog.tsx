@@ -1,155 +1,69 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import {
-  Alert,
-  Button,
-  Chip,
-  CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  FormControlLabel,
-  Switch,
-  TextField,
-} from '@mui/material';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Divider, FormControlLabel, Paper, Switch, TextField } from '@mui/material';
 import type { Locale } from './lib/preferences';
 import { eligibilityApi, type EligibilityDecisionDto } from './lib/eligibilityApi';
 import { Stack, Typography } from './ui/MuiCompat';
 
 const copy = {
-  'pt-PT': {
-    title: 'Elegibilidade de atribuições', subtitle: 'Decisões explícitas registadas por utilizadores autorizados.',
-    loading: 'A carregar elegibilidade…', unavailable: 'Não foi possível carregar a elegibilidade.', retry: 'Tentar novamente',
-    empty: 'Ainda não existem decisões registadas.', assignmentType: 'Tipo de atribuição', enabled: 'Elegível', disabled: 'Não elegível',
-    decision: 'Nova decisão', cancel: 'Fechar', save: 'Registar decisão', saving: 'A guardar…', updated: 'Decisão atualizada.',
-  },
-  en: {
-    title: 'Assignment eligibility', subtitle: 'Explicit decisions recorded by authorized users.',
-    loading: 'Loading eligibility…', unavailable: 'Eligibility could not be loaded.', retry: 'Try again',
-    empty: 'No decisions have been recorded yet.', assignmentType: 'Assignment type', enabled: 'Eligible', disabled: 'Not eligible',
-    decision: 'New decision', cancel: 'Close', save: 'Record decision', saving: 'Saving…', updated: 'Decision updated.',
-  },
-  es: {
-    title: 'Elegibilidad de asignaciones', subtitle: 'Decisiones explícitas registradas por usuarios autorizados.',
-    loading: 'Cargando elegibilidad…', unavailable: 'No se pudo cargar la elegibilidad.', retry: 'Intentar de nuevo',
-    empty: 'Todavía no hay decisiones registradas.', assignmentType: 'Tipo de asignación', enabled: 'Elegible', disabled: 'No elegible',
-    decision: 'Nueva decisión', cancel: 'Cerrar', save: 'Registrar decisión', saving: 'Guardando…', updated: 'Decisión actualizada.',
-  },
+  'pt-PT': { title: 'Elegibilidade de atribuições', subtitle: 'Estas são decisões administrativas explícitas registadas por utilizadores autorizados. A interface não recomenda nem infere adequação.', loading: 'A carregar elegibilidade…', unavailable: 'Não foi possível carregar a elegibilidade. Tenta novamente.', saveError: 'Não foi possível registar a decisão. Tenta novamente.', retry: 'Tentar novamente', empty: 'Ainda não existem decisões registadas.', assignmentType: 'Tipo de atribuição', enabled: 'Elegível', disabled: 'Não elegível', decision: 'Registar decisão administrativa', decisionHint: 'A alteração só será aplicada depois da confirmação.', cancel: 'Fechar', save: 'Continuar', saving: 'A guardar…', updated: 'Decisão atualizada.', confirmTitle: 'Confirmar decisão administrativa', confirmBody: 'Confirma que pretende registar esta decisão explícita. Esta ação não é uma recomendação nem altera outras decisões.', confirm: 'Sim, registar', status: 'Estado da decisão', current: 'Decisões atuais' },
+  en: { title: 'Assignment eligibility', subtitle: 'These are explicit administrative decisions recorded by authorized users. The interface does not recommend or infer suitability.', loading: 'Loading eligibility…', unavailable: 'Eligibility could not be loaded. Please try again.', saveError: 'The decision could not be recorded. Please try again.', retry: 'Try again', empty: 'No decisions have been recorded yet.', assignmentType: 'Assignment type', enabled: 'Eligible', disabled: 'Not eligible', decision: 'Record administrative decision', decisionHint: 'The change is applied only after confirmation.', cancel: 'Close', save: 'Continue', saving: 'Saving…', updated: 'Decision updated.', confirmTitle: 'Confirm administrative decision', confirmBody: 'Confirm that you want to record this explicit decision. This is not a recommendation and does not change other decisions.', confirm: 'Yes, record', status: 'Decision status', current: 'Current decisions' },
+  es: { title: 'Elegibilidad de asignaciones', subtitle: 'Estas son decisiones administrativas explícitas registradas por usuarios autorizados. La interfaz no recomienda ni infiere idoneidad.', loading: 'Cargando elegibilidad…', unavailable: 'No se pudo cargar la elegibilidad. Inténtalo de nuevo.', saveError: 'No se pudo registrar la decisión. Inténtalo de nuevo.', retry: 'Intentar de nuevo', empty: 'Todavía no hay decisiones registradas.', assignmentType: 'Tipo de asignación', enabled: 'Elegible', disabled: 'No elegible', decision: 'Registrar decisión administrativa', decisionHint: 'El cambio se aplica solo después de confirmar.', cancel: 'Cerrar', save: 'Continuar', saving: 'Guardando…', updated: 'Decisión actualizada.', confirmTitle: 'Confirmar decisión administrativa', confirmBody: 'Confirma que deseas registrar esta decisión explícita. No es una recomendación ni cambia otras decisiones.', confirm: 'Sí, registrar', status: 'Estado de la decisión', current: 'Decisiones actuales' },
 } as const;
 
-export function EligibilityDialog({
-  personId,
-  personName,
-  locale,
-  open,
-  onClose,
-}: {
-  personId: string;
-  personName: string;
-  locale: Locale;
-  open: boolean;
-  onClose: () => void;
-}) {
+export function isEligibilityDecisionSubmittable(assignmentTypeId: string, saving: boolean): boolean { return !saving && assignmentTypeId.trim().length > 0; }
+
+export function EligibilityDialog({ personId, personName, locale, open, onClose }: { personId: string; personName: string; locale: Locale; open: boolean; onClose: () => void }) {
   const text = copy[locale];
   const [decisions, setDecisions] = useState<readonly EligibilityDecisionDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+  const [notice, setNotice] = useState(false);
   const [assignmentTypeId, setAssignmentTypeId] = useState('');
   const [enabled, setEnabled] = useState(true);
+  const [confirming, setConfirming] = useState(false);
+  const savingRef = useRef(false);
+  const submitButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const load = async (signal?: AbortSignal) => {
-    setLoading(true);
-    setError(null);
-    try {
-      setDecisions(await eligibilityApi.list(personId, signal));
-    } catch (reason) {
-      if (reason instanceof DOMException && reason.name === 'AbortError') return;
-      setError(reason instanceof Error ? reason.message : text.unavailable);
-    } finally {
-      if (!signal?.aborted) setLoading(false);
-    }
+    setLoading(true); setLoadError(false);
+    try { setDecisions(await eligibilityApi.list(personId, signal)); }
+    catch (reason) { if (reason instanceof DOMException && reason.name === 'AbortError') return; setLoadError(true); }
+    finally { if (!signal?.aborted) setLoading(false); }
   };
+  useEffect(() => { if (!open) return; const controller = new AbortController(); void load(controller.signal); return () => controller.abort(); }, [open, personId]);
 
-  useEffect(() => {
-    if (!open) return;
-    const controller = new AbortController();
-    void load(controller.signal);
-    return () => controller.abort();
-  }, [open, personId]);
-
-  const submit = async (event: FormEvent) => {
+  const requestConfirmation = (event: FormEvent) => {
     event.preventDefault();
+    if (!isEligibilityDecisionSubmittable(assignmentTypeId, saving)) return;
+    setSaveError(false); setNotice(false); setConfirming(true);
+  };
+  const submit = async () => {
     const normalized = assignmentTypeId.trim();
-    if (!normalized) return;
-    setSaving(true);
-    setError(null);
-    setNotice(null);
+    if (!normalized || savingRef.current) return;
+    savingRef.current = true; setSaving(true); setSaveError(false); setNotice(false);
     try {
       const decision = await eligibilityApi.set(personId, { assignmentTypeId: normalized, enabled });
-      setDecisions(current => {
-        const next = current.filter(item => item.assignmentTypeId !== decision.assignmentTypeId);
-        return [...next, decision].sort((a, b) => a.assignmentTypeId.localeCompare(b.assignmentTypeId));
-      });
-      setAssignmentTypeId('');
-      setEnabled(true);
-      setNotice(text.updated);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : text.unavailable);
-    } finally {
-      setSaving(false);
-    }
+      setDecisions(current => [...current.filter(item => item.assignmentTypeId !== decision.assignmentTypeId), decision].sort((first, second) => first.assignmentTypeId.localeCompare(second.assignmentTypeId)));
+      setAssignmentTypeId(''); setEnabled(true); setConfirming(false); setNotice(true);
+      window.requestAnimationFrame(() => submitButtonRef.current?.focus());
+    } catch { setSaveError(true); }
+    finally { savingRef.current = false; setSaving(false); }
   };
+  const retry = () => void load();
 
-  return (
-    <Dialog open={open} onClose={() => !saving && onClose()} fullWidth maxWidth="sm" aria-labelledby="eligibility-dialog-title">
-      <DialogTitle id="eligibility-dialog-title">{text.title} — {personName}</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2} sx={{ pt: 1 }}>
-          <Typography color="text.secondary">{text.subtitle}</Typography>
-          {error ? <Alert severity="warning" action={<Button color="inherit" size="small" onClick={() => void load()}>{text.retry}</Button>}>{error}</Alert> : null}
-          {notice ? <Alert severity="success">{notice}</Alert> : null}
-
-          {loading ? (
-            <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="center" role="status" sx={{ py: 3 }}>
-              <CircularProgress size={22} /><Typography color="text.secondary">{text.loading}</Typography>
-            </Stack>
-          ) : decisions.length === 0 ? (
-            <Typography color="text.secondary">{text.empty}</Typography>
-          ) : (
-            <Stack spacing={1} component="ul" sx={{ p: 0, m: 0, listStyle: 'none' }}>
-              {decisions.map(decision => (
-                <Stack component="li" key={decision.assignmentTypeId} direction="row" justifyContent="space-between" alignItems="center" gap={2}>
-                  <Typography sx={{ overflowWrap: 'anywhere' }}>{decision.assignmentTypeId}</Typography>
-                  <Chip size="small" variant="outlined" color={decision.enabled ? 'primary' : 'default'} label={decision.enabled ? text.enabled : text.disabled} />
-                </Stack>
-              ))}
-            </Stack>
-          )}
-
-          <Stack component="form" id="eligibility-decision-form" onSubmit={submit} spacing={1.5} sx={{ pt: 1 }}>
-            <Typography variant="subtitle2" fontWeight={800}>{text.decision}</Typography>
-            <TextField
-              label={text.assignmentType}
-              value={assignmentTypeId}
-              onChange={event => setAssignmentTypeId(event.target.value)}
-              required
-              slotProps={{ htmlInput: { maxLength: 100, autoComplete: 'off' } }}
-            />
-            <FormControlLabel
-              control={<Switch checked={enabled} onChange={event => setEnabled(event.target.checked)} />}
-              label={enabled ? text.enabled : text.disabled}
-            />
-          </Stack>
-        </Stack>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={saving}>{text.cancel}</Button>
-        <Button type="submit" form="eligibility-decision-form" variant="contained" disabled={saving || !assignmentTypeId.trim()}>
-          {saving ? text.saving : text.save}
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
+  return <Dialog open={open} onClose={() => !saving && !confirming && onClose()} fullWidth maxWidth="sm" aria-labelledby="eligibility-dialog-title">
+    <DialogTitle id="eligibility-dialog-title">{text.title} — {personName}</DialogTitle>
+    <DialogContent><Stack spacing={2} sx={{ pt: 1 }}>
+      <Alert severity="info">{text.subtitle}</Alert>
+      {loadError ? <Alert severity="warning" action={<Button color="inherit" size="small" disabled={loading} onClick={retry}>{text.retry}</Button>}>{text.unavailable}</Alert> : null}
+      {saveError ? <Alert severity="error">{text.saveError}</Alert> : null}
+      {notice ? <Alert severity="success" onClose={() => setNotice(false)}>{text.updated}</Alert> : null}
+      {loading ? <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="center" role="status" sx={{ py: 3 }}><CircularProgress size={22} /><Typography color="text.secondary">{text.loading}</Typography></Stack> : <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, boxShadow: 'none', bgcolor: 'transparent' }}><Stack spacing={1}><Typography variant="subtitle2" fontWeight={800}>{text.current}</Typography>{decisions.length === 0 ? <Typography color="text.secondary">{text.empty}</Typography> : <Stack spacing={1} component="ul" sx={{ p: 0, m: 0, listStyle: 'none' }}>{decisions.map(decision => <Stack component="li" key={decision.assignmentTypeId} direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} gap={1}><Typography sx={{ overflowWrap: 'anywhere' }}>{decision.assignmentTypeId}</Typography><Chip size="small" variant="outlined" color={decision.enabled ? 'success' : 'default'} label={decision.enabled ? text.enabled : text.disabled} /></Stack>)}</Stack>}</Stack></Paper>}
+      <Stack component="form" id="eligibility-decision-form" onSubmit={requestConfirmation} spacing={1.5} sx={{ pt: 1 }}><Divider /><Typography variant="subtitle2" fontWeight={800}>{text.decision}</Typography><Typography variant="body2" color="text.secondary">{text.decisionHint}</Typography><TextField label={text.assignmentType} value={assignmentTypeId} onChange={event => setAssignmentTypeId(event.target.value)} required slotProps={{ htmlInput: { maxLength: 100, autoComplete: 'off' } }} /><FormControlLabel control={<Switch checked={enabled} onChange={event => setEnabled(event.target.checked)} />} label={`${text.status}: ${enabled ? text.enabled : text.disabled}`} /></Stack>
+    </Stack></DialogContent>
+    <DialogActions><Button onClick={onClose} disabled={saving || confirming}>{text.cancel}</Button><Button ref={submitButtonRef} type="submit" form="eligibility-decision-form" variant="contained" disabled={!isEligibilityDecisionSubmittable(assignmentTypeId, saving)}>{saving ? text.saving : text.save}</Button></DialogActions>
+    <Dialog open={confirming} onClose={() => !saving && setConfirming(false)} fullWidth maxWidth="xs" aria-describedby="eligibility-confirmation-description"><DialogTitle>{text.confirmTitle}</DialogTitle><DialogContent><Typography id="eligibility-confirmation-description">{text.confirmBody}</Typography><Paper variant="outlined" sx={{ mt: 1.5, p: 1.25, borderRadius: 2, boxShadow: 'none', bgcolor: 'transparent' }}><Typography fontWeight={700}>{assignmentTypeId.trim()}</Typography><Chip sx={{ mt: 0.75 }} size="small" label={`${text.status}: ${enabled ? text.enabled : text.disabled}`} color={enabled ? 'success' : 'default'} variant="outlined" /></Paper></DialogContent><DialogActions><Button disabled={saving} onClick={() => setConfirming(false)}>{text.cancel}</Button><Button variant="contained" disabled={!isEligibilityDecisionSubmittable(assignmentTypeId, saving)} onClick={() => void submit()}>{saving ? text.saving : text.confirm}</Button></DialogActions></Dialog>
+  </Dialog>;
 }
