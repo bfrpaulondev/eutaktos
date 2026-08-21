@@ -65,3 +65,5 @@ export * from './weekend-meeting';
 export * from './public-speaker';
 export * from './talk-outline';
 export * from './neighbor-congregations';
+export * from './public-talk-scheduling';
+export * from './public-talk-history';
