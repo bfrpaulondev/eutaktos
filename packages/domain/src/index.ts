@@ -27,6 +27,7 @@ export * from './board-documents';
 export * from './hospitality';
 export * from './custom-schedules';
 export * from './co-visit';
+export * from './student-assignment';
 export {
   type NonStudentAssignmentId,
   type NonStudentRole,
