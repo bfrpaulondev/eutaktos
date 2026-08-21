@@ -6,3 +6,4 @@ export * from './session-memory';
 export * from './audit-history-memory';
 export * from './access-grant-memory';
 export * from './household-memory';
+export * from './service-group-memory';
