@@ -13,3 +13,4 @@ export * from './access-grant-http';
 export * from './household-http';
 export * from './service-group-http';
 export * from './responsibility-http';
+export * from './midweek-scheduling-http';
