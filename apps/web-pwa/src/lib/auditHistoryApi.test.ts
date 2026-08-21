@@ -38,6 +38,19 @@ describe('auditHistoryApi', () => {
     expect(fetcher.mock.calls[0]?.[1]).not.toHaveProperty('body');
   });
 
+  it('accepts scheduling audit resource types emitted by the domain', async () => {
+    const schedulingItem = { ...item, resourceType: 'midweek-meeting' as const, resourceId: 'meeting-1' };
+    expect(parseAuditHistoryResponse([schedulingItem])).toEqual([schedulingItem]);
+
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse([schedulingItem]));
+    const api = createAuditHistoryApi(fetcher);
+    await expect(api.list({ resourceType: 'midweek-meeting' })).resolves.toEqual([schedulingItem]);
+    expect(fetcher).toHaveBeenCalledWith(
+      '/api/audit/history?resourceType=midweek-meeting',
+      expect.objectContaining({ method: 'GET', credentials: 'same-origin' }),
+    );
+  });
+
   it('rejects response fields that would widen the privacy boundary', () => {
     expect(() => parseAuditHistoryResponse([{ ...item, tenantId: 'tenant-a' }]))
       .toThrow('Invalid audit history API response');
