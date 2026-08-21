@@ -236,7 +236,7 @@ export function AwayPeriodsSection({ locale, personId }: { locale: Locale; perso
                 onChange={event => setStartsAt(event.target.value)}
                 required
                 fullWidth
-                InputLabelProps={{ shrink: true }}
+                slotProps={{ inputLabel: { shrink: true } }}
               />
               <TextField
                 label={text.end}
@@ -245,7 +245,7 @@ export function AwayPeriodsSection({ locale, personId }: { locale: Locale; perso
                 onChange={event => setEndsAt(event.target.value)}
                 required
                 fullWidth
-                InputLabelProps={{ shrink: true }}
+                slotProps={{ inputLabel: { shrink: true } }}
               />
               <FormControl fullWidth>
                 <InputLabel shrink>{text.reason}</InputLabel>
