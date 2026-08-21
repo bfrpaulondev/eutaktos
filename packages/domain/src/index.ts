@@ -27,6 +27,8 @@ export * from './board-documents';
 export * from './hospitality';
 export * from './custom-schedules';
 export * from './co-visit';
+export * from './midweek-meeting';
+export * from './midweek-parts';
 export * from './student-assignment';
 export {
   type NonStudentAssignmentId,
@@ -45,3 +47,14 @@ export {
 } from './non-student-assignment';
 export * from './meeting-classes';
 export * from './assignment-history';
+export {
+  lastAssignment,
+  lastAssignmentDate,
+  assignmentCount,
+  assignmentCountByPartType,
+  historyByPerson,
+  historyByPartType,
+  daysSinceLastAssignment,
+  personsAssignedInDateRange,
+  uniquePartTypesForPerson,
+} from './student-history-queries';
