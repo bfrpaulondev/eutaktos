@@ -26,6 +26,10 @@ export const DEFAULT_PREFERENCES: Preferences = {
 const PALETTE_IDS: readonly PaletteId[] = ['classic', 'warm', 'green', 'blue', 'dark', 'pastel'];
 const TEXT_SIZES: readonly TextSize[] = ['small', 'default', 'large', 'extra-large'];
 
+function normalizePersistedBoolean(value: unknown): boolean {
+  return value === true;
+}
+
 export function normalizePreferences(input: Partial<Preferences> | null | undefined): Preferences {
   const paletteId: PaletteId = PALETTE_IDS.includes(input?.paletteId as PaletteId)
     ? (input?.paletteId as PaletteId)
@@ -41,8 +45,8 @@ export function normalizePreferences(input: Partial<Preferences> | null | undefi
     density,
     locale,
     textSize,
-    reducedMotion: Boolean(input?.reducedMotion),
-    reducedTransparency: Boolean(input?.reducedTransparency),
-    highContrast: Boolean(input?.highContrast),
+    reducedMotion: normalizePersistedBoolean(input?.reducedMotion),
+    reducedTransparency: normalizePersistedBoolean(input?.reducedTransparency),
+    highContrast: normalizePersistedBoolean(input?.highContrast),
   };
 }
