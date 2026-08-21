@@ -1,53 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Chip,
-  CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  MenuItem,
-  TextField,
-} from '@mui/material';
+import { Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Paper, TextField } from '@mui/material';
 import type { Locale } from './lib/preferences';
-import {
-  auditHistoryApi,
-  type AuditAction,
-  type AuditHistoryDto,
-  type AuditResourceType,
-} from './lib/auditHistoryApi';
+import { auditHistoryApi, type AuditAction, type AuditHistoryDto, type AuditResourceType } from './lib/auditHistoryApi';
 import { Stack, Typography } from './ui/MuiCompat';
 
-const resourceTypes: readonly AuditResourceType[] = [
-  'person', 'household', 'service-group', 'responsibility', 'delegation', 'congregation',
-  'eligibility', 'availability', 'emergency-contact', 'access-grant',
-];
+const resourceTypes: readonly AuditResourceType[] = ['person', 'household', 'service-group', 'responsibility', 'delegation', 'congregation', 'eligibility', 'availability', 'emergency-contact', 'access-grant'];
 const actions: readonly AuditAction[] = ['create', 'update', 'delete', 'grant', 'revoke'];
 
 const copy = {
-  'pt-PT': {
-    title: 'Histórico de auditoria', subtitle: 'Alterações operacionais autorizadas neste tenant.',
-    allResources: 'Todos os recursos', allActions: 'Todas as ações', resource: 'Tipo de recurso', action: 'Ação', actor: 'ID do ator',
-    loading: 'A carregar histórico…', empty: 'Nenhum evento corresponde aos filtros.', unavailable: 'Não foi possível carregar o histórico.',
-    retry: 'Tentar novamente', refresh: 'Atualizar', close: 'Fechar', resourceId: 'Recurso', changed: 'Campos alterados', by: 'Por',
-  },
-  en: {
-    title: 'Audit history', subtitle: 'Authorized operational changes in this tenant.',
-    allResources: 'All resources', allActions: 'All actions', resource: 'Resource type', action: 'Action', actor: 'Actor ID',
-    loading: 'Loading audit history…', empty: 'No events match the filters.', unavailable: 'Audit history could not be loaded.',
-    retry: 'Try again', refresh: 'Refresh', close: 'Close', resourceId: 'Resource', changed: 'Changed fields', by: 'By',
-  },
-  es: {
-    title: 'Historial de auditoría', subtitle: 'Cambios operativos autorizados en este tenant.',
-    allResources: 'Todos los recursos', allActions: 'Todas las acciones', resource: 'Tipo de recurso', action: 'Acción', actor: 'ID del actor',
-    loading: 'Cargando historial…', empty: 'Ningún evento coincide con los filtros.', unavailable: 'No se pudo cargar el historial.',
-    retry: 'Intentar de nuevo', refresh: 'Actualizar', close: 'Cerrar', resourceId: 'Recurso', changed: 'Campos modificados', by: 'Por',
-  },
+  'pt-PT': { title: 'Histórico de auditoria', subtitle: 'Registo de alterações operacionais autorizadas neste tenant.', allResources: 'Todos os recursos', allActions: 'Todas as ações', resource: 'Tipo de recurso', action: 'Ação', actor: 'ID do ator', from: 'A partir de', to: 'Até', loading: 'A carregar histórico…', empty: 'Nenhum evento corresponde aos filtros.', unavailable: 'Não foi possível carregar o histórico. Tenta novamente.', retry: 'Tentar novamente', refresh: 'Atualizar', close: 'Fechar', resourceId: 'Identificador do recurso', changed: 'Campos registados', by: 'Registado por', results: 'eventos apresentados', clear: 'Limpar filtros', filterHint: 'Os filtros são aplicados apenas aos eventos já carregados.', recorded: 'Registado em' },
+  en: { title: 'Audit history', subtitle: 'Record of authorized operational changes in this tenant.', allResources: 'All resources', allActions: 'All actions', resource: 'Resource type', action: 'Action', actor: 'Actor ID', from: 'From', to: 'To', loading: 'Loading audit history…', empty: 'No events match the filters.', unavailable: 'Audit history could not be loaded. Please try again.', retry: 'Try again', refresh: 'Refresh', close: 'Close', resourceId: 'Resource identifier', changed: 'Recorded fields', by: 'Recorded by', results: 'events shown', clear: 'Clear filters', filterHint: 'Filters apply only to events that are already loaded.', recorded: 'Recorded at' },
+  es: { title: 'Historial de auditoría', subtitle: 'Registro de cambios operativos autorizados en este tenant.', allResources: 'Todos los recursos', allActions: 'Todas las acciones', resource: 'Tipo de recurso', action: 'Acción', actor: 'ID del actor', from: 'Desde', to: 'Hasta', loading: 'Cargando historial…', empty: 'Ningún evento coincide con los filtros.', unavailable: 'No se pudo cargar el historial. Inténtalo de nuevo.', retry: 'Intentar de nuevo', refresh: 'Actualizar', close: 'Cerrar', resourceId: 'Identificador del recurso', changed: 'Campos registrados', by: 'Registrado por', results: 'eventos mostrados', clear: 'Limpiar filtros', filterHint: 'Los filtros se aplican solo a los eventos ya cargados.', recorded: 'Registrado el' },
 } as const;
 
 const actionLabels: Record<Locale, Record<AuditAction, string>> = {
@@ -55,9 +18,20 @@ const actionLabels: Record<Locale, Record<AuditAction, string>> = {
   en: { create: 'Create', update: 'Update', delete: 'Delete', grant: 'Grant', revoke: 'Revoke' },
   es: { create: 'Crear', update: 'Actualizar', delete: 'Eliminar', grant: 'Conceder', revoke: 'Revocar' },
 };
+const resourceLabels: Record<Locale, Record<AuditResourceType, string>> = {
+  'pt-PT': { person: 'Pessoa', household: 'Agregado', 'service-group': 'Grupo de serviço', responsibility: 'Responsabilidade', delegation: 'Delegação', congregation: 'Congregação', eligibility: 'Elegibilidade', availability: 'Disponibilidade', 'emergency-contact': 'Contacto de emergência', 'access-grant': 'Acesso' },
+  en: { person: 'Person', household: 'Household', 'service-group': 'Service group', responsibility: 'Responsibility', delegation: 'Delegation', congregation: 'Congregation', eligibility: 'Eligibility', availability: 'Availability', 'emergency-contact': 'Emergency contact', 'access-grant': 'Access grant' },
+  es: { person: 'Persona', household: 'Hogar', 'service-group': 'Grupo de servicio', responsibility: 'Responsabilidad', delegation: 'Delegación', congregation: 'Congregación', eligibility: 'Elegibilidad', availability: 'Disponibilidad', 'emergency-contact': 'Contacto de emergencia', 'access-grant': 'Acceso' },
+};
 
-function formatDate(value: string, locale: Locale): string {
-  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
+function formatDate(value: string, locale: Locale): string { return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)); }
+function inDateRange(occurredAt: string, from: string, to: string): boolean {
+  const eventDate = occurredAt.slice(0, 10);
+  return (!from || eventDate >= from) && (!to || eventDate <= to);
+}
+export function filterAuditEvents(events: readonly AuditHistoryDto[], filters: { resourceType: AuditResourceType | ''; action: AuditAction | ''; actorId: string; from: string; to: string }): readonly AuditHistoryDto[] {
+  const actor = filters.actorId.trim().toLocaleLowerCase();
+  return events.filter(event => (!filters.resourceType || event.resourceType === filters.resourceType) && (!filters.action || event.action === filters.action) && (!actor || event.actorId.toLocaleLowerCase().includes(actor)) && inDateRange(event.occurredAt, filters.from, filters.to)).slice().sort((first, second) => Date.parse(second.occurredAt) - Date.parse(first.occurredAt));
 }
 
 export function AuditHistoryDialog({ locale, open, onClose }: { locale: Locale; open: boolean; onClose(): void }) {
@@ -66,116 +40,31 @@ export function AuditHistoryDialog({ locale, open, onClose }: { locale: Locale; 
   const [resourceType, setResourceType] = useState<AuditResourceType | ''>('');
   const [action, setAction] = useState<AuditAction | ''>('');
   const [actorId, setActorId] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const filters = useMemo(() => ({
-    ...(resourceType ? { resourceType } : {}),
-    ...(action ? { action } : {}),
-    ...(actorId.trim() ? { actorId: actorId.trim() } : {}),
-    limit: 100,
-  }), [action, actorId, resourceType]);
+  const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(async (signal?: AbortSignal) => {
-    setLoading(true);
-    setError(null);
-    try {
-      setEvents(await auditHistoryApi.list(filters, signal));
-    } catch (reason) {
-      if (reason instanceof DOMException && reason.name === 'AbortError') return;
-      setError(reason instanceof Error ? reason.message : text.unavailable);
-    } finally {
-      if (!signal?.aborted) setLoading(false);
-    }
-  }, [filters, text.unavailable]);
+    setLoading(true); setLoadError(false);
+    try { setEvents(await auditHistoryApi.list({ limit: 100 }, signal)); }
+    catch (reason) { if (reason instanceof DOMException && reason.name === 'AbortError') return; setLoadError(true); }
+    finally { if (!signal?.aborted) setLoading(false); }
+  }, []);
+  useEffect(() => { if (!open) return; const controller = new AbortController(); void load(controller.signal); return () => controller.abort(); }, [load, open]);
+  const filters = { resourceType, action, actorId, from, to };
+  const filteredEvents = useMemo(() => filterAuditEvents(events, filters), [events, resourceType, action, actorId, from, to]);
+  const filtersActive = Boolean(resourceType || action || actorId.trim() || from || to);
+  const clearFilters = () => { setResourceType(''); setAction(''); setActorId(''); setFrom(''); setTo(''); };
 
-  useEffect(() => {
-    if (!open) return;
-    const controller = new AbortController();
-    void load(controller.signal);
-    return () => controller.abort();
-  }, [load, open]);
-
-  return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" aria-labelledby="audit-history-title">
-      <DialogTitle id="audit-history-title">
-        <Typography variant="h5" fontWeight={760}>{text.title}</Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{text.subtitle}</Typography>
-      </DialogTitle>
-      <DialogContent>
-        <Stack spacing={2} sx={{ pt: 1 }}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-            <TextField
-              select
-              fullWidth
-              label={text.resource}
-              value={resourceType}
-              onChange={event => setResourceType(event.target.value as AuditResourceType | '')}
-            >
-              <MenuItem value="">{text.allResources}</MenuItem>
-              {resourceTypes.map(value => <MenuItem key={value} value={value}>{value}</MenuItem>)}
-            </TextField>
-            <TextField
-              select
-              fullWidth
-              label={text.action}
-              value={action}
-              onChange={event => setAction(event.target.value as AuditAction | '')}
-            >
-              <MenuItem value="">{text.allActions}</MenuItem>
-              {actions.map(value => <MenuItem key={value} value={value}>{actionLabels[locale][value]}</MenuItem>)}
-            </TextField>
-            <TextField
-              fullWidth
-              label={text.actor}
-              value={actorId}
-              onChange={event => setActorId(event.target.value)}
-              slotProps={{ htmlInput: { maxLength: 200, autoComplete: 'off' } }}
-            />
-          </Stack>
-
-          {error ? <Alert severity="warning" action={<Button color="inherit" size="small" onClick={() => void load()}>{text.retry}</Button>}>{error}</Alert> : null}
-
-          {loading ? (
-            <Stack direction="row" justifyContent="center" alignItems="center" spacing={1.5} sx={{ py: 5 }} role="status">
-              <CircularProgress size={24} />
-              <Typography color="text.secondary">{text.loading}</Typography>
-            </Stack>
-          ) : events.length === 0 ? (
-            <Box sx={{ py: 5, textAlign: 'center' }}><Typography color="text.secondary">{text.empty}</Typography></Box>
-          ) : (
-            <Stack spacing={1.5}>
-              {events.map(item => (
-                <Card key={item.id} component="article" variant="outlined">
-                  <CardContent>
-                    <Stack spacing={1.25}>
-                      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={1}>
-                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
-                          <Chip size="small" label={item.resourceType} variant="outlined" />
-                          <Chip size="small" label={actionLabels[locale][item.action]} />
-                        </Stack>
-                        <Typography variant="body2" color="text.secondary">{formatDate(item.occurredAt, locale)}</Typography>
-                      </Stack>
-                      <Typography variant="body2"><strong>{text.resourceId}:</strong> {item.resourceId}</Typography>
-                      <Typography variant="body2"><strong>{text.by}:</strong> {item.actorId}</Typography>
-                      {item.changedFields.length ? (
-                        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap alignItems="center">
-                          <Typography variant="caption" color="text.secondary">{text.changed}:</Typography>
-                          {item.changedFields.map(field => <Chip key={field} label={field} size="small" variant="outlined" />)}
-                        </Stack>
-                      ) : null}
-                    </Stack>
-                  </CardContent>
-                </Card>
-              ))}
-            </Stack>
-          )}
-        </Stack>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={() => void load()} disabled={loading}>{text.refresh}</Button>
-        <Button onClick={onClose}>{text.close}</Button>
-      </DialogActions>
-    </Dialog>
-  );
+  return <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" aria-labelledby="audit-history-title">
+    <DialogTitle id="audit-history-title"><Typography variant="h5" fontWeight={760}>{text.title}</Typography><Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{text.subtitle}</Typography></DialogTitle>
+    <DialogContent><Stack spacing={2} sx={{ pt: 1 }}>
+      <Paper component="section" variant="outlined" sx={{ p: { xs: 1.5, sm: 2 }, borderRadius: 2, boxShadow: 'none', bgcolor: 'transparent' }} aria-label={text.title}><Stack spacing={1.5}><Typography variant="body2" color="text.secondary">{text.filterHint}</Typography><Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}><TextField select fullWidth label={text.resource} value={resourceType} onChange={event => setResourceType(event.target.value as AuditResourceType | '')}><MenuItem value="">{text.allResources}</MenuItem>{resourceTypes.map(value => <MenuItem key={value} value={value}>{resourceLabels[locale][value]}</MenuItem>)}</TextField><TextField select fullWidth label={text.action} value={action} onChange={event => setAction(event.target.value as AuditAction | '')}><MenuItem value="">{text.allActions}</MenuItem>{actions.map(value => <MenuItem key={value} value={value}>{actionLabels[locale][value]}</MenuItem>)}</TextField><TextField fullWidth label={text.actor} value={actorId} onChange={event => setActorId(event.target.value)} slotProps={{ htmlInput: { maxLength: 200, autoComplete: 'off' } }} /></Stack><Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}><TextField fullWidth type="date" label={text.from} value={from} onChange={event => setFrom(event.target.value)} slotProps={{ inputLabel: { shrink: true }, htmlInput: { max: to || undefined } }} /><TextField fullWidth type="date" label={text.to} value={to} onChange={event => setTo(event.target.value)} slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: from || undefined } }} />{filtersActive ? <Button onClick={clearFilters} sx={{ whiteSpace: 'nowrap' }}>{text.clear}</Button> : null}</Stack></Stack></Paper>
+      {loadError ? <Alert severity="warning" action={<Button color="inherit" size="small" disabled={loading} onClick={() => void load()}>{text.retry}</Button>}>{text.unavailable}</Alert> : null}
+      {loading ? <Stack direction="row" justifyContent="center" alignItems="center" spacing={1.5} sx={{ py: 5 }} role="status"><CircularProgress size={24} /><Typography color="text.secondary">{text.loading}</Typography></Stack> : null}
+      {!loading && !loadError ? <><Typography variant="body2" color="text.secondary" aria-live="polite">{filteredEvents.length} {text.results}</Typography>{filteredEvents.length === 0 ? <Box sx={{ py: 5, textAlign: 'center' }}><Typography color="text.secondary">{text.empty}</Typography></Box> : <Stack component="ol" spacing={0} sx={{ p: 0, m: 0, listStyle: 'none' }} aria-label={text.title}>{filteredEvents.map((item, index) => <Stack component="li" key={item.id} direction="row" spacing={1.25} sx={{ position: 'relative' }}><Box aria-hidden sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 18, pt: 2 }}><Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: 'primary.main', flex: '0 0 auto' }} />{index < filteredEvents.length - 1 ? <Box sx={{ width: 2, flex: 1, minHeight: 28, bgcolor: 'divider' }} /> : null}</Box><Paper component="article" variant="outlined" sx={{ flex: 1, mb: 1.5, p: { xs: 1.5, sm: 2 }, borderRadius: 2, boxShadow: 'none', bgcolor: 'transparent' }}><Stack spacing={1.25}><Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={1}><Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center"><Chip size="small" label={resourceLabels[locale][item.resourceType]} variant="outlined" /><Chip size="small" color="primary" label={actionLabels[locale][item.action]} /></Stack><Typography variant="body2" color="text.secondary">{formatDate(item.occurredAt, locale)}</Typography></Stack><Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}><strong>{text.resourceId}:</strong> {item.resourceId}</Typography><Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}><strong>{text.by}:</strong> {item.actorId}</Typography>{item.changedFields.length ? <Stack spacing={0.75}><Typography variant="caption" color="text.secondary">{text.changed}</Typography><Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>{item.changedFields.map(field => <Chip key={field} label={field} size="small" variant="outlined" />)}</Stack></Stack> : null}</Stack></Paper></Stack>)}</Stack>}</> : null}
+    </Stack></DialogContent>
+    <DialogActions><Button onClick={() => void load()} disabled={loading}>{text.refresh}</Button><Button onClick={onClose} disabled={loading}>{text.close}</Button></DialogActions>
+  </Dialog>;
 }
