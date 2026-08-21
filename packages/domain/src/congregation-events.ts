@@ -19,7 +19,7 @@ function normalizeUrl(value: string | null | undefined): string | null {
   try {
     const url = new URL(value);
     if ((url.protocol !== 'http:' && url.protocol !== 'https:') || url.username || url.password) throw new Error('invalid');
-    return url.toString();
+    return value;
   } catch { throw new Error('Invalid URL: must be credential-free http/https'); }
 }
 function validateText(title: string, description: string, location: string): void {
