@@ -16,17 +16,30 @@ function parseOptionalInstant(value: unknown, field: string): number | null {
   return value === null ? null : parseInstant(value, field);
 }
 
+function parseWindow(window: DisplayWindow): {
+  readonly displayFrom: number | null;
+  readonly expiresAt: number | null;
+} {
+  const displayFrom = parseOptionalInstant(window.displayFrom, 'displayFrom');
+  const expiresAt = parseOptionalInstant(window.expiresAt, 'expiresAt');
+
+  if (displayFrom !== null && expiresAt !== null && expiresAt <= displayFrom) {
+    throw new Error('expiresAt must be after displayFrom');
+  }
+
+  return { displayFrom, expiresAt };
+}
+
 /**
- * Validates and classifies a display window deterministically. A window is
- * upcoming before its start, expired at or after its expiry, and active
- * otherwise. All supplied instants must be valid ISO date strings.
+ * Validates and classifies a display window. A window is upcoming before its
+ * start, expired at or after its expiry, and active otherwise. Passing `at`
+ * makes classification deterministic for tests and domain workflows.
  */
 export function classifyDisplayWindow(
   window: DisplayWindow,
   at?: string,
 ): DisplayWindowClassification {
-  const displayFrom = parseOptionalInstant(window.displayFrom, 'displayFrom');
-  const expiresAt = parseOptionalInstant(window.expiresAt, 'expiresAt');
+  const { displayFrom, expiresAt } = parseWindow(window);
   const timestamp = at === undefined ? Date.now() : parseInstant(at, 'at');
 
   if (displayFrom !== null && displayFrom > timestamp) return 'upcoming';
@@ -39,12 +52,7 @@ export function classifyDisplayWindow(
  * both are supplied, expiry must be strictly after the start instant.
  */
 export function validateDisplayWindow(window: DisplayWindow): void {
-  const displayFrom = parseOptionalInstant(window.displayFrom, 'displayFrom');
-  const expiresAt = parseOptionalInstant(window.expiresAt, 'expiresAt');
-
-  if (displayFrom !== null && expiresAt !== null && expiresAt <= displayFrom) {
-    throw new Error('expiresAt must be after displayFrom');
-  }
+  parseWindow(window);
 }
 
 /** Creates an immutable, validated display window. */
