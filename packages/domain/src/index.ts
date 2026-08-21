@@ -8,4 +8,5 @@ export * from './domain-events';
 export * from './repository';
 export * from './session';
 export * from './notification-preferences';
+export * from './display-window';
 export * from './notification-templates';
