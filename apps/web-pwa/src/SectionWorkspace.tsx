@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Alert, Box, Button, Chip, Divider, Paper } from '@mui/material';
 import { AccessManagementDialog } from './AccessManagementDialog';
 import { AuditHistoryDialog } from './AuditHistoryDialog';
@@ -31,6 +31,8 @@ function OrganizationWorkspace({ locale }: { locale: Locale }) {
   const [auditOpen, setAuditOpen] = useState(false);
   const [accessOpen, setAccessOpen] = useState(false);
   const [hourglassOpen, setHourglassOpen] = useState(false);
+  const auditButtonRef = useRef<HTMLButtonElement | null>(null);
+  const accessButtonRef = useRef<HTMLButtonElement | null>(null);
   const text = copy[locale];
   const views: readonly OrganizationView[] = ['people', 'households', 'groups', 'responsibilities'];
   const labels: Record<OrganizationView, string> = { people: text.people, households: text.households, groups: text.groups, responsibilities: text.responsibilities };
@@ -40,7 +42,7 @@ function OrganizationWorkspace({ locale }: { locale: Locale }) {
       <Stack spacing={2.25}>
         <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" gap={2} alignItems={{ md: 'flex-end' }}>
           <Box sx={{ maxWidth: 760 }}><Typography variant="overline" color="primary.main">{text.organization}</Typography><Typography variant="h2" id="organization-title" sx={{ fontSize: { xs: '2rem', sm: '2.6rem' } }}>{text.organizationTitle}</Typography><Typography color="text.secondary" sx={{ mt: 1 }}>{text.organizationSubtitle}</Typography></Box>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ flexShrink: 0 }}><Button variant="outlined" onClick={() => setHourglassOpen(true)}>{text.hourglass}</Button><Button variant="outlined" onClick={() => setAuditOpen(true)}>{text.audit}</Button><Button variant="outlined" onClick={() => setAccessOpen(true)}>{text.access}</Button></Stack>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ flexShrink: 0 }}><Button variant="outlined" onClick={() => setHourglassOpen(true)}>{text.hourglass}</Button><Button ref={auditButtonRef} variant="outlined" onClick={() => setAuditOpen(true)}>{text.audit}</Button><Button ref={accessButtonRef} variant="outlined" onClick={() => setAccessOpen(true)}>{text.access}</Button></Stack>
         </Stack>
         <Divider />
         <Stack component="nav" aria-label={text.organizationTitle} direction="row" gap={0.75} flexWrap="wrap" useFlexGap>{views.map(item => <Button key={item} variant={view === item ? 'contained' : 'text'} aria-current={view === item ? 'page' : undefined} onClick={() => setView(item)}>{labels[item]}</Button>)}</Stack>
@@ -50,8 +52,8 @@ function OrganizationWorkspace({ locale }: { locale: Locale }) {
     {view === 'households' ? <HouseholdsSection locale={locale} /> : null}
     {view === 'groups' ? <ServiceGroupsSection locale={locale} /> : null}
     {view === 'responsibilities' ? <ResponsibilitiesSection locale={locale} /> : null}
-    <AuditHistoryDialog locale={locale} open={auditOpen} onClose={() => setAuditOpen(false)} />
-    <AccessManagementDialog locale={locale} open={accessOpen} onClose={() => setAccessOpen(false)} />
+    <AuditHistoryDialog locale={locale} open={auditOpen} onClose={() => { setAuditOpen(false); window.requestAnimationFrame(() => auditButtonRef.current?.focus()); }} />
+    <AccessManagementDialog locale={locale} open={accessOpen} onClose={() => { setAccessOpen(false); window.requestAnimationFrame(() => accessButtonRef.current?.focus()); }} />
     <HourglassImportInspector locale={locale} open={hourglassOpen} onClose={() => setHourglassOpen(false)} />
   </Stack>;
 }

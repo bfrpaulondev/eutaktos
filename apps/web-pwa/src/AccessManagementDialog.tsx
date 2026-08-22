@@ -22,6 +22,9 @@ const copy = {
 
 export function capabilityGroup(capability: Capability): (typeof GROUPS)[number]['key'] { return GROUPS.find(group => group.capabilities.includes(capability))?.key ?? 'administration'; }
 export function isSensitiveCapability(capability: Capability): boolean { return SENSITIVE.has(capability); }
+export function canConfirmAccessGrant(personId: string, capability: Capability | '', grantsReady: boolean, activeCapabilities: ReadonlySet<Capability>, granting: boolean): boolean {
+  return Boolean(personId && capability && grantsReady && !activeCapabilities.has(capability) && !granting);
+}
 function formatDate(value: string, locale: Locale): string { const date = new Date(value); return Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(date) : value; }
 
 export function AccessManagementDialog({ locale, open, onClose }: { locale: Locale; open: boolean; onClose(): void }) {
@@ -33,6 +36,7 @@ export function AccessManagementDialog({ locale, open, onClose }: { locale: Loca
   const [grants, setGrants] = useState<readonly AccessGrantDto[]>([]);
   const [directoryLoading, setDirectoryLoading] = useState(false);
   const [grantsLoading, setGrantsLoading] = useState(false);
+  const [grantsReady, setGrantsReady] = useState(false);
   const [granting, setGranting] = useState(false);
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [grantConfirmation, setGrantConfirmation] = useState(false);
@@ -47,7 +51,8 @@ export function AccessManagementDialog({ locale, open, onClose }: { locale: Loca
   const filteredPeople = useMemo(() => { const needle = query.trim().toLocaleLowerCase(locale); return !needle ? people : people.filter(person => person.displayName.toLocaleLowerCase(locale).includes(needle)); }, [locale, people, query]);
   const selectedPerson = people.find(person => person.id === personId) ?? null;
   const activeCapabilities = new Set(grants.filter(item => !item.revokedAt).map(item => item.capability));
-  const canConfirmGrant = Boolean(personId && capability && !activeCapabilities.has(capability) && !granting);
+  const canConfirmGrant = canConfirmAccessGrant(personId, capability, grantsReady, activeCapabilities, granting);
+  const canClose = !granting && revokingId === null && !grantConfirmation && !revokeCandidate;
 
   const loadDirectory = useCallback(async (signal?: AbortSignal) => {
     setDirectoryLoading(true); setError(null);
@@ -56,9 +61,9 @@ export function AccessManagementDialog({ locale, open, onClose }: { locale: Loca
     finally { if (!signal?.aborted) setDirectoryLoading(false); }
   }, []);
   const loadGrants = useCallback(async (subjectId: string, signal?: AbortSignal) => {
-    if (!subjectId) { setGrants([]); return; }
-    setGrantsLoading(true); setError(null);
-    try { setGrants(await accessGrantApi.list(subjectId, signal)); }
+    if (!subjectId) { setGrants([]); setGrantsReady(false); return; }
+    setGrants([]); setGrantsReady(false); setGrantsLoading(true); setError(null);
+    try { setGrants(await accessGrantApi.list(subjectId, signal)); setGrantsReady(true); }
     catch (reason) { if (reason instanceof DOMException && reason.name === 'AbortError') return; setError('load'); }
     finally { if (!signal?.aborted) setGrantsLoading(false); }
   }, []);
@@ -69,32 +74,42 @@ export function AccessManagementDialog({ locale, open, onClose }: { locale: Loca
     if (!personId || !capability || grantRef.current) return;
     grantRef.current = true; setGranting(true); setError(null); setNotice(null);
     try { const granted = await accessGrantApi.grant(personId, capability); setGrants(current => [...current.filter(item => item.id !== granted.id), granted].sort((first, second) => first.capability.localeCompare(second.capability))); setGrantConfirmation(false); setNotice('grant'); setCapability(''); window.requestAnimationFrame(() => grantButtonRef.current?.focus()); }
-    catch { setError('grant'); }
+    catch { setGrantConfirmation(false); setError('grant'); window.requestAnimationFrame(() => grantButtonRef.current?.focus()); }
     finally { grantRef.current = false; setGranting(false); }
   };
   const revoke = async () => {
     if (!revokeCandidate || revokeRef.current) return;
     revokeRef.current = true; setRevokingId(revokeCandidate.id); setError(null); setNotice(null);
     try { const revoked = await accessGrantApi.revoke(revokeCandidate.id); setGrants(current => current.map(item => item.id === revoked.id ? revoked : item)); setRevokeCandidate(null); setNotice('revoke'); window.requestAnimationFrame(() => revokeButtonRef.current?.focus()); }
-    catch { setError('revoke'); }
+    catch { setRevokeCandidate(null); setError('revoke'); window.requestAnimationFrame(() => revokeButtonRef.current?.focus()); }
     finally { revokeRef.current = false; setRevokingId(null); }
   };
   const retry = () => { if (personId) void loadGrants(personId); else void loadDirectory(); };
+  const closeGrantConfirmation = () => {
+    if (granting) return;
+    setGrantConfirmation(false);
+    window.requestAnimationFrame(() => grantButtonRef.current?.focus());
+  };
+  const closeRevokeConfirmation = () => {
+    if (revokingId) return;
+    setRevokeCandidate(null);
+    window.requestAnimationFrame(() => revokeButtonRef.current?.focus());
+  };
   const errorMessage = error === 'grant' ? text.grantError : error === 'revoke' ? text.revokeError : text.unavailable;
 
-  return <Dialog open={open} onClose={() => !granting && !revokingId && !grantConfirmation && !revokeCandidate && onClose()} fullWidth maxWidth="md" aria-labelledby="access-management-title">
+  return <Dialog open={open} onClose={() => canClose && onClose()} fullWidth maxWidth="md" aria-labelledby="access-management-title">
     <DialogTitle id="access-management-title"><Typography variant="h5" fontWeight={760}>{text.title}</Typography><Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{text.subtitle}</Typography></DialogTitle>
     <DialogContent><Stack spacing={2} sx={{ pt: 1 }}>
       <Alert severity="info">{text.directoryHint}</Alert>
       {notice ? <Alert severity="success" onClose={() => setNotice(null)}>{notice === 'grant' ? text.grantSuccess : text.revokeSuccess}</Alert> : null}
-      {error ? <Alert severity="warning" action={<Button color="inherit" size="small" disabled={directoryLoading || grantsLoading} onClick={retry}>{text.retry}</Button>}>{errorMessage}</Alert> : null}
-      {directoryLoading ? <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="center" sx={{ py: 3 }} role="status"><CircularProgress size={24} /><Typography color="text.secondary">{text.directoryLoading}</Typography></Stack> : <Stack spacing={1.5}><TextField label={text.searchPerson} value={query} onChange={event => setQuery(event.target.value)} type="search" fullWidth slotProps={{ htmlInput: { autoComplete: 'off' } }} /><TextField select label={text.person} value={personId} onChange={event => { setPersonId(event.target.value); setCapability(''); setNotice(null); }} fullWidth><MenuItem value=""><em>—</em></MenuItem>{filteredPeople.map(person => <MenuItem key={person.id} value={person.id}>{person.displayName}</MenuItem>)}</TextField></Stack>}
+      {error ? <Alert severity="warning" action={error === 'load' ? <Button color="inherit" size="small" disabled={directoryLoading || grantsLoading} onClick={retry}>{text.retry}</Button> : undefined}>{errorMessage}</Alert> : null}
+      {directoryLoading ? <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="center" sx={{ py: 3 }} role="status"><CircularProgress size={24} /><Typography color="text.secondary">{text.directoryLoading}</Typography></Stack> : <Stack spacing={1.5}><TextField label={text.searchPerson} value={query} onChange={event => setQuery(event.target.value)} type="search" fullWidth slotProps={{ htmlInput: { autoComplete: 'off' } }} /><TextField select label={text.person} value={personId} onChange={event => { setPersonId(event.target.value); setGrants([]); setGrantsReady(false); setCapability(''); setNotice(null); }} fullWidth><MenuItem value=""><em>—</em></MenuItem>{filteredPeople.map(person => <MenuItem key={person.id} value={person.id}>{person.displayName}</MenuItem>)}</TextField></Stack>}
       {personId ? <Stack spacing={2}><Paper variant="outlined" sx={{ p: { xs: 1.25, sm: 1.5 }, borderRadius: 2, boxShadow: 'none', bgcolor: 'transparent' }}><Stack spacing={1.25}><TextField select label={text.capability} value={capability} onChange={event => setCapability(event.target.value as Capability | '')} fullWidth><MenuItem value=""><em>{text.selectCapability}</em></MenuItem>{GROUPS.map(group => [<ListSubheader key={group.key}>{text.groups[group.key]}</ListSubheader>, ...group.capabilities.map(value => <MenuItem key={value} value={value} disabled={activeCapabilities.has(value)}>{value}{isSensitiveCapability(value) ? ` · ${text.sensitive}` : ''}</MenuItem>)])}</TextField>{capability === 'tenant.manage' ? <Alert severity="warning">{text.tenantWarning}</Alert> : null}<Button ref={grantButtonRef} variant="contained" onClick={() => setGrantConfirmation(true)} disabled={!canConfirmGrant} sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' } }}>{granting ? text.granting : text.grant}</Button></Stack></Paper>
         {grantsLoading ? <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="center" sx={{ py: 3 }} role="status"><CircularProgress size={24} /><Typography color="text.secondary">{text.grantsLoading}</Typography></Stack> : grants.length === 0 ? <Box sx={{ py: 3, textAlign: 'center' }}><Typography color="text.secondary">{text.noGrants}</Typography></Box> : <Stack spacing={1}>{grants.map(item => <Paper key={item.id} variant="outlined" sx={{ p: 1.5, borderRadius: 2, boxShadow: 'none', bgcolor: 'transparent' }}><Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={1.5} alignItems={{ sm: 'center' }}><Box><Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center"><Typography fontWeight={700}>{item.capability}</Typography>{isSensitiveCapability(item.capability) ? <Chip label={text.sensitive} size="small" color="warning" variant="outlined" /> : null}<Chip label={item.revokedAt ? text.revoked : text.active} size="small" color={item.revokedAt ? 'default' : 'primary'} variant="outlined" /></Stack><Typography variant="caption" color="text.secondary">{formatDate(item.grantedAt, locale)}</Typography></Box>{!item.revokedAt ? <Button color="error" variant="outlined" disabled={revokingId !== null} onClick={event => { revokeButtonRef.current = event.currentTarget; setError(null); setRevokeCandidate(item); }}>{revokingId === item.id ? text.revoking : text.revoke}</Button> : null}</Stack></Paper>)}</Stack>}
       </Stack> : <Box sx={{ py: 3, textAlign: 'center' }}><Typography color="text.secondary">{text.choosePerson}</Typography></Box>}
     </Stack></DialogContent>
-    <DialogActions><Button onClick={onClose} disabled={granting || revokingId !== null}>{text.close}</Button></DialogActions>
-    <Dialog open={grantConfirmation} onClose={() => !granting && setGrantConfirmation(false)} fullWidth maxWidth="xs" aria-describedby="access-grant-confirmation"><DialogTitle>{text.grantTitle}</DialogTitle><DialogContent><Typography id="access-grant-confirmation">{text.grantBody}</Typography><Typography sx={{ mt: 1 }} fontWeight={700}>{selectedPerson?.displayName} · {capability}</Typography>{capability && isSensitiveCapability(capability) ? <Chip label={text.sensitive} color="warning" size="small" sx={{ mt: 1 }} /> : null}</DialogContent><DialogActions><Button disabled={granting} onClick={() => setGrantConfirmation(false)}>{text.cancel}</Button><Button variant="contained" disabled={!canConfirmGrant} onClick={() => void grantAccess()}>{granting ? text.granting : text.confirmGrant}</Button></DialogActions></Dialog>
-    <Dialog open={revokeCandidate !== null} onClose={() => !revokingId && setRevokeCandidate(null)} fullWidth maxWidth="xs" aria-describedby="access-revoke-confirmation"><DialogTitle>{text.revokeTitle}</DialogTitle><DialogContent><Typography id="access-revoke-confirmation">{text.revokeBody}</Typography><Typography sx={{ mt: 1 }} fontWeight={700}>{revokeCandidate?.capability}</Typography>{revokeCandidate && isSensitiveCapability(revokeCandidate.capability) ? <Chip label={text.sensitive} color="warning" size="small" sx={{ mt: 1 }} /> : null}</DialogContent><DialogActions><Button disabled={revokingId !== null} onClick={() => setRevokeCandidate(null)}>{text.cancel}</Button><Button color="error" variant="contained" disabled={revokingId !== null} onClick={() => void revoke()}>{revokingId ? text.revoking : text.confirmRevoke}</Button></DialogActions></Dialog>
+    <DialogActions><Button onClick={onClose} disabled={!canClose}>{text.close}</Button></DialogActions>
+    <Dialog open={grantConfirmation} onClose={closeGrantConfirmation} fullWidth maxWidth="xs" aria-describedby="access-grant-confirmation"><DialogTitle>{text.grantTitle}</DialogTitle><DialogContent><Typography id="access-grant-confirmation">{text.grantBody}</Typography><Typography sx={{ mt: 1 }} fontWeight={700}>{selectedPerson?.displayName} · {capability}</Typography>{capability && isSensitiveCapability(capability) ? <Chip label={text.sensitive} color="warning" size="small" sx={{ mt: 1 }} /> : null}</DialogContent><DialogActions><Button disabled={granting} onClick={closeGrantConfirmation}>{text.cancel}</Button><Button variant="contained" disabled={!canConfirmGrant} onClick={() => void grantAccess()}>{granting ? text.granting : text.confirmGrant}</Button></DialogActions></Dialog>
+    <Dialog open={revokeCandidate !== null} onClose={closeRevokeConfirmation} fullWidth maxWidth="xs" aria-describedby="access-revoke-confirmation"><DialogTitle>{text.revokeTitle}</DialogTitle><DialogContent><Typography id="access-revoke-confirmation">{text.revokeBody}</Typography><Typography sx={{ mt: 1 }} fontWeight={700}>{revokeCandidate?.capability}</Typography>{revokeCandidate && isSensitiveCapability(revokeCandidate.capability) ? <Chip label={text.sensitive} color="warning" size="small" sx={{ mt: 1 }} /> : null}</DialogContent><DialogActions><Button disabled={revokingId !== null} onClick={closeRevokeConfirmation}>{text.cancel}</Button><Button color="error" variant="contained" disabled={revokingId !== null} onClick={() => void revoke()}>{revokingId ? text.revoking : text.confirmRevoke}</Button></DialogActions></Dialog>
   </Dialog>;
 }
