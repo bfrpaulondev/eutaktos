@@ -5,6 +5,7 @@ import { dirname, resolve } from 'node:path';
 const appPort = '5188';
 const debugPort = '9231';
 const appUrl = `http://127.0.0.1:${appPort}/`;
+const appOrigin = new URL(appUrl).origin;
 const debugUrl = `http://127.0.0.1:${debugPort}`;
 const viteCli = resolve(dirname(fileURLToPath(import.meta.url)), '../../../node_modules/vite/bin/vite.js');
 const chromium = process.env.CHROMIUM_BIN ?? 'chromium';
@@ -58,12 +59,18 @@ let cdp;
 
 async function evaluate(expression) {
   const response = await cdp.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
-  if (response.exceptionDetails) throw new Error(response.exceptionDetails.text);
+  if (response.exceptionDetails) {
+    throw new Error(response.exceptionDetails.exception?.description ?? response.exceptionDetails.text);
+  }
   return response.result.value;
 }
 
 async function setPreferences(preferences, expectedHeading) {
-  await evaluate(`localStorage.setItem('eutaktos.preferences.v4', ${JSON.stringify(JSON.stringify(preferences))})`);
+  await cdp.send('DOMStorage.setDOMStorageItem', {
+    storageId: { securityOrigin: appOrigin, isLocalStorage: true },
+    key: 'eutaktos.preferences.v4',
+    value: JSON.stringify(preferences),
+  });
   await cdp.send('Page.reload', { ignoreCache: true });
   await poll(
     async () => await evaluate(`document.readyState === 'complete' && document.documentElement.lang === ${JSON.stringify(preferences.locale)} && Boolean(document.querySelector('#root')?.textContent?.includes(${JSON.stringify(expectedHeading)}))`),
@@ -133,6 +140,7 @@ try {
   cdp = await connectCdp(target.webSocketDebuggerUrl);
   await cdp.send('Runtime.enable');
   await cdp.send('Page.enable');
+  await cdp.send('DOMStorage.enable');
   await cdp.send('Emulation.setDeviceMetricsOverride', { width: 320, height: 568, deviceScaleFactor: 1, mobile: true });
 
   const defaults = { paletteId: 'classic', colorMode: 'light', density: 'comfortable', locale: 'pt-PT', textSize: 'default', reducedMotion: false, reducedTransparency: false, highContrast: false };
