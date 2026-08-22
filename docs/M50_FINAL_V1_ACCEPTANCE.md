@@ -4,12 +4,12 @@
 
 | Campo | Valor |
 |---|---|
-| Main revisada | `df839a3c5a918d84d7ad628b99850adf73275652` |
-| Integrações confirmadas | PRs #167, #180, #181, #182 e #185 integradas na `main`. |
+| Main revisada | `4d5abbc9f80cf6ed84278d9890c9554ece4e2fa6` |
+| Integrações confirmadas | PRs #167, #180, #181, #182, #185 e #186 integradas na `main`. |
 | Deployment canónico | `https://eutakes.netlify.app/` |
 | Deployment não canónico | `https://eutaktos.vercel.app/` não é usado como gate de aceitação V1 nesta revisão. |
-| CI principal | GitHub Actions run `32598760302` / CI #346. |
-| Preview validado | Netlify deploy preview #185 em `eutakes` e `rainbow-zuccutto-00d981`, ambos com status de deploy `success`. |
+| CI de referência | GitHub Actions CI #350: `quality` PASS + `browser-regression` PASS. |
+| Preview validado | Netlify deploy preview #186 em `eutakes` e `rainbow-zuccutto-00d981`, ambos `success`. |
 | Browser CI | Chromium-compatible browser no runner Ubuntu 24.04, via `test:browser-regression`. |
 | Supabase | Projeto dedicado Eutaktos, migrations V1 aplicadas e tenant piloto existente. |
 
@@ -32,15 +32,11 @@ Esta revisão não converte ausência de evidência em PASS. Onde o ambiente nã
 
 O M50 original auditou `https://eutaktos.vercel.app/` e classificou o build demo/stale e `/api/* -> index.html` como defeitos críticos do V1. Esse host não é o deployment canónico usado pelo projeto nesta fase. O alvo canónico é Netlify (`https://eutakes.netlify.app/`).
 
-Os checks Vercel continuam a falhar por limite de builds da conta e podem ser limpos/desativados posteriormente, mas não são usados para rejeitar a release Netlify.
-
-Consequentemente, os antigos CF-01, CF-02, CF-03 e a parte de CF-06 baseada no Vercel são **retirados como FAIL de V1**. Eles descrevem um deployment não canónico, não a release auditada.
+Os checks Vercel continuam a falhar por limite de builds da conta e podem ser limpos/desativados posteriormente, mas não são usados para rejeitar a release Netlify. Os antigos CF-01, CF-02, CF-03 e a parte de CF-06 baseada no Vercel são, portanto, retirados como FAIL de V1.
 
 ### 2. A falha `/pessoas` era do teste, não da UI
 
-O M50 original reportou timeout de `test:ux-runtime` em `/pessoas` pt-PT. A revisão principal promoveu `test:browser-regression` a job obrigatório de CI e tornou o diagnóstico do deep link explícito.
-
-O runner observou durante a falha:
+O M50 original reportou timeout de `test:ux-runtime` em `/pessoas` pt-PT. O runner posteriormente observou durante a falha:
 
 - location: `/pessoas`;
 - lang: `pt-PT`;
@@ -48,9 +44,9 @@ O runner observou durante a falha:
 - conteúdo real: `Pessoas e organização` e os controlos localizados esperados;
 - document readyState: `complete`.
 
-O defeito estava na segunda verificação de organização: ela usava o heading interno `Pessoas e organização` para construir incorretamente o título esperado `Eutaktos — Pessoas e organização`. O produto usa corretamente o título de secção `Eutaktos — Pessoas`.
+A segunda verificação de organização usava o heading interno `Pessoas e organização` para construir incorretamente o título esperado `Eutaktos — Pessoas e organização`. O produto usa corretamente o título de secção `Eutaktos — Pessoas`.
 
-PR #185 corrigiu a expectativa e manteve as asserções de conteúdo, locale, rota e título. Após a correção, o job `browser-regression` passou no CI #346. Os antigos CF-04 e CF-05 são, portanto, **resolvidos e não representam regressão de produto**.
+PR #185 corrigiu a expectativa sem remover asserções de conteúdo, locale, rota ou título. Os antigos CF-04 e CF-05 não representam regressão de produto.
 
 ### 3. Foi encontrado e corrigido um problema Netlify real
 
@@ -64,30 +60,44 @@ PR #185 adicionou o fallback `/* -> /index.html` **depois** de `/api` e `/api/*`
 
 Os dois deploy previews Netlify do PR #185 ficaram verdes.
 
+### 4. O gate de browser foi estabilizado sem afrouxar as expectativas
+
+Depois de o `browser-regression` virar gate permanente de CI, uma execução documental do M50 expôs uma race do protocolo Chrome: o teste escrevia `localStorage` e disparava reload/navegação por `Runtime.evaluate`, podendo perder o JavaScript execution context e devolver `Error: Uncaught` mesmo quando a UI estava correta.
+
+PR #186 removeu essa race:
+
+- preferências de teste são escritas pelo domínio CDP `DOMStorage`, não por JavaScript da página;
+- reload usa `Page.reload`;
+- deep links usam `Page.navigate`;
+- asserções só são avaliadas após `document.readyState === 'complete'`;
+- todas as verificações anteriores de i18n, títulos, conteúdo, diálogos, foco, contraste, reflow, privacy e PWA foram preservadas.
+
+CI #350 passou com `quality` e `browser-regression` verdes. Os dois deploy previews Netlify do PR #186 também ficaram verdes.
+
 ## Gates automatizados
 
 | Gate | Estado | Evidência |
 |---|---|---|
-| Typecheck raiz | PASS | CI #346 `quality`. |
-| Unit tests raiz | PASS | CI #346 `quality`. |
-| Production build | PASS | CI #346 `quality`. |
-| Runtime dependency audit | PASS | CI #346 `quality`. |
+| Typecheck raiz | PASS | CI #350 `quality`. |
+| Unit tests raiz | PASS | CI #350 `quality`. |
+| Production build | PASS | CI #350 `quality`. |
+| Runtime dependency audit | PASS | CI #350 `quality`. |
 | PWA unit tests | PASS | Browser regression executou 28 ficheiros / 122 testes. |
 | Bundle budget | PASS | chunk inicial `475700` bytes; abaixo do orçamento de 500 kB. |
 | PWA privacy | PASS | storage limitado a preferências; cache exclui API/auth/authorization/query/private/no-store. |
 | Production mount | PASS | manifesto, ícones e salvaguardas do service worker verificados. |
 | UX runtime | PASS | pt-PT/en/es, deep links reais, títulos, organização/diálogos, foco, contraste e reflow 320px. |
 | Hourglass inspector | PASS | incluído no `test:browser-regression`. |
-| Browser regression | PASS | CI #346, Chromium-compatible browser no runner. |
-| Netlify deploy previews | PASS | dois contexts de preview do PR #185 com `success`. |
+| Browser regression | PASS | CI #350, Chromium-compatible browser no runner. |
+| Netlify deploy previews | PASS | dois contexts de preview do PR #186 com `success`. |
 
-O browser regression passa a ser gate permanente de CI; uma futura regressão desse conjunto não depende mais de auditoria manual para ser detectada.
+O browser regression é agora gate permanente de CI; uma futura regressão desse conjunto não depende de auditoria manual para ser detectada.
 
 ## Functional matrix
 
 | Área | Cenário | Estado | Observação |
 |---|---|---|---|
-| Baseline | M41–M49, K41–K50, A06 e K47 hardening integrados | PASS | PRs #167/#180/#181/#182/#185 na `main`. |
+| Baseline | M41–M49, K41–K50, A06, K47 hardening e browser gate integrados | PASS | PRs #167/#180/#181/#182/#185/#186 na `main`. |
 | People UI | Deep link, locale, loading/error/empty, privacy e retry | PASS | Browser regression + testes unitários. |
 | People produção | list/create/edit/persistência/refresh com sessão real | BLOCKED | Requer sessão piloto autorizada no deployment canónico. |
 | Organização UI | Households, grupos e responsabilidades | PASS | Cobertura frontend integrada. |
@@ -139,13 +149,13 @@ O browser regression passa a ser gate permanente de CI; uma futura regressão de
 | `https://eutakes.netlify.app/` current production root | BLOCKED | O ambiente desta revisão não conseguiu obter resposta direta confiável do URL de produção. |
 | `/api/health` em produção | BLOCKED | Handler e Netlify adapter têm testes; preview build é verde, mas resposta do URL de produção não foi observada diretamente. |
 | `/api/ready` em produção | BLOCKED | Requer observar deployment com env server-only e Supabase dedicado configurados. |
-| Deep-link refresh em produção | BLOCKED | Regra Netlify corrigida e preview verde; falta observação direta do deployment canónico após merge. |
-| Netlify deploy preview | PASS | PR #185 teve dois deploy previews verdes. |
+| Deep-link refresh em produção | BLOCKED | Regra Netlify corrigida e previews verdes; falta observação direta do deployment canónico após merge. |
+| Netlify deploy preview | PASS | PR #186 teve dois deploy previews verdes. |
 | Vercel | NOT A RELEASE GATE | Continua sujeito ao build-rate-limit e pode servir build antigo; não é o alvo V1 atual. |
 
 ## Remaining production acceptance blockers
 
-1. Confirmar que a `main` `df839a3c5a918d84d7ad628b99850adf73275652` está efetivamente publicada em `https://eutakes.netlify.app/`.
+1. Confirmar que a `main` `4d5abbc9f80cf6ed84278d9890c9554ece4e2fa6` está efetivamente publicada em `https://eutakes.netlify.app/`.
 2. Confirmar no host canónico que `/api/health` devolve JSON do runtime e que `/api/ready` devolve sucesso apenas com Supabase/configuração correta.
 3. Usar uma sessão piloto autorizada e isolada para executar E2E de People, Organization, Access/Audit e Midweek Scheduling, incluindo refresh/persistência, conflitos e rejeições.
 4. Manter provider externo de notificações `BLOCKED` até existir configuração real e prova de entrega; não é permitido converter intent pending em sucesso simulado.
@@ -155,4 +165,4 @@ O browser regression passa a ser gate permanente de CI; uma futura regressão de
 
 **No confirmed source/CI/browser/preview failures remain after review. V1 is code-complete for the reviewed scope, but production pilot acceptance remains BLOCKED until the canonical Netlify production runtime and authenticated pilot flows are observed end-to-end.**
 
-O M50 original foi corrigido porque usava um deployment Vercel não canónico como critério de rejeição e porque a falha `/pessoas` era uma expectativa incorreta do teste. A revisão preserva como `BLOCKED` tudo o que ainda não foi provado em produção, em vez de declarar PASS sem evidência.
+O M50 original foi corrigido porque usava um deployment Vercel não canónico como critério de rejeição e porque a falha `/pessoas` era uma expectativa incorreta do teste. A revisão posterior também removeu races do próprio harness de Chromium sem reduzir as expectativas de produto. Tudo o que ainda não foi provado em produção permanece `BLOCKED`, em vez de ser declarado PASS sem evidência.
