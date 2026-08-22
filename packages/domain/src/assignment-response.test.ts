@@ -131,3 +131,11 @@ describe('ASSIGNMENT_RESPONSE_STATUSES', () => {
     expect(Object.isFrozen(ASSIGNMENT_RESPONSE_STATUSES)).toBe(true);
   });
 });
+
+
+it('keeps an already confirmed response immutable on an idempotent retry', () => {
+  const confirmed = transitionAssignmentResponse(makeResp(), 'confirmed', NOW, { code: 'available' });
+  const retried = transitionAssignmentResponseIdempotent(confirmed, 'confirmed', '2026-08-21T13:00:00.000Z', { code: 'different' });
+  expect(retried).toBe(confirmed);
+  expect(retried.reason).toEqual({ code: 'available' });
+});
