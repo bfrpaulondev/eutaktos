@@ -72,6 +72,36 @@ async function visitWorkspace(path, expectedHeading, locale, expectedTitle = `Eu
   await poll(async () => await evaluate(`document.documentElement.lang === ${JSON.stringify(locale)} && document.title === ${JSON.stringify(expectedTitle)} && Boolean(document.querySelector('#main')?.textContent?.includes(${JSON.stringify(expectedHeading)}))`), `O deep link ${path} não apresentou o título e conteúdo localizados em ${locale}`);
 }
 
+async function openLocalizedDialog(trigger, title, closeLabel, locale) {
+  const foundTrigger = await evaluate(`(() => {
+    const button = [...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(trigger)});
+    button?.click();
+    return Boolean(button);
+  })()`);
+  if (!foundTrigger) throw new Error(`O gatilho localizado ${trigger} não foi encontrado em ${locale}`);
+  await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('[role="dialog"]')].find(node => node.textContent?.includes(${JSON.stringify(title)})))`), `O diálogo ${title} não abriu em ${locale}`);
+  const closed = await evaluate(`(() => {
+    const dialog = [...document.querySelectorAll('[role="dialog"]')].find(node => node.textContent?.includes(${JSON.stringify(title)}));
+    const button = dialog && [...dialog.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(closeLabel)});
+    button?.click();
+    return Boolean(button);
+  })()`);
+  if (!closed) throw new Error(`O fecho localizado do diálogo ${title} não foi encontrado em ${locale}`);
+  await poll(async () => await evaluate(`![...document.querySelectorAll('[role="dialog"]')].some(node => node.textContent?.includes(${JSON.stringify(title)}) && getComputedStyle(node).visibility !== 'hidden')`), `O diálogo ${title} não fechou em ${locale}`);
+}
+
+async function verifyLocalizedOrganization(locale, expected) {
+  await visitWorkspace(expected.path, expected.heading, locale);
+  const missingLabels = await evaluate(`(() => {
+    const labels = new Set([...document.querySelectorAll('button')].map(node => (node.innerText || node.textContent || '').trim()));
+    return ${JSON.stringify(['people', 'households', 'groups', 'responsibilities', 'hourglass', 'audit', 'access'].map(key => expected[key]))}.filter(label => !labels.has(label));
+  })()`);
+  if (missingLabels.length) throw new Error(`Faltam rótulos organizacionais localizados em ${locale}: ${missingLabels.join(', ')}`);
+  await openLocalizedDialog(expected.hourglass, expected.hourglassTitle, expected.close, locale);
+  await openLocalizedDialog(expected.audit, expected.auditTitle, expected.close, locale);
+  await openLocalizedDialog(expected.access, expected.accessTitle, expected.close, locale);
+}
+
 try {
   await poll(async () => (await fetch(appUrl)).ok, 'O servidor de desenvolvimento não iniciou');
   browser = spawn(chromium, ['--headless=new', '--no-sandbox', '--disable-gpu', `--remote-debugging-port=${debugPort}`, `--user-data-dir=/tmp/eutaktos-ux-runtime-${process.pid}`, appUrl], { stdio: 'ignore' });
@@ -118,10 +148,16 @@ try {
     en: [['/agenda', 'Agenda'], ['/assignments', 'Assignments'], ['/people', 'People'], ['/preferences', 'Preferences']],
     es: [['/agenda', 'Agenda'], ['/designacoes', 'Asignaciones'], ['/pessoas', 'Personas'], ['/preferencias', 'Preferencias']],
   };
+  const organization = {
+    'pt-PT': { path: '/pessoas', heading: 'Pessoas e organização', people: 'Pessoas', households: 'Agregados', groups: 'Grupos de serviço', responsibilities: 'Responsabilidades', hourglass: 'Inspecionar export Hourglass', audit: 'Histórico de auditoria', access: 'Gerir acessos', hourglassTitle: 'Inspeção de export Hourglass', auditTitle: 'Histórico de auditoria', accessTitle: 'Gestão de acessos', close: 'Fechar' },
+    en: { path: '/people', heading: 'People and organization', people: 'People', households: 'Households', groups: 'Service groups', responsibilities: 'Responsibilities', hourglass: 'Inspect Hourglass export', audit: 'Audit history', access: 'Manage access', hourglassTitle: 'Hourglass export inspector', auditTitle: 'Audit history', accessTitle: 'Access management', close: 'Close' },
+    es: { path: '/pessoas', heading: 'Personas y organización', people: 'Personas', households: 'Grupos familiares', groups: 'Grupos de servicio', responsibilities: 'Responsabilidades', hourglass: 'Inspeccionar exportación Hourglass', audit: 'Historial de auditoría', access: 'Gestionar accesos', hourglassTitle: 'Inspector de exportación Hourglass', auditTitle: 'Historial de auditoría', accessTitle: 'Gestión de accesos', close: 'Cerrar' },
+  };
   for (const locale of ['pt-PT', 'en', 'es']) {
     const expectedHome = locale === 'pt-PT' ? 'Tudo em boa ordem.' : locale === 'en' ? 'Everything in good order.' : 'Todo en buen orden.';
     await setPreferences({ ...defaults, locale }, expectedHome);
     for (const [path, heading] of workspaces[locale]) await visitWorkspace(path, heading, locale);
+    await verifyLocalizedOrganization(locale, organization[locale]);
   }
   await setPreferences({ ...defaults, locale: 'en' }, 'Everything in good order.');
   await visitWorkspace('/people/?source=deep-link#contacts', 'People', 'en');
@@ -131,7 +167,7 @@ try {
   const accessibility = await evaluate(`({ mode: document.documentElement.dataset.colorMode, background: getComputedStyle(document.body).backgroundColor, border: getComputedStyle(document.querySelector('.MuiPaper-root')).borderTopWidth })`);
   if (accessibility.mode !== 'dark' || accessibility.border !== '2px' || accessibility.background === 'rgb(0, 0, 0)') throw new Error(`O tema acessível não foi aplicado corretamente: ${JSON.stringify(accessibility)}`);
 
-  process.stdout.write('UX runtime checks passed: pt-PT/en/es workspaces, localized deep links/titles, safe unknown-route fallback, More focus restore, dark/high contrast, 320px reflow, skip link, landmarks and aria-current.\n');
+  process.stdout.write('UX runtime checks passed: pt-PT/en/es workspaces and organization dialogs, localized deep links/titles, safe unknown-route fallback, More focus restore, dark/high contrast, 320px reflow, skip link, landmarks and aria-current.\n');
 } finally {
   cdp?.close();
   if (browser && !browser.killed) browser.kill('SIGTERM');
