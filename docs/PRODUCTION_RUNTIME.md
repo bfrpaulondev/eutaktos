@@ -30,6 +30,12 @@ The browser receives only the `__Host-eutaktos_session` cookie. Tenant, actor an
 
 API requests are capped at 64 KiB at the shared runtime boundary. A valid caller-provided `X-Correlation-Id` may be preserved; unsafe/free-form values are replaced with a server-generated UUID. The runtime returns `X-Correlation-Id` and writes only allowlisted structured observability metadata. Request bodies, cookies, URLs, tenant/actor identifiers and free-form error messages are not logged by this boundary.
 
+## Scheduling boundary
+
+The final Scheduling HTTP/persistence adapter is intentionally separated from this runtime merge. K41–K50 are changing the canonical scheduling application/domain contracts in parallel. Freezing the pre-K41 contract here would create a second incompatible boundary.
+
+After K41–K50 is reviewed, Scheduling HTTP/persistence will be integrated in a dedicated follow-up against the final canonical contracts. Until then, this runtime must not simulate scheduling success or duplicate scheduling business rules.
+
 ## Pilot tenant
 
 Create a test tenant only after the dedicated database exists and migrations are applied:
