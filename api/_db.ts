@@ -9,9 +9,10 @@ export class DatabaseRequestError extends Error {
 }
 export interface DatabaseConfig { url: string; serviceRoleKey: string }
 export interface EntityRow { tenant_id: string; entity_type: string; entity_id: string; data: unknown; version: number }
-export interface SessionRow { id: string; tenant_id: string; actor_id: string; issued_at: string; idle_expires_at: string; absolute_expires_at: string; revoked_at?: string | null }
+export interface SessionRow { id: string; tenant_id: string; actor_id: string; issued_at: string; idle_expires_at: string; absolute_expires_at: string; idle_timeout_ms: number; revoked_at?: string | null }
 export interface AccessGrantRow { tenant_id: string; id: string; subject_id: string; capability: string; granted_by: string; granted_at: string; revoked_at?: string | null }
 export interface AuditRow { tenant_id: string; id: string; resource_type: string; resource_id: string; action: string; actor_id: string; occurred_at: string; changed_fields: readonly string[] }
+export interface OutboxRow { tenant_id: string; id: string; event_type: string; aggregate_id: string; actor_id: string; occurred_at: string; schema_version: number; correlation_id?: string | null; payload: Readonly<Record<string, unknown>>; delivery_attempts: number }
 
 function normalizeBaseUrl(value: string): string {
   const candidate = value.trim().replace(/\/+$/, '');
@@ -36,14 +37,17 @@ function objectRecord(value: unknown): Readonly<Record<string, unknown>> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new DatabaseRequestError(502);
   return value as Readonly<Record<string, unknown>>;
 }
+function safeInteger(value: unknown, minimum = 0): number {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < minimum) throw new DatabaseRequestError(502);
+  return value;
+}
 function parseEntityRow(value: unknown): EntityRow {
   const row = objectRecord(value);
-  if (typeof row.version !== 'number' || !Number.isSafeInteger(row.version) || row.version < 1) throw new DatabaseRequestError(502);
-  return { tenant_id: exactString(row.tenant_id), entity_type: exactString(row.entity_type), entity_id: exactString(row.entity_id), data: row.data, version: row.version };
+  return { tenant_id: exactString(row.tenant_id), entity_type: exactString(row.entity_type), entity_id: exactString(row.entity_id), data: row.data, version: safeInteger(row.version, 1) };
 }
 function parseSessionRow(value: unknown): SessionRow {
   const row = objectRecord(value);
-  return { id: exactString(row.id), tenant_id: exactString(row.tenant_id), actor_id: exactString(row.actor_id), issued_at: exactString(row.issued_at), idle_expires_at: exactString(row.idle_expires_at), absolute_expires_at: exactString(row.absolute_expires_at), ...(typeof row.revoked_at === 'string' ? { revoked_at: row.revoked_at } : {}) };
+  return { id: exactString(row.id), tenant_id: exactString(row.tenant_id), actor_id: exactString(row.actor_id), issued_at: exactString(row.issued_at), idle_expires_at: exactString(row.idle_expires_at), absolute_expires_at: exactString(row.absolute_expires_at), idle_timeout_ms: safeInteger(row.idle_timeout_ms, 60000), ...(typeof row.revoked_at === 'string' ? { revoked_at: row.revoked_at } : {}) };
 }
 function parseGrantRow(value: unknown): AccessGrantRow {
   const row = objectRecord(value);
@@ -54,6 +58,22 @@ function parseAuditRow(value: unknown): AuditRow {
   if (!Array.isArray(row.changed_fields) || !row.changed_fields.every(item => typeof item === 'string')) throw new DatabaseRequestError(502);
   return { tenant_id: exactString(row.tenant_id), id: exactString(row.id), resource_type: exactString(row.resource_type), resource_id: exactString(row.resource_id), action: exactString(row.action), actor_id: exactString(row.actor_id), occurred_at: exactString(row.occurred_at), changed_fields: Object.freeze([...row.changed_fields]) };
 }
+function parseOutboxRow(value: unknown): OutboxRow {
+  const row = objectRecord(value);
+  const payload = objectRecord(row.payload);
+  return Object.freeze({
+    tenant_id: exactString(row.tenant_id),
+    id: exactString(row.id),
+    event_type: exactString(row.event_type),
+    aggregate_id: exactString(row.aggregate_id),
+    actor_id: exactString(row.actor_id),
+    occurred_at: exactString(row.occurred_at),
+    schema_version: safeInteger(row.schema_version, 1),
+    ...(typeof row.correlation_id === 'string' ? { correlation_id: row.correlation_id } : {}),
+    payload: Object.freeze({ ...payload }),
+    delivery_attempts: safeInteger(row.delivery_attempts, 1),
+  });
+}
 export interface AuditQuery { tenantId: string; resourceType?: string; resourceId?: string; action?: string; actorId?: string; from?: string; to?: string; limit: number }
 
 export class SupabaseRestDatabase {
@@ -63,8 +83,13 @@ export class SupabaseRestDatabase {
   get configured(): boolean { return Boolean(this.#config); }
   async ready(): Promise<boolean> { if (!this.#config) return false; try { await this.#request('/rest/v1/eutaktos_entities?select=entity_id&limit=1'); return true; } catch { return false; } }
   async session(sessionId: string): Promise<SessionRow | undefined> {
-    const params = new URLSearchParams({ select: 'id,tenant_id,actor_id,issued_at,idle_expires_at,absolute_expires_at,revoked_at', id: `eq.${sessionId}`, revoked_at: 'is.null', limit: '1' });
+    const params = new URLSearchParams({ select: 'id,tenant_id,actor_id,issued_at,idle_expires_at,absolute_expires_at,idle_timeout_ms,revoked_at', id: `eq.${sessionId}`, revoked_at: 'is.null', limit: '1' });
     const rows = await this.#array(`/rest/v1/eutaktos_sessions?${params}`); return rows[0] ? parseSessionRow(rows[0]) : undefined;
+  }
+  async rotateSession(sessionId: string, nextSessionId: string, rotatedAt: string): Promise<SessionRow> {
+    const value = await this.#request('/rest/v1/rpc/eutaktos_rotate_session', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({p_session_id:sessionId,p_next_session_id:nextSessionId,p_rotated_at:rotatedAt}) });
+    if (!Array.isArray(value) || value.length !== 1) throw new DatabaseRequestError(502);
+    return parseSessionRow(value[0]);
   }
   async activeGrants(tenantId: string, subjectId: string): Promise<readonly AccessGrantRow[]> {
     const params = new URLSearchParams({ select: 'tenant_id,id,subject_id,capability,granted_by,granted_at,revoked_at', tenant_id: `eq.${tenantId}`, subject_id: `eq.${subjectId}`, revoked_at: 'is.null', order: 'capability.asc,id.asc' });
@@ -73,6 +98,11 @@ export class SupabaseRestDatabase {
   async grantsForSubject(tenantId: string, subjectId: string): Promise<readonly AccessGrantRow[]> {
     const params = new URLSearchParams({ select: 'tenant_id,id,subject_id,capability,granted_by,granted_at,revoked_at', tenant_id: `eq.${tenantId}`, subject_id: `eq.${subjectId}`, order: 'granted_at.desc,id.asc' });
     return Object.freeze((await this.#array(`/rest/v1/eutaktos_access_grants?${params}`)).map(parseGrantRow));
+  }
+  async grantById(tenantId: string, grantId: string): Promise<AccessGrantRow | undefined> {
+    const params = new URLSearchParams({ select:'tenant_id,id,subject_id,capability,granted_by,granted_at,revoked_at', tenant_id:`eq.${tenantId}`, id:`eq.${grantId}`, limit:'1' });
+    const rows = await this.#array(`/rest/v1/eutaktos_access_grants?${params}`);
+    return rows[0] ? parseGrantRow(rows[0]) : undefined;
   }
   async entities(tenantId: string, entityType: string): Promise<readonly EntityRow[]> {
     const params = new URLSearchParams({ select: 'tenant_id,entity_type,entity_id,data,version', tenant_id: `eq.${tenantId}`, entity_type: `eq.${entityType}`, order: 'entity_id.asc' });
@@ -87,6 +117,13 @@ export class SupabaseRestDatabase {
     if (query.resourceType) params.set('resource_type', `eq.${query.resourceType}`); if (query.resourceId) params.set('resource_id', `eq.${query.resourceId}`); if (query.action) params.set('action', `eq.${query.action}`); if (query.actorId) params.set('actor_id', `eq.${query.actorId}`); if (query.from) params.set('occurred_at', `gte.${query.from}`); if (query.to) params.append('occurred_at', `lte.${query.to}`);
     return Object.freeze((await this.#array(`/rest/v1/eutaktos_audit?${params}`)).map(parseAuditRow));
   }
+  async claimOutbox(limit = 25): Promise<readonly OutboxRow[]> {
+    const value = await this.#request('/rest/v1/rpc/eutaktos_claim_outbox',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({p_limit:limit})});
+    if(!Array.isArray(value)) throw new DatabaseRequestError(502);
+    return Object.freeze(value.map(parseOutboxRow));
+  }
+  async markOutboxDelivered(tenantId:string,id:string,deliveredAt:string):Promise<void>{ await this.#request('/rest/v1/rpc/eutaktos_mark_outbox_delivered',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({p_tenant_id:tenantId,p_id:id,p_delivered_at:deliveredAt})}); }
+  async markOutboxFailed(tenantId:string,id:string,errorCode:'provider-unconfigured'|'provider-unavailable'|'provider-rejected'|'invalid-event'):Promise<void>{ await this.#request('/rest/v1/rpc/eutaktos_mark_outbox_failed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({p_tenant_id:tenantId,p_id:id,p_error_code:errorCode})}); }
   async applyEntityChange(input: Readonly<Record<string, unknown>>): Promise<void> { await this.#request('/rest/v1/rpc/eutaktos_apply_entity_change', { method: 'POST', headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify(input) }); }
   async deleteEntityChange(input: Readonly<Record<string, unknown>>): Promise<void> { await this.#request('/rest/v1/rpc/eutaktos_delete_entity_change', { method: 'POST', headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify(input) }); }
   async createGrantChange(input: Readonly<Record<string, unknown>>): Promise<void> { await this.#request('/rest/v1/rpc/eutaktos_apply_grant_change', { method: 'POST', headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify(input) }); }
