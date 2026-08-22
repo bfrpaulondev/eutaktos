@@ -8,7 +8,7 @@ This document describes the V1 server-side runtime introduced for the PWA API. I
 - `EUTAKTOS_SUPABASE_SERVICE_ROLE_KEY` — server-only service-role credential. Never expose it to the browser.
 - `EUTAKTOS_PUBLIC_ORIGIN` — exact HTTPS origin allowed to perform cookie-authenticated mutations.
 - `EUTAKTOS_WORKER_TOKEN` — high-entropy bearer token for server-to-server worker invocation.
-- `EUTAKTOS_NOTIFICATION_PROVIDER_URL` and `EUTAKTOS_NOTIFICATION_PROVIDER_TOKEN` — optional delivery adapter. If absent, notifications stay pending/failed; the runtime never reports external delivery success.
+- `EUTAKTOS_NOTIFICATION_PROVIDER_URL` and `EUTAKTOS_NOTIFICATION_PROVIDER_TOKEN` — optional delivery adapter. If absent, notifications must not be reported as externally delivered.
 - `EUTAKTOS_BACKUP_KEY_BASE64` — 32 random bytes encoded as base64, held outside the repository and outside the database backup.
 
 Do not configure these values in `VITE_*` variables.
@@ -18,6 +18,8 @@ Do not configure these values in `VITE_*` variables.
 Apply the migrations in `supabase/migrations` in order to a dedicated Eutaktos project. They create tenant-scoped entities, audit, outbox, access grants and server sessions. Browser roles (`anon` and `authenticated`) receive no direct table access. The server uses the service role and always supplies a tenant derived from the server session.
 
 The persistence RPCs commit entity state, audit and outbox together. Updates/deletes use an observed version to reject stale concurrent writes.
+
+The dedicated Eutaktos Supabase project is now selected and the V1 runtime migrations have been applied. The pilot tenant is bootstrapped there. Runtime activation still depends on each hosting environment having the server-only variables above configured correctly; repository code must remain fail-closed if they are absent.
 
 ## Health checks
 
@@ -32,9 +34,11 @@ API requests are capped at 64 KiB at the shared runtime boundary. A valid caller
 
 ## Scheduling boundary
 
-The final Scheduling HTTP/persistence adapter is intentionally separated from this runtime merge. K41–K50 are changing the canonical scheduling application/domain contracts in parallel. Freezing the pre-K41 contract here would create a second incompatible boundary.
+A06 integrates the reviewed K41–K50 Midweek contracts into the production runtime. `GET /api/midweek` exposes tenant-scoped real meetings and assignments for the PWA. Authenticated mutation routes use the canonical application and transport services for meetings, slots, student and non-student assignments, lifecycle transitions and student/assistant replacement.
 
-After K41–K50 is reviewed, Scheduling HTTP/persistence will be integrated in a dedicated follow-up against the final canonical contracts. Until then, this runtime must not simulate scheduling success or duplicate scheduling business rules.
+Tenant, actor and capabilities come only from the verified server session. Assignment decisions require the canonical `schedule.write`, `eligibility.read` and `availability.read` checks. Reads require `schedule.read`. Scheduling persistence uses the existing atomic entity RPC, so entity state, audit and outbox are committed together and stale writes are rejected through the observed entity version.
+
+Slot conflict windows are derived server-side from the stored meeting date, local time, ordered slot durations and IANA timezone. The browser does not supply a trusted UTC offset. Agenda and Assignments consume the same-origin runtime and expose loading, failure, empty and real-data states without demo fallbacks.
 
 ## Pilot tenant
 
@@ -51,14 +55,22 @@ node scripts/bootstrap-pilot.mjs \
   --capability responsibilities.read \
   --capability responsibilities.write \
   --capability audit.read \
-  --capability access.manage
+  --capability access.manage \
+  --capability schedule.read \
+  --capability schedule.write \
+  --capability eligibility.read \
+  --capability availability.read
 ```
 
 The bootstrap refuses a non-empty tenant and never grants capabilities that were not explicitly listed. Its emitted session token is sensitive and should be handled like a password.
 
+The existing pilot administrator received the four Scheduling capabilities through the audited access-grant RPC; they were not inserted by bypassing the access-control workflow.
+
 ## Notifications
 
-Domain/application code writes events to the transactional outbox. The worker endpoint only accepts authenticated server-to-server calls and only attempts event types prefixed `notification.` with schema version 1. Provider calls include the event ID as an idempotency key. Rejected/unavailable providers are recorded with fixed non-PII error codes and the event is not marked delivered.
+K47 defines consent-aware, idempotent notification intent as a domain/application concern and keeps new delivery attempts in `pending`. External delivery is a separate worker/provider concern: no UI or application path may infer `delivered` from the creation of an intent. The worker endpoint is server-to-server authenticated, and provider errors use fixed non-PII codes.
+
+A final acceptance audit must verify that any provider adapter in the deployed runtime consumes the canonical K47 intent/delivery contract before external notification delivery is marked PASS. An absent provider is not a scheduling blocker and must be reported as unavailable/BLOCKED rather than simulated success.
 
 ## Backup
 
@@ -81,6 +93,6 @@ node scripts/restore-tenant.mjs \
 
 Restore replaces tenant entities, audit and access grants in one database transaction, removes all pre-existing sessions and clears pending outbox work for that tenant. Users must authenticate again and any post-restore notification work must be regenerated from current application actions.
 
-## Current activation blocker
+## Activation status
 
-Code readiness and environment activation are separate. Do not point this runtime at another product's Supabase project. A dedicated Eutaktos project (or an explicitly approved existing Eutaktos project) must be selected before migrations, pilot bootstrap, backup drill or production writes are executed.
+The dedicated Eutaktos database, migrations and pilot tenant exist. A disposable Scheduling transaction probe confirmed create/update optimistic versioning plus audit/outbox atomicity and was rolled back afterwards. Hosting environments must still be validated independently for server-only configuration, readiness and authenticated browser flows; a successful static deploy alone is not evidence that secrets or sessions are configured correctly.

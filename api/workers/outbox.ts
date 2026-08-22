@@ -16,7 +16,7 @@ function providerConfig():ProviderConfig|undefined{
   return Object.freeze({url:url.toString(),token});
 }
 function deliverable(event:OutboxRow):boolean{
-  return event.event_type.startsWith('notification.') && event.schema_version===1;
+  return event.event_type==='NotificationIntentQueued' && event.schema_version===1;
 }
 async function deliver(config:ProviderConfig,event:OutboxRow):Promise<'delivered'|'rejected'|'unavailable'> {
   try{
@@ -48,7 +48,9 @@ const handler:ApiHandler=async(request,response)=>{
   await runEndpoint(request,response,async database=>{
     await requireWorkerAuthentication(request);
     const provider=providerConfig();
-    const events=await database.claimOutbox(25);
+    // This worker owns only final K47 notification-intent events. Other domain
+    // events remain untouched for their respective consumers.
+    const events=await database.claimNotificationOutbox(25);
     let delivered=0,failed=0,invalid=0;
     for(const event of events){
       if(!deliverable(event)){

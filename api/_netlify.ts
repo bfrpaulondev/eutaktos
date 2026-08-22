@@ -18,6 +18,8 @@ import auditHistoryHandler from './audit/history';
 import accessGrantsHandler from './access/grants';
 import subjectGrantsHandler from './access/subjects/[subjectId]/grants';
 import revokeGrantHandler from './access/grants/[grantId]/revoke';
+import midweekHandler from './midweek';
+import midweekRouteHandler from './midweek/[...route]';
 import outboxWorkerHandler from './workers/outbox';
 
 export interface NetlifyApiEvent {
@@ -43,7 +45,7 @@ type RouteKey =
   | 'health' | 'ready' | 'session' | 'logout' | 'logout-all' | 'rotate-session'
   | 'people' | 'person' | 'households' | 'household' | 'service-groups' | 'service-group'
   | 'responsibilities' | 'responsibility' | 'end-responsibility' | 'audit-history'
-  | 'access-grants' | 'subject-grants' | 'revoke-grant' | 'outbox-worker';
+  | 'access-grants' | 'subject-grants' | 'revoke-grant' | 'midweek' | 'midweek-route' | 'outbox-worker';
 
 interface RouteMatch {
   readonly key: RouteKey;
@@ -70,6 +72,8 @@ const handlers: Readonly<Record<RouteKey, ApiHandler>> = Object.freeze({
   'access-grants': accessGrantsHandler,
   'subject-grants': subjectGrantsHandler,
   'revoke-grant': revokeGrantHandler,
+  midweek: midweekHandler,
+  'midweek-route': midweekRouteHandler,
   'outbox-worker': outboxWorkerHandler,
 });
 
@@ -109,10 +113,18 @@ export function matchNetlifyApiRoute(path: string): RouteMatch | undefined {
     '/responsibilities': 'responsibilities',
     '/audit/history': 'audit-history',
     '/access/grants': 'access-grants',
+    '/midweek': 'midweek',
     '/workers/outbox': 'outbox-worker',
   });
   const exactKey = exact[path];
   if (exactKey) return Object.freeze({ key: exactKey, params: Object.freeze({}) });
+
+  const midweekMatch = /^\/midweek\/(.+)$/.exec(path);
+  if (midweekMatch) {
+    const decoded = midweekMatch[1].split('/').map(decodeSegment);
+    if (decoded.some(value => !value)) return undefined;
+    return Object.freeze({ key: 'midweek-route', params: Object.freeze({ route: decoded.join('/') }) });
+  }
 
   const patterns: readonly [RegExp, RouteKey, string][] = [
     [/^\/people\/([^/]+)$/, 'person', 'personId'],

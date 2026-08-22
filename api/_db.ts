@@ -133,6 +133,11 @@ export class SupabaseRestDatabase {
     if(!Array.isArray(value)) throw new DatabaseRequestError(502);
     return Object.freeze(value.map(parseOutboxRow));
   }
+  async claimNotificationOutbox(limit = 25): Promise<readonly OutboxRow[]> {
+    const value = await this.#request('/rest/v1/rpc/eutaktos_claim_notification_outbox',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({p_limit:limit})});
+    if(!Array.isArray(value)) throw new DatabaseRequestError(502);
+    return Object.freeze(value.map(parseOutboxRow));
+  }
   async markOutboxDelivered(tenantId:string,id:string,deliveredAt:string):Promise<void>{ await this.#request('/rest/v1/rpc/eutaktos_mark_outbox_delivered',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({p_tenant_id:tenantId,p_id:id,p_delivered_at:deliveredAt})}); }
   async markOutboxFailed(tenantId:string,id:string,errorCode:'provider-unconfigured'|'provider-unavailable'|'provider-rejected'|'invalid-event'):Promise<void>{ await this.#request('/rest/v1/rpc/eutaktos_mark_outbox_failed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({p_tenant_id:tenantId,p_id:id,p_error_code:errorCode})}); }
   async applyEntityChange(input: Readonly<Record<string, unknown>>): Promise<void> { await this.#request('/rest/v1/rpc/eutaktos_apply_entity_change', { method: 'POST', headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify(input) }); }
