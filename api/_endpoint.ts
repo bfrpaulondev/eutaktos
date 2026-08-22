@@ -2,10 +2,32 @@ declare const process: { env: Record<string, string | undefined> };
 
 import { AuthenticationError, AuthorizationError } from './_auth';
 import { DatabaseNotConfiguredError, DatabaseRequestError, SupabaseRestDatabase } from './_db';
+import { attachCorrelationId, logRequestFailure, logRequestSuccess } from './_observability';
 import { header, json, type ApiRequest, type ApiResponse } from './_types';
 
 export class BadRequestError extends Error {}
 export class CsrfError extends Error {}
+export class PayloadTooLargeError extends Error {}
+
+const MAX_BODY_BYTES = 64 * 1024;
+
+function bodyBytes(value: unknown): number {
+  if (value === undefined || value === null) return 0;
+  if (typeof value === 'string') return new TextEncoder().encode(value).byteLength;
+  try { return new TextEncoder().encode(JSON.stringify(value)).byteLength; }
+  catch { throw new BadRequestError('Invalid request body'); }
+}
+
+export function assertRequestEnvelope(request: ApiRequest): void {
+  const rawLength = header(request, 'content-length');
+  if (rawLength !== undefined) {
+    if (!/^\d{1,10}$/.test(rawLength)) throw new BadRequestError('Invalid Content-Length');
+    const contentLength = Number(rawLength);
+    if (!Number.isSafeInteger(contentLength)) throw new BadRequestError('Invalid Content-Length');
+    if (contentLength > MAX_BODY_BYTES) throw new PayloadTooLargeError('Request body too large');
+  }
+  if (bodyBytes(request.body) > MAX_BODY_BYTES) throw new PayloadTooLargeError('Request body too large');
+}
 
 export function requestBody(value: unknown): Readonly<Record<string, unknown>> {
   let parsed = value;
@@ -71,30 +93,30 @@ export async function runEndpoint(
   response: ApiResponse,
   operation: (database: SupabaseRestDatabase) => Promise<void>,
 ): Promise<void> {
+  const startedAt = Date.now();
+  const correlationId = attachCorrelationId(request, response);
   const database = new SupabaseRestDatabase();
   try {
+    assertRequestEnvelope(request);
     await operation(database);
+    logRequestSuccess(request, correlationId, startedAt);
   } catch (error) {
+    let status = 500;
+    let body: Readonly<Record<string, string>> = { error: 'Internal server error' };
     if (error instanceof AuthenticationError) {
-      json(response, 401, { error: 'Unauthorized' });
-      return;
+      status = 401; body = { error: 'Unauthorized' };
+    } else if (error instanceof AuthorizationError || error instanceof CsrfError) {
+      status = 403; body = { error: 'Forbidden' };
+    } else if (error instanceof PayloadTooLargeError) {
+      status = 413; body = { error: 'Request body too large' };
+    } else if (error instanceof BadRequestError) {
+      status = 400; body = { error: error.message };
+    } else if (error instanceof DatabaseNotConfiguredError) {
+      status = 503; body = { error: 'Service unavailable' };
+    } else if (error instanceof DatabaseRequestError) {
+      status = 503; body = { error: 'Service temporarily unavailable' };
     }
-    if (error instanceof AuthorizationError || error instanceof CsrfError) {
-      json(response, 403, { error: 'Forbidden' });
-      return;
-    }
-    if (error instanceof BadRequestError) {
-      json(response, 400, { error: error.message });
-      return;
-    }
-    if (error instanceof DatabaseNotConfiguredError) {
-      json(response, 503, { error: 'Service unavailable' });
-      return;
-    }
-    if (error instanceof DatabaseRequestError) {
-      json(response, 503, { error: 'Service temporarily unavailable' });
-      return;
-    }
-    json(response, 500, { error: 'Internal server error' });
+    logRequestFailure(request, correlationId, startedAt, error, status);
+    json(response, status, body);
   }
 }
