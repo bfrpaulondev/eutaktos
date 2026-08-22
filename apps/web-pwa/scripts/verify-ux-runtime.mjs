@@ -63,9 +63,10 @@ async function evaluate(expression) {
 }
 
 async function setPreferences(preferences, expectedHeading) {
-  await evaluate(`localStorage.setItem('eutaktos.preferences.v4', ${JSON.stringify(JSON.stringify(preferences))}); location.reload();`);
+  await evaluate(`localStorage.setItem('eutaktos.preferences.v4', ${JSON.stringify(JSON.stringify(preferences))})`);
+  await cdp.send('Page.reload', { ignoreCache: true });
   await poll(
-    async () => await evaluate(`document.documentElement.lang === ${JSON.stringify(preferences.locale)} && Boolean(document.querySelector('#root')?.textContent?.includes(${JSON.stringify(expectedHeading)}))`),
+    async () => await evaluate(`document.readyState === 'complete' && document.documentElement.lang === ${JSON.stringify(preferences.locale)} && Boolean(document.querySelector('#root')?.textContent?.includes(${JSON.stringify(expectedHeading)}))`),
     `A interface não carregou em ${preferences.locale}`,
     80,
   );
@@ -74,10 +75,10 @@ async function setPreferences(preferences, expectedHeading) {
 async function visitWorkspace(path, expectedHeading, locale, expectedTitle = `Eutaktos — ${expectedHeading}`) {
   const target = new URL(path, appUrl);
   const expectedLocation = `${target.pathname}${target.search}${target.hash}`;
-  await evaluate(`location.assign(${JSON.stringify(expectedLocation)});`);
+  await cdp.send('Page.navigate', { url: target.toString() });
   try {
     await poll(
-      async () => await evaluate(`location.pathname + location.search + location.hash === ${JSON.stringify(expectedLocation)} && document.documentElement.lang === ${JSON.stringify(locale)} && document.title === ${JSON.stringify(expectedTitle)} && Boolean(document.querySelector('#main')?.textContent?.includes(${JSON.stringify(expectedHeading)}))`),
+      async () => await evaluate(`document.readyState === 'complete' && location.pathname + location.search + location.hash === ${JSON.stringify(expectedLocation)} && document.documentElement.lang === ${JSON.stringify(locale)} && document.title === ${JSON.stringify(expectedTitle)} && Boolean(document.querySelector('#main')?.textContent?.includes(${JSON.stringify(expectedHeading)}))`),
       `O deep link ${path} não apresentou o título e conteúdo localizados em ${locale}`,
       80,
     );
@@ -131,6 +132,7 @@ try {
   }, 'O Chromium não abriu a aplicação');
   cdp = await connectCdp(target.webSocketDebuggerUrl);
   await cdp.send('Runtime.enable');
+  await cdp.send('Page.enable');
   await cdp.send('Emulation.setDeviceMetricsOverride', { width: 320, height: 568, deviceScaleFactor: 1, mobile: true });
 
   const defaults = { paletteId: 'classic', colorMode: 'light', density: 'comfortable', locale: 'pt-PT', textSize: 'default', reducedMotion: false, reducedTransparency: false, highContrast: false };
