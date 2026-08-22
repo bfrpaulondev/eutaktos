@@ -1,8 +1,10 @@
-import { describe, expect, it, vi } from 'vitest';
-import { SupabaseRestDatabase, type DatabaseConfig } from './_db';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { databaseConfigFromEnv, SupabaseRestDatabase, type DatabaseConfig } from './_db';
 
 const config: DatabaseConfig = { url: 'https://example.supabase.co', serviceRoleKey: 'server-secret' };
 function jsonResponse(value: unknown, status = 200): Response { return new Response(status === 204 ? null : JSON.stringify(value), { status, headers: { 'content-type': 'application/json' } }); }
+
+afterEach(() => { vi.unstubAllEnvs(); });
 
 describe('SupabaseRestDatabase', () => {
   it('always includes tenant and entity type in entity queries', async () => {
@@ -49,7 +51,19 @@ describe('SupabaseRestDatabase', () => {
     await new SupabaseRestDatabase(config,fetcher).audit({tenantId:'tenant-a',resourceId:'shared-id',limit:50});
   });
 
-  it('keeps the service role key in request headers rather than query parameters', async () => {
+  it('uses apikey only for modern sb_secret keys', async () => {
+    const modern: DatabaseConfig = { url: 'https://example.supabase.co', serviceRoleKey: 'sb_secret_test' };
+    const fetcher = vi.fn<typeof fetch>(async (input, init) => {
+      expect(String(input)).not.toContain('sb_secret_test');
+      const headers = init?.headers as Record<string,string>;
+      expect(headers.apikey).toBe('sb_secret_test');
+      expect(headers.Authorization).toBeUndefined();
+      return jsonResponse([]);
+    });
+    await new SupabaseRestDatabase(modern, fetcher).entities('tenant-a','person');
+  });
+
+  it('keeps Bearer authorization for legacy service-role JWTs', async () => {
     const fetcher = vi.fn<typeof fetch>(async (input, init) => {
       expect(String(input)).not.toContain('server-secret');
       const headers = init?.headers as Record<string,string>;
@@ -58,6 +72,15 @@ describe('SupabaseRestDatabase', () => {
       return jsonResponse([]);
     });
     await new SupabaseRestDatabase(config, fetcher).entities('tenant-a','person');
+  });
+
+  it('accepts server-only SUPABASE_URL and SUPABASE_SECRET_KEY aliases', () => {
+    vi.stubEnv('EUTAKTOS_SUPABASE_URL', '');
+    vi.stubEnv('EUTAKTOS_SUPABASE_SECRET_KEY', '');
+    vi.stubEnv('EUTAKTOS_SUPABASE_SERVICE_ROLE_KEY', '');
+    vi.stubEnv('SUPABASE_URL', 'https://example.supabase.co');
+    vi.stubEnv('SUPABASE_SECRET_KEY', 'sb_secret_alias');
+    expect(databaseConfigFromEnv()).toEqual({ url: 'https://example.supabase.co', serviceRoleKey: 'sb_secret_alias' });
   });
 
   it('uses one database RPC for entity + audit + outbox mutation', async () => {
