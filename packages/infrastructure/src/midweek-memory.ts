@@ -214,7 +214,13 @@ export class InMemoryMidweekSchedulingUnitOfWork implements MidweekSchedulingUni
 
   commit(context: AccessContext, change: MidweekSchedulingChange): void {
     this.#assertWrite(context);
-    const resources = [change.meeting, change.studentAssignment, change.nonStudentAssignment].filter(Boolean) as readonly { tenantId: string }[];
+    const resources = [
+      change.meeting,
+      change.studentAssignment,
+      change.nonStudentAssignment,
+      ...(change.studentAssignments ?? []),
+      ...(change.nonStudentAssignments ?? []),
+    ].filter(Boolean) as readonly { tenantId: string }[];
     for (const resource of resources) assertResourceTenant(context, resource);
     for (const audit of change.auditEvents) assertResourceTenant(context, audit);
     for (const event of change.domainEvents) assertResourceTenant(context, event);
@@ -235,6 +241,8 @@ export class InMemoryMidweekSchedulingUnitOfWork implements MidweekSchedulingUni
     if (change.meeting) this.#meetings.set(key(context.tenantId, change.meeting.id), cloneMeeting(change.meeting));
     if (change.studentAssignment) this.#students.set(key(context.tenantId, change.studentAssignment.id), cloneStudent(change.studentAssignment));
     if (change.nonStudentAssignment) this.#nonStudents.set(key(context.tenantId, change.nonStudentAssignment.id), cloneNonStudent(change.nonStudentAssignment));
+    for (const assignment of change.studentAssignments ?? []) this.#students.set(key(context.tenantId, assignment.id), cloneStudent(assignment));
+    for (const assignment of change.nonStudentAssignments ?? []) this.#nonStudents.set(key(context.tenantId, assignment.id), cloneNonStudent(assignment));
     for (const audit of change.auditEvents) this.#audit.set(key(context.tenantId, audit.id), cloneAudit(audit));
     for (const event of change.domainEvents) this.#outbox.set(key(context.tenantId, event.id), cloneEvent(event));
   }

@@ -5,6 +5,7 @@ import {
   createMidweekMeeting,
   createMidweekPartDefinition,
   createStudentAssignment,
+  createNonStudentAssignment,
   type Capability,
   type CongregationPerson,
   type MidweekMeeting,
@@ -61,6 +62,7 @@ function harness(options: {
   part?: Readonly<MidweekPartDefinition>;
   conflicts?: readonly { tenantId: string; assignmentId: string; personId: string; startsAt: string; endsAt: string }[];
   studentAssignment?: ReturnType<typeof createStudentAssignment>;
+  nonStudentAssignment?: ReturnType<typeof createNonStudentAssignment>;
 } = {}) {
   const currentMeeting = options.meeting ?? meeting();
   const currentPerson = options.person ?? person();
@@ -69,7 +71,7 @@ function harness(options: {
   const uow: MidweekSchedulingUnitOfWork = {
     findMeeting: () => currentMeeting,
     findStudentAssignment: () => options.studentAssignment,
-    findNonStudentAssignment: () => undefined,
+    findNonStudentAssignment: () => options.nonStudentAssignment,
     listStudentAssignments: () => [],
     listNonStudentAssignments: () => [],
     findPerson: (_ctx, personId) => personId === currentPerson.id ? currentPerson : undefined,
@@ -129,6 +131,17 @@ describe('MidweekSchedulingService', () => {
     expect(() => service.assignStudent(context(), { meetingId: 'meeting-1', slotId: 'slot-1', studentId: 'person-1' }))
       .toThrow('Scheduling conflict detected');
     expect(changes).toHaveLength(0);
+  });
+
+  it('replaces an assigned non-student with explicit eligibility, audit and event in one commit', () => {
+    const current = createNonStudentAssignment({ id: 'non-student-1', tenantId: 'tenant-a', meetingId: 'meeting-1', slotId: 'slot-1', personId: 'person-1', role: 'chairman', now });
+    const eligible = person();
+    eligible.eligibility = [{ assignmentTypeId: 'chairman', enabled: true, decidedBy: 'elder-1', decidedAt: now }];
+    const { service, changes } = harness({ nonStudentAssignment: current, person: eligible });
+    const replaced = service.replaceNonStudent(context(), { assignmentId: current.id, personId: eligible.id });
+    expect(replaced).toMatchObject({ id: current.id, personId: eligible.id, state: 'assigned' });
+    expect(changes[0].auditEvents[0].changedFields).toEqual(['personId', 'state']);
+    expect(changes[0].domainEvents[0].type).toBe('AssignmentReplaced');
   });
 
   it('checks tenant before cancelling an assignment', () => {

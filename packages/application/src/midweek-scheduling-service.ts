@@ -17,6 +17,7 @@ import {
   detectSchedulingConflicts,
   findSlotById,
   publishMidweekMeeting,
+  reassignNonStudentAssignment,
   removeMeetingSlot,
   transitionStudentAssignment,
   unavailableIntervalsForPerson,
@@ -43,6 +44,8 @@ export interface MidweekSchedulingChange {
   readonly meeting?: Readonly<MidweekMeeting>;
   readonly studentAssignment?: Readonly<StudentAssignment>;
   readonly nonStudentAssignment?: Readonly<NonStudentAssignment>;
+  readonly studentAssignments?: readonly Readonly<StudentAssignment>[];
+  readonly nonStudentAssignments?: readonly Readonly<NonStudentAssignment>[];
   readonly auditEvents: readonly Readonly<AuditEvent>[];
   readonly domainEvents: readonly Readonly<DomainEvent>[];
 }
@@ -106,6 +109,11 @@ export interface AssignNonStudentInput {
   role: string;
 }
 
+export interface ReplaceNonStudentInput {
+  assignmentId: string;
+  personId: string;
+}
+
 function id(value: string, field: string): string {
   if (typeof value !== 'string') throw new Error(`${field} must be a string`);
   const normalized = value.trim();
@@ -137,7 +145,7 @@ function meetingEvent(
 function assignmentEvent(
   runtime: MidweekSchedulingRuntime,
   context: AccessContext,
-  type: 'AssignmentCreated' | 'AssignmentCancelled',
+  type: 'AssignmentCreated' | 'AssignmentCancelled' | 'AssignmentReplaced',
   assignmentId: string,
   occurredAt: string,
   metadata: RequestMetadata,
@@ -426,6 +434,34 @@ export class MidweekSchedulingService {
       domainEvents: [assignmentEvent(this.#runtime, context, 'AssignmentCreated', assignment.id, occurredAt, metadata)],
     });
     return assignment;
+  }
+
+  replaceNonStudent(
+    context: AccessContext,
+    input: ReplaceNonStudentInput,
+    metadata: RequestMetadata = {},
+  ): Readonly<NonStudentAssignment> {
+    this.#assertAssignmentReads(context);
+    const current = this.#uow.findNonStudentAssignment(context, id(input.assignmentId, 'assignmentId'));
+    if (!current) throw new Error('Non-student assignment not found');
+    assertNonStudentAssignmentTenant(current, context.tenantId);
+    if (current.state !== 'assigned') throw new Error('Only assigned non-student assignments can be replaced');
+    const meeting = this.#meeting(context, current.meetingId);
+    if (meeting.state !== 'draft') throw new Error('Assignments can only be changed on draft meetings');
+    const person = this.#person(context, input.personId);
+    const eligibility = buildEligibilityIndex([person], context.tenantId);
+    assertExplicitEligibility(eligibility, context.tenantId, person.id, current.role);
+    const window = this.#uow.resolveSlotWindow(context, meeting, current.slotId);
+    this.#assertNoConflict(context, current.id, person, window);
+    const occurredAt = this.#runtime.now();
+    const cancelled = cancelNonStudentAssignment(current, occurredAt);
+    const replacement = reassignNonStudentAssignment(cancelled, person.id, occurredAt);
+    this.#uow.commit(context, {
+      nonStudentAssignments: [replacement],
+      auditEvents: [this.#audit(context, 'non-student-assignment', replacement.id, 'update', ['personId', 'state'], occurredAt)],
+      domainEvents: [assignmentEvent(this.#runtime, context, 'AssignmentReplaced', replacement.id, occurredAt, metadata)],
+    });
+    return replacement;
   }
 
   cancelStudentAssignment(
