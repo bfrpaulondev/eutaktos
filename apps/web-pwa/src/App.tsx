@@ -60,9 +60,9 @@ const copy = {
     eyebrow: 'Tu espacio de organización', title: 'Todo en buen orden.', subtitle: 'Encuentra primero lo que necesita atención, con contexto claro y sin ruido.', privacy: 'Privacidad primero', preview: 'Datos de ejemplo', previewDetail: 'Esta vista es una previsualización. Los flujos reales se conectarán cuando la planificación esté disponible.', viewAgenda: 'Ver agenda',
     nextAssignment: 'Próxima asignación', gems: 'Perlas espirituales', midweek: 'Reunión de entre semana · 20:00', confirmed: 'Confirmada', pending: 'Por confirmar', pendingSub: 'asignaciones', openRoles: 'Sin asignar', openRolesSub: 'función esta semana', reports: 'Informes pendientes', reportsSub: 'mes actual',
     balance: 'Equilibrio de la Escuela', fairnessText: 'Las recomendaciones futuras mostrarán razones claras y mantendrán la decisión humana en el centro.', candidate: 'Elegible para lectura', days: 'días', viewPlanning: 'Ver planificación', human: 'Previsualización de planificación. Decisión humana.',
-    ready: 'Cobertura de la reunión', almostReady: 'Casi lista', sound: 'Som', video: 'Vídeo', microphone: 'Micrófono 1', attendant: 'Indicador 2', missing: 'Ainda sem designação',
-    personal: 'As tuas escolhas', palette: 'Paleta', theme: 'Modo de cor', density: 'Densidade', textSize: 'Tamanho do texto', contrast: 'Contraste elevado', motion: 'Reduzir movimento', transparency: 'Reduzir transparência', language: 'Idioma', comfortable: 'Confortável', compact: 'Compacta',
-    textSizes: { small: 'Pequeno', default: 'Padrão', large: 'Grande', 'extra-large': 'Muito grande' }, themes: { light: 'Claro', dark: 'Escuro', system: 'Sistema' }, palettes: ['Clássica', 'Acolhedora', 'Calma', 'Foco', 'Noturna', 'Alto contraste'],
+    ready: 'Cobertura de la reunión', almostReady: 'Casi lista', sound: 'Sonido', video: 'Vídeo', microphone: 'Micrófono 1', attendant: 'Acomodador 2', missing: 'Aún sin asignar',
+    personal: 'Tus elecciones', palette: 'Paleta', theme: 'Modo de color', density: 'Densidad', textSize: 'Tamaño del texto', contrast: 'Contraste alto', motion: 'Reducir movimiento', transparency: 'Reducir transparencia', language: 'Idioma', comfortable: 'Cómoda', compact: 'Compacta',
+    textSizes: { small: 'Pequeño', default: 'Predeterminado', large: 'Grande', 'extra-large': 'Extra grande' }, themes: { light: 'Claro', dark: 'Oscuro', system: 'Sistema' }, palettes: ['Clásica', 'Acogedora', 'Calma', 'Foco', 'Nocturna', 'Alto contraste'],
   },
 } as const;
 
