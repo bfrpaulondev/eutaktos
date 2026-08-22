@@ -21,8 +21,12 @@ function normalizeBaseUrl(value: string): string {
   return url.toString().replace(/\/$/, '');
 }
 export function databaseConfigFromEnv(): DatabaseConfig | undefined {
-  const rawUrl = process.env.EUTAKTOS_SUPABASE_URL?.trim();
-  const key = process.env.EUTAKTOS_SUPABASE_SERVICE_ROLE_KEY?.trim();
+  const rawUrl = (process.env.EUTAKTOS_SUPABASE_URL ?? process.env.SUPABASE_URL)?.trim();
+  const key = (
+    process.env.EUTAKTOS_SUPABASE_SECRET_KEY
+    ?? process.env.EUTAKTOS_SUPABASE_SERVICE_ROLE_KEY
+    ?? process.env.SUPABASE_SECRET_KEY
+  )?.trim();
   if (!rawUrl && !key) return undefined;
   if (!rawUrl || !key) throw new DatabaseNotConfiguredError();
   return Object.freeze({ url: normalizeBaseUrl(rawUrl), serviceRoleKey: key });
@@ -132,7 +136,9 @@ export class SupabaseRestDatabase {
   async #array(path: string): Promise<readonly unknown[]> { const value = await this.#request(path); if (!Array.isArray(value)) throw new DatabaseRequestError(502); return value; }
   async #request(path: string, init: RequestInit = {}): Promise<unknown> {
     const config = this.#config; if (!config) throw new DatabaseNotConfiguredError();
-    const response = await this.#fetch(`${config.url}${path}`, { ...init, headers: { Accept: 'application/json', apikey: config.serviceRoleKey, Authorization: `Bearer ${config.serviceRoleKey}`, ...init.headers } });
+    const authHeaders: Record<string, string> = { Accept: 'application/json', apikey: config.serviceRoleKey };
+    if (!config.serviceRoleKey.startsWith('sb_secret_')) authHeaders.Authorization = `Bearer ${config.serviceRoleKey}`;
+    const response = await this.#fetch(`${config.url}${path}`, { ...init, headers: { ...authHeaders, ...init.headers } });
     if (!response.ok) throw new DatabaseRequestError(response.status);
     if (response.status === 204 || response.headers.get('content-length') === '0') return undefined;
     const contentType = response.headers.get('content-type') ?? ''; if (!contentType.toLowerCase().includes('application/json')) return undefined;
