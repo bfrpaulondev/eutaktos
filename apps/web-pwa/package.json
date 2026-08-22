@@ -13,7 +13,8 @@
     "test:hourglass-inspector": "node scripts/verify-hourglass-inspector.mjs",
     "test:bundle-budget": "npm run build && node scripts/verify-bundle-budget.mjs",
     "test:pwa-privacy": "npm run build && node scripts/verify-pwa-privacy.mjs",
-    "test:browser-regression": "node scripts/run-browser-regression.mjs"
+    "test:browser-regression": "node scripts/run-browser-regression.mjs",
+    "test:visual-sanitized": "node scripts/verify-sanitized-visual.mjs"
   },
   "dependencies": {
     "@eutaktos/application": "file:../../packages/application",

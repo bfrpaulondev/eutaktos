@@ -8,6 +8,7 @@ const checks = [
   { label: 'PWA privacy', args: ['run', 'test:pwa-privacy'] },
   { label: 'production mount', args: ['run', 'test:production-mount'] },
   { label: 'browser UX runtime', args: ['run', 'test:ux-runtime'] },
+  { label: 'sanitized visual regression', args: ['run', 'test:visual-sanitized'] },
   { label: 'Hourglass inspector runtime', args: ['run', 'test:hourglass-inspector'] },
 ];
 
