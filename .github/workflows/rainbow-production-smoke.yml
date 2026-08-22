@@ -1,0 +1,57 @@
+name: Rainbow Production Smoke
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify canonical Rainbow production
+        shell: bash
+        run: |
+          node <<'NODE'
+          const base = 'https://rainbow-zuccutto-00d981.netlify.app';
+
+          async function request(path) {
+            const response = await fetch(`${base}${path}`, {
+              redirect: 'follow',
+              headers: { 'user-agent': 'eutaktos-production-smoke/1.0' },
+            });
+            const text = await response.text();
+            console.log(`${path} -> ${response.status} ${response.headers.get('content-type') ?? ''}`);
+            return { response, text };
+          }
+
+          const root = await request('/');
+          if (root.response.status !== 200 || !root.text.includes('Eutaktos')) {
+            throw new Error(`Production root is not the Eutaktos shell: status=${root.response.status}`);
+          }
+
+          const deepLink = await request('/pessoas');
+          if (deepLink.response.status !== 200 || !deepLink.text.includes('Eutaktos')) {
+            throw new Error(`Production deep link does not serve the Eutaktos shell: status=${deepLink.response.status}`);
+          }
+
+          const health = await request('/api/health');
+          let healthJson;
+          try { healthJson = JSON.parse(health.text); } catch { throw new Error(`Health is not JSON: ${health.text.slice(0, 160)}`); }
+          console.log(`health=${JSON.stringify(healthJson)}`);
+          if (health.response.status !== 200 || healthJson.status !== 'ok' || healthJson.service !== 'eutaktos-api') {
+            throw new Error(`Unexpected production health response: status=${health.response.status} body=${health.text.slice(0, 240)}`);
+          }
+
+          const ready = await request('/api/ready');
+          let readyJson;
+          try { readyJson = JSON.parse(ready.text); } catch { throw new Error(`Readiness is not JSON: ${ready.text.slice(0, 160)}`); }
+          console.log(`ready=${JSON.stringify(readyJson)}`);
+          if (ready.response.status !== 200) {
+            throw new Error(`Production runtime is not ready: status=${ready.response.status} body=${ready.text.slice(0, 240)}`);
+          }
+
+          console.log('Rainbow production smoke passed.');
+          NODE
