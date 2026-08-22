@@ -20,12 +20,7 @@ const DATA: Record<Locale, Record<WorkspaceSection, WorkspaceCopy>> = {
       ],
     },
     assignments: {
-      eyebrow: 'Planeamento', title: 'Designações', subtitle: 'Histórico, disponibilidade e equilíbrio ficam visíveis antes de qualquer decisão.',
-      cards: [
-        { title: 'Leitura da Bíblia', meta: 'Carlos · 126 dias desde a última', detail: 'Elegível · disponível · sem conflito', status: '92%' },
-        { title: 'Leitura da Bíblia', meta: 'André · 98 dias desde a última', detail: 'Elegível · disponível · sem outra designação na semana', status: '86%' },
-        { title: 'Microfone 1', meta: 'Próxima reunião', detail: '1 função ainda por preencher', status: 'Atenção' },
-      ],
+      eyebrow: 'Planeamento', title: 'Designações', subtitle: 'As designações reais serão apresentadas quando a consulta de designações estiver disponível.', cards: [],
     },
     people: {
       eyebrow: 'Diretório', title: 'Pessoas', subtitle: 'Informação operacional organizada por permissões, com acesso mínimo e auditável.',
@@ -50,11 +45,7 @@ const DATA: Record<Locale, Record<WorkspaceSection, WorkspaceCopy>> = {
       { title: 'Field service', meta: 'Saturday · 09:30', detail: 'Group 2 · regular meeting point' },
       { title: 'Weekend meeting', meta: 'Sunday · 10:00', detail: 'Audio · awaiting confirmation', status: 'Pending' },
     ] },
-    assignments: { eyebrow: 'Planning', title: 'Assignments', subtitle: 'History, availability and balance stay visible before a decision is made.', cards: [
-      { title: 'Bible Reading', meta: 'Carlos · 126 days since last', detail: 'Eligible · available · no conflict', status: '92%' },
-      { title: 'Bible Reading', meta: 'André · 98 days since last', detail: 'Eligible · available · no other assignment that week', status: '86%' },
-      { title: 'Microphone 1', meta: 'Next meeting', detail: '1 role still unfilled', status: 'Attention' },
-    ] },
+    assignments: { eyebrow: 'Planning', title: 'Assignments', subtitle: 'Real assignments will appear when the assignment query is available.', cards: [] },
     people: { eyebrow: 'Directory', title: 'People', subtitle: 'Operational information organized by permissions with minimal, auditable access.', cards: [
       { title: 'Carlos Almeida', meta: 'Group 2', detail: 'School · reading · AV' }, { title: 'André Silva', meta: 'Group 1', detail: 'School · microphones' }, { title: 'Bruno Costa', meta: 'Group 3', detail: 'AV · sound · video' },
     ] },
@@ -66,9 +57,7 @@ const DATA: Record<Locale, Record<WorkspaceSection, WorkspaceCopy>> = {
     agenda: { eyebrow: 'Calendario personal', title: 'Agenda', subtitle: 'Reuniones, asignaciones y tareas importantes en una sola línea temporal.', cards: [
       { title: 'Reunión de entre semana', meta: 'Hoy · 20:00', detail: 'Perlas espirituales · confirmada', status: 'Confirmada' }, { title: 'Servicio del campo', meta: 'Sábado · 09:30', detail: 'Grupo 2 · punto de encuentro habitual' }, { title: 'Reunión del fin de semana', meta: 'Domingo · 10:00', detail: 'Audio · esperando confirmación', status: 'Pendiente' },
     ] },
-    assignments: { eyebrow: 'Planificación', title: 'Asignaciones', subtitle: 'Historial, disponibilidad y equilibrio visibles antes de decidir.', cards: [
-      { title: 'Lectura de la Biblia', meta: 'Carlos · 126 días desde la última', detail: 'Elegible · disponible · sin conflicto', status: '92%' }, { title: 'Lectura de la Biblia', meta: 'André · 98 días desde la última', detail: 'Elegible · disponible · sin otra asignación esa semana', status: '86%' }, { title: 'Micrófono 1', meta: 'Próxima reunión', detail: '1 función aún sin asignar', status: 'Atención' },
-    ] },
+    assignments: { eyebrow: 'Planificación', title: 'Asignaciones', subtitle: 'Las asignaciones reales aparecerán cuando esté disponible la consulta de asignaciones.', cards: [] },
     people: { eyebrow: 'Directorio', title: 'Personas', subtitle: 'Información operativa organizada por permisos, con acceso mínimo y auditable.', cards: [
       { title: 'Carlos Almeida', meta: 'Grupo 2', detail: 'Escuela · lectura · AV' }, { title: 'André Silva', meta: 'Grupo 1', detail: 'Escuela · micrófonos' }, { title: 'Bruno Costa', meta: 'Grupo 3', detail: 'AV · sonido · vídeo' },
     ] },
