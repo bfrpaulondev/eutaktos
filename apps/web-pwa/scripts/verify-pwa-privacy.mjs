@@ -19,13 +19,18 @@ async function sourceFiles(directory) {
 
 const files = await sourceFiles(applicationDirectory);
 const storageFiles = [];
+const cacheApiFiles = [];
 for (const file of files) {
   const content = await readFile(file, 'utf8');
   if (/\b(?:localStorage|sessionStorage|indexedDB)\b/.test(content)) storageFiles.push(relative(applicationDirectory, file));
+  if (/\b(?:caches|CacheStorage)\b/.test(content)) cacheApiFiles.push(relative(applicationDirectory, file));
 }
 
 if (storageFiles.length !== 1 || storageFiles[0] !== 'App.tsx') {
   throw new Error(`Unexpected browser storage use in production source: ${storageFiles.join(', ') || 'none'}.`);
+}
+if (cacheApiFiles.length > 0) {
+  throw new Error(`React source must not access Cache Storage directly: ${cacheApiFiles.join(', ')}.`);
 }
 
 const app = await readFile(resolve(applicationDirectory, 'App.tsx'), 'utf8');
@@ -53,5 +58,8 @@ for (const rule of requiredRules) {
 if (serviceWorker.includes('caches.match(request)')) {
   throw new Error('The worker must not search caches outside its current static cache.');
 }
+if (!serviceWorker.includes('new Response(') || !serviceWorker.includes("'Cache-Control': 'no-store'")) {
+  throw new Error('The offline document must be an informational no-store response.');
+}
 
-process.stdout.write(`PWA privacy checks passed: browser storage is limited to preferences; ${storageFiles[0]} is the only storage user; static cache excludes API, auth, authorization, query and private/no-store responses.\n`);
+process.stdout.write('PWA privacy checks passed: browser storage is limited to preferences; React source has no Cache Storage access; static cache excludes API, auth, authorization, query and private/no-store responses.\n');
