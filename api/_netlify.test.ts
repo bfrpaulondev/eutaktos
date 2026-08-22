@@ -5,7 +5,7 @@ describe('Netlify API adapter', () => {
   it('normalizes both public and rewritten Netlify paths', () => {
     expect(normalizeNetlifyApiPath({ path: '/api/people' })).toBe('/people');
     expect(normalizeNetlifyApiPath({ path: '/.netlify/functions/api/people/person-1' })).toBe('/people/person-1');
-    expect(normalizeNetlifyApiPath({ rawUrl: 'https://eutakes.netlify.app/api/health?x=1' })).toBe('/health');
+    expect(normalizeNetlifyApiPath({ rawUrl: 'https://example.netlify.app/api/health?x=1' })).toBe('/health');
     expect(normalizeNetlifyApiPath({ path: '/.netlify/functions/api/midweek/meetings/m-1/publish' })).toBe('/midweek/meetings/m-1/publish');
   });
 
