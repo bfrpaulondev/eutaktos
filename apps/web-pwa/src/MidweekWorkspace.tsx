@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Divider, Paper } from '@mui/material';
 import { midweekApi, type MidweekMeetingDto, type MidweekOverviewDto } from './lib/midweekApi';
 import type { Locale } from './lib/preferences';
@@ -44,14 +44,20 @@ export function MidweekWorkspace({ locale, section }: { locale: Locale; section:
   const [overview, setOverview] = useState<MidweekOverviewDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const requestVersionRef = useRef(0);
 
   const load = async (signal?: AbortSignal) => {
+    const requestVersion = ++requestVersionRef.current;
     setLoading(true); setLoadError(false);
-    try { setOverview(await midweekApi.overview(signal)); }
-    catch (reason) {
+    try {
+      const nextOverview = await midweekApi.overview(signal);
+      if (requestVersion === requestVersionRef.current && !signal?.aborted) setOverview(nextOverview);
+    } catch (reason) {
       if (reason instanceof DOMException && reason.name === 'AbortError') return;
-      setLoadError(true);
-    } finally { if (!signal?.aborted) setLoading(false); }
+      if (requestVersion === requestVersionRef.current) setLoadError(true);
+    } finally {
+      if (requestVersion === requestVersionRef.current && !signal?.aborted) setLoading(false);
+    }
   };
 
   useEffect(() => {
