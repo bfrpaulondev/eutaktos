@@ -67,6 +67,11 @@ async function setPreferences(preferences, expectedHeading) {
   await poll(async () => await evaluate(`document.documentElement.lang === ${JSON.stringify(preferences.locale)} && Boolean(document.querySelector('#root')?.textContent?.includes(${JSON.stringify(expectedHeading)}))`), `A interface não carregou em ${preferences.locale}`);
 }
 
+async function visitWorkspace(path, expectedHeading, locale) {
+  await evaluate(`history.pushState({}, '', ${JSON.stringify(path)}); window.dispatchEvent(new PopStateEvent('popstate'));`);
+  await poll(async () => await evaluate(`document.documentElement.lang === ${JSON.stringify(locale)} && Boolean(document.querySelector('#main')?.textContent?.includes(${JSON.stringify(expectedHeading)}))`), `A área ${path} não apresentou o título localizado em ${locale}`);
+}
+
 try {
   await poll(async () => (await fetch(appUrl)).ok, 'O servidor de desenvolvimento não iniciou');
   browser = spawn(chromium, ['--headless=new', '--no-sandbox', '--disable-gpu', `--remote-debugging-port=${debugPort}`, `--user-data-dir=/tmp/eutaktos-ux-runtime-${process.pid}`, appUrl], { stdio: 'ignore' });
@@ -80,6 +85,25 @@ try {
 
   const defaults = { paletteId: 'classic', colorMode: 'light', density: 'comfortable', locale: 'pt-PT', textSize: 'default', reducedMotion: false, reducedTransparency: false, highContrast: false };
   await setPreferences(defaults, 'Tudo em boa ordem.');
+
+  const keyboard = await evaluate(`(() => {
+    const skip = document.querySelector('.skip-link');
+    const main = document.querySelector('main#main');
+    const active = document.querySelector('[aria-current="page"]');
+    skip?.focus();
+    return {
+      hasSkip: Boolean(skip),
+      href: skip?.getAttribute('href'),
+      hasMain: Boolean(main),
+      navCount: document.querySelectorAll('nav').length,
+      activeLabel: active?.textContent?.trim() ?? '',
+      skipTop: skip ? getComputedStyle(skip).top : '',
+    };
+  })()`);
+  if (!keyboard.hasSkip || keyboard.href !== '#main' || !keyboard.hasMain || keyboard.navCount < 1 || !keyboard.activeLabel || keyboard.skipTop === '-80px') {
+    throw new Error(`A navegação por teclado não expõe skip link, landmarks ou estado actual: ${JSON.stringify(keyboard)}`);
+  }
+
   const mobile = await evaluate(`({ width: window.innerWidth, scrollWidth: document.documentElement.scrollWidth, labels: [...document.querySelectorAll('button')].map(button => button.innerText?.trim() || button.textContent?.trim()), body: document.body.innerText })`);
   if (mobile.scrollWidth > mobile.width) throw new Error(`A navegação móvel cria overflow horizontal: ${mobile.scrollWidth}px > ${mobile.width}px`);
   if (!mobile.body.includes('Mais')) throw new Error(`A navegação móvel não expõe o destino Mais: ${JSON.stringify(mobile.labels)}`);
@@ -87,13 +111,22 @@ try {
   await evaluate(`[...document.querySelectorAll('button')].find(button => (button.innerText || button.textContent || '').includes('Mais'))?.click()`);
   await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('[role="presentation"], [role="dialog"]')].find(node => node.textContent?.includes('Designações')))`), 'O painel Mais não abriu');
 
-  await setPreferences({ ...defaults, locale: 'en' }, 'Everything in good order.');
-  await setPreferences({ ...defaults, locale: 'es' }, 'Todo en buen orden.');
+  const workspaces = {
+    'pt-PT': [['/agenda', 'Agenda'], ['/designacoes', 'Designações'], ['/pessoas', 'Pessoas'], ['/preferencias', 'Preferências']],
+    en: [['/agenda', 'Agenda'], ['/assignments', 'Assignments'], ['/people', 'People'], ['/preferences', 'Preferences']],
+    es: [['/agenda', 'Agenda'], ['/designacoes', 'Asignaciones'], ['/pessoas', 'Personas'], ['/preferencias', 'Preferencias']],
+  };
+  for (const locale of ['pt-PT', 'en', 'es']) {
+    const expectedHome = locale === 'pt-PT' ? 'Tudo em boa ordem.' : locale === 'en' ? 'Everything in good order.' : 'Todo en buen orden.';
+    await setPreferences({ ...defaults, locale }, expectedHome);
+    for (const [path, heading] of workspaces[locale]) await visitWorkspace(path, heading, locale);
+  }
+
   await setPreferences({ ...defaults, locale: 'es', colorMode: 'dark', highContrast: true }, 'Todo en buen orden.');
   const accessibility = await evaluate(`({ mode: document.documentElement.dataset.colorMode, background: getComputedStyle(document.body).backgroundColor, border: getComputedStyle(document.querySelector('.MuiPaper-root')).borderTopWidth })`);
   if (accessibility.mode !== 'dark' || accessibility.border !== '2px' || accessibility.background === 'rgb(0, 0, 0)') throw new Error(`O tema acessível não foi aplicado corretamente: ${JSON.stringify(accessibility)}`);
 
-  process.stdout.write('UX runtime checks passed: pt-PT/en/es, dark/high contrast, mobile navigation and 320px reflow.\n');
+  process.stdout.write('UX runtime checks passed: pt-PT/en/es workspaces, dark/high contrast, 320px reflow, skip link, landmarks and aria-current.\n');
 } finally {
   cdp?.close();
   if (browser && !browser.killed) browser.kill('SIGTERM');

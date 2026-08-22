@@ -41,10 +41,49 @@ a[href] {
   touch-action: manipulation;
 }
 
+:where(a[href], button, [role='button'], input, select, textarea, [tabindex]:not([tabindex='-1'])):focus-visible {
+  outline: 3px solid currentColor;
+  outline-offset: 3px;
+}
+
+@media (max-width: 599px) {
+  .MuiButton-root {
+    min-height: 44px;
+  }
+
+  .MuiDialog-paper {
+    max-height: calc(100dvh - 16px);
+    margin: 8px !important;
+  }
+
+  .MuiDialogContent-root {
+    overscroll-behavior: contain;
+  }
+
+  .MuiDialogActions-root {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .MuiDialogActions-root > .MuiButton-root {
+    flex: 1 1 132px;
+    margin-left: 0 !important;
+  }
+
+  .MuiTypography-root,
+  .MuiChip-label {
+    overflow-wrap: anywhere;
+  }
+}
+
 @media (max-width: 359px) {
   .MuiDialog-paper {
     width: calc(100% - 16px) !important;
     margin: 8px !important;
+  }
+
+  .MuiDialogActions-root > .MuiButton-root {
+    flex-basis: 100%;
   }
 }
 
@@ -58,5 +97,10 @@ a[href] {
   .MuiPaper-root,
   .MuiCard-root {
     border: 1px solid CanvasText !important;
+  }
+
+  :where(a[href], button, [role='button'], input, select, textarea, [tabindex]:not([tabindex='-1'])):focus-visible {
+    outline: 3px solid Highlight;
+    outline-offset: 3px;
   }
 }

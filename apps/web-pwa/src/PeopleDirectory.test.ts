@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canSubmitPerson, filterPeople } from './PeopleDirectory';
+import { canSubmitPerson, filterPeople, hasUnsavedPersonDraft } from './PeopleDirectory';
 import type { PersonProfileDto } from './lib/peopleApi';
 
 const people: readonly PersonProfileDto[] = [
@@ -27,5 +27,15 @@ describe('PeopleDirectory submission guard', () => {
     expect(canSubmitPerson('  ', false)).toBe(false);
     expect(canSubmitPerson('Ana Martins', true)).toBe(false);
     expect(canSubmitPerson('Ana Martins', false)).toBe(true);
+  });
+});
+
+describe('PeopleDirectory unsaved create draft guard', () => {
+  it('only permits silent close when the create form still has its initial values', () => {
+    expect(hasUnsavedPersonDraft('', 'pt-PT', true, 'pt-PT')).toBe(false);
+    expect(hasUnsavedPersonDraft('   ', 'pt-PT', true, 'pt-PT')).toBe(false);
+    expect(hasUnsavedPersonDraft('Ana Martins', 'pt-PT', true, 'pt-PT')).toBe(true);
+    expect(hasUnsavedPersonDraft('', 'en', true, 'pt-PT')).toBe(true);
+    expect(hasUnsavedPersonDraft('', 'pt-PT', false, 'pt-PT')).toBe(true);
   });
 });
