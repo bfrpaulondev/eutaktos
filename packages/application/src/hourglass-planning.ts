@@ -25,7 +25,13 @@ export interface ManualPlanningCandidate extends LastAssignmentRow {
   readonly recentHistory: readonly Readonly<AssignmentHistoryRecord>[];
 }
 
-function validDate(value: string): void { if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(Date.parse(`${value}T00:00:00.000Z`))) throw new Error('referenceDate must be a valid YYYY-MM-DD date'); }
+function validDate(value: string): void {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new Error('referenceDate must be a valid YYYY-MM-DD date');
+  const [yearText, monthText, dayText] = value.split('-');
+  const year = Number(yearText); const month = Number(monthText); const day = Number(dayText);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  if (parsed.getUTCFullYear() !== year || parsed.getUTCMonth() !== month - 1 || parsed.getUTCDate() !== day) throw new Error('referenceDate must be a valid YYYY-MM-DD date');
+}
 function completedHistory(history: readonly Readonly<AssignmentHistoryRecord>[]): readonly Readonly<AssignmentHistoryRecord>[] { return history.filter(record => record.state === 'completed'); }
 function rowFor(person: CongregationPerson, history: readonly Readonly<AssignmentHistoryRecord>[], tenantId: string, partType: string, referenceDate: string): LastAssignmentRow {
   const relevant = completedHistory(historyByPartType(historyByPerson(history, person.id, tenantId), partType, tenantId));
