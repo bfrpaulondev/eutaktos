@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useMemo, useRef, useState, type Dispatch, type Ref, type SetStateAction } from 'react';
 import {
   Alert,
   Avatar,
@@ -109,6 +109,7 @@ interface AppShellProps { preferences: Preferences; setPreferences: Dispatch<Set
 function AppShell({ preferences, setPreferences }: AppShellProps) {
   const [section, setSection] = useState<Section>(() => sectionFromPath(window.location.pathname));
   const [moreOpen, setMoreOpen] = useState(false);
+  const moreButtonRef = useRef<HTMLButtonElement | null>(null);
   const theme = useTheme();
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
   const text = copy[preferences.locale];
@@ -123,11 +124,21 @@ function AppShell({ preferences, setPreferences }: AppShellProps) {
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
+  useEffect(() => {
+    const label = text[section === 'preferences' ? 'prefs' : section];
+    document.title = `Eutaktos — ${label}`;
+  }, [section, text]);
+
+  const closeMore = () => {
+    setMoreOpen(false);
+    window.requestAnimationFrame(() => moreButtonRef.current?.focus());
+  };
   const goToSection = (next: Section) => {
     const nextPath = SECTION_PATHS[next];
-    if (window.location.pathname !== nextPath) window.history.pushState({ section: next }, '', nextPath);
+    if (window.location.pathname !== nextPath || window.location.search || window.location.hash) window.history.pushState({ section: next }, '', nextPath);
     setSection(next);
     setMoreOpen(false);
+    window.scrollTo({ top: 0, behavior: 'auto' });
     window.requestAnimationFrame(() => document.getElementById('main')?.focus({ preventScroll: true }));
   };
   const nav: Section[] = ['home', 'agenda', 'assignments', 'people', 'preferences'];
@@ -155,14 +166,14 @@ function AppShell({ preferences, setPreferences }: AppShellProps) {
         <Paper component="nav" aria-label={text.navigation} sx={{ position: 'fixed', zIndex: 20, left: 8, right: 8, bottom: 'max(8px, env(safe-area-inset-bottom))', px: 0.5, py: 0.65, borderRadius: 3 }}>
           <Stack direction="row" justifyContent="space-between">
             {mobileNav.map(key => <MobileNavigationButton key={key} active={section === key} icon={navIcons[key]} label={key === 'preferences' ? text.prefs : text[key]} onClick={() => goToSection(key)} />)}
-            <MobileNavigationButton active={section === 'assignments' || section === 'preferences'} icon="•••" label={text.more} onClick={() => setMoreOpen(true)} />
+            <MobileNavigationButton buttonRef={moreButtonRef} active={section === 'assignments' || section === 'preferences'} icon="•••" label={text.more} onClick={() => setMoreOpen(true)} />
           </Stack>
         </Paper>
       )}
 
-      <Drawer anchor="bottom" open={moreOpen} onClose={() => setMoreOpen(false)} slotProps={{ paper: { sx: { borderTopLeftRadius: 24, borderTopRightRadius: 24, p: 2, pb: 'calc(16px + env(safe-area-inset-bottom))' } } }}>
+      <Drawer anchor="bottom" open={moreOpen} onClose={closeMore} slotProps={{ paper: { sx: { borderTopLeftRadius: 24, borderTopRightRadius: 24, p: 2, pb: 'calc(16px + env(safe-area-inset-bottom))' } } }}>
         <Stack spacing={1.25} sx={{ maxWidth: 560, width: '100%', mx: 'auto' }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center"><Typography variant="h6">{text.more}</Typography><Button onClick={() => setMoreOpen(false)}>{text.close}</Button></Stack>
+          <Stack direction="row" justifyContent="space-between" alignItems="center"><Typography variant="h6">{text.more}</Typography><Button onClick={closeMore}>{text.close}</Button></Stack>
           <Divider />
           {(['assignments', 'preferences'] as const).map(key => <Button key={key} variant={section === key ? 'contained' : 'outlined'} startIcon={<span aria-hidden="true">{navIcons[key]}</span>} onClick={() => goToSection(key)} sx={{ justifyContent: 'flex-start' }}>{text[key === 'preferences' ? 'prefs' : key]}</Button>)}
         </Stack>
@@ -180,8 +191,8 @@ function NavigationButton({ active, icon, label, onClick }: { active: boolean; i
   return <Button onClick={onClick} aria-current={active ? 'page' : undefined} variant={active ? 'contained' : 'text'} color={active ? 'primary' : 'inherit'} sx={{ justifyContent: 'flex-start', gap: 1.25, px: 1.5 }}><Box component="span" aria-hidden="true" sx={{ width: 22, textAlign: 'center' }}>{icon}</Box>{label}</Button>;
 }
 
-function MobileNavigationButton({ active, icon, label, onClick }: { active: boolean; icon: string; label: string; onClick: () => void }) {
-  return <Button onClick={onClick} aria-current={active ? 'page' : undefined} color={active ? 'primary' : 'inherit'} sx={{ minWidth: 0, flex: 1, px: 0.35, display: 'grid', gap: 0.15, fontSize: '0.68rem', lineHeight: 1.1, whiteSpace: 'normal' }}><Typography component="span" aria-hidden="true" sx={{ fontSize: 18, lineHeight: 1 }}>{icon}</Typography>{label}</Button>;
+function MobileNavigationButton({ active, icon, label, onClick, buttonRef }: { active: boolean; icon: string; label: string; onClick: () => void; buttonRef?: Ref<HTMLButtonElement> }) {
+  return <Button ref={buttonRef} onClick={onClick} aria-current={active ? 'page' : undefined} color={active ? 'primary' : 'inherit'} sx={{ minWidth: 0, flex: 1, px: 0.35, display: 'grid', gap: 0.15, fontSize: '0.68rem', lineHeight: 1.1, whiteSpace: 'normal' }}><Typography component="span" aria-hidden="true" sx={{ fontSize: 18, lineHeight: 1 }}>{icon}</Typography>{label}</Button>;
 }
 
 function Header({ text, onAgenda }: { text: AppCopy; onAgenda: () => void }) {

@@ -67,9 +67,9 @@ async function setPreferences(preferences, expectedHeading) {
   await poll(async () => await evaluate(`document.documentElement.lang === ${JSON.stringify(preferences.locale)} && Boolean(document.querySelector('#root')?.textContent?.includes(${JSON.stringify(expectedHeading)}))`), `A interface não carregou em ${preferences.locale}`);
 }
 
-async function visitWorkspace(path, expectedHeading, locale) {
+async function visitWorkspace(path, expectedHeading, locale, expectedTitle = `Eutaktos — ${expectedHeading}`) {
   await evaluate(`history.pushState({}, '', ${JSON.stringify(path)}); window.dispatchEvent(new PopStateEvent('popstate'));`);
-  await poll(async () => await evaluate(`document.documentElement.lang === ${JSON.stringify(locale)} && Boolean(document.querySelector('#main')?.textContent?.includes(${JSON.stringify(expectedHeading)}))`), `A área ${path} não apresentou o título localizado em ${locale}`);
+  await poll(async () => await evaluate(`document.documentElement.lang === ${JSON.stringify(locale)} && document.title === ${JSON.stringify(expectedTitle)} && Boolean(document.querySelector('#main')?.textContent?.includes(${JSON.stringify(expectedHeading)}))`), `O deep link ${path} não apresentou o título e conteúdo localizados em ${locale}`);
 }
 
 try {
@@ -110,6 +110,8 @@ try {
 
   await evaluate(`[...document.querySelectorAll('button')].find(button => (button.innerText || button.textContent || '').includes('Mais'))?.click()`);
   await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('[role="presentation"], [role="dialog"]')].find(node => node.textContent?.includes('Designações')))`), 'O painel Mais não abriu');
+  await evaluate(`[...document.querySelectorAll('button')].find(button => (button.innerText || button.textContent || '').trim() === 'Fechar')?.click()`);
+  await poll(async () => await evaluate(`document.activeElement?.textContent?.trim() === '•••Mais'`), 'O foco não regressou ao botão Mais depois de fechar o painel');
 
   const workspaces = {
     'pt-PT': [['/agenda', 'Agenda'], ['/designacoes', 'Designações'], ['/pessoas', 'Pessoas'], ['/preferencias', 'Preferências']],
@@ -121,12 +123,15 @@ try {
     await setPreferences({ ...defaults, locale }, expectedHome);
     for (const [path, heading] of workspaces[locale]) await visitWorkspace(path, heading, locale);
   }
+  await setPreferences({ ...defaults, locale: 'en' }, 'Everything in good order.');
+  await visitWorkspace('/people/?source=deep-link#contacts', 'People', 'en');
+  await visitWorkspace('/unknown-route?source=deep-link', 'Everything in good order.', 'en', 'Eutaktos — Home');
 
   await setPreferences({ ...defaults, locale: 'es', colorMode: 'dark', highContrast: true }, 'Todo en buen orden.');
   const accessibility = await evaluate(`({ mode: document.documentElement.dataset.colorMode, background: getComputedStyle(document.body).backgroundColor, border: getComputedStyle(document.querySelector('.MuiPaper-root')).borderTopWidth })`);
   if (accessibility.mode !== 'dark' || accessibility.border !== '2px' || accessibility.background === 'rgb(0, 0, 0)') throw new Error(`O tema acessível não foi aplicado corretamente: ${JSON.stringify(accessibility)}`);
 
-  process.stdout.write('UX runtime checks passed: pt-PT/en/es workspaces, dark/high contrast, 320px reflow, skip link, landmarks and aria-current.\n');
+  process.stdout.write('UX runtime checks passed: pt-PT/en/es workspaces, localized deep links/titles, safe unknown-route fallback, More focus restore, dark/high contrast, 320px reflow, skip link, landmarks and aria-current.\n');
 } finally {
   cdp?.close();
   if (browser && !browser.killed) browser.kill('SIGTERM');
