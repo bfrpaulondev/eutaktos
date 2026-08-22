@@ -80,6 +80,18 @@ try {
 
   const defaults = { paletteId: 'classic', colorMode: 'light', density: 'comfortable', locale: 'pt-PT', textSize: 'default', reducedMotion: false, reducedTransparency: false, highContrast: false };
   await setPreferences(defaults, 'Tudo em boa ordem.');
+  const keyboard = await evaluate(`(() => {
+    const skip = document.querySelector('.skip-link');
+    const main = document.querySelector('main#main');
+    const active = document.querySelector('[aria-current="page"]');
+    skip?.focus();
+    const skipTop = getComputedStyle(skip).top;
+    const href = skip?.getAttribute('href');
+    return { hasSkip: Boolean(skip), href, hasMain: Boolean(main), navCount: document.querySelectorAll('nav').length, activeLabel: active?.textContent?.trim() ?? '', skipTop };
+  })()`);
+  if (!keyboard.hasSkip || keyboard.href !== '#main' || !keyboard.hasMain || keyboard.navCount < 1 || !keyboard.activeLabel || keyboard.skipTop === '-80px') {
+    throw new Error(`A navegação por teclado não expõe skip link, landmarks ou estado actual: ${JSON.stringify(keyboard)}`);
+  }
   const mobile = await evaluate(`({ width: window.innerWidth, scrollWidth: document.documentElement.scrollWidth, labels: [...document.querySelectorAll('button')].map(button => button.innerText?.trim() || button.textContent?.trim()), body: document.body.innerText })`);
   if (mobile.scrollWidth > mobile.width) throw new Error(`A navegação móvel cria overflow horizontal: ${mobile.scrollWidth}px > ${mobile.width}px`);
   if (!mobile.body.includes('Mais')) throw new Error(`A navegação móvel não expõe o destino Mais: ${JSON.stringify(mobile.labels)}`);
@@ -93,7 +105,7 @@ try {
   const accessibility = await evaluate(`({ mode: document.documentElement.dataset.colorMode, background: getComputedStyle(document.body).backgroundColor, border: getComputedStyle(document.querySelector('.MuiPaper-root')).borderTopWidth })`);
   if (accessibility.mode !== 'dark' || accessibility.border !== '2px' || accessibility.background === 'rgb(0, 0, 0)') throw new Error(`O tema acessível não foi aplicado corretamente: ${JSON.stringify(accessibility)}`);
 
-  process.stdout.write('UX runtime checks passed: pt-PT/en/es, dark/high contrast, mobile navigation and 320px reflow.\n');
+  process.stdout.write('UX runtime checks passed: pt-PT/en/es, dark/high contrast, 320px reflow, skip link, landmarks and aria-current.\n');
 } finally {
   cdp?.close();
   if (browser && !browser.killed) browser.kill('SIGTERM');
