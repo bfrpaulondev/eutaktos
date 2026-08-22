@@ -11,9 +11,9 @@ import { Stack, Typography } from './ui/MuiCompat';
 type PersonStatusFilter = 'all' | 'active' | 'inactive';
 
 const copy = {
-  'pt-PT': { eyebrow: 'Organização', title: 'Pessoas', subtitle: 'Perfis, contactos, elegibilidade e disponibilidade reunidos num único local.', search: 'Procurar por nome ou idioma', add: 'Adicionar pessoa', filter: 'Estado do perfil', all: 'Todas as pessoas', active: 'Ativo', inactive: 'Inativo', results: 'resultados', result: 'resultado', clear: 'Limpar filtros', locale: 'Idioma', empty: 'Ainda não existem pessoas para mostrar.', noResults: 'Nenhuma pessoa corresponde aos filtros atuais.', loading: 'A carregar pessoas…', retry: 'Tentar novamente', unavailable: 'Não foi possível carregar as pessoas. Tenta novamente.', contacts: 'Contactos de emergência', eligibility: 'Elegibilidade', away: 'Ausências', congregation: 'Configurações da congregação', dialogTitle: 'Nova pessoa', name: 'Nome', preferredLocale: 'Idioma preferido', enabled: 'Perfil ativo', cancel: 'Cancelar', save: 'Guardar', saving: 'A guardar…', actions: 'Ações da pessoa', formError: 'Não foi possível guardar a pessoa. Tenta novamente.', success: 'Pessoa adicionada com sucesso.', close: 'Fechar' },
-  en: { eyebrow: 'Organization', title: 'People', subtitle: 'Profiles, contacts, eligibility and availability together in one place.', search: 'Search by name or language', add: 'Add person', filter: 'Profile status', all: 'All people', active: 'Active', inactive: 'Inactive', results: 'results', result: 'result', clear: 'Clear filters', locale: 'Language', empty: 'There are no people to show yet.', noResults: 'No people match the current filters.', loading: 'Loading people…', retry: 'Try again', unavailable: 'People could not be loaded. Please try again.', contacts: 'Emergency contacts', eligibility: 'Eligibility', away: 'Away periods', congregation: 'Congregation settings', dialogTitle: 'New person', name: 'Name', preferredLocale: 'Preferred language', enabled: 'Active profile', cancel: 'Cancel', save: 'Save', saving: 'Saving…', actions: 'Person actions', formError: 'The person could not be saved. Please try again.', success: 'Person added successfully.', close: 'Close' },
-  es: { eyebrow: 'Organización', title: 'Personas', subtitle: 'Perfiles, contactos, elegibilidad y disponibilidad reunidos en un solo lugar.', search: 'Buscar por nombre o idioma', add: 'Añadir persona', filter: 'Estado del perfil', all: 'Todas las personas', active: 'Activo', inactive: 'Inactivo', results: 'resultados', result: 'resultado', clear: 'Limpiar filtros', locale: 'Idioma', empty: 'Todavía no hay personas para mostrar.', noResults: 'Ninguna persona coincide con los filtros actuales.', loading: 'Cargando personas…', retry: 'Intentar de nuevo', unavailable: 'No se pudieron cargar las personas. Inténtalo de nuevo.', contacts: 'Contactos de emergencia', eligibility: 'Elegibilidad', away: 'Ausencias', congregation: 'Configuración de la congregación', dialogTitle: 'Nueva persona', name: 'Nombre', preferredLocale: 'Idioma preferido', enabled: 'Perfil activo', cancel: 'Cancelar', save: 'Guardar', saving: 'Guardando…', actions: 'Acciones de la persona', formError: 'No se pudo guardar la persona. Inténtalo de nuevo.', success: 'Persona añadida correctamente.', close: 'Cerrar' },
+  'pt-PT': { eyebrow: 'Organização', title: 'Pessoas', subtitle: 'Perfis, contactos, elegibilidade e disponibilidade reunidos num único local.', search: 'Procurar por nome ou idioma', add: 'Adicionar pessoa', filter: 'Estado do perfil', all: 'Todas as pessoas', active: 'Ativo', inactive: 'Inativo', results: 'resultados', result: 'resultado', clear: 'Limpar filtros', locale: 'Idioma', empty: 'Ainda não existem pessoas para mostrar.', noResults: 'Nenhuma pessoa corresponde aos filtros atuais.', loading: 'A carregar pessoas…', retry: 'Tentar novamente', unavailable: 'Não foi possível carregar as pessoas. Tenta novamente.', contacts: 'Contactos de emergência', eligibility: 'Elegibilidade', away: 'Ausências', congregation: 'Configurações da congregação', dialogTitle: 'Nova pessoa', name: 'Nome', preferredLocale: 'Idioma preferido', enabled: 'Perfil ativo', cancel: 'Cancelar', save: 'Guardar', saving: 'A guardar…', actions: 'Ações da pessoa', formError: 'Não foi possível guardar a pessoa. Tenta novamente.', success: 'Pessoa adicionada com sucesso.', close: 'Fechar', discardTitle: 'Descartar alterações?', discardDetail: 'As alterações não guardadas a esta pessoa serão perdidas.', keepEditing: 'Continuar a editar', discard: 'Descartar alterações' },
+  en: { eyebrow: 'Organization', title: 'People', subtitle: 'Profiles, contacts, eligibility and availability together in one place.', search: 'Search by name or language', add: 'Add person', filter: 'Profile status', all: 'All people', active: 'Active', inactive: 'Inactive', results: 'results', result: 'result', clear: 'Clear filters', locale: 'Language', empty: 'There are no people to show yet.', noResults: 'No people match the current filters.', loading: 'Loading people…', retry: 'Try again', unavailable: 'People could not be loaded. Please try again.', contacts: 'Emergency contacts', eligibility: 'Eligibility', away: 'Away periods', congregation: 'Congregation settings', dialogTitle: 'New person', name: 'Name', preferredLocale: 'Preferred language', enabled: 'Active profile', cancel: 'Cancel', save: 'Save', saving: 'Saving…', actions: 'Person actions', formError: 'The person could not be saved. Please try again.', success: 'Person added successfully.', close: 'Close', discardTitle: 'Discard changes?', discardDetail: 'Unsaved changes to this person will be lost.', keepEditing: 'Keep editing', discard: 'Discard changes' },
+  es: { eyebrow: 'Organización', title: 'Personas', subtitle: 'Perfiles, contactos, elegibilidad y disponibilidad reunidos en un solo lugar.', search: 'Buscar por nombre o idioma', add: 'Añadir persona', filter: 'Estado del perfil', all: 'Todas las personas', active: 'Activo', inactive: 'Inactivo', results: 'resultados', result: 'resultado', clear: 'Limpiar filtros', locale: 'Idioma', empty: 'Todavía no hay personas para mostrar.', noResults: 'Ninguna persona coincide con los filtros actuales.', loading: 'Cargando personas…', retry: 'Intentar de nuevo', unavailable: 'No se pudieron cargar las personas. Inténtalo de nuevo.', contacts: 'Contactos de emergencia', eligibility: 'Elegibilidad', away: 'Ausencias', congregation: 'Configuración de la congregación', dialogTitle: 'Nueva persona', name: 'Nombre', preferredLocale: 'Idioma preferido', enabled: 'Perfil activo', cancel: 'Cancelar', save: 'Guardar', saving: 'Guardando…', actions: 'Acciones de la persona', formError: 'No se pudo guardar la persona. Inténtalo de nuevo.', success: 'Persona añadida correctamente.', close: 'Cerrar', discardTitle: '¿Descartar cambios?', discardDetail: 'Se perderán los cambios no guardados de esta persona.', keepEditing: 'Seguir editando', discard: 'Descartar cambios' },
 } as const;
 
 export function filterPeople(people: readonly PersonProfileDto[], query: string, status: PersonStatusFilter, locale: Locale): readonly PersonProfileDto[] {
@@ -29,6 +29,10 @@ export function canSubmitPerson(displayName: string, saving: boolean): boolean {
   return !saving && displayName.trim().length > 0;
 }
 
+export function hasUnsavedPersonDraft(displayName: string, preferredLocale: string, active: boolean, initialLocale: Locale): boolean {
+  return displayName.trim().length > 0 || preferredLocale.trim() !== initialLocale || !active;
+}
+
 export function PeopleDirectory({ locale }: { locale: Locale }) {
   const text = copy[locale];
   const [people, setPeople] = useState<readonly PersonProfileDto[]>([]);
@@ -39,6 +43,7 @@ export function PeopleDirectory({ locale }: { locale: Locale }) {
   const [formError, setFormError] = useState(false);
   const [created, setCreated] = useState(false);
   const [open, setOpen] = useState(false);
+  const [discardOpen, setDiscardOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [contactsPerson, setContactsPerson] = useState<PersonProfileDto | null>(null);
   const [eligibilityPerson, setEligibilityPerson] = useState<PersonProfileDto | null>(null);
@@ -53,10 +58,26 @@ export function PeopleDirectory({ locale }: { locale: Locale }) {
   const submittingRef = useRef(false);
 
   const restoreFocus = (target: React.RefObject<HTMLButtonElement | null>) => window.requestAnimationFrame(() => target.current?.focus());
+  const resetCreateForm = () => {
+    setDisplayName('');
+    setPreferredLocale(locale);
+    setActive(true);
+    setFormError(false);
+  };
   const closeCreate = () => {
     if (saving) return;
+    if (hasUnsavedPersonDraft(displayName, preferredLocale, active, locale)) {
+      setDiscardOpen(true);
+      return;
+    }
     setOpen(false);
     setFormError(false);
+    restoreFocus(addButtonRef);
+  };
+  const discardCreate = () => {
+    setDiscardOpen(false);
+    resetCreateForm();
+    setOpen(false);
     restoreFocus(addButtonRef);
   };
   const closePersonDialog = (setter: (value: null) => void) => {
@@ -98,9 +119,8 @@ export function PeopleDirectory({ locale }: { locale: Locale }) {
       const person = await peopleApi.create({ displayName: name, preferredLocale: preferredLocale.trim() || undefined, active });
       setPeople(current => [...current, person].sort((first, second) => first.displayName.localeCompare(second.displayName, locale)));
       setOpen(false);
-      setDisplayName('');
-      setPreferredLocale(locale);
-      setActive(true);
+      setDiscardOpen(false);
+      resetCreateForm();
       setCreated(true);
       restoreFocus(addButtonRef);
     } catch {
@@ -124,7 +144,7 @@ export function PeopleDirectory({ locale }: { locale: Locale }) {
     <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 2, borderRadius: 3 }}>
       <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" gap={2.5} alignItems={{ md: 'flex-end' }}>
         <Box sx={{ maxWidth: 720 }}><Typography variant="overline" color="primary.main">{text.eyebrow}</Typography><Typography variant="h2" id="people-directory-title" sx={{ fontSize: { xs: '2rem', sm: '2.6rem' } }}>{text.title}</Typography><Typography color="text.secondary" sx={{ mt: 1 }}>{text.subtitle}</Typography></Box>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ flexShrink: 0 }}><Button ref={settingsButtonRef} variant="outlined" onClick={() => setSettingsOpen(true)}>{text.congregation}</Button><Button ref={addButtonRef} variant="contained" onClick={() => { setCreated(false); setOpen(true); }}>{text.add}</Button></Stack>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ flexShrink: 0 }}><Button ref={settingsButtonRef} variant="outlined" onClick={() => setSettingsOpen(true)}>{text.congregation}</Button><Button ref={addButtonRef} variant="contained" onClick={() => { setCreated(false); setFormError(false); setDiscardOpen(false); setOpen(true); }}>{text.add}</Button></Stack>
       </Stack>
     </Paper>
     <Stack spacing={2}>
@@ -149,6 +169,7 @@ export function PeopleDirectory({ locale }: { locale: Locale }) {
       </Box>
     </Stack>
     <Dialog open={open} onClose={closeCreate} fullWidth maxWidth="sm" aria-describedby="person-create-error"><Box component="form" onSubmit={submit}><DialogTitle>{text.dialogTitle}</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}><TextField label={text.name} value={displayName} onChange={event => setDisplayName(event.target.value)} required autoFocus slotProps={{ htmlInput: { maxLength: 120 } }} /><TextField label={text.preferredLocale} value={preferredLocale} onChange={event => setPreferredLocale(event.target.value)} slotProps={{ htmlInput: { maxLength: 35 } }} /><FormControlLabel control={<Switch checked={active} onChange={event => setActive(event.target.checked)} />} label={text.enabled} />{formError ? <Alert id="person-create-error" severity="error">{text.formError}</Alert> : null}</Stack></DialogContent><DialogActions><Button onClick={closeCreate} disabled={saving}>{text.cancel}</Button><Button type="submit" variant="contained" disabled={!canSubmitPerson(displayName, saving)}>{saving ? text.saving : text.save}</Button></DialogActions></Box></Dialog>
+    <Dialog open={discardOpen} onClose={() => setDiscardOpen(false)} aria-labelledby="person-discard-title" aria-describedby="person-discard-detail"><DialogTitle id="person-discard-title">{text.discardTitle}</DialogTitle><DialogContent><Typography id="person-discard-detail">{text.discardDetail}</Typography></DialogContent><DialogActions><Button autoFocus onClick={() => setDiscardOpen(false)}>{text.keepEditing}</Button><Button variant="contained" color="warning" onClick={discardCreate}>{text.discard}</Button></DialogActions></Dialog>
     {contactsPerson ? <EmergencyContactsDialog personId={contactsPerson.id} personName={contactsPerson.displayName} locale={locale} open onClose={() => closePersonDialog(setContactsPerson)} /> : null}
     {eligibilityPerson ? <EligibilityDialog personId={eligibilityPerson.id} personName={eligibilityPerson.displayName} locale={locale} open onClose={() => closePersonDialog(setEligibilityPerson)} /> : null}
     <Dialog open={awayPerson !== null} onClose={() => closePersonDialog(setAwayPerson)} fullWidth maxWidth="md"><DialogTitle>{awayPerson ? `${text.away} — ${awayPerson.displayName}` : text.away}</DialogTitle><DialogContent>{awayPerson ? <AwayPeriodsSection locale={locale} personId={awayPerson.id} /> : null}</DialogContent><DialogActions><Button onClick={() => closePersonDialog(setAwayPerson)}>{text.close}</Button></DialogActions></Dialog>
