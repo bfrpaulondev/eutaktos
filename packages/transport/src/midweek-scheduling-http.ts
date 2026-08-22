@@ -2,6 +2,7 @@ import type {
   AddMidweekSlotInput,
   AssignNonStudentInput,
   AssignStudentInput,
+  ReplaceNonStudentInput,
   CreateMidweekMeetingInput,
   MidweekSchedulingService,
   RequestMetadata,
@@ -23,6 +24,7 @@ export type MidweekSchedulingApplication = Pick<
   | 'updateMeeting'
   | 'assignStudent'
   | 'assignNonStudent'
+  | 'replaceNonStudent'
   | 'cancelStudentAssignment'
   | 'cancelNonStudentAssignment'
   | 'publishMeeting'
@@ -175,6 +177,12 @@ function parseStudent(meetingId: string, value: unknown): AssignStudentInput {
   };
 }
 
+function parseReplaceNonStudent(value: unknown): ReplaceNonStudentInput {
+  const body = objectBody(value);
+  rejectUnknownKeys(body, ['personId']);
+  return { assignmentId: '', personId: requiredString(body, 'personId') };
+}
+
 function parseNonStudent(meetingId: string, value: unknown): AssignNonStudentInput {
   const body = objectBody(value);
   rejectUnknownKeys(body, ['slotId', 'personId', 'role']);
@@ -281,6 +289,13 @@ export class MidweekSchedulingHttpTransport {
     const context = toContext(request.principal); if (!context) return unauthorized();
     const meetingId = requiredParam(request, 'meetingId'); if (!meetingId) return { status: 400, body: { error: 'meetingId is required' } };
     try { return { status: 201, body: toNonStudentDto(this.#app.assignNonStudent(context, parseNonStudent(meetingId, request.body), metadata(request))) }; }
+    catch (error) { return safeError(error); }
+  }
+
+  replaceNonStudent(request: TransportRequest): TransportResponse<NonStudentAssignmentDto | { error: string }> {
+    const context = toContext(request.principal); if (!context) return unauthorized();
+    const assignmentId = requiredParam(request, 'assignmentId'); if (!assignmentId) return { status: 400, body: { error: 'assignmentId is required' } };
+    try { return { status: 200, body: toNonStudentDto(this.#app.replaceNonStudent(context, { ...parseReplaceNonStudent(request.body), assignmentId }, metadata(request))) }; }
     catch (error) { return safeError(error); }
   }
 
