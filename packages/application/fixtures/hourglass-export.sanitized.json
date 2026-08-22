@@ -1,0 +1,37 @@
+{
+  "publishers": [
+    {
+      "id": 101,
+      "uuid": "00000000-0000-4000-8000-000000000101",
+      "firstname": "Ana",
+      "lastname": "Exemplo",
+      "middlename": "",
+      "suffix": "",
+      "email": "ignored@example.invalid",
+      "appt": "ignored"
+    },
+    {
+      "id": 202,
+      "uuid": "00000000-0000-4000-8000-000000000202",
+      "firstname": "Bruno",
+      "lastname": "Demonstração",
+      "anointed": true,
+      "comments": "ignored"
+    }
+  ],
+  "fsGroups": [
+    {
+      "id": 5,
+      "name": "Grupo de demonstração",
+      "members": [101, 202],
+      "notes": "ignored"
+    }
+  ],
+  "privileges": {
+    "reading": [101, 101],
+    "prayer": [202]
+  },
+  "unrecognizedSection": {
+    "sensitiveValue": "must never be persisted or logged"
+  }
+}

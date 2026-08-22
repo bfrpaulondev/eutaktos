@@ -1,0 +1,32 @@
+# Hourglass Transition MVP — Schema confirmado e limites
+
+## Evidência de formato
+
+A implementação suporta apenas o schema observado localmente em exports Hourglass **JSON** e no CSV de contactos correspondente. Os ficheiros reais foram tratados como dados sensíveis, não foram adicionados ao repositório e não serão emitidos em logs, auditoria ou testes.
+
+O perfil JSON confirmou as secções `publishers`, `fsGroups` e `privileges`. Cada `publishers[].id` é um inteiro único e as listas de `privileges` contêm apenas inteiros que referenciam esses IDs. Assim, `publishers[].id` é o identificador externo de reconciliação comprovado para o adapter. `publishers[].uuid` pode ser validado como metadado de integridade, mas não substitui esse relacionamento comprovado.
+
+> Eligibility importada é sempre uma afirmação explícita de `privileges[privilegeType] -> publishers[].id`. O importador não cria eligibility a partir de `appt`, `pioneerid`, sexo, datas pessoais, baptismo, presença, comentários, tags, estado, grupos, ou qualquer outro campo.
+
+## Dados utilizados e minimização
+
+| Secção | Campos usados pelo MVP | Tratamento |
+|---|---|---|
+| `publishers` | `id`, nome para prévia, `uuid` para validação de integridade | O ID é convertido para o namespace externo Hourglass. O nome serve apenas para a criação/reconciliação de pessoa após confirmação. Contactos, moradas, datas pessoais, comentários e credenciais são ignorados e nunca registados. |
+| `privileges` | Nome da chave de privilégio e IDs de publicadores associados | Importa somente grants explícitos, no namespace `hourglass:<privilege>`. Não mapeia implicitamente esses grants para tipos internos de partes. |
+| `fsGroups` | Existência, ID, nome e relações comprovadas | Incluídos no relatório de prévia. Não são convertidos em privilégios ou elegibilidade. |
+| CSV contact list | Cabeçalhos e dados de contacto apenas para inspeção de formato | Não contém um ID externo de pessoa comprovado, logo não pode executar reconciliação/persistência sozinho. |
+
+## Segurança e prévia
+
+O adapter deve impor limite de ficheiro e de registos, rejeitar JSON inválido, formatos não reconhecidos e chaves potencialmente perigosas (`__proto__`, `prototype`, `constructor`). Ele nunca executa conteúdo importado. Campos desconhecidos são descritos apenas por nome e contagem no relatório; os respetivos valores não são persistidos em logs ou auditoria.
+
+Nenhuma escrita é efetuada antes de uma confirmação humana. A prévia é idempotente por `hourglass:<publisher.id>` dentro do tenant e classifica cada item como novo, existente sem alteração, conflito, atualização pendente ou inválido. Alterações não substituem informação Eutaktos sem uma decisão explícita de resolução.
+
+## Limites comprovados do export recebido
+
+O export analisado inclui `attendance`, mas essa secção contém agregados de presença por período e grupo. Não contém identificador de reunião, parte, pessoa atribuída, estado de designação ou registo individual de designação. Também não foram observadas secções de designações, histórico, agenda, ausências ou disponibilidade.
+
+Por esse motivo, o MVP pode expor **Hourglass handoff** em CSV, JSON e visualização imprimível para conferência manual, mas não pode alegar que o ficheiro é importável pelo Hourglass. Um serializer de round-trip só será considerado se uma fixture posterior comprovar o formato de importação de agenda do Hourglass.
+
+Da mesma forma, H03 e a recência H04 só podem ingerir histórico de designações quando uma fixture sanitizada comprovar a respetiva secção e os seus campos. Não é aceitável adivinhar esse schema a partir de agregados de `attendance`.

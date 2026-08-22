@@ -35,6 +35,8 @@ export interface CongregationPerson {
   displayName: string;
   preferredLocale?: string;
   active: boolean;
+  /** Stable identifiers from an explicitly linked external source; never contact data. */
+  externalIds?: readonly string[];
   availability: readonly AvailabilityPeriod[];
   eligibility: readonly EligibilityGrant[];
   /** Legacy/imported records may omit this until normalized by an application write. */
