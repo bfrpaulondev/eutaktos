@@ -6,6 +6,9 @@ import { json, methodNotAllowed, type ApiHandler } from '../_types';
 import { requireWorkerAuthentication } from '../_worker-auth';
 
 interface ProviderConfig { url:string; token:string }
+const DELIVERY_PAYLOAD_FIELDS = Object.freeze(['deliveryId','recipientId','channel','templateKey','locale'] as const);
+const DELIVERY_CHANNELS = new Set(['in-app','push','email','whatsapp']);
+
 function providerConfig():ProviderConfig|undefined{
   const rawUrl=process.env.EUTAKTOS_NOTIFICATION_PROVIDER_URL?.trim();
   const token=process.env.EUTAKTOS_NOTIFICATION_PROVIDER_TOKEN?.trim();
@@ -15,9 +18,21 @@ function providerConfig():ProviderConfig|undefined{
   if(url.protocol!=='https:') throw new DatabaseNotConfiguredError();
   return Object.freeze({url:url.toString(),token});
 }
-function deliverable(event:OutboxRow):boolean{
-  return event.event_type==='NotificationIntentQueued' && event.schema_version===1;
+
+/**
+ * External delivery is allowed only when the outbox event carries the minimal,
+ * privacy-bounded K47 delivery envelope. A bare NotificationIntentQueued event
+ * is a domain intent, not proof that a provider has enough information to send.
+ */
+export function isDeliverableNotificationEvent(event:OutboxRow):boolean{
+  if(event.event_type!=='NotificationIntentQueued'||event.schema_version!==1)return false;
+  for(const field of DELIVERY_PAYLOAD_FIELDS){
+    const value=event.payload[field];
+    if(typeof value!=='string'||!value.trim())return false;
+  }
+  return DELIVERY_CHANNELS.has(String(event.payload.channel));
 }
+
 async function deliver(config:ProviderConfig,event:OutboxRow):Promise<'delivered'|'rejected'|'unavailable'> {
   try{
     const response=await fetch(config.url,{
@@ -48,12 +63,12 @@ const handler:ApiHandler=async(request,response)=>{
   await runEndpoint(request,response,async database=>{
     await requireWorkerAuthentication(request);
     const provider=providerConfig();
-    // This worker owns only final K47 notification-intent events. Other domain
-    // events remain untouched for their respective consumers.
+    // The database claim is already payload-guarded. Keep the same check here
+    // as defense in depth if a migration/configuration drifts.
     const events=await database.claimNotificationOutbox(25);
     let delivered=0,failed=0,invalid=0;
     for(const event of events){
-      if(!deliverable(event)){
+      if(!isDeliverableNotificationEvent(event)){
         await database.markOutboxFailed(event.tenant_id,event.id,'invalid-event');
         invalid+=1;
         continue;
