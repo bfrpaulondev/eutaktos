@@ -21,6 +21,7 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
+import { PwaConnectionStatus } from './PwaConnectionStatus';
 import { PwaUpdateRecovery } from './PwaUpdateRecovery';
 import { SECTION_PATHS, sectionFromPath, type AppSection as Section } from './lib/navigation';
 import {
@@ -103,6 +104,7 @@ export default function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <AppShell preferences={preferences} setPreferences={setPreferences} />
+      <PwaConnectionStatus locale={preferences.locale} />
       <PwaUpdateRecovery />
     </ThemeProvider>
   );
