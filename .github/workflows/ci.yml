@@ -29,3 +29,26 @@ jobs:
         run: npm run build
       - name: Runtime dependency audit
         run: npm audit --omit=dev --audit-level=high
+
+  browser-regression:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Browser regression
+        shell: bash
+        run: |
+          BROWSER_BIN="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          if [ -z "$BROWSER_BIN" ]; then
+            echo "No Chromium-compatible browser is installed on the runner." >&2
+            exit 1
+          fi
+          CHROMIUM_BIN="$BROWSER_BIN" npm run test:browser-regression --workspace @eutaktos/web-pwa
