@@ -39,6 +39,7 @@ export {
   STUDENT_ASSIGNMENT_STATES,
   createStudentAssignment,
   transitionStudentAssignment,
+  reassignStudentAssignment,
   assertStudentAssignmentTenant,
   normalizeStudentAssignment,
 } from './student-assignment';

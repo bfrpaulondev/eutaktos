@@ -51,12 +51,21 @@ export function createDutyAssignment(input: Omit<DutyAssignment, 'state' | 'canc
 export function cancelDutyAssignment(assignment: Readonly<DutyAssignment>, now: string): Readonly<DutyAssignment> {
   const occurredAt = instant(now, 'now');
   if (assignment.state !== 'assigned') throw new Error(`Invalid duty transition: ${assignment.state} -> cancelled`);
-  return Object.freeze({ ...assignment, state: 'cancelled', cancelledAt: occurredAt });
+  if (Date.parse(occurredAt) < Date.parse(assignment.assignedAt)) throw new Error('Duty cancellation cannot precede assignment');
+  return Object.freeze({ ...assignment, state: 'cancelled', cancelledAt: occurredAt, completedAt: null });
+}
+
+export function completeDutyAssignment(assignment: Readonly<DutyAssignment>, now: string): Readonly<DutyAssignment> {
+  const occurredAt = instant(now, 'now');
+  if (assignment.state !== 'assigned') throw new Error(`Invalid duty transition: ${assignment.state} -> completed`);
+  if (Date.parse(occurredAt) < Date.parse(assignment.startsAt)) throw new Error('Duty cannot be completed before it starts');
+  return Object.freeze({ ...assignment, state: 'completed', completedAt: occurredAt, cancelledAt: null });
 }
 
 export function replaceDutyAssignment(assignment: Readonly<DutyAssignment>, personId: PersonId, now: string): Readonly<DutyAssignment> {
-  const cancelled = cancelDutyAssignment(assignment, now);
-  return Object.freeze({ ...cancelled, personId: required(personId, 'personId'), state: 'assigned', assignedAt: instant(now, 'now'), cancelledAt: null, completedAt: null });
+  const occurredAt = instant(now, 'now');
+  const cancelled = cancelDutyAssignment(assignment, occurredAt);
+  return Object.freeze({ ...cancelled, personId: required(personId, 'personId'), state: 'assigned', assignedAt: occurredAt, cancelledAt: null, completedAt: null });
 }
 
 export function assertDutyAssignmentTenant(assignment: Readonly<DutyAssignment>, tenantId: TenantId): void {
@@ -65,5 +74,5 @@ export function assertDutyAssignmentTenant(assignment: Readonly<DutyAssignment>,
 
 export function dutyAssignmentsForTenant(assignments: readonly Readonly<DutyAssignment>[], tenantId: TenantId): readonly Readonly<DutyAssignment>[] {
   const tenant = required(tenantId, 'tenantId');
-  return assignments.filter(assignment => assignment.tenantId === tenant);
+  return Object.freeze(assignments.filter(assignment => assignment.tenantId === tenant));
 }
