@@ -46,9 +46,7 @@ export async function resolvePrincipal(
   const session = await database.session(sessionId);
   if (!session || session.revoked_at) throw new AuthenticationError('Unauthorized');
   const current = now();
-  if (!validFuture(session.idle_expires_at, current) || !validFuture(session.absolute_expires_at, current)) {
-    throw new AuthenticationError('Unauthorized');
-  }
+  if (!validFuture(session.idle_expires_at, current) || !validFuture(session.absolute_expires_at, current)) throw new AuthenticationError('Unauthorized');
 
   const grants = await database.activeGrants(session.tenant_id, session.actor_id);
   const capabilities = grants
@@ -57,16 +55,16 @@ export async function resolvePrincipal(
     .filter((value, index, all) => all.indexOf(value) === index)
     .sort();
 
-  return Object.freeze({
-    tenantId: session.tenant_id,
-    actorId: session.actor_id,
-    capabilities: Object.freeze(capabilities),
-    sessionId,
-  });
+  return Object.freeze({ tenantId: session.tenant_id, actorId: session.actor_id, capabilities: Object.freeze(capabilities), sessionId });
 }
 
 export function requireCapability(principal: VerifiedPrincipal, capability: Capability): void {
   if (!principal.capabilities.includes(capability)) throw new AuthorizationError('Forbidden');
+}
+
+export function sessionCookie(sessionId: string): string {
+  if (!SESSION_TOKEN.test(sessionId)) throw new AuthenticationError('Invalid session token');
+  return `${SESSION_COOKIE_NAME}=${sessionId}; Path=/; HttpOnly; Secure; SameSite=Lax`;
 }
 
 export function clearSessionCookie(): string {
