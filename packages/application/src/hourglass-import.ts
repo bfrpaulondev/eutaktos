@@ -370,3 +370,170 @@ export function inspectHourglassPrivilegesCsv(csv: string): Readonly<HourglassPr
     importableWithoutReconciliation: false,
   });
 }
+
+
+export type HourglassMidweekSection = 'tgw' | 'fm' | 'lac';
+export interface HourglassLegacyAssignmentSnapshot {
+  readonly meetingDate: string;
+  readonly externalWeekId: string;
+  readonly externalAssignmentId: string;
+  readonly externalPartId: string;
+  readonly partType: string;
+  readonly section: HourglassMidweekSection;
+  readonly classroom: number;
+  readonly externalAssigneeId?: string;
+  readonly externalAssistantId?: string;
+  /** The observed schema has no per-assignment completion or cancellation field. */
+  readonly verification: 'unverified-legacy-plan';
+}
+export interface HourglassMidweekScheduleInspection {
+  readonly format: 'hourglass-midweek-program-and-assignments-v1';
+  readonly programWeekCount: number;
+  readonly assignmentWeekCount: number;
+  readonly matchedWeekCount: number;
+  readonly matchedPartCount: number;
+  readonly unmatchedProgramPartCount: number;
+  readonly unmatchedAssignmentPartCount: number;
+  readonly unassignedPartCount: number;
+  readonly specialRoleCount: number;
+  readonly legacySnapshots: readonly HourglassLegacyAssignmentSnapshot[];
+  readonly historicalImportSupported: false;
+  readonly historicalImportLimitation: 'assignment-state-is-not-present';
+}
+
+const MIDWEEK_SECTIONS: readonly HourglassMidweekSection[] = Object.freeze(['tgw', 'fm', 'lac']);
+function requiredDate(value: unknown, label: string): string {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(Date.parse(`${value}T00:00:00.000Z`))) throw new Error(`${label} must be a valid YYYY-MM-DD date`);
+  return value;
+}
+function positiveId(value: unknown, label: string): number {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1) throw new Error(`${label} must be a positive integer`);
+  return value;
+}
+function optionalExternalPersonId(value: unknown, label: string): string | undefined {
+  if (value === undefined || value === null || value === 0) return undefined;
+  return String(positiveId(value, label));
+}
+function parseSection(value: unknown, label: string): readonly JsonRecord[] {
+  if (!Array.isArray(value)) throw new Error(`${label} must be an array`);
+  return Object.freeze(value.map((item, index) => asRecord(item, `${label}[${index}]`)));
+}
+function programPartIndex(programWeeks: readonly JsonRecord[]): ReadonlyMap<string, { type: string; section: HourglassMidweekSection }> {
+  const index = new Map<string, { type: string; section: HourglassMidweekSection }>();
+  for (const [weekIndex, week] of programWeeks.entries()) {
+    const date = requiredDate(week.date, `programWeeks[${weekIndex}].date`);
+    positiveId(week.id, `programWeeks[${weekIndex}].id`);
+    for (const section of MIDWEEK_SECTIONS) for (const [partIndex, part] of parseSection(week[section], `programWeeks[${weekIndex}].${section}`).entries()) {
+      const partId = positiveId(part.id, `programWeeks[${weekIndex}].${section}[${partIndex}].id`);
+      const type = optionalText(part.type, `programWeeks[${weekIndex}].${section}[${partIndex}].type`);
+      if (!type) throw new Error(`programWeeks[${weekIndex}].${section}[${partIndex}].type is required`);
+      const key = `${date}\u0000${partId}`;
+      if (index.has(key)) throw new Error('Hourglass program has duplicate date and part id');
+      index.set(key, Object.freeze({ type, section }));
+    }
+  }
+  return index;
+}
+
+/**
+ * Inspects the demonstrated pair of Hourglass program and assignment responses.
+ * It intentionally labels all linked records as legacy plans: neither response
+ * exposes a per-assignment completion/cancellation state, so the records cannot be
+ * used as completed history or affect recency without a later explicit decision.
+ */
+export function inspectHourglassMidweekSchedule(programResponse: unknown, assignmentResponse: unknown): Readonly<HourglassMidweekScheduleInspection> {
+  if (!Array.isArray(programResponse) || !Array.isArray(assignmentResponse)) throw new Error('Hourglass program and assignment responses must be arrays');
+  if (programResponse.length > HOURGLASS_IMPORT_LIMITS.maxPublishers || assignmentResponse.length > HOURGLASS_IMPORT_LIMITS.maxPublishers) throw new Error('Hourglass schedule response contains too many weeks');
+  assertSafeTree(programResponse); assertSafeTree(assignmentResponse);
+  const programWeeks = programResponse.map((item, index) => asRecord(item, `programWeeks[${index}]`));
+  const assignmentWeeks = assignmentResponse.map((item, index) => asRecord(item, `assignmentWeeks[${index}]`));
+  const partIndex = programPartIndex(programWeeks);
+  const programDates = new Set(programWeeks.map((week, index) => requiredDate(week.date, `programWeeks[${index}].date`)));
+  const assignmentDates = new Set<string>();
+  const matchedPartKeys = new Set<string>();
+  const snapshots: HourglassLegacyAssignmentSnapshot[] = [];
+  let unmatchedAssignmentPartCount = 0; let unassignedPartCount = 0; let specialRoleCount = 0;
+  for (const [weekIndex, week] of assignmentWeeks.entries()) {
+    const weekId = week.id === 0 ? 'unscheduled' : String(positiveId(week.id, `assignmentWeeks[${weekIndex}].id`));
+    const date = requiredDate(week.date, `assignmentWeeks[${weekIndex}].date`); assignmentDates.add(date);
+    for (const role of ['chairman', 'chairman2', 'chairman3', 'openprayer', 'closeprayer', 'cbs_reader']) if (optionalExternalPersonId(week[role], `assignmentWeeks[${weekIndex}].${role}`)) specialRoleCount += 1;
+    for (const section of MIDWEEK_SECTIONS) for (const [assignmentIndex, assignment] of parseSection(week[section], `assignmentWeeks[${weekIndex}].${section}`).entries()) {
+      const assignmentId = positiveId(assignment.id, `assignmentWeeks[${weekIndex}].${section}[${assignmentIndex}].id`);
+      const partId = positiveId(assignment.part, `assignmentWeeks[${weekIndex}].${section}[${assignmentIndex}].part`);
+      const classroom = assignment.classroom === undefined ? 0 : positiveOrZeroInteger(assignment.classroom, `assignmentWeeks[${weekIndex}].${section}[${assignmentIndex}].classroom`);
+      const partKey = `${date}\u0000${partId}`; const definition = partIndex.get(partKey);
+      if (!definition || definition.section !== section) { unmatchedAssignmentPartCount += 1; continue; }
+      matchedPartKeys.add(partKey);
+      const assignee = optionalExternalPersonId(assignment.assignee, `assignmentWeeks[${weekIndex}].${section}[${assignmentIndex}].assignee`);
+      const assistant = optionalExternalPersonId(assignment.assistant, `assignmentWeeks[${weekIndex}].${section}[${assignmentIndex}].assistant`);
+      if (!assignee) { unassignedPartCount += 1; continue; }
+      snapshots.push(Object.freeze({ meetingDate: date, externalWeekId: weekId, externalAssignmentId: String(assignmentId), externalPartId: String(partId), partType: definition.type, section, classroom, externalAssigneeId: assignee, ...(assistant ? { externalAssistantId: assistant } : {}), verification: 'unverified-legacy-plan' }));
+    }
+  }
+  snapshots.sort((left, right) => left.meetingDate.localeCompare(right.meetingDate) || left.externalAssignmentId.localeCompare(right.externalAssignmentId));
+  return Object.freeze({ format: 'hourglass-midweek-program-and-assignments-v1', programWeekCount: programWeeks.length, assignmentWeekCount: assignmentWeeks.length, matchedWeekCount: [...assignmentDates].filter(date => programDates.has(date)).length, matchedPartCount: matchedPartKeys.size, unmatchedProgramPartCount: partIndex.size - matchedPartKeys.size, unmatchedAssignmentPartCount, unassignedPartCount, specialRoleCount, legacySnapshots: Object.freeze(snapshots), historicalImportSupported: false, historicalImportLimitation: 'assignment-state-is-not-present' });
+}
+function positiveOrZeroInteger(value: unknown, label: string): number { if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) throw new Error(`${label} must be a non-negative integer`); return value; }
+
+
+export interface HourglassExternalIdentityReference {
+  readonly externalId: string;
+  readonly sourceId: number;
+}
+export interface HourglassSourceAbsencePreview {
+  readonly externalAbsenceId: string;
+  readonly externalPersonId: string;
+  readonly startsOn: string;
+  readonly endsOn: string;
+  /** Preserved verbatim as a source flag; Hourglass semantics have not been inferred. */
+  readonly sourcePwOnly: boolean;
+}
+export interface HourglassIdentityAndAbsenceInspection {
+  readonly format: 'hourglass-users-and-absences-v1';
+  readonly identityReferences: readonly HourglassExternalIdentityReference[];
+  readonly absences: readonly HourglassSourceAbsencePreview[];
+  readonly ignoredUserFieldNames: readonly string[];
+  readonly availabilityImportSupported: false;
+  readonly availabilityImportLimitation: 'source-pw-only-semantics-require-administrative-mapping';
+}
+const HOURGLASS_SAFE_USER_ID_FIELDS = new Set(['id']);
+const HOURGLASS_SAFE_ABSENCE_FIELDS = new Set(['id', 'userId', 'start', 'end', 'pw_only']);
+function requiredIsoDate(value: unknown, label: string): string {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(Date.parse(`${value}T00:00:00.000Z`))) throw new Error(`${label} must be a valid YYYY-MM-DD date`);
+  return value;
+}
+/**
+ * Inspects the demonstrated users and absence responses with a strict data-minimising
+ * allowlist. The identity response is used only to prove stable external IDs; all
+ * other user fields, including encrypted values and account metadata, are ignored.
+ */
+export function inspectHourglassIdentityAndAbsences(usersResponse: unknown, absenceResponse: unknown): Readonly<HourglassIdentityAndAbsenceInspection> {
+  const root = asRecord(usersResponse, 'Hourglass users response');
+  assertSafeTree(root); assertSafeTree(absenceResponse);
+  if (!Array.isArray(root.users) || !Array.isArray(absenceResponse)) throw new Error('Hourglass users and absences formats are not recognized');
+  if (root.users.length > HOURGLASS_IMPORT_LIMITS.maxPublishers || absenceResponse.length > HOURGLASS_IMPORT_LIMITS.maxPublishers) throw new Error('Hourglass users or absences response contains too many records');
+  const sourceIds = new Set<number>();
+  const ignoredUserFields = new Set<string>();
+  for (const [index, value] of root.users.entries()) {
+    const user = asRecord(value, `users[${index}]`); const id = requiredInteger(user.id, `users[${index}].id`);
+    if (sourceIds.has(id)) throw new Error('Hourglass users response contains duplicate ids');
+    sourceIds.add(id);
+    for (const key of safeKeys(user, `users[${index}]`)) if (!HOURGLASS_SAFE_USER_ID_FIELDS.has(key)) ignoredUserFields.add(key);
+  }
+  const absences: HourglassSourceAbsencePreview[] = [];
+  const absenceIds = new Set<number>();
+  for (const [index, value] of absenceResponse.entries()) {
+    const absence = asRecord(value, `absences[${index}]`); const absenceId = requiredInteger(absence.id, `absences[${index}].id`);
+    if (absenceIds.has(absenceId)) throw new Error('Hourglass absences response contains duplicate ids'); absenceIds.add(absenceId);
+    const userId = requiredInteger(absence.userId, `absences[${index}].userId`);
+    if (!sourceIds.has(userId)) throw new Error('Hourglass absence references an unknown user');
+    const startsOn = requiredIsoDate(absence.start, `absences[${index}].start`); const endsOn = requiredIsoDate(absence.end, `absences[${index}].end`);
+    if (startsOn > endsOn) throw new Error('Hourglass absence end precedes its start');
+    if (typeof absence.pw_only !== 'boolean') throw new Error(`absences[${index}].pw_only must be boolean`);
+    for (const key of safeKeys(absence, `absences[${index}]`)) if (!HOURGLASS_SAFE_ABSENCE_FIELDS.has(key)) throw new Error(`absences[${index}] contains an unsupported field`);
+    absences.push(Object.freeze({ externalAbsenceId: `hourglass:absence:${absenceId}`, externalPersonId: externalId(userId), startsOn, endsOn, sourcePwOnly: absence.pw_only }));
+  }
+  const identityReferences = [...sourceIds].sort((left, right) => left - right).map(sourceId => Object.freeze({ externalId: externalId(sourceId), sourceId }));
+  absences.sort((left, right) => left.startsOn.localeCompare(right.startsOn) || left.externalAbsenceId.localeCompare(right.externalAbsenceId));
+  return Object.freeze({ format: 'hourglass-users-and-absences-v1', identityReferences: Object.freeze(identityReferences), absences: Object.freeze(absences), ignoredUserFieldNames: Object.freeze([...ignoredUserFields].sort()), availabilityImportSupported: false, availabilityImportLimitation: 'source-pw-only-semantics-require-administrative-mapping' });
+}

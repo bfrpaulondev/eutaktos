@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { inspectHourglassContactListCsv, inspectHourglassJsonExport, inspectHourglassPrivilegesCsv, parseHourglassJsonText, previewHourglassImport } from './hourglass-import';
+import { inspectHourglassContactListCsv, inspectHourglassIdentityAndAbsences, inspectHourglassJsonExport, inspectHourglassMidweekSchedule, inspectHourglassPrivilegesCsv, parseHourglassJsonText, previewHourglassImport } from './hourglass-import';
 
 const fixture = {
   publishers: [
@@ -51,6 +51,30 @@ describe('Hourglass JSON import adapter', () => {
       { sourceColumn: 'Presidente', occurrence: 1, explicitlyMarkedRows: 1, markerEncoding: 'single-token' },
       { sourceColumn: 'Presidente', occurrence: 2, explicitlyMarkedRows: 2, markerEncoding: 'single-token' },
     ]);
+  });
+
+  it('links demonstrated program and assignment responses without treating past plans as completed history', () => {
+    const program = [{ id: 9001, date: '2025-09-01', lang: 'TPO', tgw: [{ id: 1001, type: 'reading' }], fm: [{ id: 1002, type: 'initcall' }], lac: [{ id: 1003, type: 'cbs' }] }];
+    const assignments = [{ id: 8001, date: '2025-09-01', chairman: 101, chairman2: 0, chairman3: 0, openprayer: 102, closeprayer: 0, cbs_reader: 103, tgw: [{ id: 7001, assignee: 101, assistant: 0, classroom: 0, part: 1001 }], fm: [{ id: 7002, assignee: 102, assistant: 103, classroom: 1, part: 1002 }], lac: [{ id: 7003, assignee: 0, assistant: 0, classroom: 0, part: 1003 }], workbookChanged: false }];
+    const inspection = inspectHourglassMidweekSchedule(program, assignments);
+    expect(inspection).toMatchObject({ matchedWeekCount: 1, matchedPartCount: 3, unassignedPartCount: 1, specialRoleCount: 3, historicalImportSupported: false, historicalImportLimitation: 'assignment-state-is-not-present' });
+    expect(inspection.legacySnapshots).toEqual([
+      { meetingDate: '2025-09-01', externalWeekId: '8001', externalAssignmentId: '7001', externalPartId: '1001', partType: 'reading', section: 'tgw', classroom: 0, externalAssigneeId: '101', verification: 'unverified-legacy-plan' },
+      { meetingDate: '2025-09-01', externalWeekId: '8001', externalAssignmentId: '7002', externalPartId: '1002', partType: 'initcall', section: 'fm', classroom: 1, externalAssigneeId: '102', externalAssistantId: '103', verification: 'unverified-legacy-plan' },
+    ]);
+  });
+
+  it('allows only external identity references and explicit absence fields from the demonstrated statistics responses', () => {
+    const inspection = inspectHourglassIdentityAndAbsences(
+      { users: [{ id: 101, descriptor: 'Ignored name', email: 'ignored@example.invalid', lastmobiletoken: 'ignored-secret-like-value' }, { id: 102, emergencycontacts: [{ id: 1 }] }] },
+      [{ id: 7001, userId: 101, start: '2026-08-01', end: '2026-08-03', pw_only: true }],
+    );
+    expect(inspection.identityReferences).toEqual([{ externalId: 'hourglass:publisher:101', sourceId: 101 }, { externalId: 'hourglass:publisher:102', sourceId: 102 }]);
+    expect(inspection.absences).toEqual([{ externalAbsenceId: 'hourglass:absence:7001', externalPersonId: 'hourglass:publisher:101', startsOn: '2026-08-01', endsOn: '2026-08-03', sourcePwOnly: true }]);
+    expect(inspection.ignoredUserFieldNames).toEqual(['descriptor', 'email', 'emergencycontacts', 'lastmobiletoken']);
+    expect(inspection).toMatchObject({ availabilityImportSupported: false, availabilityImportLimitation: 'source-pw-only-semantics-require-administrative-mapping' });
+    expect(() => inspectHourglassIdentityAndAbsences({ users: [{ id: 101 }] }, [{ id: 1, userId: 101, start: '2026-08-04', end: '2026-08-01', pw_only: false }])).toThrow('precedes');
+    expect(() => inspectHourglassIdentityAndAbsences({ users: [{ id: 101 }] }, [{ id: 1, userId: 101, start: '2026-08-01', end: '2026-08-02', pw_only: false, note: 'do not retain' }])).toThrow('unsupported field');
   });
 
   it('rejects malformed, unknown and dangerous data rather than guessing a schema', () => {

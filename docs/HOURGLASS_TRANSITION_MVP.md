@@ -18,6 +18,10 @@ O perfil JSON confirmou as secções `publishers`, `fsGroups` e `privileges`. Ca
 | CSV contact list | Cabeçalhos e dados de contacto apenas para inspeção de formato | Não contém um ID externo de pessoa comprovado, logo não pode executar reconciliação/persistência sozinho. |
 | CSV privilege matrix | Cabeçalhos de papel e markers não vazios por linha | A matriz tem colunas de nome, mas não o `publishers[].id` estável. Cada grant exige reconciliação humana explícita com uma referência externa já conhecida; o parser nunca associa pessoas por nome. |
 | Calendários DOCX | Estrutura de tabelas, etiquetas operacionais e datas/partes apresentadas | Podem ser consultados como documentos de referência humana. Os DOCX observados não comprovam um formato de importação nem um registo estruturado de histórico individual. |
+| Programa de reunião JSON | Semana (`date`), partes `tgw`/`fm`/`lac`, ID da parte e `type` | É a definição estrutural comprovada das partes e pode ser relacionada com as designações por `date + part.id`. |
+| Designações JSON | Semana (`date`), arrays `tgw`/`fm`/`lac`, `id`, `part`, `assignee`, `assistant`, `classroom` e papéis especiais | É uma prévia de planeamento por identificadores externos. `0` significa ausência de designação, não uma pessoa. Sem estado por designação, não é histórico realizado. |
+| Estatísticas de utilizadores | Somente `users[].id`, como referência externa estável comprovada | Todos os demais campos de utilizador — contactos, perfil, autenticação, tokens, criptografia, emergência, tags e atividade — são excluídos por allowlist. |
+| Ausências JSON | `id`, `userId`, `start`, `end`, `pw_only` | Prévia de disponibilidade explícita por ID. A semântica de `pw_only` não é inferida; requer mapeamento administrativo antes de persistência. |
 
 ## Segurança e prévia
 
@@ -34,5 +38,9 @@ Por esse motivo, o MVP pode expor **Hourglass handoff** em CSV, JSON e visualiza
 A matriz CSV de privilégios mostra grants explicitamente marcados, mas as suas linhas não transportam um `publishers[].id`; por isso não pode produzir eligibility sem uma reconciliação humana individual. Isso evita colisões por homónimos e qualquer concessão silenciosa de eligibility.
 
 Os quatro DOCX observados contêm tabelas e etiquetas de calendário/reunião, mas não provam um formato de dados transacional nem um contrato de importação Hourglass. A sua informação só pode ser usada para conferência humana no MVP atual.
+
+Os pares JSON agora observados comprovam que programa e designações se relacionam por `date` e ID de parte, com titular, assistente e sala. Contudo, o schema não possui `completed`, `cancelled`, `declined`, `replaced` nem outro estado por designação. Mesmo para semanas antigas, o MVP só os apresenta como **snapshots de planeamento legado não verificados**; não atualiza recência, não produz `AssignmentHistoryRecord` e não afirma realização.
+
+As respostas de estatísticas permitem confirmar `users[].id` como referência externa que coincide com designações, privilégios e ausências. O adapter usa uma allowlist: lê exclusivamente o ID e descarta os campos restantes, incluindo atributos pessoais, contacto, autenticação, credenciais, tokens, valores cifrados, histórico de login, emergência e tags. Para ausências, conserva somente ID, referência de utilizador, datas e o booleano `pw_only`; esse último não é automaticamente traduzido numa regra de disponibilidade interna.
 
 Da mesma forma, H03 e a recência H04 só podem ingerir histórico de designações quando uma fixture sanitizada comprovar a respetiva secção e os seus campos. Não é aceitável adivinhar esse schema a partir de agregados de `attendance`, de uma matriz de privilégios ou de tabelas DOCX visuais.
