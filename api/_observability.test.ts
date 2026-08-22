@@ -5,7 +5,7 @@ import type { ApiRequest, ApiResponse } from './_types';
 function responseWith(headers:Record<string,string>):ApiResponse {
   return {
     status:()=>responseWith(headers),
-    setHeader:(name,value)=>{headers[name]=Array.isArray(value)?value.join(', '):value;},
+    setHeader:(name,value)=>{headers[name]=typeof value==='string'?value:[...value].join(', ');},
     json:()=>undefined,
     end:()=>undefined,
   };
