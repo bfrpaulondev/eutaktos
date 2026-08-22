@@ -111,7 +111,7 @@ async function openLocalizedDialog(trigger, title, closeLabel, locale) {
 }
 
 async function verifyLocalizedOrganization(locale, expected) {
-  await visitWorkspace(expected.path, expected.heading, locale);
+  await visitWorkspace(expected.path, expected.heading, locale, expected.documentTitle);
   const missingLabels = await evaluate(`(() => {
     const labels = new Set([...document.querySelectorAll('button')].map(node => (node.innerText || node.textContent || '').trim()));
     return ${JSON.stringify(['people', 'households', 'groups', 'responsibilities', 'hourglass', 'audit', 'access'].map(key => expected[key]))}.filter(label => !labels.has(label));
@@ -169,9 +169,9 @@ try {
     es: [['/agenda', 'Agenda'], ['/designacoes', 'Asignaciones'], ['/pessoas', 'Personas'], ['/preferencias', 'Preferencias']],
   };
   const organization = {
-    'pt-PT': { path: '/pessoas', heading: 'Pessoas e organização', people: 'Pessoas', households: 'Agregados', groups: 'Grupos de serviço', responsibilities: 'Responsabilidades', hourglass: 'Inspecionar export Hourglass', audit: 'Histórico de auditoria', access: 'Gerir acessos', hourglassTitle: 'Inspeção de export Hourglass', auditTitle: 'Histórico de auditoria', accessTitle: 'Gestão de acessos', close: 'Fechar' },
-    en: { path: '/people', heading: 'People and organization', people: 'People', households: 'Households', groups: 'Service groups', responsibilities: 'Responsibilities', hourglass: 'Inspect Hourglass export', audit: 'Audit history', access: 'Manage access', hourglassTitle: 'Hourglass export inspector', auditTitle: 'Audit history', accessTitle: 'Access management', close: 'Close' },
-    es: { path: '/pessoas', heading: 'Personas y organización', people: 'Personas', households: 'Grupos familiares', groups: 'Grupos de servicio', responsibilities: 'Responsabilidades', hourglass: 'Inspeccionar exportación Hourglass', audit: 'Historial de auditoría', access: 'Gestionar accesos', hourglassTitle: 'Inspector de exportación Hourglass', auditTitle: 'Historial de auditoría', accessTitle: 'Gestión de accesos', close: 'Cerrar' },
+    'pt-PT': { path: '/pessoas', heading: 'Pessoas e organização', documentTitle: 'Eutaktos — Pessoas', people: 'Pessoas', households: 'Agregados', groups: 'Grupos de serviço', responsibilities: 'Responsabilidades', hourglass: 'Inspecionar export Hourglass', audit: 'Histórico de auditoria', access: 'Gerir acessos', hourglassTitle: 'Inspeção de export Hourglass', auditTitle: 'Histórico de auditoria', accessTitle: 'Gestão de acessos', close: 'Fechar' },
+    en: { path: '/people', heading: 'People and organization', documentTitle: 'Eutaktos — People', people: 'People', households: 'Households', groups: 'Service groups', responsibilities: 'Responsibilities', hourglass: 'Inspect Hourglass export', audit: 'Audit history', access: 'Manage access', hourglassTitle: 'Hourglass export inspector', auditTitle: 'Audit history', accessTitle: 'Access management', close: 'Close' },
+    es: { path: '/pessoas', heading: 'Personas y organización', documentTitle: 'Eutaktos — Personas', people: 'Personas', households: 'Grupos familiares', groups: 'Grupos de servicio', responsibilities: 'Responsabilidades', hourglass: 'Inspeccionar exportación Hourglass', audit: 'Historial de auditoría', access: 'Gestionar accesos', hourglassTitle: 'Inspector de exportación Hourglass', auditTitle: 'Historial de auditoría', accessTitle: 'Gestión de accesos', close: 'Cerrar' },
   };
   for (const locale of ['pt-PT', 'en', 'es']) {
     const expectedHome = locale === 'pt-PT' ? 'Tudo em boa ordem.' : locale === 'en' ? 'Everything in good order.' : 'Todo en buen orden.';
