@@ -10,9 +10,8 @@ import {
   Paper,
   Select,
   TextField,
-  Typography,
 } from '@mui/material';
-import { Stack } from './ui/MuiCompat';
+import { Stack, Typography } from './ui/MuiCompat';
 import { authenticationApi } from './lib/authApi';
 
 type Locale = 'pt-PT' | 'en' | 'es';
@@ -138,14 +137,14 @@ export function AuthBoundary({ children }: { children: ReactNode }) {
           ) : state === 'unavailable' ? (
             <Stack spacing={2}>
               <Alert severity="warning">{text.unavailable}</Alert>
-              <Button variant="contained" onClick={() => { const cleanup = checkSession(); void cleanup; }}>{text.retry}</Button>
+              <Button variant="contained" onClick={checkSession}>{text.retry}</Button>
             </Stack>
           ) : state === 'code' ? (
             <Box component="form" onSubmit={verifyCode} noValidate>
               <Stack spacing={2}>
                 <Alert severity="info">{text.sent}</Alert>
                 {failed ? <Alert severity="error">{text.error}</Alert> : null}
-                <TextField label={text.code} value={token} onChange={event => setToken(event.target.value.replace(/\D/g, '').slice(0, 6))} inputProps={{ inputMode: 'numeric', autoComplete: 'one-time-code', pattern: '[0-9]{6}', maxLength: 6 }} required autoFocus />
+                <TextField label={text.code} value={token} onChange={event => setToken(event.target.value.replace(/\D/g, '').slice(0, 6))} slotProps={{ htmlInput: { inputMode: 'numeric', autoComplete: 'one-time-code', pattern: '[0-9]{6}', maxLength: 6 } }} required autoFocus />
                 <Button type="submit" variant="contained" disabled={token.length !== 6}>{text.verify}</Button>
                 <Button type="button" onClick={() => { setToken(''); setFailed(false); setState('signed-out'); }}>{text.back}</Button>
               </Stack>
@@ -155,7 +154,7 @@ export function AuthBoundary({ children }: { children: ReactNode }) {
               <Stack spacing={2}>
                 <Typography color="text.secondary">{text.intro}</Typography>
                 {failed ? <Alert severity="error">{text.error}</Alert> : null}
-                <TextField type="email" label={text.email} value={email} onChange={event => setEmail(event.target.value)} inputProps={{ autoComplete: 'email', inputMode: 'email', maxLength: 254 }} required autoFocus />
+                <TextField type="email" label={text.email} value={email} onChange={event => setEmail(event.target.value)} slotProps={{ htmlInput: { autoComplete: 'email', inputMode: 'email', maxLength: 254 } }} required autoFocus />
                 <Button type="submit" variant="contained" disabled={!email.trim()}>{text.send}</Button>
               </Stack>
             </Box>
