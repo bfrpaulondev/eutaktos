@@ -14,3 +14,4 @@ export * from './household-http';
 export * from './service-group-http';
 export * from './responsibility-http';
 export * from './midweek-scheduling-http';
+export * from './student-assignment-replacement-http';
