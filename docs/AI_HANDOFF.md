@@ -1,34 +1,51 @@
-# AI HANDOFF
+# AI HANDOFF — CURRENT SOURCE OF TRUTH
 
-## Estado atual
-O projeto está na Fase 1 (Engineering Foundation), com o domínio core e serviços de aplicação parcialmente implementados. Os pacotes `domain`, `application`, `infrastructure` e `transport` estão ativos e funcionando.
+> Updated 2026-08-22 during project recovery. Read this before taking any Eutaktos task. Historical task reports may contain stale deployment or branch information.
 
-## Última tarefa implementada
-Adicionado `OrganizationService` em `packages/application/` com use cases completos para Households, Service Groups e Responsibility Assignments. O domínio de organização já existia em `packages/domain/organization.ts`; esta tarefa adicionou a camada de aplicação (coordenação de UoW, capabilities, audit events, domain events, validações de tenant).
+## Canonical project
 
-## Branch
-`kimi/organization-service`
+- Repository: `bfrpaulondev/eutaktos`
+- Audited main baseline: `7817833584e3b3b469b1564cf4f9231471b04be1`
+- **Canonical production: `https://rainbow-zuccutto-00d981.netlify.app/`**
+- Do **not** use `https://eutakes.netlify.app/` or Vercel deployments as Eutaktos production acceptance evidence.
+- Full recovery state and triage: `docs/RECOVERY_AUDIT_2026-08-22.md`.
 
-## Arquivos alterados
-- `packages/application/src/organization-service.ts` (novo) — serviço completo com 3 UoW interfaces + 11 métodos de use case
-- `packages/application/src/organization-service.test.ts` (novo) — 29 testes cobrindo happy path, edge cases, capabilities, tenant isolation
-- `packages/application/src/index.ts` (modificado) — adicionada exportação do novo serviço
+## Current reality
 
-## Testes executados
-- typecheck: PASS (todos os 5 workspaces)
-- unit tests: PASS (87 testes: 38 domain + 21 application + 4 infrastructure + 16 transport + PWA check)
-- build: PASS
-- audit: PASS (0 vulnerabilities)
+The previous handoff was obsolete: it still described the project as early Phase 1 and pointed to `kimi/organization-service`. Since then the project has integrated reviewed Kimi K03–K40 work, a production API/Supabase runtime foundation, reviewed Manus frontend waves, K41–K50 scheduling/application work and A06 Midweek API/Supabase/PWA integration.
 
-## Decisões técnicas
-- Seguido exatamente o padrão de `PeopleDirectoryService` / `EmergencyContactService`: UoW interfaces separadas, fake UoW nos testes, `ApplicationRuntime` compartilhado, `eventCorrelation` reutilizado.
-- Household e ServiceGroup usam as capabilities `people.read`/`people.write` (mesmo padrão de acesso do diretório de pessoas). Responsibility usa `responsibilities.read`/`responsibilities.write` que já existem no `access-control.ts`.
-- Adicionados tipos específicos de domain events ao `DomainEventType`: `HouseholdCreated`, `HouseholdUpdated`, `HouseholdDeleted`, `ServiceGroupCreated`, `ServiceGroupUpdated`, `ServiceGroupDeleted`. O `OrganizationService` usa esses tipos corretos (sem placeholders).
-- `deleteHousehold` e `deleteServiceGroup` criam audit+domain events mas não os passam para o UoW (o UoW de delete retorna apenas boolean). O adapter de produção deve persistir esses eventos separadamente.
+Important reviewed integration PRs include #109, #131, #149, #155, #167, #180 and #181. Do not resurrect their old individual branches as independent unfinished work.
 
-## Riscos ou pendências
-- `deleteHousehold` e `deleteServiceGroup` geram audit+domain events mas o UoW de delete só retorna boolean; adaptadores de produção precisarão coordenar a persistência dos eventos.
-- Não existe ainda um adapter de infraestrutura para Household/ServiceGroup/Responsibility (como existe `people-memory.ts` para People).
+## Current open work
 
-## Próxima tarefa segura sugerida
-Criar `organization-memory.ts` em `packages/infrastructure/` com adapters InMemory para Household/ServiceGroup/Responsibility, seguindo o padrão de `people-memory.ts`.
+Manus PRs #190–#200 exist, but they are not eleven new features. Recovery triage:
+
+- Review/integrate product candidates: #191, #192, #195.
+- Review quality-only candidates: #196, #197, #198.
+- #199 must be corrected before merge because its CDP script reintroduces the reload race already fixed by #186.
+- #190 and #200 must not be treated as final acceptance because they use/retain evidence from the wrong production target and #200 was run without M55–M59 integrated.
+- #193/#194 are evidence/docs to fold into the next consolidated acceptance run rather than count as product delivery.
+
+K51–K60 are **not assigned merely because an issue exists**. No K51–K60 Kimi branches were present at the recovery audit. The user must explicitly send work to the external Kimi agent.
+
+## Definition of done
+
+`ASSIGNED → IN PROGRESS → PR/REVIEW → INTEGRATED MAIN → DEPLOYED RAINBOW → PRODUCTION VERIFIED → DONE`
+
+A branch, commit, agent report, deploy preview or green local test alone is not `DONE`.
+
+## Ownership while recovering
+
+- Principal/integration agent: main integration, runtime/API/Supabase, production verification and cross-cutting fixes.
+- Manus: frontend/PWA only, explicitly scoped.
+- Kimi: domain/application/in-memory test work only after explicit user assignment.
+
+Do not issue another large task wave until #190–#200 are triaged/integrated and the resulting main is verified on Rainbow.
+
+## Immediate next sequence
+
+1. Consolidate #191/#192/#195, then #196–#198.
+2. Repair #199 using the stable CDP navigation/storage approach from #186.
+3. Produce one fresh cumulative frontend gate on the consolidated main.
+4. Verify root, `/api/health`, `/api/ready`, deep links and authorised pilot E2E on `https://rainbow-zuccutto-00d981.netlify.app/`.
+5. Only then explicitly dispatch K51–K60 and resume parallel development.
