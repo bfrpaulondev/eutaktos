@@ -53,3 +53,14 @@ describe('detectSchedulingConflicts', () => {
     expect(Object.isFrozen(result[0])).toBe(true);
   });
 });
+
+
+it('does not produce a false conflict from a foreign tenant with the same logical person id', () => {
+  const conflicts = detectSchedulingConflicts({
+    tenantId: 'tenant-a',
+    candidate,
+    assignments: [{ ...candidate, tenantId: 'tenant-b', assignmentId: 'foreign-duty', startsAt: '2026-08-21T18:15:00.000Z', endsAt: '2026-08-21T18:45:00.000Z' }],
+    unavailable: [{ tenantId: 'tenant-b', personId: 'p1', sourceId: 'foreign-away', startsAt: candidate.startsAt, endsAt: candidate.endsAt }],
+  });
+  expect(conflicts).toEqual([]);
+});
