@@ -58,19 +58,31 @@ function required(value: string, field: string): string {
   if (typeof value !== 'string') throw new Error(`${field} must be a string`);
   const normalized = value.trim();
   if (!normalized) throw new Error(`${field} is required`);
-  if (normalized.length > 50000) throw new Error(`${field} is too long`);
+  if (normalized.length > 5_000_000) throw new Error(`${field} is too long`);
   return normalized;
 }
 
-function confirmationFor(preview: Readonly<MigrationPreview>): string {
-  return JSON.stringify(preview.items.map(item => ({
-    externalId: item.externalId,
-    action: item.action,
-    targetId: item.targetId ?? null,
-    displayName: item.source.displayName,
-    active: item.source.active,
-    preferredLocale: item.source.preferredLocale ?? null,
-  })));
+function confirmationFor(preview: Readonly<MigrationPreview>, existing: readonly Readonly<ExistingMigrationPerson>[]): string {
+  const byId = new Map(existing.map(person => [person.id, person]));
+  return JSON.stringify(preview.items.map(item => {
+    const target = item.targetId ? byId.get(item.targetId) : undefined;
+    return {
+      externalId: item.externalId,
+      action: item.action,
+      targetId: item.targetId ?? null,
+      targetBefore: target ? {
+        externalId: target.externalId,
+        displayName: target.displayName,
+        active: target.active,
+        preferredLocale: target.preferredLocale ?? null,
+      } : null,
+      requested: {
+        displayName: item.source.displayName,
+        active: item.source.active,
+        preferredLocale: item.source.preferredLocale ?? null,
+      },
+    };
+  }));
 }
 
 export class MigrationWorkflowService {
@@ -83,8 +95,9 @@ export class MigrationWorkflowService {
 
   prepare(context: AccessContext, rows: readonly Readonly<MigrationPersonRow>[]): Readonly<PreparedMigration> {
     assertCapability(context, 'people.write');
-    const preview = previewMigration(rows, this.#uow.listExistingPeople(context));
-    return Object.freeze({ preview, confirmation: confirmationFor(preview) });
+    const existing = this.#uow.listExistingPeople(context);
+    const preview = previewMigration(rows, existing);
+    return Object.freeze({ preview, confirmation: confirmationFor(preview, existing) });
   }
 
   execute(context: AccessContext, rows: readonly Readonly<MigrationPersonRow>[], confirmationInput: string, metadata: RequestMetadata = {}): Readonly<StoredMigration> {
@@ -93,7 +106,7 @@ export class MigrationWorkflowService {
     const existing = this.#uow.listExistingPeople(context);
     const preview = previewMigration(rows, existing);
     if (preview.counts.conflict || preview.counts.error) throw new Error('Migration preview contains unresolved conflicts or errors');
-    if (confirmation !== confirmationFor(preview)) throw new Error('Migration confirmation is stale or does not match the current preview');
+    if (confirmation !== confirmationFor(preview, existing)) throw new Error('Migration confirmation is stale or does not match the current preview');
 
     const byExternalId = new Map(existing.map(person => [person.externalId, person]));
     const changes: MigrationPersonChange[] = [];
