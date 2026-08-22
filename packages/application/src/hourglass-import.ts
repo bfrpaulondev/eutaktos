@@ -49,6 +49,7 @@ export interface HourglassImportInspection {
 export type HourglassPreviewAction = 'create' | 'unchanged' | 'conflict';
 
 export interface ExistingHourglassPerson {
+  readonly tenantId: string;
   readonly externalId: string;
   readonly personId: string;
   readonly displayName: string;
@@ -221,15 +222,19 @@ export function parseHourglassJsonText(jsonText: string): Readonly<HourglassImpo
 }
 
 /**
- * Previews only. Existing rows are tenant-scoped by the caller; this function does
- * not accept a tenant identifier and cannot merge entries from different tenants.
+ * Previews only. The tenant is explicit and existing rows from other tenants are
+ * ignored, so identical Hourglass external IDs can never be conflated across tenants.
  */
 export function previewHourglassImport(
   inspection: Readonly<HourglassImportInspection>,
+  tenantIdInput: string,
   existing: readonly ExistingHourglassPerson[],
 ): Readonly<HourglassMigrationPreview> {
+  if (typeof tenantIdInput !== 'string' || !tenantIdInput.trim()) throw new Error('tenantId is required');
+  const tenantId = tenantIdInput.trim();
   const existingByExternalId = new Map<string, ExistingHourglassPerson>();
   for (const person of existing) {
+    if (person.tenantId !== tenantId) continue;
     if (existingByExternalId.has(person.externalId)) throw new Error('Duplicate existing Hourglass external id');
     existingByExternalId.set(person.externalId, person);
   }
@@ -403,7 +408,11 @@ export interface HourglassMidweekScheduleInspection {
 
 const MIDWEEK_SECTIONS: readonly HourglassMidweekSection[] = Object.freeze(['tgw', 'fm', 'lac']);
 function requiredDate(value: unknown, label: string): string {
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(Date.parse(`${value}T00:00:00.000Z`))) throw new Error(`${label} must be a valid YYYY-MM-DD date`);
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new Error(`${label} must be a valid YYYY-MM-DD date`);
+  const [yearText, monthText, dayText] = value.split('-');
+  const year = Number(yearText); const month = Number(monthText); const day = Number(dayText);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  if (parsed.getUTCFullYear() !== year || parsed.getUTCMonth() !== month - 1 || parsed.getUTCDate() !== day) throw new Error(`${label} must be a valid YYYY-MM-DD date`);
   return value;
 }
 function positiveId(value: unknown, label: string): number {
@@ -499,8 +508,7 @@ export interface HourglassIdentityAndAbsenceInspection {
 const HOURGLASS_SAFE_USER_ID_FIELDS = new Set(['id']);
 const HOURGLASS_SAFE_ABSENCE_FIELDS = new Set(['id', 'userId', 'start', 'end', 'pw_only']);
 function requiredIsoDate(value: unknown, label: string): string {
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(Date.parse(`${value}T00:00:00.000Z`))) throw new Error(`${label} must be a valid YYYY-MM-DD date`);
-  return value;
+  return requiredDate(value, label);
 }
 /**
  * Inspects the demonstrated users and absence responses with a strict data-minimising
