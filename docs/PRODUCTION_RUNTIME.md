@@ -24,9 +24,11 @@ The persistence RPCs commit entity state, audit and outbox together. Updates/del
 - `GET /api/health` proves the serverless function runtime is alive. It does not claim the database works.
 - `GET /api/ready` returns 200 only when the dedicated database is configured and the runtime schema is reachable. A green static PWA deploy with a failing readiness check is not an operational release.
 
-## Session boundary
+## Session and request boundary
 
 The browser receives only the `__Host-eutaktos_session` cookie. Tenant, actor and capabilities are reloaded server-side. Session rotation preserves the original absolute expiry and renews only the idle window. Mutations also require an exact same-origin `Origin` and `Sec-Fetch-Site: same-origin` browser request.
+
+API requests are capped at 64 KiB at the shared runtime boundary. A valid caller-provided `X-Correlation-Id` may be preserved; unsafe/free-form values are replaced with a server-generated UUID. The runtime returns `X-Correlation-Id` and writes only allowlisted structured observability metadata. Request bodies, cookies, URLs, tenant/actor identifiers and free-form error messages are not logged by this boundary.
 
 ## Pilot tenant
 
@@ -60,7 +62,7 @@ Create an encrypted tenant backup:
 node scripts/backup-tenant.mjs --tenant test-congregation --out ./test-congregation.eutaktos.enc
 ```
 
-The database export is a transactionally consistent tenant snapshot. Sessions are deliberately excluded. The file is encrypted with AES-256-GCM before being written.
+The database export is a transactionally consistent tenant snapshot. Sessions and the operational outbox are deliberately excluded: restores must never resurrect authentication state or replay stale notifications. The file is encrypted with AES-256-GCM before being written.
 
 Restore only after verifying both the target tenant and the backup:
 
@@ -71,7 +73,7 @@ node scripts/restore-tenant.mjs \
   --confirm-restore
 ```
 
-Restore replaces the tenant snapshot in one database transaction and removes all pre-existing sessions for that tenant. Users must authenticate again.
+Restore replaces tenant entities, audit and access grants in one database transaction, removes all pre-existing sessions and clears pending outbox work for that tenant. Users must authenticate again and any post-restore notification work must be regenerated from current application actions.
 
 ## Current activation blocker
 
