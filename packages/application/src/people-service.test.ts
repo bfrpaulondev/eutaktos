@@ -216,3 +216,32 @@ describe('PeopleDirectoryService', () => {
     expect(() => service.get(context(['people.read']), 'person-1')).toThrow('Cross-tenant access denied');
   });
 });
+
+
+describe('PeopleDirectoryService external import references', () => {
+  it('creates an imported person inactive and records only a minimized external-reference marker', () => {
+    const unitOfWork = new FakePeopleUnitOfWork();
+    const service = new PeopleDirectoryService(unitOfWork, runtime());
+
+    const created = service.createImported(
+      context(['people.read', 'people.write']),
+      { externalId: 'hourglass:publisher:101', displayName: 'Ana Exemplo' },
+    );
+
+    expect(created.active).toBe(false);
+    expect(created.externalIds).toEqual(['hourglass:publisher:101']);
+    expect(unitOfWork.creates[0]?.auditEvent.changedFields).toContain('externalReferences');
+    expect(JSON.stringify(unitOfWork.creates[0]?.auditEvent)).not.toContain('hourglass:publisher:101');
+  });
+
+  it('links an external reference idempotently and prevents a duplicate owner in the tenant', () => {
+    const original = personFixture();
+    const unitOfWork = new FakePeopleUnitOfWork([original]);
+    const service = new PeopleDirectoryService(unitOfWork, runtime());
+    const access = context(['people.read', 'people.write']);
+
+    expect(service.linkExternalReference(access, { personId: 'person-1', externalId: 'hourglass:publisher:101' }).externalIds).toEqual(['hourglass:publisher:101']);
+    expect(service.linkExternalReference(access, { personId: 'person-1', externalId: 'hourglass:publisher:101' }).externalIds).toEqual(['hourglass:publisher:101']);
+    expect(unitOfWork.updates).toHaveLength(1);
+  });
+});
