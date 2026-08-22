@@ -5,6 +5,7 @@ import { dirname, resolve } from 'node:path';
 const appPort = '5188';
 const debugPort = '9231';
 const appUrl = `http://127.0.0.1:${appPort}/`;
+const appOrigin = new URL(appUrl).origin;
 const debugUrl = `http://127.0.0.1:${debugPort}`;
 const viteCli = resolve(dirname(fileURLToPath(import.meta.url)), '../../../node_modules/vite/bin/vite.js');
 const chromium = process.env.CHROMIUM_BIN ?? 'chromium';
@@ -58,14 +59,21 @@ let cdp;
 
 async function evaluate(expression) {
   const response = await cdp.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
-  if (response.exceptionDetails) throw new Error(response.exceptionDetails.text);
+  if (response.exceptionDetails) {
+    throw new Error(response.exceptionDetails.exception?.description ?? response.exceptionDetails.text);
+  }
   return response.result.value;
 }
 
 async function setPreferences(preferences, expectedHeading) {
-  await evaluate(`localStorage.setItem('eutaktos.preferences.v4', ${JSON.stringify(JSON.stringify(preferences))}); location.reload();`);
+  await cdp.send('DOMStorage.setDOMStorageItem', {
+    storageId: { securityOrigin: appOrigin, isLocalStorage: true },
+    key: 'eutaktos.preferences.v4',
+    value: JSON.stringify(preferences),
+  });
+  await cdp.send('Page.reload', { ignoreCache: true });
   await poll(
-    async () => await evaluate(`document.documentElement.lang === ${JSON.stringify(preferences.locale)} && Boolean(document.querySelector('#root')?.textContent?.includes(${JSON.stringify(expectedHeading)}))`),
+    async () => await evaluate(`document.readyState === 'complete' && document.documentElement.lang === ${JSON.stringify(preferences.locale)} && Boolean(document.querySelector('#root')?.textContent?.includes(${JSON.stringify(expectedHeading)}))`),
     `A interface não carregou em ${preferences.locale}`,
     80,
   );
@@ -74,10 +82,10 @@ async function setPreferences(preferences, expectedHeading) {
 async function visitWorkspace(path, expectedHeading, locale, expectedTitle = `Eutaktos — ${expectedHeading}`) {
   const target = new URL(path, appUrl);
   const expectedLocation = `${target.pathname}${target.search}${target.hash}`;
-  await evaluate(`location.assign(${JSON.stringify(expectedLocation)});`);
+  await cdp.send('Page.navigate', { url: target.toString() });
   try {
     await poll(
-      async () => await evaluate(`location.pathname + location.search + location.hash === ${JSON.stringify(expectedLocation)} && document.documentElement.lang === ${JSON.stringify(locale)} && document.title === ${JSON.stringify(expectedTitle)} && Boolean(document.querySelector('#main')?.textContent?.includes(${JSON.stringify(expectedHeading)}))`),
+      async () => await evaluate(`document.readyState === 'complete' && location.pathname + location.search + location.hash === ${JSON.stringify(expectedLocation)} && document.documentElement.lang === ${JSON.stringify(locale)} && document.title === ${JSON.stringify(expectedTitle)} && Boolean(document.querySelector('#main')?.textContent?.includes(${JSON.stringify(expectedHeading)}))`),
       `O deep link ${path} não apresentou o título e conteúdo localizados em ${locale}`,
       80,
     );
@@ -131,6 +139,8 @@ try {
   }, 'O Chromium não abriu a aplicação');
   cdp = await connectCdp(target.webSocketDebuggerUrl);
   await cdp.send('Runtime.enable');
+  await cdp.send('Page.enable');
+  await cdp.send('DOMStorage.enable');
   await cdp.send('Emulation.setDeviceMetricsOverride', { width: 320, height: 568, deviceScaleFactor: 1, mobile: true });
 
   const defaults = { paletteId: 'classic', colorMode: 'light', density: 'comfortable', locale: 'pt-PT', textSize: 'default', reducedMotion: false, reducedTransparency: false, highContrast: false };
