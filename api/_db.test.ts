@@ -16,6 +16,39 @@ describe('SupabaseRestDatabase', () => {
     expect(rows[0]?.tenant_id).toBe('tenant-a');
   });
 
+  it('scopes direct entity lookup by tenant even when entity ids can collide', async () => {
+    const fetcher = vi.fn<typeof fetch>(async input => {
+      const url=String(input);
+      expect(url).toContain('tenant_id=eq.tenant-a');
+      expect(url).toContain('entity_type=eq.person');
+      expect(url).toContain('entity_id=eq.shared-id');
+      return jsonResponse([{tenant_id:'tenant-a',entity_type:'person',entity_id:'shared-id',data:{id:'shared-id',tenantId:'tenant-a'},version:2}]);
+    });
+    const row=await new SupabaseRestDatabase(config,fetcher).entity('tenant-a','person','shared-id');
+    expect(row?.tenant_id).toBe('tenant-a');
+  });
+
+  it('scopes active access grants by both tenant and subject', async()=>{
+    const fetcher=vi.fn<typeof fetch>(async input=>{
+      const url=String(input);
+      expect(url).toContain('tenant_id=eq.tenant-a');
+      expect(url).toContain('subject_id=eq.shared-admin');
+      expect(url).toContain('revoked_at=is.null');
+      return jsonResponse([]);
+    });
+    await new SupabaseRestDatabase(config,fetcher).activeGrants('tenant-a','shared-admin');
+  });
+
+  it('scopes audit history by tenant before applying optional filters', async()=>{
+    const fetcher=vi.fn<typeof fetch>(async input=>{
+      const url=String(input);
+      expect(url).toContain('tenant_id=eq.tenant-a');
+      expect(url).toContain('resource_id=eq.shared-id');
+      return jsonResponse([]);
+    });
+    await new SupabaseRestDatabase(config,fetcher).audit({tenantId:'tenant-a',resourceId:'shared-id',limit:50});
+  });
+
   it('keeps the service role key in request headers rather than query parameters', async () => {
     const fetcher = vi.fn<typeof fetch>(async (input, init) => {
       expect(String(input)).not.toContain('server-secret');
