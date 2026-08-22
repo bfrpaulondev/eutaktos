@@ -23,6 +23,7 @@ import {
 } from '@mui/material';
 import { PwaUpdateRecovery } from './PwaUpdateRecovery';
 import { SectionWorkspace } from './SectionWorkspace';
+import { SECTION_PATHS, sectionFromPath, type AppSection as Section } from './lib/navigation';
 import {
   DEFAULT_PREFERENCES,
   normalizePreferences,
@@ -34,7 +35,6 @@ import { buildEutaktosTheme, EUTAKTOS_PALETTES } from './theme';
 import { Stack, Typography } from './ui/MuiCompat';
 
 const STORAGE_KEY = 'eutaktos.preferences.v4';
-type Section = 'home' | 'agenda' | 'assignments' | 'people' | 'preferences';
 
 const copy = {
   'pt-PT': {
@@ -62,7 +62,7 @@ const copy = {
     balance: 'Equilibrio de la Escuela', fairnessText: 'Las recomendaciones futuras mostrarán razones claras y mantendrán la decisión humana en el centro.', candidate: 'Elegible para lectura', days: 'días', viewPlanning: 'Ver planificación', human: 'Previsualización de planificación. Decisión humana.',
     ready: 'Cobertura de la reunión', almostReady: 'Casi lista', sound: 'Sonido', video: 'Vídeo', microphone: 'Micrófono 1', attendant: 'Acomodador 2', missing: 'Aún sin asignar',
     personal: 'Tus elecciones', palette: 'Paleta', theme: 'Modo de color', density: 'Densidad', textSize: 'Tamaño del texto', contrast: 'Contraste alto', motion: 'Reducir movimiento', transparency: 'Reducir transparencia', language: 'Idioma', comfortable: 'Cómoda', compact: 'Compacta',
-    textSizes: { small: 'Pequeño', default: 'Predeterminado', large: 'Grande', 'extra-large': 'Muy grande' }, themes: { light: 'Claro', dark: 'Oscuro', system: 'Sistema' }, palettes: ['Clásica', 'Acogedora', 'Calma', 'Foco', 'Nocturna', 'Alto contraste'],
+    textSizes: { small: 'Pequeño', default: 'Predeterminado', large: 'Grande', 'extra-large': 'Extra grande' }, themes: { light: 'Claro', dark: 'Oscuro', system: 'Sistema' }, palettes: ['Clásica', 'Acogedora', 'Calma', 'Foco', 'Nocturna', 'Alto contraste'],
   },
 } as const;
 
@@ -111,13 +111,25 @@ export default function App() {
 interface AppShellProps { preferences: Preferences; setPreferences: Dispatch<SetStateAction<Preferences>> }
 
 function AppShell({ preferences, setPreferences }: AppShellProps) {
-  const [section, setSection] = useState<Section>('home');
+  const [section, setSection] = useState<Section>(() => sectionFromPath(window.location.pathname));
   const [moreOpen, setMoreOpen] = useState(false);
   const theme = useTheme();
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
   const text = copy[preferences.locale];
   const update = <K extends keyof Preferences>(key: K, value: Preferences[K]) => setPreferences(current => ({ ...current, [key]: value }));
+
+  useEffect(() => {
+    const onPopState = () => {
+      setSection(sectionFromPath(window.location.pathname));
+      setMoreOpen(false);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
   const goToSection = (next: Section) => {
+    const nextPath = SECTION_PATHS[next];
+    if (window.location.pathname !== nextPath) window.history.pushState({ section: next }, '', nextPath);
     setSection(next);
     setMoreOpen(false);
     window.requestAnimationFrame(() => document.getElementById('main')?.focus({ preventScroll: true }));
