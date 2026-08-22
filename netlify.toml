@@ -17,3 +17,10 @@ from = "/api/*"
 to = "/.netlify/functions/api/:splat"
 status = 200
 force = true
+
+# Keep this fallback after the API rewrites so browser deep links load the SPA
+# without swallowing /api/* requests into index.html.
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200
