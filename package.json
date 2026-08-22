@@ -7,7 +7,8 @@
     "dev": "npm run dev --workspace @eutaktos/web-pwa",
     "build": "npm run build --workspace @eutaktos/web-pwa",
     "typecheck": "npm run typecheck --workspaces --if-present && tsc -p tsconfig.api.json",
-    "test": "npm run test --workspaces --if-present && vitest run api && node scripts/check-pwa.mjs"
+    "test": "npm run test --workspaces --if-present && vitest run api && node scripts/check-pwa.mjs",
+    "test:adversarial": "node scripts/run-adversarial-regression.mjs"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
