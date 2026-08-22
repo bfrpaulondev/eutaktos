@@ -4,7 +4,7 @@ import { dirname, resolve } from 'node:path';
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const assetsDirectory = resolve(scriptDirectory, '../dist/assets');
-const initialBudgetBytes = 500_000;
+const initialBudgetBytes = 480_000;
 
 const files = await readdir(assetsDirectory);
 const javaScriptFiles = files.filter(file => file.endsWith('.js'));
