@@ -39,7 +39,7 @@ export function lastAssignment(
 ): AssignmentHistoryRecord | undefined {
   let best: AssignmentHistoryRecord | undefined;
   for (const record of history) {
-    if (record.personId !== personId || record.tenantId !== tenantId) continue;
+    if (record.personId !== personId || record.tenantId !== tenantId || record.state !== 'completed') continue;
     if (
       best === undefined ||
       record.meetingDate > best.meetingDate ||
@@ -79,6 +79,7 @@ export function assignmentCount(
   return history.filter(record =>
     record.personId === personId &&
     record.tenantId === tenantId &&
+    record.state === 'completed' &&
     (from === undefined || record.meetingDate >= from) &&
     (to === undefined || record.meetingDate <= to) &&
     (options?.partType === undefined || record.partType === options.partType)
@@ -92,7 +93,7 @@ export function assignmentCountByPartType(
 ): Map<string, number> {
   const counts = new Map<string, number>();
   for (const record of history) {
-    if (record.personId !== personId || record.tenantId !== tenantId) continue;
+    if (record.personId !== personId || record.tenantId !== tenantId || record.state !== 'completed') continue;
     counts.set(record.partType, (counts.get(record.partType) ?? 0) + 1);
   }
   return counts;
@@ -143,7 +144,7 @@ export function personsAssignedInDateRange(
   const candidates = new Set(personIds);
   const result = new Set<string>();
   for (const record of history) {
-    if (record.tenantId === tenantId && candidates.has(record.personId) && record.meetingDate >= from && record.meetingDate <= to) {
+    if (record.tenantId === tenantId && record.state === 'completed' && candidates.has(record.personId) && record.meetingDate >= from && record.meetingDate <= to) {
       result.add(record.personId);
     }
   }
