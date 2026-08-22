@@ -3,5 +3,5 @@
   "compilerOptions": {
     "types": ["vitest/globals"]
   },
-  "include": ["api/**/*.ts"]
+  "include": ["api/**/*.ts", "netlify/functions/**/*.ts"]
 }
