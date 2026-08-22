@@ -12,12 +12,7 @@ export interface WorkspaceCopy {
 const DATA: Record<Locale, Record<WorkspaceSection, WorkspaceCopy>> = {
   'pt-PT': {
     agenda: {
-      eyebrow: 'Calendário pessoal', title: 'Agenda', subtitle: 'Reuniões, designações e tarefas importantes numa única linha temporal.',
-      cards: [
-        { title: 'Reunião do meio da semana', meta: 'Hoje · 20:00', detail: 'Pérolas Espirituais · confirmado', status: 'Confirmado' },
-        { title: 'Serviço de campo', meta: 'Sábado · 09:30', detail: 'Grupo 2 · ponto de encontro habitual' },
-        { title: 'Reunião do fim de semana', meta: 'Domingo · 10:00', detail: 'Áudio · aguardando confirmação', status: 'Pendente' },
-      ],
+      eyebrow: 'Calendário pessoal', title: 'Agenda', subtitle: 'As reuniões reais serão apresentadas quando a consulta de agenda estiver disponível.', cards: [],
     },
     assignments: {
       eyebrow: 'Planeamento', title: 'Designações', subtitle: 'Histórico, disponibilidade e equilíbrio ficam visíveis antes de qualquer decisão.',
@@ -45,11 +40,7 @@ const DATA: Record<Locale, Record<WorkspaceSection, WorkspaceCopy>> = {
     },
   },
   en: {
-    agenda: { eyebrow: 'Personal calendar', title: 'Agenda', subtitle: 'Meetings, assignments and important tasks in one calm timeline.', cards: [
-      { title: 'Midweek meeting', meta: 'Today · 20:00', detail: 'Spiritual Gems · confirmed', status: 'Confirmed' },
-      { title: 'Field service', meta: 'Saturday · 09:30', detail: 'Group 2 · regular meeting point' },
-      { title: 'Weekend meeting', meta: 'Sunday · 10:00', detail: 'Audio · awaiting confirmation', status: 'Pending' },
-    ] },
+    agenda: { eyebrow: 'Personal calendar', title: 'Agenda', subtitle: 'Real meetings will appear when the agenda query is available.', cards: [] },
     assignments: { eyebrow: 'Planning', title: 'Assignments', subtitle: 'History, availability and balance stay visible before a decision is made.', cards: [
       { title: 'Bible Reading', meta: 'Carlos · 126 days since last', detail: 'Eligible · available · no conflict', status: '92%' },
       { title: 'Bible Reading', meta: 'André · 98 days since last', detail: 'Eligible · available · no other assignment that week', status: '86%' },
@@ -63,9 +54,7 @@ const DATA: Record<Locale, Record<WorkspaceSection, WorkspaceCopy>> = {
     ] },
   },
   es: {
-    agenda: { eyebrow: 'Calendario personal', title: 'Agenda', subtitle: 'Reuniones, asignaciones y tareas importantes en una sola línea temporal.', cards: [
-      { title: 'Reunión de entre semana', meta: 'Hoy · 20:00', detail: 'Perlas espirituales · confirmada', status: 'Confirmada' }, { title: 'Servicio del campo', meta: 'Sábado · 09:30', detail: 'Grupo 2 · punto de encuentro habitual' }, { title: 'Reunión del fin de semana', meta: 'Domingo · 10:00', detail: 'Audio · esperando confirmación', status: 'Pendiente' },
-    ] },
+    agenda: { eyebrow: 'Calendario personal', title: 'Agenda', subtitle: 'Las reuniones reales aparecerán cuando esté disponible la consulta de agenda.', cards: [] },
     assignments: { eyebrow: 'Planificación', title: 'Asignaciones', subtitle: 'Historial, disponibilidad y equilibrio visibles antes de decidir.', cards: [
       { title: 'Lectura de la Biblia', meta: 'Carlos · 126 días desde la última', detail: 'Elegible · disponible · sin conflicto', status: '92%' }, { title: 'Lectura de la Biblia', meta: 'André · 98 días desde la última', detail: 'Elegible · disponible · sin otra asignación esa semana', status: '86%' }, { title: 'Micrófono 1', meta: 'Próxima reunión', detail: '1 función aún sin asignar', status: 'Atención' },
     ] },
