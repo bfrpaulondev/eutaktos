@@ -20,13 +20,20 @@ function normalizeBaseUrl(value: string): string {
   if (url.protocol !== 'https:') throw new Error('EUTAKTOS_SUPABASE_URL must use HTTPS');
   return url.toString().replace(/\/$/, '');
 }
+function firstNonBlank(...values: readonly (string | undefined)[]): string | undefined {
+  for (const value of values) {
+    const normalized = value?.trim();
+    if (normalized) return normalized;
+  }
+  return undefined;
+}
 export function databaseConfigFromEnv(): DatabaseConfig | undefined {
-  const rawUrl = (process.env.EUTAKTOS_SUPABASE_URL ?? process.env.SUPABASE_URL)?.trim();
-  const key = (
-    process.env.EUTAKTOS_SUPABASE_SECRET_KEY
-    ?? process.env.EUTAKTOS_SUPABASE_SERVICE_ROLE_KEY
-    ?? process.env.SUPABASE_SECRET_KEY
-  )?.trim();
+  const rawUrl = firstNonBlank(process.env.EUTAKTOS_SUPABASE_URL, process.env.SUPABASE_URL);
+  const key = firstNonBlank(
+    process.env.EUTAKTOS_SUPABASE_SECRET_KEY,
+    process.env.EUTAKTOS_SUPABASE_SERVICE_ROLE_KEY,
+    process.env.SUPABASE_SECRET_KEY,
+  );
   if (!rawUrl && !key) return undefined;
   if (!rawUrl || !key) throw new DatabaseNotConfiguredError();
   return Object.freeze({ url: normalizeBaseUrl(rawUrl), serviceRoleKey: key });
