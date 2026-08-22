@@ -8,10 +8,10 @@ export type MeetingLocationId = string;
 
 // ---- Enums as union types ----
 
-export type MidweekMeetingState = 'draft' | 'published' | 'archived';
+export type MidweekMeetingState = 'draft' | 'published' | 'cancelled' | 'archived';
 
 const VALID_STATES: readonly MidweekMeetingState[] = Object.freeze(
-  ['draft', 'published', 'archived'] as const,
+  ['draft', 'published', 'cancelled', 'archived'] as const,
 );
 
 // ---- Slot / Section ----
@@ -195,16 +195,23 @@ export function publishMidweekMeeting(
   return Object.freeze({ ...meeting, state: 'published', updatedAt: now });
 }
 
-/**
- * Transition a meeting to `archived` state.
- * Only `published` meetings can be archived.
- */
+/** Transition a draft or published meeting to its terminal `cancelled` state. */
+export function cancelMidweekMeeting(
+  meeting: Readonly<MidweekMeeting>,
+  now: string,
+): Readonly<MidweekMeeting> {
+  parseInstant(now);
+  if (meeting.state !== 'draft' && meeting.state !== 'published') throw new Error(`Cannot cancel meeting in '${meeting.state}' state`);
+  return Object.freeze({ ...meeting, state: 'cancelled', updatedAt: now });
+}
+
+/** Archive a published or cancelled meeting after its lifecycle is closed. */
 export function archiveMidweekMeeting(
   meeting: Readonly<MidweekMeeting>,
   now: string,
 ): Readonly<MidweekMeeting> {
   parseInstant(now);
-  if (meeting.state !== 'published') {
+  if (meeting.state !== 'published' && meeting.state !== 'cancelled') {
     throw new Error(`Cannot archive meeting in '${meeting.state}' state`);
   }
   return Object.freeze({ ...meeting, state: 'archived', updatedAt: now });
@@ -325,7 +332,7 @@ export function orderMeetingsByDate(
  * This is a convenience read — it does NOT authorize mutations.
  */
 export function isMeetingLocked(meeting: Readonly<MidweekMeeting>): boolean {
-  return meeting.state === 'published' || meeting.state === 'archived';
+  return meeting.state === 'published' || meeting.state === 'cancelled' || meeting.state === 'archived';
 }
 
 /** Get a slot by id from a meeting. Returns undefined if not found. */

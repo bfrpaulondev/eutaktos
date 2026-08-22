@@ -98,3 +98,14 @@ describe('Hourglass JSON import adapter', () => {
     expect(() => inspectHourglassJsonExport({ publishers: [], fsGroups: [], privileges: [], attendance: {} })).toThrow('Unrecognized Hourglass JSON export format');
   });
 });
+
+
+it('never reconciles a preview by display name when the stable external id differs', () => {
+  const inspection = inspectHourglassJsonExport(fixture);
+  const preview = previewHourglassImport(inspection, 'tenant-a', [
+    { tenantId: 'tenant-a', externalId: 'hourglass:publisher:999', personId: 'same-name-person', displayName: 'Ana Exemplo', active: true, explicitAssignmentTypeIds: [] },
+  ]);
+  const ana = preview.persons.find(person => person.externalId === 'hourglass:publisher:101');
+  expect(ana).toMatchObject({ action: 'create' });
+  expect(ana?.targetPersonId).toBeUndefined();
+});

@@ -600,3 +600,20 @@ describe('cross-tenant security', () => {
     }
   });
 });
+
+
+describe('cancelMidweekMeeting', () => {
+  it('transitions draft and published meetings to cancelled', async () => {
+    const { cancelMidweekMeeting } = await import('./midweek-meeting');
+    expect(cancelMidweekMeeting(makeMeeting(), NOW).state).toBe('cancelled');
+    expect(cancelMidweekMeeting(publishMidweekMeeting(makeMeeting(), NOW), NOW).state).toBe('cancelled');
+  });
+
+  it('makes cancellation terminal and blocks republishing or editing', async () => {
+    const { cancelMidweekMeeting } = await import('./midweek-meeting');
+    const cancelled = cancelMidweekMeeting(makeMeeting(), NOW);
+    expect(() => cancelMidweekMeeting(cancelled, NOW)).toThrow("Cannot cancel meeting in 'cancelled' state");
+    expect(() => publishMidweekMeeting(cancelled, NOW)).toThrow("Cannot publish meeting in 'cancelled' state");
+    expect(() => updateMidweekMeeting(cancelled, { localTime: '20:00' }, NOW)).toThrow("Cannot update a 'cancelled' meeting");
+  });
+});

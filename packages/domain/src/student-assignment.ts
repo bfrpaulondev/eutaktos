@@ -129,6 +129,34 @@ export function transitionStudentAssignment(
   });
 }
 
+/**
+ * Reassigns a deliberately cancelled student assignment to a new student and,
+ * when applicable, assistant. The original assignment identity is retained so
+ * replacement remains one audited lifecycle rather than a second aggregate.
+ */
+export function reassignStudentAssignment(
+  assignment: Readonly<StudentAssignment>,
+  studentId: PersonId,
+  assistantId: PersonId | null | undefined,
+  now: string,
+): Readonly<StudentAssignment> {
+  validateInstant(now);
+  if (assignment.state !== 'cancelled') throw new Error('Only a cancelled student assignment can be reassigned');
+  const nextStudentId = required(studentId, 'studentId');
+  const nextAssistantId = normalizeAssistantId(assistantId);
+  if (assignment.assistantIsRequired && nextAssistantId === null) throw new Error('Assistant is required but none was provided');
+  if (nextAssistantId !== null && nextAssistantId === nextStudentId) throw new Error('Student and assistant must be different people');
+  const reassigned = transitionStudentAssignment(assignment, 'assigned', now);
+  return Object.freeze({
+    ...reassigned,
+    studentId: nextStudentId,
+    assistantId: nextAssistantId,
+    assignedAt: now,
+    cancelledAt: null,
+    completedAt: null,
+  });
+}
+
 // ── Tenant isolation ───────────────────────────────────────────────────────
 
 export function assertStudentAssignmentTenant(

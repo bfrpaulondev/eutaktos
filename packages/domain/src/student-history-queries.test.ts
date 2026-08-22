@@ -128,25 +128,22 @@ describe('assignmentCount', () => {
     expect(assignmentCount(BASE_HISTORY, 'p-99', T)).toBe(0);
   });
 
-  it('counts all assignments for a person', () => {
-    // p-1 in T: R1, R2, R3, R6 = 4
-    expect(assignmentCount(BASE_HISTORY, 'p-1', T)).toBe(4);
+  it('counts only completed assignments for a person', () => {
+    // p-1 in T: R1, R2 and R6 are completed; R3 is cancelled.
+    expect(assignmentCount(BASE_HISTORY, 'p-1', T)).toBe(3);
   });
 
-  it('counts assignments in a date range', () => {
-    // p-1 in T: 06-01, 06-08, 06-15, 06-22
-    // Range 06-08 to 06-15 → R2, R3 = 2
-    expect(assignmentCount(BASE_HISTORY, 'p-1', T, { from: '2025-06-08', to: '2025-06-15' })).toBe(2);
+  it('counts only completed assignments in a date range', () => {
+    // Range 06-08 to 06-15 includes R2; R3 is cancelled.
+    expect(assignmentCount(BASE_HISTORY, 'p-1', T, { from: '2025-06-08', to: '2025-06-15' })).toBe(1);
   });
 
-  it('counts assignments filtered by partType', () => {
-    // p-1 in T with bible-reading: R1, R3 = 2
-    expect(assignmentCount(BASE_HISTORY, 'p-1', T, { partType: 'bible-reading' })).toBe(2);
+  it('counts completed assignments filtered by partType', () => {
+    expect(assignmentCount(BASE_HISTORY, 'p-1', T, { partType: 'bible-reading' })).toBe(1);
   });
 
-  it('counts with both date range and partType', () => {
-    // p-1 in T, bible-reading, 06-01 to 06-15: R1(06-01,bible-reading), R3(06-15,bible-reading) = 2
-    expect(assignmentCount(BASE_HISTORY, 'p-1', T, { from: '2025-06-01', to: '2025-06-15', partType: 'bible-reading' })).toBe(2);
+  it('counts completed records with both date range and partType', () => {
+    expect(assignmentCount(BASE_HISTORY, 'p-1', T, { from: '2025-06-01', to: '2025-06-15', partType: 'bible-reading' })).toBe(1);
   });
 
   it('throws when from > to', () => {
@@ -161,10 +158,8 @@ describe('assignmentCount', () => {
     expect(() => assignmentCount(BASE_HISTORY, 'p-1', T, { to: '2025/06/01' })).toThrow();
   });
 
-  it('counts cancelled assignments (all states count)', () => {
-    // p-1 in T: R1(completed), R2(completed), R3(cancelled), R6(completed)
-    // Count includes cancelled → 4
-    expect(assignmentCount(BASE_HISTORY, 'p-1', T)).toBe(4);
+  it('does not count cancelled assignments', () => {
+    expect(assignmentCount(BASE_HISTORY, 'p-1', T)).toBe(3);
   });
 
   it('respects tenant isolation', () => {
@@ -178,9 +173,8 @@ describe('assignmentCount', () => {
     expect(assignmentCount(BASE_HISTORY, 'p-1', T, { from: '2025-06-01', to: '2025-06-01' })).toBe(1);
   });
 
-  it('only from specified (no upper bound)', () => {
-    // p-1 in T from 06-15 onward: R3(06-15), R6(06-22) = 2
-    expect(assignmentCount(BASE_HISTORY, 'p-1', T, { from: '2025-06-15' })).toBe(2);
+  it('only from specified excludes cancelled records', () => {
+    expect(assignmentCount(BASE_HISTORY, 'p-1', T, { from: '2025-06-15' })).toBe(1);
   });
 
   it('only to specified (no lower bound)', () => {
@@ -203,19 +197,19 @@ describe('assignmentCountByPartType', () => {
   });
 
   it('counts correctly by part type', () => {
-    // p-1 in T: bible-reading(R1,R3)=2, student-talk(R2,R6)=2
+    // Only completed records contribute: bible-reading(R1)=1, student-talk(R2,R6)=2.
     const result = assignmentCountByPartType(BASE_HISTORY, 'p-1', T);
-    expect(result.get('bible-reading')).toBe(2);
+    expect(result.get('bible-reading')).toBe(1);
     expect(result.get('student-talk')).toBe(2);
     expect(result.size).toBe(2);
   });
 
   it('counts multiple part types for p-2', () => {
-    // p-2 in T: chairman(R4)=1, bible-reading(R5)=1
+    // R4 is assigned only, so only completed bible-reading R5 contributes.
     const result = assignmentCountByPartType(BASE_HISTORY, 'p-2', T);
-    expect(result.get('chairman')).toBe(1);
+    expect(result.get('chairman')).toBeUndefined();
     expect(result.get('bible-reading')).toBe(1);
-    expect(result.size).toBe(2);
+    expect(result.size).toBe(1);
   });
 
   it('respects tenant isolation', () => {
@@ -225,10 +219,9 @@ describe('assignmentCountByPartType', () => {
     expect(result.size).toBe(1);
   });
 
-  it('includes cancelled assignments in counts', () => {
-    // p-1 in T: bible-reading includes R3(cancelled) → 2
+  it('excludes cancelled assignments from counts', () => {
     const result = assignmentCountByPartType(BASE_HISTORY, 'p-1', T);
-    expect(result.get('bible-reading')).toBe(2);
+    expect(result.get('bible-reading')).toBe(1);
   });
 });
 
@@ -561,6 +554,6 @@ describe('edge cases', () => {
 
   it('assignmentCount with empty options object', () => {
     // Same as no options
-    expect(assignmentCount(BASE_HISTORY, 'p-1', T, {})).toBe(4);
+    expect(assignmentCount(BASE_HISTORY, 'p-1', T, {})).toBe(3);
   });
 });
