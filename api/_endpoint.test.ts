@@ -1,3 +1,5 @@
+declare const process:{env:Record<string,string|undefined>};
+
 import { afterEach, describe, expect, it } from 'vitest';
 import { assertTrustedMutation, CsrfError } from './_endpoint';
 
