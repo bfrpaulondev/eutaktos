@@ -3,6 +3,7 @@ export interface ApiRequest {
   headers: Readonly<Record<string, string | string[] | undefined>>;
   query: Readonly<Record<string, string | string[] | undefined>>;
   body?: unknown;
+  correlationId?: string;
 }
 
 export interface ApiResponse {
