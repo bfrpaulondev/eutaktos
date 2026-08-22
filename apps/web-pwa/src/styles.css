@@ -60,3 +60,39 @@ a[href] {
     border: 1px solid CanvasText !important;
   }
 }
+
+@media (max-width: 599px) {
+  .MuiButton-root {
+    min-height: 44px;
+  }
+
+  .MuiDialog-paper {
+    max-height: calc(100dvh - 16px);
+    margin: 8px !important;
+  }
+
+  .MuiDialogContent-root {
+    overscroll-behavior: contain;
+  }
+
+  .MuiDialogActions-root {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .MuiDialogActions-root > .MuiButton-root {
+    flex: 1 1 132px;
+    margin-left: 0 !important;
+  }
+
+  .MuiTypography-root,
+  .MuiChip-label {
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 359px) {
+  .MuiDialogActions-root > .MuiButton-root {
+    flex-basis: 100%;
+  }
+}
