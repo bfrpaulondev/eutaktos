@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { inspectHourglassContactListCsv, inspectHourglassJsonExport, parseHourglassJsonText, previewHourglassImport } from './hourglass-import';
+import { inspectHourglassContactListCsv, inspectHourglassJsonExport, inspectHourglassPrivilegesCsv, parseHourglassJsonText, previewHourglassImport } from './hourglass-import';
 
 const fixture = {
   publishers: [
@@ -41,6 +41,16 @@ describe('Hourglass JSON import adapter', () => {
     const inspection = inspectHourglassContactListCsv('lastname,firstname,address_id\r\nExemplo,Ana,ADDR-1\r\nDemonstração,Bruno,=unsafe\r\n');
     expect(inspection).toMatchObject({ format: 'hourglass-contact-list-csv-v1', recordCount: 2, rejectedFormulaRows: 1, importable: false, limitation: 'stable-hourglass-publisher-id-is-not-present' });
     expect(() => inspectHourglassContactListCsv('firstname,address_id\nAna,ADDR-1\n')).toThrow('Unrecognized Hourglass contact-list CSV format');
+  });
+
+  it('inspects an explicit privilege matrix but forbids grants until identity reconciliation', () => {
+    const inspection = inspectHourglassPrivilegesCsv('lastname,firstname,middlename,suffix,fullname,appt,Oração,Presidente,Presidente\r\nExemplo,Ana,,,Ana Exemplo,,X,,X\r\nDemonstração,Bruno,,,Bruno Demonstração,,X,=unsafe,X\r\n');
+    expect(inspection).toMatchObject({ format: 'hourglass-privileges-csv-v1', recordCount: 2, requiresExplicitIdentityReconciliation: true, importableWithoutReconciliation: false, rejectedFormulaRows: 1 });
+    expect(inspection.privilegeColumns).toEqual([
+      { sourceColumn: 'Oração', occurrence: 1, explicitlyMarkedRows: 2, markerEncoding: 'single-token' },
+      { sourceColumn: 'Presidente', occurrence: 1, explicitlyMarkedRows: 1, markerEncoding: 'single-token' },
+      { sourceColumn: 'Presidente', occurrence: 2, explicitlyMarkedRows: 2, markerEncoding: 'single-token' },
+    ]);
   });
 
   it('rejects malformed, unknown and dangerous data rather than guessing a schema', () => {

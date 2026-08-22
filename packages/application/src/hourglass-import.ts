@@ -303,3 +303,70 @@ export function inspectHourglassContactListCsv(csv: string): Readonly<HourglassC
   for (const row of rows.slice(1)) { if (row.length !== headers.length) throw new Error('Hourglass CSV row has an unexpected column count'); if (row.some(hasSpreadsheetFormula)) rejectedFormulaRows += 1; }
   return Object.freeze({ format: 'hourglass-contact-list-csv-v1', recordCount: rows.length - 1, headers: Object.freeze([...headers]), unknownHeaders: Object.freeze(headers.filter(header => !HOURGLASS_CONTACT_LIST_KNOWN_HEADERS.has(header)).sort()), rejectedFormulaRows, importable: false, limitation: 'stable-hourglass-publisher-id-is-not-present' });
 }
+
+
+export interface HourglassPrivilegeColumnSummary {
+  readonly sourceColumn: string;
+  readonly occurrence: number;
+  readonly explicitlyMarkedRows: number;
+  readonly markerEncoding: 'single-token' | 'mixed-or-invalid';
+}
+
+export interface HourglassPrivilegesCsvInspection {
+  readonly format: 'hourglass-privileges-csv-v1';
+  readonly recordCount: number;
+  readonly identityColumns: readonly string[];
+  readonly privilegeColumns: readonly HourglassPrivilegeColumnSummary[];
+  readonly unknownColumns: readonly string[];
+  readonly rejectedFormulaRows: number;
+  readonly requiresExplicitIdentityReconciliation: true;
+  readonly importableWithoutReconciliation: false;
+}
+
+const HOURGLASS_PRIVILEGES_IDENTITY_COLUMNS = new Set(['lastname', 'firstname', 'middlename', 'suffix', 'fullname']);
+const HOURGLASS_PRIVILEGES_METADATA_COLUMNS = new Set(['appt']);
+const HOURGLASS_PRIVILEGE_COLUMNS = new Set([
+  'Oração', 'Presidente', 'Conselheiro Aux. ( 2ª Sala)', 'Tesouros da Palavra de Deus', 'Pérolas Espirituais', 'Leitor da Bíblia', 'Contacto inicial (vídeo)', 'Iniciar conversas', 'Cultivar o interesse', 'Fazer discípulos', 'Ajudante', 'Discurso de Estudante', 'Viver como Cristãos', 'Estudo Bíblico de Congregação', 'Leitor do Estudo Bíblico de Congregação', 'Indicador', 'Assistente Zoom', 'Indicador entrada', 'Palco', 'Áudio', 'Vídeo', 'Microfones', 'Discursos Públicos', 'Discursos Públicos - Fora', 'Dirigente de A Sentinela', 'Leitor da Sentinela', 'Hospitalidade', 'Intérprete', 'Reunião de Serviço de Campo', 'Testemunho Público', 'Limpeza',
+]);
+
+/**
+ * Inspects the demonstrated privilege matrix without retaining row values. Its
+ * identity columns contain names only, not a stable Hourglass publisher id, so this
+ * result intentionally cannot grant eligibility until an authorized human reconciles
+ * every intended row with a known external publisher reference.
+ */
+export function inspectHourglassPrivilegesCsv(csv: string): Readonly<HourglassPrivilegesCsvInspection> {
+  if (typeof csv !== 'string') throw new Error('Hourglass privileges CSV must be a string');
+  if (new TextEncoder().encode(csv).byteLength > HOURGLASS_IMPORT_LIMITS.maxJsonBytes) throw new Error('Hourglass privileges CSV file is too large');
+  const rows = parseHourglassCsv(csv.replace(/^\uFEFF/, ''));
+  if (rows.length < 2) throw new Error('Hourglass privileges CSV requires a header and at least one row');
+  const headers = rows[0].map(value => value.trim());
+  if (headers.some(header => !header)) throw new Error('Hourglass privileges CSV has an empty header');
+  for (const required of HOURGLASS_PRIVILEGES_IDENTITY_COLUMNS) if (!headers.includes(required)) throw new Error('Unrecognized Hourglass privileges CSV format');
+  const dataRows = rows.slice(1);
+  for (const row of dataRows) if (row.length !== headers.length) throw new Error('Hourglass privileges CSV row has an unexpected column count');
+  const occurrences = new Map<string, number>();
+  const privilegeColumns: HourglassPrivilegeColumnSummary[] = [];
+  const unknownColumns = new Set<string>();
+  let rejectedFormulaRows = 0;
+  for (const row of dataRows) if (row.some(hasSpreadsheetFormula)) rejectedFormulaRows += 1;
+  for (const [index, header] of headers.entries()) {
+    const occurrence = (occurrences.get(header) ?? 0) + 1;
+    occurrences.set(header, occurrence);
+    if (HOURGLASS_PRIVILEGES_IDENTITY_COLUMNS.has(header) || HOURGLASS_PRIVILEGES_METADATA_COLUMNS.has(header)) continue;
+    if (!HOURGLASS_PRIVILEGE_COLUMNS.has(header)) { unknownColumns.add(header); continue; }
+    const marks = dataRows.map(row => row[index].trim()).filter(Boolean);
+    const markerEncoding = new Set(marks).size <= 1 ? 'single-token' as const : 'mixed-or-invalid' as const;
+    privilegeColumns.push(Object.freeze({ sourceColumn: header, occurrence, explicitlyMarkedRows: marks.length, markerEncoding }));
+  }
+  return Object.freeze({
+    format: 'hourglass-privileges-csv-v1',
+    recordCount: dataRows.length,
+    identityColumns: Object.freeze(headers.filter(header => HOURGLASS_PRIVILEGES_IDENTITY_COLUMNS.has(header))),
+    privilegeColumns: Object.freeze(privilegeColumns),
+    unknownColumns: Object.freeze([...unknownColumns].sort()),
+    rejectedFormulaRows,
+    requiresExplicitIdentityReconciliation: true,
+    importableWithoutReconciliation: false,
+  });
+}
