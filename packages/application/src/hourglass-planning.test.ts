@@ -31,4 +31,10 @@ describe('Hourglass operational planning helpers', () => {
     ]);
     expect(candidates.every(candidate => !Object.hasOwn(candidate, 'recommended'))).toBe(true);
   });
+
+  it('rejects impossible calendar dates instead of allowing Date rollover', () => {
+    expect(() => lastAssignmentRows({ tenantId: 'tenant-a', partType: 'hourglass:reading', referenceDate: '2025-02-30', people, history })).toThrow('valid YYYY-MM-DD');
+    expect(() => lastAssignmentRows({ tenantId: 'tenant-a', partType: 'hourglass:reading', referenceDate: '2026-02-29', people, history })).toThrow('valid YYYY-MM-DD');
+    expect(() => lastAssignmentRows({ tenantId: 'tenant-a', partType: 'hourglass:reading', referenceDate: '2024-02-29', people, history })).not.toThrow();
+  });
 });
