@@ -55,3 +55,10 @@ describe('public talk scheduling', () => {
     expect(() => publicTalkSchedulesInDateRange(values, 'a', '2026-09-01', '2026-08-01')).toThrow('Date range must end');
   });
 });
+
+
+it('does not leak schedules across tenants when speaker ids coincide', () => {
+  const own = schedule('tenant-a');
+  const foreign = schedule('tenant-b');
+  expect(publicTalkSchedulesForSpeaker([own, foreign], 'tenant-a', 'speaker-1')).toEqual([own]);
+});
