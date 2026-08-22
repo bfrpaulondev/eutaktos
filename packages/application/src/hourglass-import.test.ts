@@ -24,17 +24,21 @@ describe('Hourglass JSON import adapter', () => {
     expect(inspection.report.unknownPublisherFields).toContain('appt');
   });
 
-  it('is preview-only and idempotently recognizes an unchanged re-import', () => {
+  it('is preview-only, idempotent and tenant-scoped', () => {
     const inspection = inspectHourglassJsonExport(fixture);
-    const preview = previewHourglassImport(inspection, [
-      { externalId: 'hourglass:publisher:101', personId: 'person-1', displayName: 'Ana Exemplo', active: true, explicitAssignmentTypeIds: ['hourglass:reading'] },
-      { externalId: 'hourglass:publisher:202', personId: 'person-2', displayName: 'Outro nome', active: true, explicitAssignmentTypeIds: [] },
+    const preview = previewHourglassImport(inspection, 'tenant-a', [
+      { tenantId: 'tenant-a', externalId: 'hourglass:publisher:101', personId: 'person-1', displayName: 'Ana Exemplo', active: true, explicitAssignmentTypeIds: ['hourglass:reading'] },
+      { tenantId: 'tenant-a', externalId: 'hourglass:publisher:202', personId: 'person-2', displayName: 'Outro nome', active: true, explicitAssignmentTypeIds: [] },
+      { tenantId: 'tenant-b', externalId: 'hourglass:publisher:101', personId: 'person-other-tenant', displayName: 'Wrong tenant', active: true, explicitAssignmentTypeIds: [] },
     ]);
     expect(preview.counts).toEqual({ create: 0, unchanged: 1, conflict: 1 });
+    expect(preview.persons[0].targetPersonId).toBe('person-1');
+    expect(preview.persons.every(person => person.targetPersonId !== 'person-other-tenant')).toBe(true);
     expect(preview.persons[1].reasons).toEqual([
       'Display name differs from the existing Eutaktos person',
       'Explicit eligibility differs from the Hourglass import',
     ]);
+    expect(() => previewHourglassImport(inspection, '   ', [])).toThrow('tenantId is required');
   });
 
   it('inspects the proven contact-list CSV but refuses to use it as an import without a stable publisher ID', () => {
@@ -62,6 +66,16 @@ describe('Hourglass JSON import adapter', () => {
       { meetingDate: '2025-09-01', externalWeekId: '8001', externalAssignmentId: '7001', externalPartId: '1001', partType: 'reading', section: 'tgw', classroom: 0, externalAssigneeId: '101', verification: 'unverified-legacy-plan' },
       { meetingDate: '2025-09-01', externalWeekId: '8001', externalAssignmentId: '7002', externalPartId: '1002', partType: 'initcall', section: 'fm', classroom: 1, externalAssigneeId: '102', externalAssistantId: '103', verification: 'unverified-legacy-plan' },
     ]);
+  });
+
+  it('rejects calendar rollover in schedules and absences', () => {
+    const invalidProgram = [{ id: 9001, date: '2025-02-30', tgw: [], fm: [], lac: [] }];
+    const invalidAssignments = [{ id: 8001, date: '2025-02-30', tgw: [], fm: [], lac: [] }];
+    expect(() => inspectHourglassMidweekSchedule(invalidProgram, invalidAssignments)).toThrow('valid YYYY-MM-DD date');
+    expect(() => inspectHourglassIdentityAndAbsences(
+      { users: [{ id: 101 }] },
+      [{ id: 1, userId: 101, start: '2026-02-30', end: '2026-03-01', pw_only: false }],
+    )).toThrow('valid YYYY-MM-DD date');
   });
 
   it('allows only external identity references and explicit absence fields from the demonstrated statistics responses', () => {
