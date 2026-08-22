@@ -1,6 +1,7 @@
 import {
   addMeetingSlot,
   archiveMidweekMeeting,
+  cancelMidweekMeeting,
   assertCapability,
   assertExplicitEligibility,
   assertNonStudentAssignmentTenant,
@@ -116,7 +117,7 @@ function id(value: string, field: string): string {
 function meetingEvent(
   runtime: MidweekSchedulingRuntime,
   context: AccessContext,
-  type: 'MidweekMeetingCreated' | 'MidweekMeetingUpdated' | 'MidweekMeetingPublished' | 'MidweekMeetingArchived',
+  type: 'MidweekMeetingCreated' | 'MidweekMeetingUpdated' | 'MidweekMeetingPublished' | 'MidweekMeetingCancelled' | 'MidweekMeetingArchived',
   meetingId: string,
   occurredAt: string,
   metadata: RequestMetadata,
@@ -488,6 +489,23 @@ export class MidweekSchedulingService {
       meeting,
       auditEvents: [this.#audit(context, 'midweek-meeting', meeting.id, 'update', ['state'], occurredAt)],
       domainEvents: [meetingEvent(this.#runtime, context, 'MidweekMeetingPublished', meeting.id, occurredAt, metadata)],
+    });
+    return meeting;
+  }
+
+  cancelMeeting(
+    context: AccessContext,
+    meetingId: string,
+    metadata: RequestMetadata = {},
+  ): Readonly<MidweekMeeting> {
+    this.#assertWrite(context);
+    const current = this.#meeting(context, meetingId);
+    const occurredAt = this.#runtime.now();
+    const meeting = cancelMidweekMeeting(current, occurredAt);
+    this.#uow.commit(context, {
+      meeting,
+      auditEvents: [this.#audit(context, 'midweek-meeting', meeting.id, 'update', ['state'], occurredAt)],
+      domainEvents: [meetingEvent(this.#runtime, context, 'MidweekMeetingCancelled', meeting.id, occurredAt, metadata)],
     });
     return meeting;
   }

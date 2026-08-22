@@ -26,6 +26,7 @@ export type DomainEventType =
   | 'MidweekMeetingCreated'
   | 'MidweekMeetingUpdated'
   | 'MidweekMeetingPublished'
+  | 'MidweekMeetingCancelled'
   | 'MidweekMeetingArchived'
   | 'ReviewRequested'
   | 'ReviewDecisionRecorded'

@@ -26,6 +26,7 @@ export type MidweekSchedulingApplication = Pick<
   | 'cancelStudentAssignment'
   | 'cancelNonStudentAssignment'
   | 'publishMeeting'
+  | 'cancelMeeting'
   | 'archiveMeeting'
 >;
 
@@ -300,6 +301,10 @@ export class MidweekSchedulingHttpTransport {
 
   publishMeeting(request: TransportRequest): TransportResponse<MidweekMeetingDto | { error: string }> {
     return this.#meetingTransition(request, (context, meetingId) => this.#app.publishMeeting(context, meetingId, metadata(request)));
+  }
+
+  cancelMeeting(request: TransportRequest): TransportResponse<MidweekMeetingDto | { error: string }> {
+    return this.#meetingTransition(request, (context, meetingId) => this.#app.cancelMeeting(context, meetingId, metadata(request)));
   }
 
   archiveMeeting(request: TransportRequest): TransportResponse<MidweekMeetingDto | { error: string }> {
