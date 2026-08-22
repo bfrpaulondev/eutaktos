@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ACCESS_CAPABILITIES } from './lib/accessGrantApi';
-import { capabilityGroup, isSensitiveCapability } from './AccessManagementDialog';
+import { canConfirmAccessGrant, capabilityGroup, isSensitiveCapability } from './AccessManagementDialog';
 
 describe('AccessManagementDialog capability presentation', () => {
   it('places every canonical capability into one UI group without changing its ID', () => {
@@ -17,5 +17,13 @@ describe('AccessManagementDialog capability presentation', () => {
     expect(isSensitiveCapability('access.manage')).toBe(true);
     expect(isSensitiveCapability('tenant.manage')).toBe(true);
     expect(isSensitiveCapability('people.read')).toBe(false);
+  });
+
+  it('requires a confirmed grant list before allowing a new explicit grant', () => {
+    const active = new Set(['people.read'] as const);
+    expect(canConfirmAccessGrant('person-1', 'people.write', false, active, false)).toBe(false);
+    expect(canConfirmAccessGrant('person-1', 'people.read', true, active, false)).toBe(false);
+    expect(canConfirmAccessGrant('person-1', 'people.write', true, active, true)).toBe(false);
+    expect(canConfirmAccessGrant('person-1', 'people.write', true, active, false)).toBe(true);
   });
 });

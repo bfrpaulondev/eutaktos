@@ -10,7 +10,10 @@
     "test": "vitest run",
     "test:production-mount": "npm run build && node scripts/verify-production-mount.mjs",
     "test:ux-runtime": "node scripts/verify-ux-runtime.mjs",
-    "test:hourglass-inspector": "node scripts/verify-hourglass-inspector.mjs"
+    "test:hourglass-inspector": "node scripts/verify-hourglass-inspector.mjs",
+    "test:bundle-budget": "npm run build && node scripts/verify-bundle-budget.mjs",
+    "test:pwa-privacy": "npm run build && node scripts/verify-pwa-privacy.mjs",
+    "test:browser-regression": "node scripts/run-browser-regression.mjs"
   },
   "dependencies": {
     "@eutaktos/application": "file:../../packages/application",

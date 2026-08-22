@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type Dispatch, type Ref, type SetStateAction } from 'react';
 import {
   Alert,
   Avatar,
@@ -22,7 +22,6 @@ import {
   useTheme,
 } from '@mui/material';
 import { PwaUpdateRecovery } from './PwaUpdateRecovery';
-import { SectionWorkspace } from './SectionWorkspace';
 import { SECTION_PATHS, sectionFromPath, type AppSection as Section } from './lib/navigation';
 import {
   DEFAULT_PREFERENCES,
@@ -34,23 +33,28 @@ import {
 import { buildEutaktosTheme, EUTAKTOS_PALETTES } from './theme';
 import { Stack, Typography } from './ui/MuiCompat';
 
+const SectionWorkspace = lazy(async () => {
+  const module = await import('./SectionWorkspace');
+  return { default: module.SectionWorkspace };
+});
+
 const STORAGE_KEY = 'eutaktos.preferences.v4';
 
 const copy = {
   'pt-PT': {
-    skip: 'Saltar para o conteúdo principal', navigation: 'Navegação principal', home: 'Início', agenda: 'Agenda', assignments: 'Designações', people: 'Pessoas', prefs: 'Preferências', more: 'Mais', close: 'Fechar',
+    skip: 'Saltar para o conteúdo principal', navigation: 'Navegação principal', home: 'Início', agenda: 'Agenda', assignments: 'Designações', people: 'Pessoas', prefs: 'Preferências', more: 'Mais', close: 'Fechar', workspaceLoading: 'A carregar área…',
     eyebrow: 'O teu espaço de organização', title: 'Tudo em boa ordem.', subtitle: 'Encontra primeiro o que pede atenção, com contexto claro e sem ruído.', privacy: 'Privacidade primeiro', dataUnavailable: 'Dados de produção indisponíveis', dashboardUnavailableTitle: 'O painel aguarda dados reais', dashboardUnavailableDetail: 'As próximas reuniões, designações, tarefas, confirmações e alertas só serão apresentados quando as consultas de produção estiverem disponíveis. Nenhum dado demonstrativo é mostrado.', viewAgenda: 'Ver agenda',
     personal: 'As tuas escolhas', palette: 'Paleta', theme: 'Modo de cor', density: 'Densidade', textSize: 'Tamanho do texto', contrast: 'Contraste elevado', motion: 'Reduzir movimento', transparency: 'Reduzir transparência', language: 'Idioma', comfortable: 'Confortável', compact: 'Compacta',
     textSizes: { small: 'Pequeno', default: 'Padrão', large: 'Grande', 'extra-large': 'Muito grande' }, themes: { light: 'Claro', dark: 'Escuro', system: 'Sistema' }, palettes: ['Clássica', 'Acolhedora', 'Calma', 'Foco', 'Noturna', 'Alto contraste'],
   },
   en: {
-    skip: 'Skip to main content', navigation: 'Primary navigation', home: 'Home', agenda: 'Agenda', assignments: 'Assignments', people: 'People', prefs: 'Preferences', more: 'More', close: 'Close',
+    skip: 'Skip to main content', navigation: 'Primary navigation', home: 'Home', agenda: 'Agenda', assignments: 'Assignments', people: 'People', prefs: 'Preferences', more: 'More', close: 'Close', workspaceLoading: 'Loading area…',
     eyebrow: 'Your organization space', title: 'Everything in good order.', subtitle: 'Find what needs attention first, with clear context and no noise.', privacy: 'Privacy first', dataUnavailable: 'Production data unavailable', dashboardUnavailableTitle: 'The dashboard is waiting for real data', dashboardUnavailableDetail: 'Upcoming meetings, assignments, duties, confirmations and alerts will appear only when production queries are available. No demonstration data are shown.', viewAgenda: 'View agenda',
     personal: 'Your choices', palette: 'Palette', theme: 'Color mode', density: 'Density', textSize: 'Text size', contrast: 'High contrast', motion: 'Reduce motion', transparency: 'Reduce transparency', language: 'Language', comfortable: 'Comfortable', compact: 'Compact',
     textSizes: { small: 'Small', default: 'Default', large: 'Large', 'extra-large': 'Extra large' }, themes: { light: 'Light', dark: 'Dark', system: 'System' }, palettes: ['Classic', 'Welcoming', 'Calm', 'Focus', 'Night', 'High contrast'],
   },
   es: {
-    skip: 'Saltar al contenido principal', navigation: 'Navegación principal', home: 'Inicio', agenda: 'Agenda', assignments: 'Asignaciones', people: 'Personas', prefs: 'Preferencias', more: 'Más', close: 'Cerrar',
+    skip: 'Saltar al contenido principal', navigation: 'Navegación principal', home: 'Inicio', agenda: 'Agenda', assignments: 'Asignaciones', people: 'Personas', prefs: 'Preferencias', more: 'Más', close: 'Cerrar', workspaceLoading: 'Cargando área…',
     eyebrow: 'Tu espacio de organización', title: 'Todo en buen orden.', subtitle: 'Encuentra primero lo que necesita atención, con contexto claro y sin ruido.', privacy: 'Privacidad primero', dataUnavailable: 'Datos de producción no disponibles', dashboardUnavailableTitle: 'El panel espera datos reales', dashboardUnavailableDetail: 'Las próximas reuniones, asignaciones, tareas, confirmaciones y alertas solo aparecerán cuando estén disponibles las consultas de producción. No se muestran datos de demostración.', viewAgenda: 'Ver agenda',
     personal: 'Tus elecciones', palette: 'Paleta', theme: 'Modo de color', density: 'Densidad', textSize: 'Tamaño del texto', contrast: 'Contraste alto', motion: 'Reducir movimiento', transparency: 'Reducir transparencia', language: 'Idioma', comfortable: 'Cómoda', compact: 'Compacta',
     textSizes: { small: 'Pequeño', default: 'Predeterminado', large: 'Grande', 'extra-large': 'Extra grande' }, themes: { light: 'Claro', dark: 'Oscuro', system: 'Sistema' }, palettes: ['Clásica', 'Acogedora', 'Calma', 'Foco', 'Nocturna', 'Alto contraste'],
@@ -109,6 +113,7 @@ interface AppShellProps { preferences: Preferences; setPreferences: Dispatch<Set
 function AppShell({ preferences, setPreferences }: AppShellProps) {
   const [section, setSection] = useState<Section>(() => sectionFromPath(window.location.pathname));
   const [moreOpen, setMoreOpen] = useState(false);
+  const moreButtonRef = useRef<HTMLButtonElement | null>(null);
   const theme = useTheme();
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
   const text = copy[preferences.locale];
@@ -123,11 +128,21 @@ function AppShell({ preferences, setPreferences }: AppShellProps) {
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
+  useEffect(() => {
+    const label = text[section === 'preferences' ? 'prefs' : section];
+    document.title = `Eutaktos — ${label}`;
+  }, [section, text]);
+
+  const closeMore = () => {
+    setMoreOpen(false);
+    window.requestAnimationFrame(() => moreButtonRef.current?.focus());
+  };
   const goToSection = (next: Section) => {
     const nextPath = SECTION_PATHS[next];
-    if (window.location.pathname !== nextPath) window.history.pushState({ section: next }, '', nextPath);
+    if (window.location.pathname !== nextPath || window.location.search || window.location.hash) window.history.pushState({ section: next }, '', nextPath);
     setSection(next);
     setMoreOpen(false);
+    window.scrollTo({ top: 0, behavior: 'auto' });
     window.requestAnimationFrame(() => document.getElementById('main')?.focus({ preventScroll: true }));
   };
   const nav: Section[] = ['home', 'agenda', 'assignments', 'people', 'preferences'];
@@ -155,14 +170,14 @@ function AppShell({ preferences, setPreferences }: AppShellProps) {
         <Paper component="nav" aria-label={text.navigation} sx={{ position: 'fixed', zIndex: 20, left: 8, right: 8, bottom: 'max(8px, env(safe-area-inset-bottom))', px: 0.5, py: 0.65, borderRadius: 3 }}>
           <Stack direction="row" justifyContent="space-between">
             {mobileNav.map(key => <MobileNavigationButton key={key} active={section === key} icon={navIcons[key]} label={key === 'preferences' ? text.prefs : text[key]} onClick={() => goToSection(key)} />)}
-            <MobileNavigationButton active={section === 'assignments' || section === 'preferences'} icon="•••" label={text.more} onClick={() => setMoreOpen(true)} />
+            <MobileNavigationButton buttonRef={moreButtonRef} active={section === 'assignments' || section === 'preferences'} icon="•••" label={text.more} onClick={() => setMoreOpen(true)} />
           </Stack>
         </Paper>
       )}
 
-      <Drawer anchor="bottom" open={moreOpen} onClose={() => setMoreOpen(false)} slotProps={{ paper: { sx: { borderTopLeftRadius: 24, borderTopRightRadius: 24, p: 2, pb: 'calc(16px + env(safe-area-inset-bottom))' } } }}>
+      <Drawer anchor="bottom" open={moreOpen} onClose={closeMore} slotProps={{ paper: { sx: { borderTopLeftRadius: 24, borderTopRightRadius: 24, p: 2, pb: 'calc(16px + env(safe-area-inset-bottom))' } } }}>
         <Stack spacing={1.25} sx={{ maxWidth: 560, width: '100%', mx: 'auto' }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center"><Typography variant="h6">{text.more}</Typography><Button onClick={() => setMoreOpen(false)}>{text.close}</Button></Stack>
+          <Stack direction="row" justifyContent="space-between" alignItems="center"><Typography variant="h6">{text.more}</Typography><Button onClick={closeMore}>{text.close}</Button></Stack>
           <Divider />
           {(['assignments', 'preferences'] as const).map(key => <Button key={key} variant={section === key ? 'contained' : 'outlined'} startIcon={<span aria-hidden="true">{navIcons[key]}</span>} onClick={() => goToSection(key)} sx={{ justifyContent: 'flex-start' }}>{text[key === 'preferences' ? 'prefs' : key]}</Button>)}
         </Stack>
@@ -170,7 +185,7 @@ function AppShell({ preferences, setPreferences }: AppShellProps) {
 
       <Box component="main" id="main" tabIndex={-1} sx={{ ml: { md: '296px' }, width: { md: 'calc(100% - 296px)' }, px: { xs: 1.5, sm: 2.5, lg: 4 }, py: { xs: 1.5, md: 2 }, maxWidth: 1640 }}>
         <Header text={text} onAgenda={() => goToSection('agenda')} />
-        {section === 'home' ? <HomeDashboard text={text} preferences={preferences} update={update} /> : section === 'preferences' ? <PreferencesPanel text={text} preferences={preferences} update={update} /> : <SectionWorkspace locale={preferences.locale} section={section} />}
+        {section === 'home' ? <HomeDashboard text={text} preferences={preferences} update={update} /> : section === 'preferences' ? <PreferencesPanel text={text} preferences={preferences} update={update} /> : <Suspense fallback={<WorkspaceLoading label={text.workspaceLoading} />}><SectionWorkspace locale={preferences.locale} section={section} /></Suspense>}
       </Box>
     </Box>
   );
@@ -180,9 +195,11 @@ function NavigationButton({ active, icon, label, onClick }: { active: boolean; i
   return <Button onClick={onClick} aria-current={active ? 'page' : undefined} variant={active ? 'contained' : 'text'} color={active ? 'primary' : 'inherit'} sx={{ justifyContent: 'flex-start', gap: 1.25, px: 1.5 }}><Box component="span" aria-hidden="true" sx={{ width: 22, textAlign: 'center' }}>{icon}</Box>{label}</Button>;
 }
 
-function MobileNavigationButton({ active, icon, label, onClick }: { active: boolean; icon: string; label: string; onClick: () => void }) {
-  return <Button onClick={onClick} aria-current={active ? 'page' : undefined} color={active ? 'primary' : 'inherit'} sx={{ minWidth: 0, flex: 1, px: 0.35, display: 'grid', gap: 0.15, fontSize: '0.68rem', lineHeight: 1.1, whiteSpace: 'normal' }}><Typography component="span" aria-hidden="true" sx={{ fontSize: 18, lineHeight: 1 }}>{icon}</Typography>{label}</Button>;
+function MobileNavigationButton({ active, icon, label, onClick, buttonRef }: { active: boolean; icon: string; label: string; onClick: () => void; buttonRef?: Ref<HTMLButtonElement> }) {
+  return <Button ref={buttonRef} onClick={onClick} aria-current={active ? 'page' : undefined} color={active ? 'primary' : 'inherit'} sx={{ minWidth: 0, flex: 1, px: 0.35, display: 'grid', gap: 0.15, fontSize: '0.68rem', lineHeight: 1.1, whiteSpace: 'normal' }}><Typography component="span" aria-hidden="true" sx={{ fontSize: 18, lineHeight: 1 }}>{icon}</Typography>{label}</Button>;
 }
+
+function WorkspaceLoading({ label }: { label: string }) { return <Box role="status" aria-live="polite" sx={{ py: 5, textAlign: 'center' }}><Typography color="text.secondary">{label}</Typography></Box>; }
 
 function Header({ text, onAgenda }: { text: AppCopy; onAgenda: () => void }) {
   return <Paper component="header" sx={{ p: { xs: 2.25, sm: 3, lg: 4 }, mb: 2.5, borderRadius: { xs: 3, md: 4 } }}>

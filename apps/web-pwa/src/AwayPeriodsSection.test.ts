@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatAwayPeriodDate, isValidAwayPeriodRange } from './AwayPeriodsSection';
+import { formatAwayPeriodDate, hasUnsavedAwayPeriodDraft, isValidAwayPeriodRange } from './AwayPeriodsSection';
 
 describe('AwayPeriodsSection date validation', () => {
   it('accepts only a period whose end is strictly after its start', () => {
@@ -18,5 +18,14 @@ describe('AwayPeriodsSection date validation', () => {
 describe('AwayPeriodsSection date display', () => {
   it('keeps malformed server values readable rather than throwing during rendering', () => {
     expect(formatAwayPeriodDate('invalid-value', 'pt-PT')).toBe('invalid-value');
+  });
+});
+
+describe('AwayPeriodsSection unsaved draft guard', () => {
+  it('identifies any entered date or reason before a form can be discarded', () => {
+    expect(hasUnsavedAwayPeriodDraft('', '', '')).toBe(false);
+    expect(hasUnsavedAwayPeriodDraft('2026-08-21', '', '')).toBe(true);
+    expect(hasUnsavedAwayPeriodDraft('', '2026-08-22', '')).toBe(true);
+    expect(hasUnsavedAwayPeriodDraft('', '', 'away')).toBe(true);
   });
 });
