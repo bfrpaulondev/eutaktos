@@ -17,7 +17,12 @@ export type AuditedResourceType =
   | 'student-assignment'
   | 'non-student-assignment'
   | 'weekend-meeting'
-  | 'public-talk-assignment';
+  | 'public-talk-assignment'
+  | 'duty-definition'
+  | 'duty-assignment'
+  | 'assignment-response'
+  | 'notification-intent'
+  | 'migration';
 
 export interface AuditEvent {
   id: AuditEventId;
