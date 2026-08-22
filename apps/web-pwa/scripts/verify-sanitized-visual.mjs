@@ -27,7 +27,8 @@ try {
   await poll(async () => { try { return (await (await fetch(`http://127.0.0.1:${debugPort}/json`)).json()).length > 0; } catch { return false; } }, 'Chromium did not start');
   const targets = await (await fetch(`http://127.0.0.1:${debugPort}/json`)).json();
   cdp = await connectCdp(targets[0].webSocketDebuggerUrl);
-  await cdp.send('Page.enable'); await cdp.send('Runtime.enable');
+  await cdp.send('Page.enable'); await cdp.send('Runtime.enable'); await cdp.send('DOMStorage.enable');
+  const storageId = { securityOrigin: new URL(appUrl).origin, isLocalStorage: true };
   const cases = [
     ['pt-PT', 320, '/', 'Tudo em boa ordem.'],
     ['en', 390, '/people', 'People and organization'],
@@ -38,7 +39,8 @@ try {
     await cdp.send('Page.navigate', { url: new URL(path, appUrl).toString() });
     await poll(async () => (await cdp.send('Runtime.evaluate', { expression: "document.readyState === 'complete'", returnByValue: true })).result.value === true, `Page did not load for ${locale}`);
     const preferences = { paletteId: 'classic', colorMode: 'light', density: 'comfortable', locale, textSize: 'default', reducedMotion: false, reducedTransparency: false, highContrast: false };
-    await cdp.send('Runtime.evaluate', { expression: `localStorage.setItem('eutaktos.preferences.v4', ${JSON.stringify(JSON.stringify(preferences))}); location.reload()`, returnByValue: true });
+    await cdp.send('DOMStorage.setDOMStorageItem', { storageId, key: 'eutaktos.preferences.v4', value: JSON.stringify(preferences) });
+    await cdp.send('Page.reload', { ignoreCache: true });
     await poll(async () => {
       const result = await cdp.send('Runtime.evaluate', { expression: `document.readyState === 'complete' && document.documentElement.lang === ${JSON.stringify(locale)} && document.body.innerText.includes(${JSON.stringify(expected)})`, returnByValue: true });
       return result.result.value === true;
