@@ -11,9 +11,9 @@ const chromium = process.env.CHROMIUM_BIN ?? 'chromium';
 
 const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
 
-async function poll(operation, label) {
+async function poll(operation, label, attempts = 40) {
   let lastError;
-  for (let attempt = 0; attempt < 40; attempt += 1) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
       const value = await operation();
       if (value) return value;
@@ -64,12 +64,32 @@ async function evaluate(expression) {
 
 async function setPreferences(preferences, expectedHeading) {
   await evaluate(`localStorage.setItem('eutaktos.preferences.v4', ${JSON.stringify(JSON.stringify(preferences))}); location.reload();`);
-  await poll(async () => await evaluate(`document.documentElement.lang === ${JSON.stringify(preferences.locale)} && Boolean(document.querySelector('#root')?.textContent?.includes(${JSON.stringify(expectedHeading)}))`), `A interface não carregou em ${preferences.locale}`);
+  await poll(
+    async () => await evaluate(`document.documentElement.lang === ${JSON.stringify(preferences.locale)} && Boolean(document.querySelector('#root')?.textContent?.includes(${JSON.stringify(expectedHeading)}))`),
+    `A interface não carregou em ${preferences.locale}`,
+    80,
+  );
 }
 
 async function visitWorkspace(path, expectedHeading, locale, expectedTitle = `Eutaktos — ${expectedHeading}`) {
-  await evaluate(`history.pushState({}, '', ${JSON.stringify(path)}); window.dispatchEvent(new PopStateEvent('popstate'));`);
-  await poll(async () => await evaluate(`document.documentElement.lang === ${JSON.stringify(locale)} && document.title === ${JSON.stringify(expectedTitle)} && Boolean(document.querySelector('#main')?.textContent?.includes(${JSON.stringify(expectedHeading)}))`), `O deep link ${path} não apresentou o título e conteúdo localizados em ${locale}`);
+  const target = new URL(path, appUrl);
+  const expectedLocation = `${target.pathname}${target.search}${target.hash}`;
+  await evaluate(`location.assign(${JSON.stringify(expectedLocation)});`);
+  try {
+    await poll(
+      async () => await evaluate(`location.pathname + location.search + location.hash === ${JSON.stringify(expectedLocation)} && document.documentElement.lang === ${JSON.stringify(locale)} && document.title === ${JSON.stringify(expectedTitle)} && Boolean(document.querySelector('#main')?.textContent?.includes(${JSON.stringify(expectedHeading)}))`),
+      `O deep link ${path} não apresentou o título e conteúdo localizados em ${locale}`,
+      80,
+    );
+  } catch (error) {
+    let observed;
+    try {
+      observed = await evaluate(`({ location: location.pathname + location.search + location.hash, lang: document.documentElement.lang, title: document.title, main: document.querySelector('#main')?.textContent?.slice(0, 500) ?? '', readyState: document.readyState })`);
+    } catch (diagnosticError) {
+      observed = { diagnosticError: String(diagnosticError) };
+    }
+    throw new Error(`${String(error)}; observed=${JSON.stringify(observed)}`);
+  }
 }
 
 async function openLocalizedDialog(trigger, title, closeLabel, locale) {
@@ -167,7 +187,7 @@ try {
   const accessibility = await evaluate(`({ mode: document.documentElement.dataset.colorMode, background: getComputedStyle(document.body).backgroundColor, border: getComputedStyle(document.querySelector('.MuiPaper-root')).borderTopWidth })`);
   if (accessibility.mode !== 'dark' || accessibility.border !== '2px' || accessibility.background === 'rgb(0, 0, 0)') throw new Error(`O tema acessível não foi aplicado corretamente: ${JSON.stringify(accessibility)}`);
 
-  process.stdout.write('UX runtime checks passed: pt-PT/en/es workspaces and organization dialogs, localized deep links/titles, safe unknown-route fallback, More focus restore, dark/high contrast, 320px reflow, skip link, landmarks and aria-current.\n');
+  process.stdout.write('UX runtime checks passed: pt-PT/en/es workspaces and organization dialogs, localized real deep-link navigations/titles, safe unknown-route fallback, More focus restore, dark/high contrast, 320px reflow, skip link, landmarks and aria-current.\n');
 } finally {
   cdp?.close();
   if (browser && !browser.killed) browser.kill('SIGTERM');
