@@ -24,9 +24,10 @@ describe('snapshot unit of work',()=>{
       auditEvent:{id:'audit-1',tenantId:'tenant-a',resourceType:'person',resourceId:'p1',action:'update',actorId:'admin',occurredAt:'2026-08-22T15:00:00.000Z',changedFields:['displayName']},
       domainEvent:{id:'event-1',tenantId:'tenant-a',type:'PersonUpdated',aggregateId:'p1',actorId:'admin',occurredAt:'2026-08-22T15:00:00.000Z',schemaVersion:1},
     });
-    const applyEntityChange=vi.fn(async()=>undefined);
+    let applied: Readonly<Record<string, unknown>> | undefined;
+    const applyEntityChange=vi.fn(async(input: Readonly<Record<string, unknown>>)=>{ applied=input; });
     await uow.flush({applyEntityChange} as unknown as SupabaseRestDatabase);
     expect(applyEntityChange).toHaveBeenCalledTimes(1);
-    expect(applyEntityChange.mock.calls[0]?.[0]).toMatchObject({p_tenant_id:'tenant-a',p_entity_id:'p1',p_expected_version:3});
+    expect(applied).toMatchObject({p_tenant_id:'tenant-a',p_entity_id:'p1',p_expected_version:3});
   });
 });
