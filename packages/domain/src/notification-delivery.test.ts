@@ -282,3 +282,10 @@ describe('DELIVERY_STATUSES', () => {
     expect(Object.isFrozen(DELIVERY_STATUSES)).toBe(true);
   });
 });
+
+
+it('records notification intent as pending and cannot claim delivery before provider processing', () => {
+  const intent = makeAttempt({ channel: 'email', templateKey: 'assignment.created' });
+  expect(intent).toMatchObject({ status: 'pending', deliveredAt: null, lastAttemptAt: null });
+  expect(() => transitionDeliveryStatus(intent, 'delivered', NOW)).toThrow('Invalid transition');
+});
