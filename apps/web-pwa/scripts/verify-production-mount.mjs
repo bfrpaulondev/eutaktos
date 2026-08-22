@@ -40,7 +40,7 @@ async function verifyPwaAssets() {
   for (const icon of manifest.icons) await requireProductionAsset(icon.src.replace(/^\.\//, ''));
 
   const serviceWorker = await (await requireProductionAsset('sw.js')).text();
-  const requiredWorkerRules = ["pathname.startsWith('/api/')", "pathname.startsWith('/auth/')", 'offlineDocument()', "cache: 'no-store'", 'cache.put(request, response.clone())'];
+  const requiredWorkerRules = ["pathname.startsWith('/api/')", "pathname.startsWith('/auth/')", "request.headers.has('authorization')", 'url.search', 'isSafeStaticResponse(response)', "cache: 'no-store'", "Referrer-Policy': 'no-referrer'", "X-Content-Type-Options': 'nosniff'", 'cache.put(request, response.clone())'];
   for (const rule of requiredWorkerRules) {
     if (!serviceWorker.includes(rule)) throw new Error(`O service worker publicado não contém a salvaguarda esperada: ${rule}`);
   }
