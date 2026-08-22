@@ -2,6 +2,7 @@ import type { MidweekMeeting, NonStudentAssignment, StudentAssignment } from '@e
 
 export interface HourglassHandoffPerson {
   readonly id: string;
+  readonly tenantId: string;
   readonly displayName: string;
   readonly externalHourglassPersonId?: string;
 }
@@ -44,7 +45,11 @@ export function createHourglassHandoff(input: {
   const meetings = new Map<string, Readonly<MidweekMeeting>>();
   for (const meeting of input.meetings) { assertTenant(tenantId, meeting); meetings.set(meeting.id, meeting); }
   const people = new Map<string, HourglassHandoffPerson>();
-  for (const person of input.people) { if (people.has(person.id)) throw new Error('Duplicate handoff person'); people.set(person.id, person); }
+  for (const person of input.people) {
+    assertTenant(tenantId, person);
+    if (people.has(person.id)) throw new Error('Duplicate handoff person');
+    people.set(person.id, person);
+  }
   const items: HourglassHandoffItem[] = [];
   const add = (assignment: Readonly<StudentAssignment> | Readonly<NonStudentAssignment>, personId: string, part: string) => {
     assertTenant(tenantId, assignment);
