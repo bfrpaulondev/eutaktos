@@ -34,7 +34,7 @@ const handler: ApiHandler = async (request, response) => {
     const bridge = new SupabaseIdentityBridge();
     const identity = await bridge.identityForEmail(email);
     if (identity) {
-      try { await bridge.requestEmailOtp(email, identity.authUserId === undefined, publicOrigin()); }
+      try { await bridge.requestEmailOtp(email, identity.authUserId === undefined, `${publicOrigin()}/auth/confirm`); }
       catch (error) {
         if (!(error instanceof AuthenticationError)) throw error;
       }

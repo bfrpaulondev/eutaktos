@@ -122,6 +122,26 @@ export class SupabaseIdentityBridge {
     return verifiedSession(exactString(body.access_token), body.user, email);
   }
 
+  async verifyEmailTokenHash(tokenHash: string): Promise<SupabaseOtpSession> {
+    const normalized = tokenHash.trim();
+    if (normalized.length < 32 || normalized.length > 512 || !/^[A-Za-z0-9_-]+$/.test(normalized)) {
+      throw new AuthenticationError('Invalid or expired authentication link');
+    }
+    const response = await this.#authFetch('/auth/v1/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'email', token_hash: normalized }),
+    });
+    if (!response.ok) {
+      if (response.status >= 500) throw new DatabaseRequestError(response.status);
+      throw new AuthenticationError('Invalid or expired authentication link');
+    }
+    let raw: unknown;
+    try { raw = await response.json(); } catch { throw new DatabaseRequestError(502); }
+    const body = objectRecord(raw);
+    return verifiedSession(exactString(body.access_token), body.user);
+  }
+
   async verifyAccessToken(accessToken: string): Promise<SupabaseOtpSession> {
     const token = accessToken.trim();
     if (!token || token.length > 8192) throw new AuthenticationError('Invalid authentication token');
