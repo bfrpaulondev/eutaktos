@@ -1,4 +1,4 @@
-name: Rainbow auth post-deploy smoke
+name: Eutakes auth post-deploy smoke
 
 on:
   pull_request:
@@ -9,34 +9,15 @@ permissions:
   contents: read
 
 jobs:
-  deployment-capability:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 2
-    env:
-      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-      NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
-      NETLIFY_BUILD_HOOK: ${{ secrets.NETLIFY_BUILD_HOOK }}
-      NETLIFY_DEPLOY_HOOK: ${{ secrets.NETLIFY_DEPLOY_HOOK }}
-    steps:
-      - name: Report only credential availability
-        shell: bash
-        run: |
-          set -euo pipefail
-          present() { if [ -n "$2" ]; then echo "$1=present"; else echo "$1=absent"; fi; }
-          present NETLIFY_AUTH_TOKEN "$NETLIFY_AUTH_TOKEN"
-          present NETLIFY_SITE_ID "$NETLIFY_SITE_ID"
-          present NETLIFY_BUILD_HOOK "$NETLIFY_BUILD_HOOK"
-          present NETLIFY_DEPLOY_HOOK "$NETLIFY_DEPLOY_HOOK"
-
   production-smoke:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Verify canonical production runtime and auth boundary
+      - name: Verify Eutakes production runtime and auth boundary
         shell: bash
         run: |
           set -euo pipefail
-          BASE='https://rainbow-zuccutto-00d981.netlify.app'
+          BASE='https://eutakes.netlify.app'
 
           root_code="$(curl --silent --show-error --location --output /tmp/root.html --write-out '%{http_code}' "$BASE/")"
           echo "root=$root_code"
@@ -56,24 +37,47 @@ jobs:
           echo "session=$session_code body=$(cat /tmp/session.json)"
           test "$session_code" = '401'
 
-          otp_code="$(curl --silent --show-error --request POST --header 'Content-Type: application/json' --data '{}' --output /tmp/otp.json --write-out '%{http_code}' "$BASE/api/auth/otp")"
-          echo "auth-otp=$otp_code body=$(cat /tmp/otp.json)"
-          test "$otp_code" = '403'
+          # No Origin must fail closed.
+          otp_csrf_code="$(curl --silent --show-error --request POST --header 'Content-Type: application/json' --data '{}' --output /tmp/otp-csrf.json --write-out '%{http_code}' "$BASE/api/auth/otp")"
+          echo "auth-otp-no-origin=$otp_csrf_code body=$(cat /tmp/otp-csrf.json)"
+          test "$otp_csrf_code" = '403'
+
+          # Same-origin request to a deliberately unauthorized address must be accepted generically,
+          # proving EUTAKTOS_PUBLIC_ORIGIN is configured for Eutakes without sending any email.
+          otp_origin_code="$(curl --silent --show-error --request POST \
+            --header 'Content-Type: application/json' \
+            --header 'Origin: https://eutakes.netlify.app' \
+            --header 'Sec-Fetch-Site: same-origin' \
+            --data '{"email":"smoke-not-authorized@example.invalid"}' \
+            --output /tmp/otp-origin.json --write-out '%{http_code}' "$BASE/api/auth/otp")"
+          echo "auth-otp-eutakes-origin=$otp_origin_code body=$(cat /tmp/otp-origin.json)"
+          test "$otp_origin_code" = '202'
+          node -e "const x=require('/tmp/otp-origin.json'); if(x.status!=='check-email') process.exit(1)"
+
+          # The updated verify endpoint must exist and pass the origin boundary before validating payload.
+          verify_code="$(curl --silent --show-error --request POST \
+            --header 'Content-Type: application/json' \
+            --header 'Origin: https://eutakes.netlify.app' \
+            --header 'Sec-Fetch-Site: same-origin' \
+            --data '{}' --output /tmp/verify.json --write-out '%{http_code}' "$BASE/api/auth/verify")"
+          echo "auth-verify=$verify_code body=$(cat /tmp/verify.json)"
+          test "$verify_code" = '400'
 
           echo 'HTTP smoke passed.'
 
-      - name: Verify signed-out browser sees login gate
+      - name: Verify deployed browser has Magic Link login UI
         shell: bash
         run: |
           set -euo pipefail
           BROWSER_BIN="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
           test -n "$BROWSER_BIN"
-          HTML="$($BROWSER_BIN --headless=new --no-sandbox --disable-gpu --virtual-time-budget=7000 --dump-dom 'https://rainbow-zuccutto-00d981.netlify.app/' 2>/dev/null)"
+          HTML="$($BROWSER_BIN --headless=new --no-sandbox --disable-gpu --virtual-time-budget=9000 --dump-dom 'https://eutakes.netlify.app/' 2>/dev/null)"
           printf '%s' "$HTML" > /tmp/rendered.html
           grep -Eq 'Entrar no Eutaktos|Sign in to Eutaktos|Entrar en Eutaktos' /tmp/rendered.html
+          grep -Eq 'Enviar link de acesso|Send sign-in link|Enviar enlace de acceso' /tmp/rendered.html
           grep -Eq 'type="email"|inputmode="email"' /tmp/rendered.html
           if grep -q 'Navegação principal' /tmp/rendered.html; then
             echo 'Authenticated application shell unexpectedly visible without a session.' >&2
             exit 1
           fi
-          echo 'Browser smoke passed: signed-out production renders the login gate.'
+          echo 'Browser smoke passed: deployed Eutakes renders the Magic Link login gate.'
