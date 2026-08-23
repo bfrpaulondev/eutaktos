@@ -18,8 +18,6 @@ type Locale = 'pt-PT' | 'en' | 'es';
 type PanelState = 'email' | 'sent' | 'submitting';
 type ErrorKind = 'credentials' | 'service' | null;
 
-const LOCALE_STORAGE_KEY = 'eutaktos.auth.locale.v1';
-
 const copy = {
   'pt-PT': {
     language: 'Idioma', eyebrow: 'Acesso seguro', title: 'Entrar no Eutaktos',
@@ -56,17 +54,7 @@ const copy = {
   },
 } as const;
 
-function storedLocale(): Locale | undefined {
-  if (typeof localStorage === 'undefined') return undefined;
-  try {
-    const value = localStorage.getItem(LOCALE_STORAGE_KEY);
-    return value === 'pt-PT' || value === 'en' || value === 'es' ? value : undefined;
-  } catch { return undefined; }
-}
-
 function initialLocale(): Locale {
-  const stored = storedLocale();
-  if (stored) return stored;
   const language = typeof navigator === 'undefined' ? 'pt-PT' : navigator.language;
   if (language.toLowerCase().startsWith('es')) return 'es';
   if (language.toLowerCase().startsWith('en')) return 'en';
@@ -84,11 +72,6 @@ export function AuthSignInPanel({ onAuthenticated }: { onAuthenticated: () => vo
   const [token, setToken] = useState('');
   const [failure, setFailure] = useState<ErrorKind>(null);
   const text = copy[locale];
-
-  const changeLocale = (nextLocale: Locale) => {
-    setLocale(nextLocale);
-    try { localStorage.setItem(LOCALE_STORAGE_KEY, nextLocale); } catch { /* storage can be unavailable in private modes */ }
-  };
 
   const requestLink = async (event: FormEvent) => {
     event.preventDefault();
@@ -134,7 +117,7 @@ export function AuthSignInPanel({ onAuthenticated }: { onAuthenticated: () => vo
             </Box>
             <FormControl size="small" sx={{ minWidth: { xs: 0, sm: 118 }, width: { xs: '100%', sm: 'auto' } }}>
               <InputLabel id="auth-language-label">{text.language}</InputLabel>
-              <Select labelId="auth-language-label" value={locale} label={text.language} onChange={event => changeLocale(event.target.value as Locale)}>
+              <Select labelId="auth-language-label" value={locale} label={text.language} onChange={event => setLocale(event.target.value as Locale)}>
                 <MenuItem value="pt-PT">Português</MenuItem>
                 <MenuItem value="en">English</MenuItem>
                 <MenuItem value="es">Español</MenuItem>
