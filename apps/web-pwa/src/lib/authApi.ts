@@ -20,6 +20,21 @@ function safeServerError(response: Response, body: unknown): Error {
   return new Error('Authentication service unavailable');
 }
 
+export function isSupabaseAuthHash(hash: string): boolean {
+  if (!hash.startsWith('#')) return false;
+  const params = new URLSearchParams(hash.slice(1));
+  return params.has('access_token') || params.has('refresh_token') || params.has('error') || params.has('error_code') || params.has('error_description');
+}
+
+export function supabaseAccessTokenFromHash(hash: string): string | undefined {
+  if (!hash.startsWith('#')) return undefined;
+  const params = new URLSearchParams(hash.slice(1));
+  const token = params.get('access_token')?.trim();
+  const tokenType = params.get('token_type')?.trim().toLowerCase();
+  if (!token || tokenType !== 'bearer' || token.length > 8192 || token.split('.').length !== 3) return undefined;
+  return token;
+}
+
 export function createAuthenticationApi(fetcher: typeof fetch = fetch) {
   return Object.freeze({
     async current(signal?: AbortSignal): Promise<AuthenticationSessionState> {
@@ -56,6 +71,19 @@ export function createAuthenticationApi(fetcher: typeof fetch = fetch) {
         credentials: 'same-origin',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, token }),
+      });
+      const body = await optionalJson(response);
+      if (!response.ok) throw safeServerError(response, body);
+      return parseCurrentSession(body);
+    },
+
+    async verifyMagicLink(accessToken: string, signal?: AbortSignal): Promise<CurrentSessionDto> {
+      const response = await fetcher('/api/auth/verify', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accessToken }),
+        signal,
       });
       const body = await optionalJson(response);
       if (!response.ok) throw safeServerError(response, body);
