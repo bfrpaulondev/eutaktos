@@ -5,6 +5,8 @@ import sessionHandler from './session';
 import logoutHandler from './session/logout';
 import logoutAllHandler from './session/logout-all';
 import rotateSessionHandler from './session/rotate';
+import authOtpHandler from './auth/otp';
+import authVerifyHandler from './auth/verify';
 import peopleHandler from './people';
 import personHandler from './people/[personId]';
 import householdsHandler from './households';
@@ -42,7 +44,7 @@ export interface NetlifyApiResult {
 }
 
 type RouteKey =
-  | 'health' | 'ready' | 'session' | 'logout' | 'logout-all' | 'rotate-session'
+  | 'health' | 'ready' | 'session' | 'logout' | 'logout-all' | 'rotate-session' | 'auth-otp' | 'auth-verify'
   | 'people' | 'person' | 'households' | 'household' | 'service-groups' | 'service-group'
   | 'responsibilities' | 'responsibility' | 'end-responsibility' | 'audit-history'
   | 'access-grants' | 'subject-grants' | 'revoke-grant' | 'midweek' | 'midweek-route' | 'outbox-worker';
@@ -59,6 +61,8 @@ const handlers: Readonly<Record<RouteKey, ApiHandler>> = Object.freeze({
   logout: logoutHandler,
   'logout-all': logoutAllHandler,
   'rotate-session': rotateSessionHandler,
+  'auth-otp': authOtpHandler,
+  'auth-verify': authVerifyHandler,
   people: peopleHandler,
   person: personHandler,
   households: householdsHandler,
@@ -107,6 +111,8 @@ export function matchNetlifyApiRoute(path: string): RouteMatch | undefined {
     '/session/logout': 'logout',
     '/session/logout-all': 'logout-all',
     '/session/rotate': 'rotate-session',
+    '/auth/otp': 'auth-otp',
+    '/auth/verify': 'auth-verify',
     '/people': 'people',
     '/households': 'households',
     '/service-groups': 'service-groups',

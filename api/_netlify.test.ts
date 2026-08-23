@@ -7,6 +7,7 @@ describe('Netlify API adapter', () => {
     expect(normalizeNetlifyApiPath({ path: '/.netlify/functions/api/people/person-1' })).toBe('/people/person-1');
     expect(normalizeNetlifyApiPath({ rawUrl: 'https://example.netlify.app/api/health?x=1' })).toBe('/health');
     expect(normalizeNetlifyApiPath({ path: '/.netlify/functions/api/midweek/meetings/m-1/publish' })).toBe('/midweek/meetings/m-1/publish');
+    expect(normalizeNetlifyApiPath({ path: '/api/auth/verify' })).toBe('/auth/verify');
   });
 
   it('matches dynamic identifiers from the path', () => {
@@ -14,6 +15,11 @@ describe('Netlify API adapter', () => {
     expect(matchNetlifyApiRoute('/responsibilities/res-1/end')).toEqual({ key: 'end-responsibility', params: { responsibilityId: 'res-1' } });
     expect(matchNetlifyApiRoute('/access/subjects/actor-1/grants')).toEqual({ key: 'subject-grants', params: { subjectId: 'actor-1' } });
     expect(matchNetlifyApiRoute('/people/%2Fetc')).toBeUndefined();
+  });
+
+  it('routes authentication through the central Netlify function', () => {
+    expect(matchNetlifyApiRoute('/auth/otp')).toEqual({ key: 'auth-otp', params: {} });
+    expect(matchNetlifyApiRoute('/auth/verify')).toEqual({ key: 'auth-verify', params: {} });
   });
 
   it('routes the real midweek overview and mutation paths through the central Netlify function', () => {
