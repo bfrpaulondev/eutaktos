@@ -8,34 +8,66 @@ jobs:
   production-ui-smoke:
     runs-on: ubuntu-latest
     steps:
-      - name: Inspect deployed frontend asset
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Browser-origin auth probe
         shell: bash
         run: |
-          base='https://eutakes.netlify.app'
-          html_file=/tmp/eutakes-index.html
-          curl -sS -D /tmp/html-headers.txt -o "$html_file" "$base/?probe=$(date +%s)"
-          echo '--- HTML HEADERS ---'
-          cat /tmp/html-headers.txt
-          asset="$(python - <<'PY'
-          import re
-          text=open('/tmp/eutakes-index.html', encoding='utf-8').read()
-          m=re.search(r'src="(/assets/[^"]+\.js)"', text)
-          print(m.group(1) if m else '')
-          PY
-          )"
-          echo "PROD_ASSET=$asset"
-          if [ -z "$asset" ]; then
-            echo 'NO_JS_ASSET_FOUND'
-            head -c 1000 "$html_file"
-            exit 1
-          fi
-          status="$(curl -sS -w '%{http_code}' -D /tmp/asset-headers.txt -o /tmp/prod.js "$base$asset")"
-          echo "ASSET_HTTP_STATUS=$status"
-          echo '--- ASSET HEADERS ---'
-          cat /tmp/asset-headers.txt
-          echo "PROD_SHA256=$(sha256sum /tmp/prod.js | awk '{print $1}')"
-          echo "PROD_SIZE=$(wc -c < /tmp/prod.js)"
-          if grep -Fq 'Acesso temporário de teste' /tmp/prod.js; then echo 'PROD_DIRECT_CODE_COPY=yes'; else echo 'PROD_DIRECT_CODE_COPY=no'; fi
-          if grep -Fq 'Entrar com código' /tmp/prod.js; then echo 'PROD_CODE_BUTTON=yes'; else echo 'PROD_CODE_BUTTON=no'; fi
-          if grep -Fq 'Enviar link de acesso' /tmp/prod.js; then echo 'PROD_MAGIC_LINK_COPY=yes'; else echo 'PROD_MAGIC_LINK_COPY=no'; fi
-          test "$status" = '200'
+          set -euo pipefail
+          BROWSER_BIN="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          test -n "$BROWSER_BIN"
+          "$BROWSER_BIN" --headless=new --no-sandbox --disable-gpu --remote-debugging-port=9222 --user-data-dir=/tmp/eutakes-browser-smoke about:blank >/tmp/chrome.log 2>&1 &
+          CHROME_PID=$!
+          trap 'kill "$CHROME_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 50); do
+            if curl -fsS http://127.0.0.1:9222/json/version >/dev/null 2>&1; then break; fi
+            sleep 0.1
+          done
+          node <<'NODE'
+          const sleep = ms => new Promise(r => setTimeout(r, ms));
+          const pages = await fetch('http://127.0.0.1:9222/json').then(r => r.json());
+          if (!pages.length) throw new Error('No Chrome page');
+          const ws = new WebSocket(pages[0].webSocketDebuggerUrl);
+          await new Promise((resolve, reject) => {
+            ws.addEventListener('open', resolve, { once: true });
+            ws.addEventListener('error', reject, { once: true });
+          });
+          let id = 0;
+          const pending = new Map();
+          ws.addEventListener('message', event => {
+            const msg = JSON.parse(event.data);
+            if (!msg.id) return;
+            const p = pending.get(msg.id);
+            if (!p) return;
+            pending.delete(msg.id);
+            if (msg.error) p.reject(new Error(JSON.stringify(msg.error)));
+            else p.resolve(msg.result);
+          });
+          function send(method, params = {}) {
+            return new Promise((resolve, reject) => {
+              const messageId = ++id;
+              pending.set(messageId, { resolve, reject });
+              ws.send(JSON.stringify({ id: messageId, method, params }));
+            });
+          }
+          await send('Page.enable');
+          await send('Runtime.enable');
+          await send('Page.navigate', { url: 'https://eutakes.netlify.app/' });
+          await sleep(1800);
+          const expression = `(async () => {
+            const response = await fetch('/api/auth/verify', {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: 'pilot-browser-smoke@example.invalid', token: '000000' })
+            });
+            return { status: response.status, body: await response.text(), href: location.href };
+          })()`;
+          const result = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true });
+          const value = result?.result?.value;
+          console.log('BROWSER_AUTH_RESULT=' + JSON.stringify(value));
+          if (!value || typeof value.status !== 'number') process.exit(2);
+          if (![401, 403, 503].includes(value.status)) process.exit(3);
+          ws.close();
+          NODE
