@@ -16,7 +16,13 @@ jobs:
           curl -sS -D /tmp/html-headers.txt -o "$html_file" "$base/?probe=$(date +%s)"
           echo '--- HTML HEADERS ---'
           cat /tmp/html-headers.txt
-          asset="$(grep -oE 'src="/assets/[^"]+\.js"' "$html_file" | head -n1 | sed -E 's/^src="([^"]+)"$/\1/')"
+          asset="$(python - <<'PY'
+          import re
+          text=open('/tmp/eutakes-index.html', encoding='utf-8').read()
+          m=re.search(r'src="(/assets/[^"]+\.js)"', text)
+          print(m.group(1) if m else '')
+          PY
+          )"
           echo "PROD_ASSET=$asset"
           if [ -z "$asset" ]; then
             echo 'NO_JS_ASSET_FOUND'
