@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createAuthenticationApi, isSupabaseAuthHash, supabaseAccessTokenFromHash } from './authApi';
+import { AuthenticationApiError, createAuthenticationApi, isSupabaseAuthHash, supabaseAccessTokenFromHash } from './authApi';
 
 function json(value: unknown, status = 200): Response {
   return new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
@@ -42,6 +42,16 @@ describe('authenticationApi', () => {
       actorId: 'actor-1',
       capabilities: ['people.read', 'schedule.read'],
     });
+  });
+
+  it('preserves 5xx status without exposing server internals', async () => {
+    const fetcher = vi.fn<typeof fetch>(async () => json({ error: 'Service temporarily unavailable' }, 503));
+    const promise = createAuthenticationApi(fetcher).verifyOtp('person@example.test', '123456');
+    await expect(promise).rejects.toMatchObject({
+      name: 'AuthenticationApiError',
+      status: 503,
+      message: 'Authentication service unavailable',
+    } satisfies Partial<AuthenticationApiError>);
   });
 
   it('sends only the transient access token when exchanging a magic link', async () => {
