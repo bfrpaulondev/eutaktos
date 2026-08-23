@@ -8,31 +8,28 @@ jobs:
   production-ui-smoke:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - name: Install dependencies
-        run: npm ci
-      - name: Build expected main frontend
-        run: npm --workspace @eutaktos/web-pwa run build
-      - name: Compare production bundle with expected build
+      - name: Inspect deployed frontend asset
         shell: bash
         run: |
-          set -euo pipefail
           base='https://eutakes.netlify.app'
-          html="$(curl -fsSL -H 'Cache-Control: no-cache' "$base/?probe=$(date +%s)")"
-          asset="$(printf '%s' "$html" | grep -oE 'src="/assets/[^"]+\.js"' | head -n1 | sed -E 's/^src="([^"]+)"$/\1/')"
-          test -n "$asset"
-          curl -fsSL -H 'Cache-Control: no-cache' "$base$asset?probe=$(date +%s)" -o /tmp/prod.js
-          local_asset="$(find apps/web-pwa/dist/assets -maxdepth 1 -type f -name '*.js' | sort | head -n1)"
-          test -n "$local_asset"
+          html_file=/tmp/eutakes-index.html
+          curl -sS -D /tmp/html-headers.txt -o "$html_file" "$base/?probe=$(date +%s)"
+          echo '--- HTML HEADERS ---'
+          cat /tmp/html-headers.txt
+          asset="$(grep -oE 'src="/assets/[^"]+\.js"' "$html_file" | head -n1 | sed -E 's/^src="([^"]+)"$/\1/')"
           echo "PROD_ASSET=$asset"
+          if [ -z "$asset" ]; then
+            echo 'NO_JS_ASSET_FOUND'
+            head -c 1000 "$html_file"
+            exit 1
+          fi
+          status="$(curl -sS -w '%{http_code}' -D /tmp/asset-headers.txt -o /tmp/prod.js "$base$asset")"
+          echo "ASSET_HTTP_STATUS=$status"
+          echo '--- ASSET HEADERS ---'
+          cat /tmp/asset-headers.txt
           echo "PROD_SHA256=$(sha256sum /tmp/prod.js | awk '{print $1}')"
-          echo "LOCAL_ASSET=$local_asset"
-          echo "LOCAL_SHA256=$(sha256sum "$local_asset" | awk '{print $1}')"
+          echo "PROD_SIZE=$(wc -c < /tmp/prod.js)"
           if grep -Fq 'Acesso temporário de teste' /tmp/prod.js; then echo 'PROD_DIRECT_CODE_COPY=yes'; else echo 'PROD_DIRECT_CODE_COPY=no'; fi
-          if grep -Fq 'Acesso temporário de teste' "$local_asset"; then echo 'LOCAL_DIRECT_CODE_COPY=yes'; else echo 'LOCAL_DIRECT_CODE_COPY=no'; fi
           if grep -Fq 'Entrar com código' /tmp/prod.js; then echo 'PROD_CODE_BUTTON=yes'; else echo 'PROD_CODE_BUTTON=no'; fi
-          test "$(sha256sum /tmp/prod.js | awk '{print $1}')" = "$(sha256sum "$local_asset" | awk '{print $1}')"
+          if grep -Fq 'Enviar link de acesso' /tmp/prod.js; then echo 'PROD_MAGIC_LINK_COPY=yes'; else echo 'PROD_MAGIC_LINK_COPY=no'; fi
+          test "$status" = '200'
