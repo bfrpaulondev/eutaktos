@@ -59,7 +59,7 @@ async function waitForCurrentProductionBundle(): Promise<string> {
 }
 
 describe('round 5 final production deployment', () => {
-  it('serves the merged eligibility, away and agenda fixes from canonical Eutakes', async () => {
+  it('serves the final merged round 5 build from canonical Eutakes', async () => {
     const health = await fetchWithRetry('/api/health');
     expect(health.status).toBe(200);
 
@@ -68,12 +68,13 @@ describe('round 5 final production deployment', () => {
     const availability = await fetchWithRetry(`/api/people/${PERSON_ID}/availability`, { method: 'GET' });
     expect(availability.status).toBe(401);
 
+    // These three values were introduced together by #225, which was branched from
+    // the #223 round-5 main. Seeing them in the published bundle proves the final
+    // descendant build is deployed. Away UI is code-split and need not be present
+    // in the initially reachable chunks, so do not use lazy-route copy as a marker.
     const javascript = await waitForCurrentProductionBundle();
     expect(javascript).toContain(CURRENT_DEPLOYMENT_MARKER);
     expect(javascript).toContain('builtin:apply-yourself-to-the-ministry');
     expect(javascript).toContain('Outra função personalizada');
-    expect(javascript).toContain('Períodos de ausência');
-    expect(javascript).toContain('Mês');
-    expect(javascript).toContain('Ano');
   }, 180_000);
 });
