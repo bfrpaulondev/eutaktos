@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { authenticationApi } from './lib/authApi';
+import { authenticationApi, isSupabaseAuthHash, supabaseAccessTokenFromHash } from './lib/authApi';
 
 const AuthSignInPanel = lazy(async () => {
   const module = await import('./AuthSignInPanel');
@@ -18,17 +18,39 @@ export function AuthBoundary({ children }: { children: ReactNode }) {
   const [state, setState] = useState<GateState>(localHarness ? 'authenticated' : 'checking');
 
   const checkSession = () => {
-    if (localHarness) { setState('authenticated'); return () => undefined; }
-    const controller = new AbortController();
+    if (localHarness) { setState('authenticated'); return; }
     setState('checking');
-    void authenticationApi.current(controller.signal).then(result => {
-      if (controller.signal.aborted) return;
+    void authenticationApi.current().then(result => {
       setState(result.status === 'authenticated' ? 'authenticated' : result.status === 'unauthenticated' ? 'signed-out' : 'unavailable');
     });
-    return () => controller.abort();
   };
 
-  useEffect(checkSession, [localHarness]);
+  useEffect(() => {
+    if (localHarness) { setState('authenticated'); return undefined; }
+
+    const controller = new AbortController();
+    setState('checking');
+    const hash = window.location.hash;
+    const magicLinkAccessToken = supabaseAccessTokenFromHash(hash);
+    if (isSupabaseAuthHash(hash)) {
+      window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}`);
+    }
+
+    if (magicLinkAccessToken) {
+      void authenticationApi.verifyMagicLink(magicLinkAccessToken, controller.signal).then(() => {
+        if (!controller.signal.aborted) setState('authenticated');
+      }).catch(() => {
+        if (!controller.signal.aborted) setState('signed-out');
+      });
+    } else {
+      void authenticationApi.current(controller.signal).then(result => {
+        if (controller.signal.aborted) return;
+        setState(result.status === 'authenticated' ? 'authenticated' : result.status === 'unauthenticated' ? 'signed-out' : 'unavailable');
+      });
+    }
+
+    return () => controller.abort();
+  }, [localHarness]);
 
   if (state === 'authenticated') return <>{children}</>;
 

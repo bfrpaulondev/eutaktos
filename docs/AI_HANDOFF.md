@@ -1,51 +1,53 @@
 # AI HANDOFF — CURRENT SOURCE OF TRUTH
 
-> Updated 2026-08-22 during project recovery. Read this before taking any Eutaktos task. Historical task reports may contain stale deployment or branch information.
+> Updated 2026-08-23 after the production-authentication recovery. Read this before taking any Eutaktos task. Historical reports may contain stale deployment or branch information.
 
 ## Canonical project
 
 - Repository: `bfrpaulondev/eutaktos`
-- Audited main baseline: `7817833584e3b3b469b1564cf4f9231471b04be1`
-- **Canonical production: `https://rainbow-zuccutto-00d981.netlify.app/`**
-- Do **not** use `https://eutakes.netlify.app/` or Vercel deployments as Eutaktos production acceptance evidence.
-- Full recovery state and triage: `docs/RECOVERY_AUDIT_2026-08-22.md`.
+- Main baseline before the Magic Link follow-up: `4373d29db91ca448827e04681b2400c8a1bee523`
+- **Canonical production: `https://eutakes.netlify.app/`**
+- `https://rainbow-zuccutto-00d981.netlify.app/` is no longer the production acceptance target.
+- Vercel deployments are not Eutaktos production acceptance evidence.
 
-## Current reality
+## Integrated recovery state
 
-The previous handoff was obsolete: it still described the project as early Phase 1 and pointed to `kimi/organization-service`. Since then the project has integrated reviewed Kimi K03–K40 work, a production API/Supabase runtime foundation, reviewed Manus frontend waves, K41–K50 scheduling/application work and A06 Midweek API/Supabase/PWA integration.
+The recovery work that triaged Manus #190–#200, repaired the visual regression gate, produced the cumulative M60 gate and added the Supabase identity bridge has already been integrated. Do not resurrect those old branches as independent unfinished work.
 
-Important reviewed integration PRs include #109, #131, #149, #155, #167, #180 and #181. Do not resurrect their old individual branches as independent unfinished work.
+Important integrated work includes PRs #107, #109, #131, #149, #155, #167, #180, #181, #201, the reviewed Manus recovery PRs, #203 and auth PR #205.
 
-## Current open work
+## Current P0
 
-Manus PRs #190–#200 exist, but they are not eleven new features. Recovery triage:
+Usable production authentication is the current release gate.
 
-- Review/integrate product candidates: #191, #192, #195.
-- Review quality-only candidates: #196, #197, #198.
-- #199 must be corrected before merge because its CDP script reintroduces the reload race already fixed by #186.
-- #190 and #200 must not be treated as final acceptance because they use/retain evidence from the wrong production target and #200 was run without M55–M59 integrated.
-- #193/#194 are evidence/docs to fold into the next consolidated acceptance run rather than count as product delivery.
+The Supabase identity bridge is already on `main`. A real pilot email was successfully accepted by Supabase Auth, proving email delivery and identity verification, but Supabase redirected the first Magic Link to its stale `http://localhost:3000` Site URL. The follow-up branch `gpt/auth02-magic-link-production` makes the default hosted Magic Link a supported production flow and restores `https://eutakes.netlify.app/` as the canonical origin.
 
-K51–K60 are **not assigned merely because an issue exists**. No K51–K60 Kimi branches were present at the recovery audit. The user must explicitly send work to the external Kimi agent.
+Production configuration must agree on the same origin:
+
+- Netlify: `EUTAKTOS_PUBLIC_ORIGIN=https://eutakes.netlify.app`
+- Supabase Authentication URL Configuration: Site URL/allowed redirect for `https://eutakes.netlify.app`
+
+Do not mark authentication DONE until a fresh email link returns to Eutakes, the Eutaktos server creates its own secure session cookie, the Supabase auth fragment is scrubbed from the URL, and authenticated production APIs are exercised.
 
 ## Definition of done
 
-`ASSIGNED → IN PROGRESS → PR/REVIEW → INTEGRATED MAIN → DEPLOYED RAINBOW → PRODUCTION VERIFIED → DONE`
+`ASSIGNED → IN PROGRESS → PR/REVIEW → INTEGRATED MAIN → DEPLOYED EUTAKES → PRODUCTION VERIFIED → DONE`
 
-A branch, commit, agent report, deploy preview or green local test alone is not `DONE`.
+A branch, commit, agent report, preview deploy, Supabase login event or green local test alone is not `DONE`.
 
-## Ownership while recovering
+## Ownership
 
 - Principal/integration agent: main integration, runtime/API/Supabase, production verification and cross-cutting fixes.
-- Manus: frontend/PWA only, explicitly scoped.
-- Kimi: domain/application/in-memory test work only after explicit user assignment.
+- Manus: frontend/PWA-only work when explicitly scoped.
+- Kimi: domain/application/in-memory-test work only after explicit user assignment.
 
-Do not issue another large task wave until #190–#200 are triaged/integrated and the resulting main is verified on Rainbow.
+Do not dispatch another large Kimi/Manus task wave until authentication and the canonical Eutakes production runtime are verified end to end.
 
 ## Immediate next sequence
 
-1. Consolidate #191/#192/#195, then #196–#198.
-2. Repair #199 using the stable CDP navigation/storage approach from #186.
-3. Produce one fresh cumulative frontend gate on the consolidated main.
-4. Verify root, `/api/health`, `/api/ready`, deep links and authorised pilot E2E on `https://rainbow-zuccutto-00d981.netlify.app/`.
-5. Only then explicitly dispatch K51–K60 and resume parallel development.
+1. Finish/review the Magic Link production follow-up and merge it only with green quality/browser gates.
+2. Deploy the resulting `main` to `https://eutakes.netlify.app/`.
+3. Verify health/readiness, signed-out login UI, fresh Magic Link redirect, Eutaktos session creation and URL token scrubbing.
+4. Verify the pilot identity binding and active Eutaktos session server-side.
+5. Exercise authenticated People/Organization/Access/Audit/Midweek paths with disposable pilot data.
+6. Only then resume new parallel feature waves.

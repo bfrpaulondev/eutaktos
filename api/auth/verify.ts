@@ -1,32 +1,51 @@
 import { AuthenticationError, sessionCookie } from '../_auth';
 import { BadRequestError, assertTrustedMutation, exactKeys, requestBody, requiredString, runEndpoint } from '../_endpoint';
-import { SupabaseIdentityBridge } from '../_identity-auth';
+import { SupabaseIdentityBridge, type SupabaseOtpSession } from '../_identity-auth';
 import { json, methodNotAllowed, type ApiHandler } from '../_types';
 
-function inputFromBody(value: unknown): { readonly email: string; readonly token: string } {
+type VerifyInput =
+  | Readonly<{ kind: 'otp'; email: string; token: string }>
+  | Readonly<{ kind: 'magic-link'; accessToken: string }>;
+
+function inputFromBody(value: unknown): VerifyInput {
   const body = requestBody(value);
+  if (body.accessToken !== undefined) {
+    exactKeys(body, ['accessToken']);
+    const accessToken = requiredString(body, 'accessToken', 8192);
+    if (accessToken.split('.').length !== 3) throw new BadRequestError('Invalid authentication token');
+    return Object.freeze({ kind: 'magic-link' as const, accessToken });
+  }
+
   exactKeys(body, ['email', 'token']);
   const email = requiredString(body, 'email', 254).toLowerCase();
   const token = requiredString(body, 'token', 12);
   if (!email.includes('@') || email.startsWith('@') || email.endsWith('@') || /\s/.test(email)) throw new BadRequestError('Invalid email');
   if (!/^\d{6}$/.test(token)) throw new BadRequestError('Invalid authentication code');
-  return Object.freeze({ email, token });
+  return Object.freeze({ kind: 'otp' as const, email, token });
+}
+
+async function verifyIdentity(bridge: SupabaseIdentityBridge, input: VerifyInput): Promise<SupabaseOtpSession> {
+  if (input.kind === 'magic-link') return bridge.verifyAccessToken(input.accessToken);
+  const identity = await bridge.identityForEmail(input.email);
+  if (!identity) throw new AuthenticationError('Identity not authorized');
+  const verified = await bridge.verifyEmailOtp(input.email, input.token);
+  if (identity.authUserId && identity.authUserId !== verified.authUserId) throw new AuthenticationError('Identity mismatch');
+  return verified;
 }
 
 const handler: ApiHandler = async (request, response) => {
   if (request.method !== 'POST') { methodNotAllowed(response, ['POST']); return; }
   await runEndpoint(request, response, async database => {
     assertTrustedMutation(request);
-    const { email, token } = inputFromBody(request.body);
+    const input = inputFromBody(request.body);
     const bridge = new SupabaseIdentityBridge();
-    const identity = await bridge.identityForEmail(email);
+    const verified = await verifyIdentity(bridge, input);
+    const identity = await bridge.identityForEmail(verified.email);
     if (!identity) throw new AuthenticationError('Identity not authorized');
-
-    const verified = await bridge.verifyEmailOtp(email, token);
     if (identity.authUserId && identity.authUserId !== verified.authUserId) throw new AuthenticationError('Identity mismatch');
 
     const created = await bridge.createEutaktosSession({
-      email,
+      email: verified.email,
       authUserId: verified.authUserId,
       sessionId: `session-${crypto.randomUUID()}`,
       authenticatedAt: new Date().toISOString(),
