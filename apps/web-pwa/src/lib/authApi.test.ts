@@ -70,6 +70,22 @@ describe('authenticationApi', () => {
     const fetcher = vi.fn<typeof fetch>(async () => json({ actorId: 'actor-1', capabilities: [], access_token: 'leak' }));
     await expect(createAuthenticationApi(fetcher).verifyMagicLink('header.payload.signature')).rejects.toThrow('Invalid session API response');
   });
+
+  it('logs out through the server-side session revocation endpoint', async () => {
+    const fetcher = vi.fn<typeof fetch>(async (input, init) => {
+      expect(String(input)).toBe('/api/session/logout');
+      expect(init?.method).toBe('POST');
+      expect(init?.credentials).toBe('same-origin');
+      expect(init).not.toHaveProperty('body');
+      return new Response(null, { status: 204 });
+    });
+    await expect(createAuthenticationApi(fetcher).logout()).resolves.toBeUndefined();
+  });
+
+  it('treats logout 401 as already signed out', async () => {
+    const fetcher = vi.fn<typeof fetch>(async () => json({ error: 'Unauthorized' }, 401));
+    await expect(createAuthenticationApi(fetcher).logout()).resolves.toBeUndefined();
+  });
 });
 
 describe('Supabase auth fragment parsing', () => {
