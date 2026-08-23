@@ -11,9 +11,16 @@ export interface CreatePersonPayload {
   active?: boolean;
 }
 
+export interface UpdatePersonPayload {
+  displayName?: string;
+  preferredLocale?: string | null;
+  active?: boolean;
+}
+
 export interface PeopleApi {
   list(signal?: AbortSignal): Promise<readonly PersonProfileDto[]>;
   create(input: CreatePersonPayload): Promise<PersonProfileDto>;
+  update(personId: string, input: UpdatePersonPayload): Promise<PersonProfileDto>;
 }
 
 interface ErrorBody {
@@ -54,8 +61,17 @@ async function readJson(response: Response): Promise<unknown> {
 }
 
 function apiError(status: number, body: unknown): Error {
+  if (status >= 500) return new Error(`People API request failed (${status})`);
   const message = body && typeof body === 'object' ? (body as ErrorBody).error : undefined;
   return new Error(typeof message === 'string' ? message : `People API request failed (${status})`);
+}
+
+function updatePayload(input: UpdatePersonPayload): UpdatePersonPayload {
+  return {
+    ...(input.displayName !== undefined ? { displayName: input.displayName } : {}),
+    ...(input.preferredLocale !== undefined ? { preferredLocale: input.preferredLocale } : {}),
+    ...(input.active !== undefined ? { active: input.active } : {}),
+  };
 }
 
 export function createPeopleApi(fetcher: typeof fetch = fetch): PeopleApi {
@@ -78,6 +94,18 @@ export function createPeopleApi(fetcher: typeof fetch = fetch): PeopleApi {
         credentials: 'same-origin',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify(input),
+      });
+      const body = await readJson(response);
+      if (!response.ok) throw apiError(response.status, body);
+      return parsePersonProfile(body);
+    },
+
+    async update(personId, input) {
+      const response = await fetcher(`/api/people/${encodeURIComponent(personId)}`, {
+        method: 'PATCH',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatePayload(input)),
       });
       const body = await readJson(response);
       if (!response.ok) throw apiError(response.status, body);
