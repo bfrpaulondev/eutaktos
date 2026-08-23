@@ -19,24 +19,29 @@ jobs:
           set -euo pipefail
           BASE='https://rainbow-zuccutto-00d981.netlify.app'
 
-          root_code="$(curl --fail-with-body --silent --show-error --location --output /tmp/root.html --write-out '%{http_code}' "$BASE/")"
+          root_code="$(curl --silent --show-error --location --output /tmp/root.html --write-out '%{http_code}' "$BASE/")"
+          echo "root=$root_code"
           test "$root_code" = '200'
 
-          health_code="$(curl --fail-with-body --silent --show-error --output /tmp/health.json --write-out '%{http_code}' "$BASE/api/health")"
+          health_code="$(curl --silent --show-error --output /tmp/health.json --write-out '%{http_code}' "$BASE/api/health")"
+          echo "health=$health_code body=$(cat /tmp/health.json)"
           test "$health_code" = '200'
           node -e "const x=require('/tmp/health.json'); if(x.status!=='ok') process.exit(1)"
 
-          ready_code="$(curl --fail-with-body --silent --show-error --output /tmp/ready.json --write-out '%{http_code}' "$BASE/api/ready")"
+          ready_code="$(curl --silent --show-error --output /tmp/ready.json --write-out '%{http_code}' "$BASE/api/ready")"
+          echo "ready=$ready_code body=$(cat /tmp/ready.json)"
           test "$ready_code" = '200'
           node -e "const x=require('/tmp/ready.json'); if(x.status!=='ready'||x.database!=='reachable') process.exit(1)"
 
           session_code="$(curl --silent --show-error --output /tmp/session.json --write-out '%{http_code}' "$BASE/api/session")"
+          echo "session=$session_code body=$(cat /tmp/session.json)"
           test "$session_code" = '401'
 
           otp_code="$(curl --silent --show-error --request POST --header 'Content-Type: application/json' --data '{}' --output /tmp/otp.json --write-out '%{http_code}' "$BASE/api/auth/otp")"
+          echo "auth-otp=$otp_code body=$(cat /tmp/otp.json)"
           test "$otp_code" = '403'
 
-          echo 'HTTP smoke passed: root=200 health=200 ready=200 session=401 auth-otp=403.'
+          echo 'HTTP smoke passed.'
 
       - name: Verify signed-out browser sees login gate
         shell: bash
