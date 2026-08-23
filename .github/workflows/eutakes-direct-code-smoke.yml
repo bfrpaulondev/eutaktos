@@ -1,17 +1,17 @@
-name: Eutakes direct-code production smoke
+name: Eutakes auth production smoke
 
 on:
   pull_request:
     branches: [main]
 
 jobs:
-  production-ui-smoke:
+  production-auth-smoke:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Browser-origin auth probe
+      - name: Verify deployed auth UI and invalid-code boundary
         shell: bash
         run: |
           set -euo pipefail
@@ -19,19 +19,17 @@ jobs:
           test -n "$BROWSER_BIN"
           CHROMIUM_BIN="$BROWSER_BIN" node <<'NODE'
           const { spawn } = await import('node:child_process');
-          const appUrl = 'https://eutakes.netlify.app/';
+          const appUrl = 'https://eutakes.netlify.app/?probe=auth-503-fix';
           const debugPort = '9231';
           const debugUrl = `http://127.0.0.1:${debugPort}`;
           const chromium = process.env.CHROMIUM_BIN;
           const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-          async function poll(operation, label, attempts = 80) {
+          async function poll(operation, label, attempts = 100) {
             let lastError;
             for (let attempt = 0; attempt < attempts; attempt += 1) {
-              try {
-                const value = await operation();
-                if (value) return value;
-              } catch (error) { lastError = error; }
+              try { const value = await operation(); if (value) return value; }
+              catch (error) { lastError = error; }
               await wait(150);
             }
             throw new Error(`${label}: ${String(lastError ?? 'timed out')}`);
@@ -53,9 +51,7 @@ jobs:
                 send(method, params = {}) {
                   const id = nextId++;
                   socket.send(JSON.stringify({ id, method, params }));
-                  return new Promise((done, fail) => {
-                    pending.set(id, response => response.error ? fail(new Error(response.error.message)) : done(response.result));
-                  });
+                  return new Promise((done, fail) => pending.set(id, response => response.error ? fail(new Error(response.error.message)) : done(response.result)));
                 },
                 close() { socket.close(); },
               }));
@@ -63,64 +59,59 @@ jobs:
             });
           }
 
-          let stderr = '';
           const browser = spawn(chromium, [
             '--headless=new', '--no-sandbox', '--disable-gpu',
             `--remote-debugging-port=${debugPort}`,
-            `--user-data-dir=/tmp/eutakes-browser-smoke-${process.pid}`,
+            `--user-data-dir=/tmp/eutakes-auth-smoke-${process.pid}`,
+            '--window-size=320,568',
             appUrl,
-          ], { stdio: ['ignore', 'ignore', 'pipe'] });
-          browser.stderr.on('data', chunk => { stderr += String(chunk); });
+          ], { stdio: 'ignore' });
           let cdp;
           try {
             const target = await poll(async () => {
               const targets = await (await fetch(`${debugUrl}/json`)).json();
-              return targets.find(item => item.type === 'page' && item.url.startsWith(appUrl));
+              return targets.find(item => item.type === 'page' && item.url.startsWith('https://eutakes.netlify.app/'));
             }, 'Chromium did not open Eutakes');
             cdp = await connectCdp(target.webSocketDebuggerUrl);
             await cdp.send('Runtime.enable');
             await cdp.send('Page.enable');
+            await cdp.send('Emulation.setDeviceMetricsOverride', { width: 320, height: 568, deviceScaleFactor: 1, mobile: true });
 
             await poll(async () => {
-              const state = await cdp.send('Runtime.evaluate', {
-                expression: `document.readyState === 'complete' && location.origin === 'https://eutakes.netlify.app'`,
-                returnByValue: true,
-              });
-              return state.result.value === true;
-            }, 'Eutakes page did not become ready');
+              const r = await cdp.send('Runtime.evaluate', { expression: `document.body.innerText.includes('Temporary test access') || document.body.innerText.includes('Acesso temporário de teste')`, returnByValue: true });
+              return r.result.value === true;
+            }, 'Login UI did not load');
 
-            const pageState = await cdp.send('Runtime.evaluate', {
-              expression: `({href: location.href, ready: document.readyState, body: document.body.innerText.slice(0, 500)})`,
-              returnByValue: true,
-            });
-            console.log('PAGE_STATE=' + JSON.stringify(pageState.result.value));
-
-            const auth = await cdp.send('Runtime.evaluate', {
+            const diagnostics = await cdp.send('Runtime.evaluate', {
               expression: `(async () => {
-                try {
-                  const response = await fetch('/api/auth/verify', {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: 'pilot-browser-smoke@example.invalid', token: '000000' })
-                  });
-                  return { ok: true, status: response.status, body: await response.text() };
-                } catch (error) {
-                  return { ok: false, name: error?.name, message: String(error?.message || error) };
-                }
+                const paper = document.querySelector('.MuiPaper-root');
+                const authResource = performance.getEntriesByType('resource').map(e => e.name).find(name => name.includes('AuthSignInPanel') && name.endsWith('.js'));
+                const authBundle = authResource ? await fetch(authResource, { cache: 'no-store' }).then(r => r.text()) : '';
+                const response = await fetch('/api/auth/verify', {
+                  method: 'POST', credentials: 'same-origin',
+                  headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ email: 'production-smoke@example.invalid', token: '000000' })
+                });
+                return {
+                  status: response.status,
+                  body: await response.text(),
+                  clientWidth: document.documentElement.clientWidth,
+                  scrollWidth: document.documentElement.scrollWidth,
+                  paperBoxSizing: paper ? getComputedStyle(paper).boxSizing : null,
+                  paperRight: paper ? paper.getBoundingClientRect().right : null,
+                  hasNewServiceCopy: authBundle.includes('temporarily unavailable') || authBundle.includes('temporariamente indisponível')
+                };
               })()`,
               awaitPromise: true,
               returnByValue: true,
             });
-            if (auth.exceptionDetails) throw new Error(auth.exceptionDetails.exception?.description ?? auth.exceptionDetails.text);
-            const value = auth.result.value;
-            console.log('BROWSER_AUTH_RESULT=' + JSON.stringify(value));
-            if (!value?.ok) throw new Error(`Browser fetch failed: ${JSON.stringify(value)}`);
-            if (![401, 403, 503].includes(value.status)) throw new Error(`Unexpected auth status ${value.status}`);
-          } catch (error) {
-            console.error(String(error));
-            if (stderr) console.error('CHROME_STDERR=' + stderr.slice(-4000));
-            process.exitCode = 1;
+            if (diagnostics.exceptionDetails) throw new Error(diagnostics.exceptionDetails.exception?.description ?? diagnostics.exceptionDetails.text);
+            const value = diagnostics.result.value;
+            console.log('PRODUCTION_AUTH_DIAGNOSTICS=' + JSON.stringify(value));
+            if (value.status !== 401) throw new Error(`Expected invalid auth 401, got ${value.status}: ${value.body}`);
+            if (value.scrollWidth > value.clientWidth) throw new Error(`320px overflow: ${value.scrollWidth} > ${value.clientWidth}`);
+            if (value.paperBoxSizing !== 'border-box') throw new Error(`Expected border-box login card, got ${value.paperBoxSizing}`);
+            if (!value.hasNewServiceCopy) throw new Error('New service-unavailable copy is not deployed');
           } finally {
             cdp?.close();
             if (!browser.killed) browser.kill('SIGTERM');
