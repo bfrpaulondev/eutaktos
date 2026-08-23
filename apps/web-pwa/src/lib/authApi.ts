@@ -47,6 +47,15 @@ export function supabaseAccessTokenFromHash(hash: string): string | undefined {
   return token;
 }
 
+export function scannerSafeMagicLinkTokenHash(pathname: string, search: string): string | undefined {
+  if (pathname !== '/auth/confirm') return undefined;
+  const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
+  if (params.get('type') !== 'email') return undefined;
+  const tokenHash = params.get('token_hash')?.trim();
+  if (!tokenHash || tokenHash.length < 32 || tokenHash.length > 512 || !/^[A-Za-z0-9_-]+$/.test(tokenHash)) return undefined;
+  return tokenHash;
+}
+
 export function createAuthenticationApi(fetcher: typeof fetch = fetch) {
   return Object.freeze({
     async current(signal?: AbortSignal): Promise<AuthenticationSessionState> {
@@ -95,6 +104,19 @@ export function createAuthenticationApi(fetcher: typeof fetch = fetch) {
         credentials: 'same-origin',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify({ accessToken }),
+        signal,
+      });
+      const body = await optionalJson(response);
+      if (!response.ok) throw safeServerError(response, body);
+      return parseCurrentSession(body);
+    },
+
+    async verifyMagicLinkTokenHash(tokenHash: string, signal?: AbortSignal): Promise<CurrentSessionDto> {
+      const response = await fetcher('/api/auth/verify', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tokenHash }),
         signal,
       });
       const body = await optionalJson(response);
