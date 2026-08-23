@@ -53,21 +53,33 @@ jobs:
           }
           await send('Page.enable');
           await send('Runtime.enable');
-          await send('Page.navigate', { url: 'https://eutakes.netlify.app/' });
-          await sleep(1800);
+          const nav = await send('Page.navigate', { url: 'https://eutakes.netlify.app/' });
+          console.log('NAV=' + JSON.stringify(nav));
+          await sleep(2500);
+          const state = await send('Runtime.evaluate', {
+            expression: '({href: location.href, ready: document.readyState, origin: location.origin, title: document.title})',
+            returnByValue: true,
+          });
+          console.log('PAGE_STATE_RAW=' + JSON.stringify(state));
           const expression = `(async () => {
-            const response = await fetch('/api/auth/verify', {
-              method: 'POST',
-              credentials: 'same-origin',
-              headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email: 'pilot-browser-smoke@example.invalid', token: '000000' })
-            });
-            return { status: response.status, body: await response.text(), href: location.href };
+            try {
+              const response = await fetch('/api/auth/verify', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: 'pilot-browser-smoke@example.invalid', token: '000000' })
+              });
+              return { ok: true, status: response.status, body: await response.text(), href: location.href };
+            } catch (error) {
+              return { ok: false, name: error?.name, message: String(error?.message || error), href: location.href };
+            }
           })()`;
           const result = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true });
+          console.log('AUTH_RAW=' + JSON.stringify(result));
           const value = result?.result?.value;
           console.log('BROWSER_AUTH_RESULT=' + JSON.stringify(value));
-          if (!value || typeof value.status !== 'number') process.exit(2);
-          if (![401, 403, 503].includes(value.status)) process.exit(3);
+          if (!value || typeof value.ok !== 'boolean') process.exit(2);
+          if (value.ok && ![401, 403, 503].includes(value.status)) process.exit(3);
+          if (!value.ok) process.exit(4);
           ws.close();
           NODE
