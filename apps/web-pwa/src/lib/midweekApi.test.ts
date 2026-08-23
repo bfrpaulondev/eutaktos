@@ -34,6 +34,20 @@ describe('midweekApi', () => {
     expect(credentials).toBe('same-origin');
   });
 
+  it('turns an overview deadline into a retryable error instead of an endless spinner', async () => {
+    vi.useFakeTimers();
+    try {
+      const api = createMidweekApi((_input, init) => new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
+      }));
+      const expectation = expect(api.overview()).rejects.toThrow('Midweek API request timed out');
+      await vi.advanceTimersByTimeAsync(15_000);
+      await expectation;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('creates meetings and parts using the server scheduling contract', async () => {
     const fetcher = vi.fn<typeof fetch>(async (input, init) => {
       if (String(input) === '/api/midweek') {
