@@ -15,32 +15,35 @@ import { Stack, Typography } from './ui/MuiCompat';
 import { authenticationApi } from './lib/authApi';
 
 type Locale = 'pt-PT' | 'en' | 'es';
-type PanelState = 'email' | 'code' | 'submitting';
+type PanelState = 'email' | 'sent' | 'submitting';
 
 const copy = {
   'pt-PT': {
     language: 'Idioma', eyebrow: 'Acesso seguro', title: 'Entrar no Eutaktos',
-    intro: 'Usa o endereço de email autorizado para esta congregação. Enviaremos um código de acesso de utilização única.',
-    email: 'Email', send: 'Enviar código', code: 'Código de 6 dígitos', verify: 'Entrar', back: 'Usar outro email',
-    sent: 'Se este email estiver autorizado, receberás um código. Introduz o código para continuar.',
-    error: 'Não foi possível concluir o acesso. Confirma os dados ou pede um novo código.',
-    privacy: 'A sessão fica num cookie seguro. Não guardamos tokens de autenticação no armazenamento do browser.',
+    intro: 'Usa o endereço de email autorizado para esta congregação. Enviaremos um link de acesso de utilização única.',
+    email: 'Email', send: 'Enviar link de acesso', code: 'Código de 6 dígitos', verify: 'Entrar com código', back: 'Usar outro email',
+    sent: 'Se este email estiver autorizado, receberás um link. Abre-o neste dispositivo e o Eutaktos concluirá o acesso automaticamente.',
+    codeHint: 'Se o email mostrar um código de 6 dígitos em vez de um link, também podes introduzi-lo abaixo.',
+    error: 'Não foi possível concluir o acesso. Confirma os dados ou pede um novo link.',
+    privacy: 'O link é trocado por uma sessão num cookie seguro. Não guardamos tokens de autenticação no armazenamento do browser.',
   },
   en: {
     language: 'Language', eyebrow: 'Secure access', title: 'Sign in to Eutaktos',
-    intro: 'Use the email address authorized for this congregation. We will send a one-time access code.',
-    email: 'Email', send: 'Send code', code: '6-digit code', verify: 'Sign in', back: 'Use another email',
-    sent: 'If this email is authorized, you will receive a code. Enter it to continue.',
-    error: 'Sign-in could not be completed. Check the details or request a new code.',
-    privacy: 'Your session stays in a secure cookie. Authentication tokens are not stored in browser storage.',
+    intro: 'Use the email address authorized for this congregation. We will send a one-time sign-in link.',
+    email: 'Email', send: 'Send sign-in link', code: '6-digit code', verify: 'Sign in with code', back: 'Use another email',
+    sent: 'If this email is authorized, you will receive a link. Open it on this device and Eutaktos will complete sign-in automatically.',
+    codeHint: 'If the email contains a 6-digit code instead of a link, you can enter it below.',
+    error: 'Sign-in could not be completed. Check the details or request a new link.',
+    privacy: 'The link is exchanged for a secure cookie session. Authentication tokens are not stored in browser storage.',
   },
   es: {
     language: 'Idioma', eyebrow: 'Acceso seguro', title: 'Entrar en Eutaktos',
-    intro: 'Usa el correo electrónico autorizado para esta congregación. Enviaremos un código de acceso de un solo uso.',
-    email: 'Correo electrónico', send: 'Enviar código', code: 'Código de 6 dígitos', verify: 'Entrar', back: 'Usar otro correo',
-    sent: 'Si este correo está autorizado, recibirás un código. Introdúcelo para continuar.',
-    error: 'No se pudo completar el acceso. Comprueba los datos o solicita un código nuevo.',
-    privacy: 'La sesión permanece en una cookie segura. No almacenamos tokens de autenticación en el navegador.',
+    intro: 'Usa el correo electrónico autorizado para esta congregación. Enviaremos un enlace de acceso de un solo uso.',
+    email: 'Correo electrónico', send: 'Enviar enlace de acceso', code: 'Código de 6 dígitos', verify: 'Entrar con código', back: 'Usar otro correo',
+    sent: 'Si este correo está autorizado, recibirás un enlace. Ábrelo en este dispositivo y Eutaktos completará el acceso automáticamente.',
+    codeHint: 'Si el correo contiene un código de 6 dígitos en lugar de un enlace, también puedes introducirlo abajo.',
+    error: 'No se pudo completar el acceso. Comprueba los datos o solicita un enlace nuevo.',
+    privacy: 'El enlace se intercambia por una sesión en una cookie segura. No almacenamos tokens de autenticación en el navegador.',
   },
 } as const;
 
@@ -59,14 +62,14 @@ export function AuthSignInPanel({ onAuthenticated }: { onAuthenticated: () => vo
   const [failed, setFailed] = useState(false);
   const text = copy[locale];
 
-  const requestCode = async (event: FormEvent) => {
+  const requestLink = async (event: FormEvent) => {
     event.preventDefault();
     if (!email.trim()) return;
     setFailed(false);
     setState('submitting');
     try {
       await authenticationApi.requestOtp(email.trim());
-      setState('code');
+      setState('sent');
     } catch {
       setFailed(true);
       setState('email');
@@ -84,7 +87,7 @@ export function AuthSignInPanel({ onAuthenticated }: { onAuthenticated: () => vo
       onAuthenticated();
     } catch {
       setFailed(true);
-      setState('code');
+      setState('sent');
     }
   };
 
@@ -112,18 +115,21 @@ export function AuthSignInPanel({ onAuthenticated }: { onAuthenticated: () => vo
               <CircularProgress size={28} />
               <Typography color="text.secondary">…</Typography>
             </Stack>
-          ) : state === 'code' ? (
-            <Box component="form" onSubmit={verifyCode} noValidate>
-              <Stack spacing={2}>
-                <Alert severity="info">{text.sent}</Alert>
-                {failed ? <Alert severity="error">{text.error}</Alert> : null}
-                <TextField label={text.code} value={token} onChange={event => setToken(event.target.value.replace(/\D/g, '').slice(0, 6))} slotProps={{ htmlInput: { inputMode: 'numeric', autoComplete: 'one-time-code', pattern: '[0-9]{6}', maxLength: 6 } }} required autoFocus />
-                <Button type="submit" variant="contained" disabled={token.length !== 6}>{text.verify}</Button>
-                <Button type="button" onClick={() => { setToken(''); setFailed(false); setState('email'); }}>{text.back}</Button>
-              </Stack>
-            </Box>
+          ) : state === 'sent' ? (
+            <Stack spacing={2}>
+              <Alert severity="info">{text.sent}</Alert>
+              {failed ? <Alert severity="error">{text.error}</Alert> : null}
+              <Box component="form" onSubmit={verifyCode} noValidate>
+                <Stack spacing={1.5}>
+                  <Typography variant="body2" color="text.secondary">{text.codeHint}</Typography>
+                  <TextField label={text.code} value={token} onChange={event => setToken(event.target.value.replace(/\D/g, '').slice(0, 6))} slotProps={{ htmlInput: { inputMode: 'numeric', autoComplete: 'one-time-code', pattern: '[0-9]{6}', maxLength: 6 } }} />
+                  <Button type="submit" variant="outlined" disabled={token.length !== 6}>{text.verify}</Button>
+                </Stack>
+              </Box>
+              <Button type="button" onClick={() => { setToken(''); setFailed(false); setState('email'); }}>{text.back}</Button>
+            </Stack>
           ) : (
-            <Box component="form" onSubmit={requestCode} noValidate>
+            <Box component="form" onSubmit={requestLink} noValidate>
               <Stack spacing={2}>
                 <Typography color="text.secondary">{text.intro}</Typography>
                 {failed ? <Alert severity="error">{text.error}</Alert> : null}
