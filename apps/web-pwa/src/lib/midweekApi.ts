@@ -12,6 +12,8 @@ export interface AssignStudentPayload { readonly slotId:string; readonly student
 export interface AssignNonStudentPayload { readonly slotId:string; readonly personId:string; readonly role:string }
 export interface ReplaceStudentPayload { readonly studentId:string; readonly assistantId?:string|null }
 
+const OVERVIEW_TIMEOUT_MS = 15_000;
+
 function record(value:unknown,label:string):Readonly<Record<string,unknown>>{if(!value||typeof value!=='object'||Array.isArray(value))throw new Error(`Invalid ${label}`);return value as Readonly<Record<string,unknown>>;}
 function text(value:unknown,label:string):string{if(typeof value!=='string'||!value.trim())throw new Error(`Invalid ${label}`);return value;}
 function nullableText(value:unknown,label:string):string|null{if(value===null)return null;return text(value,label);}
@@ -31,6 +33,7 @@ function slotPayload(input:AddMidweekSlotPayload):AddMidweekSlotPayload{return{p
 function studentPayload(input:AssignStudentPayload):AssignStudentPayload{return{slotId:input.slotId,studentId:input.studentId,...(input.assistantId!==undefined?{assistantId:input.assistantId}:{})};}
 function nonStudentPayload(input:AssignNonStudentPayload):AssignNonStudentPayload{return{slotId:input.slotId,personId:input.personId,role:input.role};}
 function replacementPayload(input:ReplaceStudentPayload):ReplaceStudentPayload{return{studentId:input.studentId,...(input.assistantId!==undefined?{assistantId:input.assistantId}:{})};}
+function boundedOverviewSignal(signal?:AbortSignal):AbortSignal{const timeout=AbortSignal.timeout(OVERVIEW_TIMEOUT_MS);return signal?AbortSignal.any([signal,timeout]):timeout;}
 
 export interface MidweekApi{
  overview(signal?:AbortSignal):Promise<MidweekOverviewDto>;
@@ -49,7 +52,7 @@ export function createMidweekApi(fetcher:typeof fetch=fetch):MidweekApi{
  const requestMeeting=async(path:string,init:RequestInit):Promise<MidweekMeetingDto>=>{const response=await fetcher(path,init);const body=await readJson(response);if(!response.ok)throw safeError(response,body);return meeting(body);};
  const requestMutation=async(path:string,init:RequestInit):Promise<void>=>{const response=await fetcher(path,init);const body=await readJson(response).catch(()=>undefined);if(!response.ok)throw safeError(response,body);};
  return{
-  async overview(signal){const response=await fetcher('/api/midweek',{method:'GET',credentials:'same-origin',headers:{Accept:'application/json'},signal});const body=await readJson(response);if(!response.ok)throw safeError(response,body);return parseMidweekOverview(body);},
+  async overview(signal){const response=await fetcher('/api/midweek',{method:'GET',credentials:'same-origin',headers:{Accept:'application/json'},signal:boundedOverviewSignal(signal)});const body=await readJson(response);if(!response.ok)throw safeError(response,body);return parseMidweekOverview(body);},
   createMeeting(input){return requestMeeting('/api/midweek',mutationInit('POST',meetingPayload(input)));},
   addSlot(meetingId,input){return requestMeeting(`/api/midweek/meetings/${encodeURIComponent(meetingId)}/slots`,mutationInit('POST',slotPayload(input)));},
   removeSlot(meetingId,slotId){return requestMeeting(`/api/midweek/meetings/${encodeURIComponent(meetingId)}/slots/${encodeURIComponent(slotId)}`,mutationInit('DELETE'));},
