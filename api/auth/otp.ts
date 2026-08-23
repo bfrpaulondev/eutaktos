@@ -1,5 +1,8 @@
+declare const process: { env: Record<string, string | undefined> };
+
 import { AuthenticationError } from '../_auth';
 import { BadRequestError, assertTrustedMutation, exactKeys, requestBody, requiredString, runEndpoint } from '../_endpoint';
+import { DatabaseNotConfiguredError } from '../_db';
 import { SupabaseIdentityBridge } from '../_identity-auth';
 import { json, methodNotAllowed, type ApiHandler } from '../_types';
 
@@ -11,6 +14,18 @@ function emailFromBody(value: unknown): string {
   return email;
 }
 
+function publicOrigin(): string {
+  const configured = process.env.EUTAKTOS_PUBLIC_ORIGIN?.trim();
+  if (!configured) throw new DatabaseNotConfiguredError();
+  try {
+    const url = new URL(configured);
+    if (url.protocol !== 'https:') throw new Error('not https');
+    return url.origin;
+  } catch {
+    throw new DatabaseNotConfiguredError();
+  }
+}
+
 const handler: ApiHandler = async (request, response) => {
   if (request.method !== 'POST') { methodNotAllowed(response, ['POST']); return; }
   await runEndpoint(request, response, async () => {
@@ -19,7 +34,7 @@ const handler: ApiHandler = async (request, response) => {
     const bridge = new SupabaseIdentityBridge();
     const identity = await bridge.identityForEmail(email);
     if (identity) {
-      try { await bridge.requestEmailOtp(email, identity.authUserId === undefined); }
+      try { await bridge.requestEmailOtp(email, identity.authUserId === undefined, publicOrigin()); }
       catch (error) {
         if (!(error instanceof AuthenticationError)) throw error;
       }
