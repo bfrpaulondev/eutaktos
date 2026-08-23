@@ -8,14 +8,31 @@ jobs:
   production-ui-smoke:
     runs-on: ubuntu-latest
     steps:
-      - name: Verify deployed direct-code copy
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build expected main frontend
+        run: npm --workspace @eutaktos/web-pwa run build
+      - name: Compare production bundle with expected build
         shell: bash
         run: |
           set -euo pipefail
           base='https://eutakes.netlify.app'
-          html="$(curl -fsSL "$base/")"
+          html="$(curl -fsSL -H 'Cache-Control: no-cache' "$base/?probe=$(date +%s)")"
           asset="$(printf '%s' "$html" | grep -oE 'src="/assets/[^"]+\.js"' | head -n1 | sed -E 's/^src="([^"]+)"$/\1/')"
           test -n "$asset"
-          bundle="$(curl -fsSL "$base$asset")"
-          printf '%s' "$bundle" | grep -Fq 'Acesso temporário de teste'
-          printf '%s' "$bundle" | grep -Fq 'Entrar com código'
+          curl -fsSL -H 'Cache-Control: no-cache' "$base$asset?probe=$(date +%s)" -o /tmp/prod.js
+          local_asset="$(find apps/web-pwa/dist/assets -maxdepth 1 -type f -name '*.js' | sort | head -n1)"
+          test -n "$local_asset"
+          echo "PROD_ASSET=$asset"
+          echo "PROD_SHA256=$(sha256sum /tmp/prod.js | awk '{print $1}')"
+          echo "LOCAL_ASSET=$local_asset"
+          echo "LOCAL_SHA256=$(sha256sum "$local_asset" | awk '{print $1}')"
+          if grep -Fq 'Acesso temporário de teste' /tmp/prod.js; then echo 'PROD_DIRECT_CODE_COPY=yes'; else echo 'PROD_DIRECT_CODE_COPY=no'; fi
+          if grep -Fq 'Acesso temporário de teste' "$local_asset"; then echo 'LOCAL_DIRECT_CODE_COPY=yes'; else echo 'LOCAL_DIRECT_CODE_COPY=no'; fi
+          if grep -Fq 'Entrar com código' /tmp/prod.js; then echo 'PROD_CODE_BUTTON=yes'; else echo 'PROD_CODE_BUTTON=no'; fi
+          test "$(sha256sum /tmp/prod.js | awk '{print $1}')" = "$(sha256sum "$local_asset" | awk '{print $1}')"
