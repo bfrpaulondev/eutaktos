@@ -6,7 +6,8 @@ import { json, methodNotAllowed, type ApiHandler } from '../_types';
 
 type VerifyInput =
   | Readonly<{ kind: 'otp'; email: string; token: string }>
-  | Readonly<{ kind: 'magic-link'; accessToken: string }>;
+  | Readonly<{ kind: 'magic-link'; accessToken: string }>
+  | Readonly<{ kind: 'magic-link-token-hash'; tokenHash: string }>;
 
 function inputFromBody(value: unknown): VerifyInput {
   const body = requestBody(value);
@@ -15,6 +16,12 @@ function inputFromBody(value: unknown): VerifyInput {
     const accessToken = requiredString(body, 'accessToken', 8192);
     if (accessToken.split('.').length !== 3) throw new BadRequestError('Invalid authentication token');
     return Object.freeze({ kind: 'magic-link' as const, accessToken });
+  }
+  if (body.tokenHash !== undefined) {
+    exactKeys(body, ['tokenHash']);
+    const tokenHash = requiredString(body, 'tokenHash', 512);
+    if (tokenHash.length < 32 || !/^[A-Za-z0-9_-]+$/.test(tokenHash)) throw new BadRequestError('Invalid authentication link');
+    return Object.freeze({ kind: 'magic-link-token-hash' as const, tokenHash });
   }
 
   exactKeys(body, ['email', 'token']);
@@ -27,6 +34,7 @@ function inputFromBody(value: unknown): VerifyInput {
 
 async function verifyIdentity(bridge: SupabaseIdentityBridge, input: VerifyInput): Promise<SupabaseOtpSession> {
   if (input.kind === 'magic-link') return bridge.verifyAccessToken(input.accessToken);
+  if (input.kind === 'magic-link-token-hash') return bridge.verifyEmailTokenHash(input.tokenHash);
   const identity = await bridge.identityForEmail(input.email);
   if (!identity) throw new AuthenticationError('Identity not authorized');
   const verified = await bridge.verifyEmailOtp(input.email, input.token);
