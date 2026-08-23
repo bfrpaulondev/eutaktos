@@ -1,0 +1,35 @@
+name: Eutakes pilot-code production smoke
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/eutakes-pilot-code-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  production-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Probe deployed temporary pilot-code path without a real credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://eutakes.netlify.app'
+
+          root_code="$(curl --silent --show-error --location --output /tmp/root.html --write-out '%{http_code}' "$BASE/")"
+          test "$root_code" = '200'
+
+          verify_code="$(curl --silent --show-error --request POST \
+            --header 'Content-Type: application/json' \
+            --header 'Origin: https://eutakes.netlify.app' \
+            --header 'Sec-Fetch-Site: same-origin' \
+            --data '{"email":"pilot-smoke@example.invalid","token":"000000"}' \
+            --output /tmp/verify.json --write-out '%{http_code}' "$BASE/api/auth/verify")"
+          echo "verify=$verify_code body=$(cat /tmp/verify.json)"
+          test "$verify_code" = '401'
+          node -e "const x=require('/tmp/verify.json'); if(x.error!=='Unauthorized') process.exit(1)"
+
+          echo 'Production probe completed.'
