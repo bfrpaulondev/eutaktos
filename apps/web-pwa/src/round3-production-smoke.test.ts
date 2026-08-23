@@ -3,14 +3,24 @@ import { describe, expect, it } from 'vitest';
 const origin = 'https://eutakes.netlify.app';
 
 async function productionFetch(path: string, init: RequestInit = {}): Promise<Response> {
-  return fetch(`${origin}${path}`, {
-    ...init,
-    headers: {
-      'Cache-Control': 'no-cache',
-      Pragma: 'no-cache',
-      ...(init.headers ?? {}),
-    },
-  });
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    try {
+      return await fetch(`${origin}${path}`, {
+        ...init,
+        headers: {
+          'Cache-Control': 'no-cache',
+          Pragma: 'no-cache',
+          ...(init.headers ?? {}),
+        },
+      });
+    } catch (error) {
+      lastError = error;
+      if (attempt === 3) break;
+      await new Promise(resolve => setTimeout(resolve, 400 * (attempt + 1)));
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error('Production fetch failed');
 }
 
 async function publishedJavaScript(html: string): Promise<string> {
@@ -55,5 +65,5 @@ describe('Eutakes round 3 production smoke', () => {
     expect(bundleText).toContain('Configurações da congregação');
     expect(bundleText).toContain('O código ou link pode estar incorreto, expirado ou já ter sido utilizado.');
     expect(bundleText).toContain('Sair');
-  }, 30_000);
+  }, 45_000);
 });
