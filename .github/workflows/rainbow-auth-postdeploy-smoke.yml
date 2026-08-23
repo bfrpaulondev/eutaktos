@@ -1,0 +1,55 @@
+name: Rainbow auth post-deploy smoke
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/rainbow-auth-postdeploy-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  production-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Verify canonical production runtime and auth boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://rainbow-zuccutto-00d981.netlify.app'
+
+          root_code="$(curl --fail-with-body --silent --show-error --location --output /tmp/root.html --write-out '%{http_code}' "$BASE/")"
+          test "$root_code" = '200'
+
+          health_code="$(curl --fail-with-body --silent --show-error --output /tmp/health.json --write-out '%{http_code}' "$BASE/api/health")"
+          test "$health_code" = '200'
+          node -e "const x=require('/tmp/health.json'); if(x.status!=='ok') process.exit(1)"
+
+          ready_code="$(curl --fail-with-body --silent --show-error --output /tmp/ready.json --write-out '%{http_code}' "$BASE/api/ready")"
+          test "$ready_code" = '200'
+          node -e "const x=require('/tmp/ready.json'); if(x.status!=='ready'||x.database!=='reachable') process.exit(1)"
+
+          session_code="$(curl --silent --show-error --output /tmp/session.json --write-out '%{http_code}' "$BASE/api/session")"
+          test "$session_code" = '401'
+
+          otp_code="$(curl --silent --show-error --request POST --header 'Content-Type: application/json' --data '{}' --output /tmp/otp.json --write-out '%{http_code}' "$BASE/api/auth/otp")"
+          test "$otp_code" = '403'
+
+          echo 'HTTP smoke passed: root=200 health=200 ready=200 session=401 auth-otp=403.'
+
+      - name: Verify signed-out browser sees login gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          BROWSER_BIN="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          test -n "$BROWSER_BIN"
+          HTML="$($BROWSER_BIN --headless=new --no-sandbox --disable-gpu --virtual-time-budget=7000 --dump-dom 'https://rainbow-zuccutto-00d981.netlify.app/' 2>/dev/null)"
+          printf '%s' "$HTML" > /tmp/rendered.html
+          grep -Eq 'Entrar no Eutaktos|Sign in to Eutaktos|Entrar en Eutaktos' /tmp/rendered.html
+          grep -Eq 'type="email"|inputmode="email"' /tmp/rendered.html
+          if grep -q 'Navegação principal' /tmp/rendered.html; then
+            echo 'Authenticated application shell unexpectedly visible without a session.' >&2
+            exit 1
+          fi
+          echo 'Browser smoke passed: signed-out production renders the login gate.'
