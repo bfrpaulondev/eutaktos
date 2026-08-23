@@ -38,9 +38,17 @@ describe('auditHistoryApi', () => {
     expect(fetcher.mock.calls[0]?.[1]).not.toHaveProperty('body');
   });
 
-  it('accepts scheduling audit resource types emitted by the domain', async () => {
+  it('accepts scheduling and authentication audit resource types emitted by the runtime', async () => {
     const schedulingItem = { ...item, resourceType: 'midweek-meeting' as const, resourceId: 'meeting-1' };
-    expect(parseAuditHistoryResponse([schedulingItem])).toEqual([schedulingItem]);
+    const sessionItem = {
+      ...item,
+      id: 'audit-session-1',
+      resourceType: 'session' as const,
+      resourceId: 'session-1',
+      action: 'create' as const,
+      changedFields: ['authentication', 'temporary-pilot-code'],
+    };
+    expect(parseAuditHistoryResponse([schedulingItem, sessionItem])).toEqual([schedulingItem, sessionItem]);
 
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse([schedulingItem]));
     const api = createAuditHistoryApi(fetcher);
