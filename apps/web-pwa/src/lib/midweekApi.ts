@@ -42,6 +42,12 @@ export interface MidweekOverviewDto {
   readonly nonStudentAssignments: readonly NonStudentAssignmentDto[];
 }
 
+export interface CreateMidweekMeetingPayload { readonly date: string; readonly localTime: string; readonly timezone: string; readonly locationId?: string }
+export interface AddMidweekSlotPayload { readonly position: number; readonly durationMinutes: number; readonly titleKey: string; readonly partDefinitionId?: string }
+export interface AssignStudentPayload { readonly slotId: string; readonly studentId: string; readonly assistantId?: string | null }
+export interface AssignNonStudentPayload { readonly slotId: string; readonly personId: string; readonly role: string }
+export interface ReplaceStudentPayload { readonly studentId: string; readonly assistantId?: string | null }
+
 function record(value: unknown, label: string): Readonly<Record<string, unknown>> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`Invalid ${label}`);
   return value as Readonly<Record<string, unknown>>;
@@ -111,19 +117,62 @@ export function parseMidweekOverview(value: unknown): MidweekOverviewDto {
 async function readJson(response: Response): Promise<unknown> {
   try { return await response.json(); } catch { throw new Error('Invalid API response'); }
 }
+function safeError(response: Response, body: unknown): Error {
+  if (response.status >= 500) return new Error(`Midweek API request failed (${response.status})`);
+  const message = body && typeof body === 'object' ? (body as { error?: unknown }).error : undefined;
+  return new Error(typeof message === 'string' && message.length <= 300 ? message : `Midweek API request failed (${response.status})`);
+}
+function mutationInit(method: 'POST' | 'PUT' | 'DELETE', body?: unknown): RequestInit {
+  return {
+    method,
+    credentials: 'same-origin',
+    headers: { Accept: 'application/json', ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) },
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  };
+}
 
-export interface MidweekApi { overview(signal?: AbortSignal): Promise<MidweekOverviewDto> }
+export interface MidweekApi {
+  overview(signal?: AbortSignal): Promise<MidweekOverviewDto>;
+  createMeeting(input: CreateMidweekMeetingPayload): Promise<MidweekMeetingDto>;
+  addSlot(meetingId: string, input: AddMidweekSlotPayload): Promise<MidweekMeetingDto>;
+  removeSlot(meetingId: string, slotId: string): Promise<MidweekMeetingDto>;
+  assignStudent(meetingId: string, input: AssignStudentPayload): Promise<void>;
+  assignNonStudent(meetingId: string, input: AssignNonStudentPayload): Promise<void>;
+  publishMeeting(meetingId: string): Promise<MidweekMeetingDto>;
+  replaceStudent(assignmentId: string, input: ReplaceStudentPayload): Promise<void>;
+  replaceNonStudent(assignmentId: string, personId: string): Promise<void>;
+  cancelStudent(assignmentId: string): Promise<void>;
+  cancelNonStudent(assignmentId: string): Promise<void>;
+}
 export function createMidweekApi(fetcher: typeof fetch = fetch): MidweekApi {
+  const requestMeeting = async (path: string, init: RequestInit): Promise<MidweekMeetingDto> => {
+    const response = await fetcher(path, init);
+    const body = await readJson(response);
+    if (!response.ok) throw safeError(response, body);
+    return meeting(body);
+  };
+  const requestMutation = async (path: string, init: RequestInit): Promise<void> => {
+    const response = await fetcher(path, init);
+    const body = await readJson(response).catch(() => undefined);
+    if (!response.ok) throw safeError(response, body);
+  };
   return {
     async overview(signal) {
       const response = await fetcher('/api/midweek', { method: 'GET', credentials: 'same-origin', headers: { Accept: 'application/json' }, signal });
       const body = await readJson(response);
-      if (!response.ok) {
-        const message = body && typeof body === 'object' ? (body as { error?: unknown }).error : undefined;
-        throw new Error(typeof message === 'string' ? message : `Midweek API request failed (${response.status})`);
-      }
+      if (!response.ok) throw safeError(response, body);
       return parseMidweekOverview(body);
     },
+    createMeeting(input) { return requestMeeting('/api/midweek', mutationInit('POST', input)); },
+    addSlot(meetingId, input) { return requestMeeting(`/api/midweek/meetings/${encodeURIComponent(meetingId)}/slots`, mutationInit('POST', input)); },
+    removeSlot(meetingId, slotId) { return requestMeeting(`/api/midweek/meetings/${encodeURIComponent(meetingId)}/slots/${encodeURIComponent(slotId)}`, mutationInit('DELETE')); },
+    assignStudent(meetingId, input) { return requestMutation(`/api/midweek/meetings/${encodeURIComponent(meetingId)}/student-assignments`, mutationInit('POST', input)); },
+    assignNonStudent(meetingId, input) { return requestMutation(`/api/midweek/meetings/${encodeURIComponent(meetingId)}/non-student-assignments`, mutationInit('POST', input)); },
+    publishMeeting(meetingId) { return requestMeeting(`/api/midweek/meetings/${encodeURIComponent(meetingId)}/publish`, mutationInit('POST')); },
+    replaceStudent(assignmentId, input) { return requestMutation(`/api/midweek/student-assignments/${encodeURIComponent(assignmentId)}/replace`, mutationInit('POST', input)); },
+    replaceNonStudent(assignmentId, personId) { return requestMutation(`/api/midweek/non-student-assignments/${encodeURIComponent(assignmentId)}/replace`, mutationInit('POST', { personId })); },
+    cancelStudent(assignmentId) { return requestMutation(`/api/midweek/student-assignments/${encodeURIComponent(assignmentId)}/cancel`, mutationInit('POST')); },
+    cancelNonStudent(assignmentId) { return requestMutation(`/api/midweek/non-student-assignments/${encodeURIComponent(assignmentId)}/cancel`, mutationInit('POST')); },
   };
 }
 export const midweekApi = createMidweekApi();
