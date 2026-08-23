@@ -9,6 +9,9 @@ import authOtpHandler from './auth/otp';
 import authVerifyHandler from './auth/verify';
 import peopleHandler from './people';
 import personHandler from './people/[personId]';
+import eligibilityHandler from './people/[personId]/eligibility';
+import availabilityHandler from './people/[personId]/availability';
+import availabilityPeriodHandler from './people/[personId]/availability/[availabilityPeriodId]';
 import householdsHandler from './households';
 import householdHandler from './households/[householdId]';
 import serviceGroupsHandler from './service-groups';
@@ -45,7 +48,8 @@ export interface NetlifyApiResult {
 
 type RouteKey =
   | 'health' | 'ready' | 'session' | 'logout' | 'logout-all' | 'rotate-session' | 'auth-otp' | 'auth-verify'
-  | 'people' | 'person' | 'households' | 'household' | 'service-groups' | 'service-group'
+  | 'people' | 'person' | 'eligibility' | 'availability' | 'availability-period'
+  | 'households' | 'household' | 'service-groups' | 'service-group'
   | 'responsibilities' | 'responsibility' | 'end-responsibility' | 'audit-history'
   | 'access-grants' | 'subject-grants' | 'revoke-grant' | 'midweek' | 'midweek-route' | 'outbox-worker';
 
@@ -65,6 +69,9 @@ const handlers: Readonly<Record<RouteKey, ApiHandler>> = Object.freeze({
   'auth-verify': authVerifyHandler,
   people: peopleHandler,
   person: personHandler,
+  eligibility: eligibilityHandler,
+  availability: availabilityHandler,
+  'availability-period': availabilityPeriodHandler,
   households: householdsHandler,
   household: householdHandler,
   'service-groups': serviceGroupsHandler,
@@ -132,7 +139,20 @@ export function matchNetlifyApiRoute(path: string): RouteMatch | undefined {
     return Object.freeze({ key: 'midweek-route', params: Object.freeze({ route: decoded.join('/') }) });
   }
 
+  const availabilityPeriodMatch = /^\/people\/([^/]+)\/availability\/([^/]+)$/.exec(path);
+  if (availabilityPeriodMatch) {
+    const personId = decodeSegment(availabilityPeriodMatch[1] ?? '');
+    const availabilityPeriodId = decodeSegment(availabilityPeriodMatch[2] ?? '');
+    if (!personId || !availabilityPeriodId) return undefined;
+    return Object.freeze({
+      key: 'availability-period',
+      params: Object.freeze({ personId, availabilityPeriodId }),
+    });
+  }
+
   const patterns: readonly [RegExp, RouteKey, string][] = [
+    [/^\/people\/([^/]+)\/eligibility$/, 'eligibility', 'personId'],
+    [/^\/people\/([^/]+)\/availability$/, 'availability', 'personId'],
     [/^\/people\/([^/]+)$/, 'person', 'personId'],
     [/^\/households\/([^/]+)$/, 'household', 'householdId'],
     [/^\/service-groups\/([^/]+)$/, 'service-group', 'serviceGroupId'],
