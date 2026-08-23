@@ -1,6 +1,7 @@
 import { AuthenticationError, sessionCookie } from '../_auth';
 import { BadRequestError, assertTrustedMutation, exactKeys, requestBody, requiredString, runEndpoint } from '../_endpoint';
 import { SupabaseIdentityBridge, type SupabaseOtpSession } from '../_identity-auth';
+import { consumeTemporaryPilotAccessCode } from '../_pilot-access';
 import { json, methodNotAllowed, type ApiHandler } from '../_types';
 
 type VerifyInput =
@@ -39,6 +40,26 @@ const handler: ApiHandler = async (request, response) => {
     assertTrustedMutation(request);
     const input = inputFromBody(request.body);
     const bridge = new SupabaseIdentityBridge();
+    const sessionId = `session-${crypto.randomUUID()}`;
+    const authenticatedAt = new Date().toISOString();
+
+    if (input.kind === 'otp') {
+      const pilotSession = await consumeTemporaryPilotAccessCode({
+        email: input.email,
+        code: input.token,
+        sessionId,
+        authenticatedAt,
+      });
+      if (pilotSession) {
+        const grants = await database.activeGrants(pilotSession.tenantId, pilotSession.actorId);
+        const capabilities = [...new Set(grants.map(grant => grant.capability))].sort();
+        response.setHeader('Set-Cookie', sessionCookie(pilotSession.sessionId));
+        response.setHeader('Cache-Control', 'no-store');
+        json(response, 200, { actorId: pilotSession.actorId, capabilities });
+        return;
+      }
+    }
+
     const verified = await verifyIdentity(bridge, input);
     const identity = await bridge.identityForEmail(verified.email);
     if (!identity) throw new AuthenticationError('Identity not authorized');
@@ -47,8 +68,8 @@ const handler: ApiHandler = async (request, response) => {
     const created = await bridge.createEutaktosSession({
       email: verified.email,
       authUserId: verified.authUserId,
-      sessionId: `session-${crypto.randomUUID()}`,
-      authenticatedAt: new Date().toISOString(),
+      sessionId,
+      authenticatedAt,
       aal: verified.aal,
     });
     const grants = await database.activeGrants(created.tenantId, created.actorId);
