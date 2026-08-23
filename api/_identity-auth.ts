@@ -49,6 +49,21 @@ function decodeJwtPayload(token: string): Readonly<Record<string, unknown>> {
   }
 }
 
+function verifiedSession(accessToken: string, rawUser: unknown, expectedEmail?: string): SupabaseOtpSession {
+  const user = objectRecord(rawUser);
+  const authUserId = exactString(user.id);
+  const verifiedEmail = normalizeEmail(exactString(user.email));
+  if (expectedEmail && verifiedEmail !== normalizeEmail(expectedEmail)) throw new AuthenticationError('Identity mismatch');
+  if (user.is_anonymous === true) throw new AuthenticationError('Identity mismatch');
+
+  const claims = decodeJwtPayload(accessToken);
+  if (claims.sub !== authUserId || claims.role !== 'authenticated') throw new AuthenticationError('Identity mismatch');
+  const aal = claims.aal === 'aal2' ? 'aal2' : claims.aal === 'aal1' ? 'aal1' : undefined;
+  if (!aal) throw new AuthenticationError('Invalid authentication assurance');
+
+  return Object.freeze({ accessToken, authUserId, email: verifiedEmail, aal });
+}
+
 export class SupabaseIdentityBridge {
   readonly #config?: DatabaseConfig;
   readonly #fetch: typeof fetch;
@@ -78,8 +93,9 @@ export class SupabaseIdentityBridge {
     });
   }
 
-  async requestEmailOtp(email: string, shouldCreateUser: boolean): Promise<void> {
-    const response = await this.#authFetch('/auth/v1/otp', {
+  async requestEmailOtp(email: string, shouldCreateUser: boolean, redirectTo?: string): Promise<void> {
+    const query = redirectTo ? `?redirect_to=${encodeURIComponent(redirectTo)}` : '';
+    const response = await this.#authFetch(`/auth/v1/otp${query}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: normalizeEmail(email), create_user: shouldCreateUser }),
@@ -103,18 +119,23 @@ export class SupabaseIdentityBridge {
     let raw: unknown;
     try { raw = await response.json(); } catch { throw new DatabaseRequestError(502); }
     const body = objectRecord(raw);
-    const accessToken = exactString(body.access_token);
-    const user = objectRecord(body.user);
-    const authUserId = exactString(user.id);
-    const verifiedEmail = normalizeEmail(exactString(user.email));
-    if (verifiedEmail !== normalizeEmail(email) || user.is_anonymous === true) throw new AuthenticationError('Identity mismatch');
+    return verifiedSession(exactString(body.access_token), body.user, email);
+  }
 
-    const claims = decodeJwtPayload(accessToken);
-    if (claims.sub !== authUserId || claims.role !== 'authenticated') throw new AuthenticationError('Identity mismatch');
-    const aal = claims.aal === 'aal2' ? 'aal2' : claims.aal === 'aal1' ? 'aal1' : undefined;
-    if (!aal) throw new AuthenticationError('Invalid authentication assurance');
-
-    return Object.freeze({ accessToken, authUserId, email: verifiedEmail, aal });
+  async verifyAccessToken(accessToken: string): Promise<SupabaseOtpSession> {
+    const token = accessToken.trim();
+    if (!token || token.length > 8192) throw new AuthenticationError('Invalid authentication token');
+    const response = await this.#authFetch('/auth/v1/user', {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      if (response.status >= 500) throw new DatabaseRequestError(response.status);
+      throw new AuthenticationError('Invalid or expired authentication link');
+    }
+    let raw: unknown;
+    try { raw = await response.json(); } catch { throw new DatabaseRequestError(502); }
+    return verifiedSession(token, raw);
   }
 
   async createEutaktosSession(input: {
