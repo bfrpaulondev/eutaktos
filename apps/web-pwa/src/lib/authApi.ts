@@ -101,6 +101,19 @@ export function createAuthenticationApi(fetcher: typeof fetch = fetch) {
       if (!response.ok) throw safeServerError(response, body);
       return parseCurrentSession(body);
     },
+
+    async logout(): Promise<void> {
+      const response = await fetcher('/api/session/logout', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' },
+      });
+      if (response.status === 401) return;
+      if (!response.ok) {
+        const body = await optionalJson(response);
+        throw safeServerError(response, body);
+      }
+    },
   });
 }
 
