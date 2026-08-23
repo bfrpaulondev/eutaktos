@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canSubmitPerson, filterPeople, hasUnsavedPersonDraft } from './PeopleDirectory';
+import { canSubmitPerson, filterPeople, hasPersonProfileChanges, hasUnsavedPersonDraft } from './PeopleDirectory';
 import type { PersonProfileDto } from './lib/peopleApi';
 
 const people: readonly PersonProfileDto[] = [
@@ -37,5 +37,16 @@ describe('PeopleDirectory unsaved create draft guard', () => {
     expect(hasUnsavedPersonDraft('Ana Martins', 'pt-PT', true, 'pt-PT')).toBe(true);
     expect(hasUnsavedPersonDraft('', 'en', true, 'pt-PT')).toBe(true);
     expect(hasUnsavedPersonDraft('', 'pt-PT', false, 'pt-PT')).toBe(true);
+  });
+});
+
+describe('PeopleDirectory edit guard', () => {
+  it('detects name, locale and active-state changes without inventing profile fields', () => {
+    const person = people[0]!;
+    expect(hasPersonProfileChanges(person, 'Ana Martins', 'pt-PT', true)).toBe(false);
+    expect(hasPersonProfileChanges(person, ' Ana Martins ', 'pt-PT', true)).toBe(false);
+    expect(hasPersonProfileChanges(person, 'Ana M.', 'pt-PT', true)).toBe(true);
+    expect(hasPersonProfileChanges(person, 'Ana Martins', 'en', true)).toBe(true);
+    expect(hasPersonProfileChanges(person, 'Ana Martins', 'pt-PT', false)).toBe(true);
   });
 });
