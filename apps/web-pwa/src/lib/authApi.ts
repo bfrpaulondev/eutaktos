@@ -5,6 +5,16 @@ export type AuthenticationSessionState =
   | Readonly<{ status: 'unauthenticated' }>
   | Readonly<{ status: 'unavailable' }>;
 
+export class AuthenticationApiError extends Error {
+  readonly status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = 'AuthenticationApiError';
+    this.status = status;
+  }
+}
+
 async function optionalJson(response: Response): Promise<unknown> {
   const contentType = response.headers.get('Content-Type') ?? '';
   if (!contentType.toLowerCase().includes('application/json')) return undefined;
@@ -12,12 +22,14 @@ async function optionalJson(response: Response): Promise<unknown> {
   catch { return undefined; }
 }
 
-function safeServerError(response: Response, body: unknown): Error {
+function safeServerError(response: Response, body: unknown): AuthenticationApiError {
   const error = body && typeof body === 'object' && !Array.isArray(body)
     ? (body as { error?: unknown }).error
     : undefined;
-  if (response.status >= 400 && response.status < 500 && typeof error === 'string' && error.length <= 120) return new Error(error);
-  return new Error('Authentication service unavailable');
+  const message = response.status >= 400 && response.status < 500 && typeof error === 'string' && error.length <= 120
+    ? error
+    : 'Authentication service unavailable';
+  return new AuthenticationApiError(response.status, message);
 }
 
 export function isSupabaseAuthHash(hash: string): boolean {
