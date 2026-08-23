@@ -9,6 +9,7 @@ export type AuditResourceType =
   | 'availability'
   | 'emergency-contact'
   | 'access-grant'
+  | 'session'
   | 'midweek-meeting'
   | 'student-assignment'
   | 'non-student-assignment'
@@ -43,7 +44,7 @@ export interface AuditHistoryApi {
 
 const RESOURCE_TYPES = new Set<AuditResourceType>([
   'person', 'household', 'service-group', 'responsibility', 'delegation', 'congregation',
-  'eligibility', 'availability', 'emergency-contact', 'access-grant',
+  'eligibility', 'availability', 'emergency-contact', 'access-grant', 'session',
   'midweek-meeting', 'student-assignment', 'non-student-assignment', 'weekend-meeting',
   'public-talk-assignment',
 ]);

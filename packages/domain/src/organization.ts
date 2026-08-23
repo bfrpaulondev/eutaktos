@@ -84,12 +84,9 @@ export function validateResponsibilityAssignment(input: ResponsibilityAssignment
   required(input.assignedBy, 'assignedBy');
 
   const startsAt = parseInstant(input.startsAt);
-  const assignedAt = parseInstant(input.assignedAt);
+  parseInstant(input.assignedAt);
   if (input.endsAt && parseInstant(input.endsAt) <= startsAt) {
     throw new Error('Responsibility assignment must end after it starts');
-  }
-  if (assignedAt > startsAt) {
-    throw new Error('Responsibility cannot be recorded as assigned after it starts');
   }
 
   return input;

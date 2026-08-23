@@ -32,15 +32,22 @@ describe('organization domain', () => {
     const assignment = validateResponsibilityAssignment({
       id: 'r-1', tenantId: 't-1', personId: 'p-1', responsibilityKey: 'sound',
       startsAt: '2026-08-01T00:00:00Z', endsAt: '2026-09-01T00:00:00Z',
-      assignedBy: 'p-9', assignedAt: '2026-07-20T12:00:00Z',
+      assignedBy: 'p-9', assignedAt: '2026-08-02T12:00:00Z',
     });
 
     expect(isResponsibilityActiveAt(assignment, '2026-08-31T23:59:59Z')).toBe(true);
     expect(isResponsibilityActiveAt(assignment, '2026-09-01T00:00:00Z')).toBe(false);
 
     expect(() => validateResponsibilityAssignment({
-      ...assignment, assignedAt: '2026-08-02T00:00:00Z',
-    })).toThrow(/assigned after/);
+      ...assignment, endsAt: '2026-08-01T00:00:00Z',
+    })).toThrow(/end after/);
+  });
+
+  it('allows administrative assignment to record a start date in the past', () => {
+    expect(() => validateResponsibilityAssignment({
+      id: 'r-retro', tenantId: 't-1', personId: 'p-1', responsibilityKey: 'literature',
+      startsAt: '2026-08-23T00:00:00Z', assignedBy: 'p-9', assignedAt: '2026-08-23T16:30:00Z',
+    })).not.toThrow();
   });
 
   it('rejects cross-tenant organization reads', () => {

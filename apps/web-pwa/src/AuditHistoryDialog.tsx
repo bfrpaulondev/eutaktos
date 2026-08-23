@@ -6,7 +6,7 @@ import { Stack, Typography } from './ui/MuiCompat';
 
 const resourceTypes: readonly AuditResourceType[] = [
   'person', 'household', 'service-group', 'responsibility', 'delegation', 'congregation',
-  'eligibility', 'availability', 'emergency-contact', 'access-grant', 'midweek-meeting',
+  'eligibility', 'availability', 'emergency-contact', 'access-grant', 'session', 'midweek-meeting',
   'student-assignment', 'non-student-assignment', 'weekend-meeting', 'public-talk-assignment',
 ];
 const actions: readonly AuditAction[] = ['create', 'update', 'delete', 'grant', 'revoke'];
@@ -23,9 +23,9 @@ const actionLabels: Record<Locale, Record<AuditAction, string>> = {
   es: { create: 'Crear', update: 'Actualizar', delete: 'Eliminar', grant: 'Conceder', revoke: 'Revocar' },
 };
 const resourceLabels: Record<Locale, Record<AuditResourceType, string>> = {
-  'pt-PT': { person: 'Pessoa', household: 'Agregado', 'service-group': 'Grupo de serviço', responsibility: 'Responsabilidade', delegation: 'Delegação', congregation: 'Congregação', eligibility: 'Elegibilidade', availability: 'Disponibilidade', 'emergency-contact': 'Contacto de emergência', 'access-grant': 'Acesso', 'midweek-meeting': 'Reunião do meio da semana', 'student-assignment': 'Designação de estudante', 'non-student-assignment': 'Designação não estudantil', 'weekend-meeting': 'Reunião do fim de semana', 'public-talk-assignment': 'Designação de discurso público' },
-  en: { person: 'Person', household: 'Household', 'service-group': 'Service group', responsibility: 'Responsibility', delegation: 'Delegation', congregation: 'Congregation', eligibility: 'Eligibility', availability: 'Availability', 'emergency-contact': 'Emergency contact', 'access-grant': 'Access grant', 'midweek-meeting': 'Midweek meeting', 'student-assignment': 'Student assignment', 'non-student-assignment': 'Non-student assignment', 'weekend-meeting': 'Weekend meeting', 'public-talk-assignment': 'Public talk assignment' },
-  es: { person: 'Persona', household: 'Hogar', 'service-group': 'Grupo de servicio', responsibility: 'Responsabilidad', delegation: 'Delegación', congregation: 'Congregación', eligibility: 'Elegibilidad', availability: 'Disponibilidad', 'emergency-contact': 'Contacto de emergencia', 'access-grant': 'Acceso', 'midweek-meeting': 'Reunión de entre semana', 'student-assignment': 'Asignación de estudiante', 'non-student-assignment': 'Asignación no estudiantil', 'weekend-meeting': 'Reunión del fin de semana', 'public-talk-assignment': 'Asignación de discurso público' },
+  'pt-PT': { person: 'Pessoa', household: 'Agregado', 'service-group': 'Grupo de serviço', responsibility: 'Responsabilidade', delegation: 'Delegação', congregation: 'Congregação', eligibility: 'Elegibilidade', availability: 'Disponibilidade', 'emergency-contact': 'Contacto de emergência', 'access-grant': 'Acesso', session: 'Sessão', 'midweek-meeting': 'Reunião do meio da semana', 'student-assignment': 'Designação de estudante', 'non-student-assignment': 'Designação não estudantil', 'weekend-meeting': 'Reunião do fim de semana', 'public-talk-assignment': 'Designação de discurso público' },
+  en: { person: 'Person', household: 'Household', 'service-group': 'Service group', responsibility: 'Responsibility', delegation: 'Delegation', congregation: 'Congregation', eligibility: 'Eligibility', availability: 'Availability', 'emergency-contact': 'Emergency contact', 'access-grant': 'Access grant', session: 'Session', 'midweek-meeting': 'Midweek meeting', 'student-assignment': 'Student assignment', 'non-student-assignment': 'Non-student assignment', 'weekend-meeting': 'Weekend meeting', 'public-talk-assignment': 'Public talk assignment' },
+  es: { person: 'Persona', household: 'Hogar', 'service-group': 'Grupo de servicio', responsibility: 'Responsabilidad', delegation: 'Delegación', congregation: 'Congregación', eligibility: 'Elegibilidad', availability: 'Disponibilidad', 'emergency-contact': 'Contacto de emergencia', 'access-grant': 'Acceso', session: 'Sesión', 'midweek-meeting': 'Reunión de entre semana', 'student-assignment': 'Asignación de estudiante', 'non-student-assignment': 'Asignación no estudiantil', 'weekend-meeting': 'Reunión del fin de semana', 'public-talk-assignment': 'Asignación de discurso público' },
 };
 
 function formatDate(value: string, locale: Locale): string {
