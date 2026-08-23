@@ -19,6 +19,7 @@ import serviceGroupHandler from './service-groups/[serviceGroupId]';
 import responsibilitiesHandler from './responsibilities';
 import responsibilityHandler from './responsibilities/[responsibilityId]';
 import endResponsibilityHandler from './responsibilities/[responsibilityId]/end';
+import congregationSettingsHandler from './congregation/settings';
 import auditHistoryHandler from './audit/history';
 import accessGrantsHandler from './access/grants';
 import subjectGrantsHandler from './access/subjects/[subjectId]/grants';
@@ -50,7 +51,7 @@ type RouteKey =
   | 'health' | 'ready' | 'session' | 'logout' | 'logout-all' | 'rotate-session' | 'auth-otp' | 'auth-verify'
   | 'people' | 'person' | 'eligibility' | 'availability' | 'availability-period'
   | 'households' | 'household' | 'service-groups' | 'service-group'
-  | 'responsibilities' | 'responsibility' | 'end-responsibility' | 'audit-history'
+  | 'responsibilities' | 'responsibility' | 'end-responsibility' | 'congregation-settings' | 'audit-history'
   | 'access-grants' | 'subject-grants' | 'revoke-grant' | 'midweek' | 'midweek-route' | 'outbox-worker';
 
 interface RouteMatch {
@@ -79,6 +80,7 @@ const handlers: Readonly<Record<RouteKey, ApiHandler>> = Object.freeze({
   responsibilities: responsibilitiesHandler,
   responsibility: responsibilityHandler,
   'end-responsibility': endResponsibilityHandler,
+  'congregation-settings': congregationSettingsHandler,
   'audit-history': auditHistoryHandler,
   'access-grants': accessGrantsHandler,
   'subject-grants': subjectGrantsHandler,
@@ -124,6 +126,7 @@ export function matchNetlifyApiRoute(path: string): RouteMatch | undefined {
     '/households': 'households',
     '/service-groups': 'service-groups',
     '/responsibilities': 'responsibilities',
+    '/congregation/settings': 'congregation-settings',
     '/audit/history': 'audit-history',
     '/access/grants': 'access-grants',
     '/midweek': 'midweek',

@@ -8,6 +8,7 @@ describe('Netlify API adapter', () => {
     expect(normalizeNetlifyApiPath({ rawUrl: 'https://example.netlify.app/api/health?x=1' })).toBe('/health');
     expect(normalizeNetlifyApiPath({ path: '/.netlify/functions/api/midweek/meetings/m-1/publish' })).toBe('/midweek/meetings/m-1/publish');
     expect(normalizeNetlifyApiPath({ path: '/api/auth/verify' })).toBe('/auth/verify');
+    expect(normalizeNetlifyApiPath({ path: '/api/congregation/settings' })).toBe('/congregation/settings');
   });
 
   it('matches dynamic identifiers from the path', () => {
@@ -21,9 +22,10 @@ describe('Netlify API adapter', () => {
     expect(matchNetlifyApiRoute('/people/person-1/availability/%2Fetc')).toBeUndefined();
   });
 
-  it('routes authentication through the central Netlify function', () => {
+  it('routes authentication and congregation settings through the central Netlify function', () => {
     expect(matchNetlifyApiRoute('/auth/otp')).toEqual({ key: 'auth-otp', params: {} });
     expect(matchNetlifyApiRoute('/auth/verify')).toEqual({ key: 'auth-verify', params: {} });
+    expect(matchNetlifyApiRoute('/congregation/settings')).toEqual({ key: 'congregation-settings', params: {} });
   });
 
   it('routes the real midweek overview and mutation paths through the central Netlify function', () => {
