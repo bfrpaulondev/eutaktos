@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { AuthenticationApiError, createAuthenticationApi, isSupabaseAuthHash, supabaseAccessTokenFromHash } from './authApi';
+import { AuthenticationApiError, createAuthenticationApi, isSupabaseAuthHash, scannerSafeMagicLinkTokenHash, supabaseAccessTokenFromHash } from './authApi';
 
 function json(value: unknown, status = 200): Response {
   return new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
@@ -54,7 +54,7 @@ describe('authenticationApi', () => {
     } satisfies Partial<AuthenticationApiError>);
   });
 
-  it('sends only the transient access token when exchanging a magic link', async () => {
+  it('sends only the transient access token when exchanging a legacy magic link', async () => {
     const fetcher = vi.fn<typeof fetch>(async (input, init) => {
       expect(String(input)).toBe('/api/auth/verify');
       expect(init?.credentials).toBe('same-origin');
@@ -64,6 +64,20 @@ describe('authenticationApi', () => {
     await expect(createAuthenticationApi(fetcher).verifyMagicLink('header.payload.signature')).resolves.toEqual({
       actorId: 'actor-1', capabilities: ['people.read'],
     });
+  });
+
+  it('exchanges a scanner-safe token hash only after an explicit caller action', async () => {
+    const tokenHash = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+    const fetcher = vi.fn<typeof fetch>(async (input, init) => {
+      expect(String(input)).toBe('/api/auth/verify');
+      expect(init?.credentials).toBe('same-origin');
+      expect(JSON.parse(String(init?.body))).toEqual({ tokenHash });
+      return json({ actorId: 'actor-1', capabilities: ['people.read'] });
+    });
+    const api = createAuthenticationApi(fetcher);
+    expect(fetcher).not.toHaveBeenCalled();
+    await expect(api.verifyMagicLinkTokenHash(tokenHash)).resolves.toEqual({ actorId: 'actor-1', capabilities: ['people.read'] });
+    expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
   it('does not accept Supabase token material in the Eutaktos response DTO', async () => {
@@ -88,8 +102,8 @@ describe('authenticationApi', () => {
   });
 });
 
-describe('Supabase auth fragment parsing', () => {
-  it('extracts only a bearer access token and never requires the refresh token', () => {
+describe('Supabase auth callback parsing', () => {
+  it('extracts only a bearer access token from legacy fragments and never requires the refresh token', () => {
     const hash = '#access_token=header.payload.signature&refresh_token=secret-refresh&token_type=bearer&type=magiclink';
     expect(isSupabaseAuthHash(hash)).toBe(true);
     expect(supabaseAccessTokenFromHash(hash)).toBe('header.payload.signature');
@@ -103,5 +117,13 @@ describe('Supabase auth fragment parsing', () => {
   it('ignores unrelated hashes and malformed token material', () => {
     expect(isSupabaseAuthHash('#section=settings')).toBe(false);
     expect(supabaseAccessTokenFromHash('#access_token=not-a-jwt&token_type=bearer')).toBeUndefined();
+  });
+
+  it('accepts only a scanner-safe email token hash on the dedicated confirmation route', () => {
+    const tokenHash = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+    expect(scannerSafeMagicLinkTokenHash('/auth/confirm', `?token_hash=${tokenHash}&type=email`)).toBe(tokenHash);
+    expect(scannerSafeMagicLinkTokenHash('/', `?token_hash=${tokenHash}&type=email`)).toBeUndefined();
+    expect(scannerSafeMagicLinkTokenHash('/auth/confirm', `?token_hash=${tokenHash}&type=recovery`)).toBeUndefined();
+    expect(scannerSafeMagicLinkTokenHash('/auth/confirm', '?token_hash=short&type=email')).toBeUndefined();
   });
 });
