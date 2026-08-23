@@ -1,21 +1,31 @@
 import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { authenticationApi, isSupabaseAuthHash, supabaseAccessTokenFromHash } from './lib/authApi';
+import { authenticationApi, isSupabaseAuthHash, scannerSafeMagicLinkTokenHash, supabaseAccessTokenFromHash } from './lib/authApi';
 
 const AuthSignInPanel = lazy(async () => {
   const module = await import('./AuthSignInPanel');
   return { default: module.AuthSignInPanel };
 });
 
-type GateState = 'checking' | 'signed-out' | 'unavailable' | 'authenticated';
+const MagicLinkConfirmationPanel = lazy(async () => {
+  const module = await import('./MagicLinkConfirmationPanel');
+  return { default: module.MagicLinkConfirmationPanel };
+});
+
+type GateState = 'checking' | 'signed-out' | 'unavailable' | 'confirm-link' | 'authenticated';
 
 export function shouldBypassAuthentication(hostname: string): boolean {
   const normalized = hostname.trim().toLowerCase();
   return normalized === 'localhost' || normalized === '127.0.0.1' || normalized === '::1' || normalized === '[::1]';
 }
 
+export function scannerSafeCallback(pathname: string, search: string): string | undefined {
+  return scannerSafeMagicLinkTokenHash(pathname, search);
+}
+
 export function AuthBoundary({ children }: { children: ReactNode }) {
   const localHarness = useMemo(() => typeof window !== 'undefined' && shouldBypassAuthentication(window.location.hostname), []);
   const [state, setState] = useState<GateState>(localHarness ? 'authenticated' : 'checking');
+  const [pendingTokenHash, setPendingTokenHash] = useState<string>();
 
   const checkSession = () => {
     if (localHarness) { setState('authenticated'); return; }
@@ -30,6 +40,15 @@ export function AuthBoundary({ children }: { children: ReactNode }) {
 
     const controller = new AbortController();
     setState('checking');
+
+    const tokenHash = scannerSafeCallback(window.location.pathname, window.location.search);
+    if (tokenHash) {
+      setPendingTokenHash(tokenHash);
+      window.history.replaceState(window.history.state, '', '/auth/confirm');
+      setState('confirm-link');
+      return () => controller.abort();
+    }
+
     const hash = window.location.hash;
     const magicLinkAccessToken = supabaseAccessTokenFromHash(hash);
     if (isSupabaseAuthHash(hash)) {
@@ -67,6 +86,26 @@ export function AuthBoundary({ children }: { children: ReactNode }) {
           <button type="button" onClick={checkSession}>Tentar novamente</button>
         </div>
       </main>
+    );
+  }
+
+  if (state === 'confirm-link' && pendingTokenHash) {
+    return (
+      <Suspense fallback={<main style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', padding: 24 }}><p role="status">A preparar confirmação segura…</p></main>}>
+        <MagicLinkConfirmationPanel
+          tokenHash={pendingTokenHash}
+          onAuthenticated={() => {
+            setPendingTokenHash(undefined);
+            window.history.replaceState(window.history.state, '', '/');
+            setState('authenticated');
+          }}
+          onCancel={() => {
+            setPendingTokenHash(undefined);
+            window.history.replaceState(window.history.state, '', '/');
+            setState('signed-out');
+          }}
+        />
+      </Suspense>
     );
   }
 
