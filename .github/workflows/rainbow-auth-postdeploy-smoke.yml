@@ -9,6 +9,25 @@ permissions:
   contents: read
 
 jobs:
+  deployment-capability:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    env:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+      NETLIFY_BUILD_HOOK: ${{ secrets.NETLIFY_BUILD_HOOK }}
+      NETLIFY_DEPLOY_HOOK: ${{ secrets.NETLIFY_DEPLOY_HOOK }}
+    steps:
+      - name: Report only credential availability
+        shell: bash
+        run: |
+          set -euo pipefail
+          present() { if [ -n "$2" ]; then echo "$1=present"; else echo "$1=absent"; fi; }
+          present NETLIFY_AUTH_TOKEN "$NETLIFY_AUTH_TOKEN"
+          present NETLIFY_SITE_ID "$NETLIFY_SITE_ID"
+          present NETLIFY_BUILD_HOOK "$NETLIFY_BUILD_HOOK"
+          present NETLIFY_DEPLOY_HOOK "$NETLIFY_DEPLOY_HOOK"
+
   production-smoke:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
