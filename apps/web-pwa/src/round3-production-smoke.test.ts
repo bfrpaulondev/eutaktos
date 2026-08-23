@@ -14,7 +14,7 @@ async function productionFetch(path: string, init: RequestInit = {}): Promise<Re
 }
 
 async function publishedJavaScript(html: string): Promise<string> {
-  const queue = [...html.matchAll(/src=["'](\/assets\/[^"']+\.js)["']/g)].map(match => match[1]);
+  const queue = [...new Set([...html.matchAll(/\/assets\/[A-Za-z0-9._-]+\.js/g)].map(match => match[0]))];
   const visited = new Set<string>();
   const chunks: string[] = [];
   while (queue.length) {
