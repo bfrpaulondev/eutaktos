@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatAwayPeriodDate, hasUnsavedAwayPeriodDraft, isValidAwayPeriodRange } from './AwayPeriodsSection';
+import { dateDraftToIso, formatAwayPeriodDate, hasUnsavedAwayPeriodDraft, isValidAwayPeriodRange } from './AwayPeriodsSection';
 
 describe('AwayPeriodsSection date validation', () => {
   it('accepts only a period whose end is strictly after its start', () => {
@@ -12,6 +12,13 @@ describe('AwayPeriodsSection date validation', () => {
     expect(isValidAwayPeriodRange('', '2026-08-22')).toBe(false);
     expect(isValidAwayPeriodRange('2026-08-21', '')).toBe(false);
     expect(isValidAwayPeriodRange('not-a-date', '2026-08-22')).toBe(false);
+  });
+
+  it('builds an ISO date only from a complete real calendar date', () => {
+    expect(dateDraftToIso({ day: '25', month: '8', year: '2026' })).toBe('2026-08-25');
+    expect(dateDraftToIso({ day: '29', month: '2', year: '2028' })).toBe('2028-02-29');
+    expect(dateDraftToIso({ day: '29', month: '2', year: '2027' })).toBe('');
+    expect(dateDraftToIso({ day: '', month: '8', year: '2026' })).toBe('');
   });
 });
 

@@ -33,7 +33,16 @@ function slotPayload(input:AddMidweekSlotPayload):AddMidweekSlotPayload{return{p
 function studentPayload(input:AssignStudentPayload):AssignStudentPayload{return{slotId:input.slotId,studentId:input.studentId,...(input.assistantId!==undefined?{assistantId:input.assistantId}:{})};}
 function nonStudentPayload(input:AssignNonStudentPayload):AssignNonStudentPayload{return{slotId:input.slotId,personId:input.personId,role:input.role};}
 function replacementPayload(input:ReplaceStudentPayload):ReplaceStudentPayload{return{studentId:input.studentId,...(input.assistantId!==undefined?{assistantId:input.assistantId}:{})};}
-function boundedOverviewSignal(signal?:AbortSignal):AbortSignal{const timeout=AbortSignal.timeout(OVERVIEW_TIMEOUT_MS);return signal?AbortSignal.any([signal,timeout]):timeout;}
+
+async function fetchOverview(fetcher:typeof fetch, signal?:AbortSignal):Promise<Response>{
+ const controller=new AbortController(); let timedOut=false;
+ const relayAbort=()=>controller.abort();
+ if(signal?.aborted)controller.abort();else signal?.addEventListener('abort',relayAbort,{once:true});
+ const timer=setTimeout(()=>{timedOut=true;controller.abort();},OVERVIEW_TIMEOUT_MS);
+ try{return await fetcher('/api/midweek',{method:'GET',credentials:'same-origin',headers:{Accept:'application/json'},signal:controller.signal});}
+ catch(error){if(timedOut)throw new Error('Midweek API request timed out');throw error;}
+ finally{clearTimeout(timer);signal?.removeEventListener('abort',relayAbort);}
+}
 
 export interface MidweekApi{
  overview(signal?:AbortSignal):Promise<MidweekOverviewDto>;
@@ -52,7 +61,7 @@ export function createMidweekApi(fetcher:typeof fetch=fetch):MidweekApi{
  const requestMeeting=async(path:string,init:RequestInit):Promise<MidweekMeetingDto>=>{const response=await fetcher(path,init);const body=await readJson(response);if(!response.ok)throw safeError(response,body);return meeting(body);};
  const requestMutation=async(path:string,init:RequestInit):Promise<void>=>{const response=await fetcher(path,init);const body=await readJson(response).catch(()=>undefined);if(!response.ok)throw safeError(response,body);};
  return{
-  async overview(signal){const response=await fetcher('/api/midweek',{method:'GET',credentials:'same-origin',headers:{Accept:'application/json'},signal:boundedOverviewSignal(signal)});const body=await readJson(response);if(!response.ok)throw safeError(response,body);return parseMidweekOverview(body);},
+  async overview(signal){const response=await fetchOverview(fetcher,signal);const body=await readJson(response);if(!response.ok)throw safeError(response,body);return parseMidweekOverview(body);},
   createMeeting(input){return requestMeeting('/api/midweek',mutationInit('POST',meetingPayload(input)));},
   addSlot(meetingId,input){return requestMeeting(`/api/midweek/meetings/${encodeURIComponent(meetingId)}/slots`,mutationInit('POST',slotPayload(input)));},
   removeSlot(meetingId,slotId){return requestMeeting(`/api/midweek/meetings/${encodeURIComponent(meetingId)}/slots/${encodeURIComponent(slotId)}`,mutationInit('DELETE'));},
