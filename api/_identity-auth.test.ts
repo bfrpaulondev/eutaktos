@@ -28,15 +28,15 @@ describe('SupabaseIdentityBridge', () => {
     expect(identity).toEqual({ tenantId: 'tenant-a', actorId: 'person-1', email: 'person@example.test', mfaRequired: false });
   });
 
-  it('requests passwordless access with signup disabled and an explicit production redirect', async () => {
+  it('requests passwordless access with signup disabled and an explicit scanner-safe confirmation redirect', async () => {
     const fetcher = vi.fn<typeof fetch>(async (input, init) => {
       const url = new URL(String(input));
       expect(url.origin + url.pathname).toBe('https://example.supabase.co/auth/v1/otp');
-      expect(url.searchParams.get('redirect_to')).toBe('https://eutakes.netlify.app');
+      expect(url.searchParams.get('redirect_to')).toBe('https://eutakes.netlify.app/auth/confirm');
       expect(JSON.parse(String(init?.body))).toEqual({ email: 'person@example.test', create_user: false });
       return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
     });
-    await new SupabaseIdentityBridge(config, fetcher).requestEmailOtp('PERSON@example.test', false, 'https://eutakes.netlify.app');
+    await new SupabaseIdentityBridge(config, fetcher).requestEmailOtp('PERSON@example.test', false, 'https://eutakes.netlify.app/auth/confirm');
   });
 
   it('accepts a verified non-anonymous Supabase email OTP session and reads its AAL', async () => {
@@ -54,7 +54,29 @@ describe('SupabaseIdentityBridge', () => {
     });
   });
 
-  it('validates a magic-link access token against Supabase Auth before trusting its identity', async () => {
+  it('verifies scanner-safe email token hashes without a browser access token', async () => {
+    const tokenHash = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+    const accessToken = jwt({ sub: '11111111-1111-4111-8111-111111111111', role: 'authenticated', aal: 'aal1' });
+    const fetcher = vi.fn<typeof fetch>(async (input, init) => {
+      expect(String(input)).toBe('https://example.supabase.co/auth/v1/verify');
+      expect(JSON.parse(String(init?.body))).toEqual({ type: 'email', token_hash: tokenHash });
+      return json({ access_token: accessToken, user: { id: '11111111-1111-4111-8111-111111111111', email: 'person@example.test', is_anonymous: false } });
+    });
+    await expect(new SupabaseIdentityBridge(config, fetcher).verifyEmailTokenHash(tokenHash)).resolves.toEqual({
+      accessToken,
+      authUserId: '11111111-1111-4111-8111-111111111111',
+      email: 'person@example.test',
+      aal: 'aal1',
+    });
+  });
+
+  it('maps rejected token hashes to a generic authentication failure', async () => {
+    const tokenHash = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+    const fetcher = vi.fn<typeof fetch>(async () => json({ error: 'otp_expired' }, 403));
+    await expect(new SupabaseIdentityBridge(config, fetcher).verifyEmailTokenHash(tokenHash)).rejects.toBeInstanceOf(AuthenticationError);
+  });
+
+  it('validates a legacy magic-link access token against Supabase Auth before trusting its identity', async () => {
     const accessToken = jwt({ sub: '11111111-1111-4111-8111-111111111111', role: 'authenticated', aal: 'aal1' });
     const fetcher = vi.fn<typeof fetch>(async (input, init) => {
       expect(String(input)).toBe('https://example.supabase.co/auth/v1/user');
