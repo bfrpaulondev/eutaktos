@@ -1,0 +1,21 @@
+name: Eutakes direct-code production smoke
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  production-ui-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify deployed direct-code copy
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://eutakes.netlify.app'
+          html="$(curl -fsSL "$base/")"
+          asset="$(printf '%s' "$html" | grep -oE 'src="/assets/[^"]+\.js"' | head -n1 | sed -E 's/^src="([^"]+)"$/\1/')"
+          test -n "$asset"
+          bundle="$(curl -fsSL "$base$asset")"
+          printf '%s' "$bundle" | grep -Fq 'Acesso temporário de teste'
+          printf '%s' "$bundle" | grep -Fq 'Entrar com código'
