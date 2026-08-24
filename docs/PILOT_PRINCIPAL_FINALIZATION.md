@@ -4,24 +4,32 @@ Date: 2026-08-24
 
 Canonical production: `https://eutakes.netlify.app/`
 
-Initial base for this finalization pass: `f30ef774da8dcc4ab04313ec956ba8594022c803`
+Current integrated acceptance base after KP1–KP8 and MP1–MP8: `868c2eb96f13e17678c00851ba5de6fabdca6594`
 
 Principal queue: #237 (`AP1`–`AP8`)
 
-This document records the work that is exclusively owned by the principal/runtime workstream and separates it from evidence that still depends on Manus/Grok integration, additional mailboxes or physical devices.
+This document records the work owned by the principal/runtime workstream and separates repository-complete evidence from the remaining production acceptance that requires real identities or physical devices.
 
 ## Principal-owned status
 
 | Task | Principal-owned status | Evidence / remaining dependency |
 | --- | --- | --- |
-| AP1 — Production readiness | **PASS** | `/api/health` and `/api/ready` were previously proven factual against canonical production. A repeatable manual preflight now lives at `npm run pilot:preflight`; it is intentionally not part of normal CI because external Netlify/network availability must not make repository CI flaky. |
-| AP2 — Authentication edge cases | **PASS** | Scanner-safe Magic Link works. Permanent server tests cover idle expiry, absolute expiry, revocation, malformed expiry, secure cookie behavior and server-derived capabilities. Supabase Auth logs directly show successful OTP login, repeated OTP requests, provider rate limiting and used/expired one-time tokens returning 403 without logging the token value. Restored authenticated browser sessions now rotate before protected UI renders; rotation failure fails closed and an aborted owning check does not start a late rotation. Temporary pilot codes are disabled by default. |
-| AP3 — Availability/eligibility/scheduling runtime | **PASS** | Production DB disposable-tenant drill already proved away period, explicit eligibility, Midweek persistence, stale-write rejection and zero residue after cleanup. |
-| AP4 — Multi-user role matrix | **PASS for server/runtime scope** | Production DB disposable role drill already proved admin/limited/ordinary grants and fail-closed identity binding. `api/pilot-role-matrix.test.ts` makes the server principal matrix permanent and explicitly proves forged browser tenant/actor/capability fields are ignored and same actor IDs remain tenant-scoped. Real three-mailbox login remains an external acceptance item. |
-| AP5 — Backup/export/restore | **PASS** | Real production DB export → mutation → restore → re-export round trip already passed with stable IDs/relations and cleanup. Pilot RPO/RTO targets are recorded in `docs/PILOT_PRINCIPAL_ACCEPTANCE.md`. |
-| AP6 — Production E2E | **READY, waiting on integrated main** | Principal/runtime preflight is repeatable. The final authenticated cross-module E2E must be rerun after accepted Manus/Grok work lands. No session credential is committed or embedded in automation. |
+| AP1 — Production readiness | **PASS** | `/api/health` and `/api/ready` were previously proven factual against canonical production. A repeatable manual preflight lives at `npm run pilot:preflight`; it is intentionally not part of normal CI because external Netlify/network availability must not make repository CI flaky. |
+| AP2 — Authentication edge cases | **PASS** | Scanner-safe Magic Link works. Permanent server tests cover idle expiry, absolute expiry, revocation, malformed expiry, secure cookie behavior and server-derived capabilities. Supabase Auth logs directly show successful OTP login, repeated OTP requests, provider rate limiting and used/expired one-time tokens returning 403 without logging the token value. Restored authenticated browser sessions rotate before protected UI renders; rotation failure fails closed. Temporary pilot codes are disabled by default. |
+| AP3 — Availability/eligibility/scheduling runtime | **PASS** | Production DB disposable-tenant drill proved away period, explicit eligibility, Midweek persistence, stale-write rejection and zero residue after cleanup. KP1–KP8 are now integrated in the same main. |
+| AP4 — Multi-user role matrix | **PASS for server/runtime scope** | Production DB disposable role drill and `api/pilot-role-matrix.test.ts` prove admin/limited/ordinary grants, fail-closed identity binding and rejection of forged browser tenant/actor/capability fields. Real three-mailbox login remains an external acceptance item. |
+| AP5 — Backup/export/restore | **PASS** | Real production DB export → mutation → restore → re-export round trip passed with stable IDs/relations and cleanup. Pilot RPO/RTO targets are recorded in `docs/PILOT_PRINCIPAL_ACCEPTANCE.md`. |
+| AP6 — Production E2E | **READY on integrated main** | KP1–KP8 and MP1–MP8 are now integrated. The remaining AP6 work is one final authenticated cross-module E2E against canonical production. No session credential is committed or embedded in automation. |
 | AP7 — Pilot tenant/runtime configuration | **PASS** | Pilot timezone is `Europe/Lisbon`; temporary pilot codes are absent/disabled; known technical fixtures were cleaned; canonical built-in Midweek definitions remain intentionally seeded. Supabase project is healthy. |
-| AP8 — Pilot acceptance | **READY, externally blocked** | Principal-owned gates are prepared. Final verdict must wait for accepted Manus/Grok work, three real pilot identities through email login and desktop + real iPhone + real Android smoke evidence. |
+| AP8 — Pilot acceptance | **READY, externally blocked** | Repository/domain/frontend integration is complete. Final verdict now depends only on the final authenticated production E2E, three real pilot identities through email login, real iPhone + real Android smoke evidence, and confirming zero unresolved MVP P0/P1 after that run. |
+
+## Integrated repository gates now complete
+
+- KP1–KP8 domain/application queue: **PASS and closed**.
+- MP1–MP8 frontend/PWA queue: **PASS and closed**.
+- Final frontend acceptance: `docs/PILOT_FRONTEND_ACCEPTANCE.md`.
+- Final frontend integration commit: `868c2eb96f13e17678c00851ba5de6fabdca6594`.
+- Final MP8 PR head passed both repository `quality` and `browser-regression` before merge.
 
 ## Fresh acceptance evidence from this finalization pass
 
@@ -35,25 +43,25 @@ This document records the work that is exclusively owned by the principal/runtim
 
 ### Current production data hygiene
 
-At the time of this pass:
+At the time of the original principal finalization pass:
 
 - active temporary pilot access codes: `0`;
 - active non-revoked/unexpired Eutaktos sessions: `0`;
 - authorized identities: `1`;
 - active capability grants: `13`.
 
-No new probe tenant or test identity was left behind by this finalization pass.
+No probe tenant or test identity was left behind by that pass.
 
 ### Authentication evidence
 
-Recent Supabase Auth logs show:
+Recent Supabase Auth logs from the principal acceptance pass showed:
 
 - successful passwordless email OTP verification/login;
 - used/expired one-time tokens fail with `403` / `otp_expired`;
 - repeated email requests are rate-limited by the provider when the configured threshold is exceeded;
 - Auth log events contain request metadata and account identifiers, but not the one-time token value/token hash.
 
-The scanner-safe Eutaktos flow therefore has evidence for both success and failure paths. Restored active Eutaktos sessions also rotate through `/api/session/rotate` before `AuthBoundary` releases protected application content. The frontend gate fails closed if rotation fails and preserves the already-fresh Magic Link path without an unnecessary second rotation.
+The scanner-safe Eutaktos flow therefore has evidence for both success and failure paths. Restored active Eutaktos sessions also rotate through `/api/session/rotate` before `AuthBoundary` releases protected application content. The frontend gate fails closed if rotation fails.
 
 ## Repeatable production preflight
 
@@ -105,16 +113,16 @@ The gate also proves:
 - `a2c659a248532a8275ded6e23343da6b0a54f64f` — permanent role matrix, manual production preflight and principal finalization record; quality + browser-regression PASS.
 - `5ed7244f54a0795b37a4f133f1b863b21b324895` — network-exception resilience and per-step logging for the manual preflight; quality + browser-regression PASS.
 - `3f9d6a39c4654257b50f9540d523c84099fa283b` — restored-session rotation before protected UI activation, including abort-safe ownership check; quality + browser-regression PASS.
+- `868c2eb96f13e17678c00851ba5de6fabdca6594` — final MP1 correction + MP8 frontend acceptance integration; quality + browser-regression PASS on final PR head.
 
 ## What remains before AP8 can become PASS
 
-These are not unimplemented principal-runtime tasks:
+The previously pending Manus/Grok integration is complete. Remaining work is now only the final real-world acceptance:
 
-1. accepted Manus MP1–MP8 changes integrated into one current `main`;
-2. accepted Grok KP1–KP8 changes integrated into the same `main`;
-3. one final authenticated production E2E across the MVP after those merges;
-4. three real email identities demonstrating admin / limited / ordinary behavior end-to-end;
-5. desktop + real iPhone + real Android smoke evidence;
-6. zero unresolved MVP P0/P1 after the integrated run.
+1. one final authenticated production E2E across the MVP on the integrated main;
+2. three real email identities demonstrating admin / limited operator / ordinary behavior end-to-end;
+3. real iPhone smoke evidence;
+4. real Android smoke evidence;
+5. confirm zero unresolved MVP P0/P1 after the integrated production/device run.
 
-Until those conditions are available, the correct AP8 status is **BLOCKED**, not a false PASS.
+Until those conditions are available, the correct product-level AP8 status remains **BLOCKED**, not a false PASS.
