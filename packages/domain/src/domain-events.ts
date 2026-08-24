@@ -23,6 +23,7 @@ export type DomainEventType =
   | 'AssignmentDeclined'
   | 'AssignmentReplaced'
   | 'AssignmentCancelled'
+  | 'AssignmentCompleted'
   | 'AssignmentResponseUpdated'
   | 'DutyDefinitionCreated'
   | 'DutyAssigned'
