@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createCongregationProfile } from './congregation';
-import { createMidweekMeeting } from './midweek-meeting';
+import { createMidweekMeeting, updateMidweekMeeting } from './midweek-meeting';
 import { resolveZonedLocalTime } from './scheduling-time';
 
 describe('KP5 scheduling configuration validation', () => {
@@ -23,6 +23,33 @@ describe('KP5 scheduling configuration validation', () => {
 
   it('rejects Lisbon spring-forward nonexistent local times', () => {
     expect(() => resolveZonedLocalTime('2026-03-29', '01:30', 'Europe/Lisbon')).toThrow('does not exist');
+  });
+
+  it('enforces nonexistent-time rejection through real midweek creation', () => {
+    expect(() => createMidweekMeeting({
+      id: 'm-gap',
+      tenantId: 'tenant-a',
+      date: '2026-03-29',
+      localTime: '01:30',
+      timezone: 'Europe/Lisbon',
+      now: '2026-03-20T00:00:00.000Z',
+    })).toThrow('does not exist');
+  });
+
+  it('enforces nonexistent-time rejection when a draft meeting is updated', () => {
+    const meeting = createMidweekMeeting({
+      id: 'm-update',
+      tenantId: 'tenant-a',
+      date: '2026-03-22',
+      localTime: '01:30',
+      timezone: 'Europe/Lisbon',
+      now: '2026-03-20T00:00:00.000Z',
+    });
+    expect(() => updateMidweekMeeting(
+      meeting,
+      { date: '2026-03-29' },
+      '2026-03-21T00:00:00.000Z',
+    )).toThrow('does not exist');
   });
 
   it('resolves Lisbon normal winter and summer times deterministically', () => {
