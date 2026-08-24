@@ -4,7 +4,7 @@ import { dirname, resolve } from 'node:path';
 
 const port = '5186';
 const url = `http://127.0.0.1:${port}/`;
-const deepLinkUrl = `http://127.0.0.1:${port}/auth/confirm?token_hash=regression-token&type=email`;
+const deepLinkUrl = `http://127.0.0.1:${port}/auth/confirm?token_hash=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef&type=email`;
 const chromium = process.env.CHROMIUM_BIN ?? 'chromium';
 const viteCli = resolve(dirname(fileURLToPath(import.meta.url)), '../../../node_modules/vite/bin/vite.js');
 
