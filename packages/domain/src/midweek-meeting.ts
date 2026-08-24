@@ -361,6 +361,7 @@ export function validateMeetingSlot(slot: MeetingSlot): Readonly<MeetingSlot> {
     throw new Error('slot durationMinutes must be a positive number');
   }
   const titleKey = required(slot.titleKey, 'slotTitleKey');
+  if (titleKey.length > 120) throw new Error('slot titleKey is too long');
 
   const result: MeetingSlot = { id, position: slot.position, durationMinutes: slot.durationMinutes, titleKey };
   if (slot.partDefinitionId !== undefined) {
