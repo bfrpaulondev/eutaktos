@@ -9,6 +9,7 @@ import {
   assertStudentAssignmentTenant,
   buildEligibilityIndex,
   cancelNonStudentAssignment,
+  completeNonStudentAssignment,
   createAuditEvent,
   createDomainEvent,
   createMidweekMeeting,
@@ -145,7 +146,7 @@ function meetingEvent(
 function assignmentEvent(
   runtime: MidweekSchedulingRuntime,
   context: AccessContext,
-  type: 'AssignmentCreated' | 'AssignmentCancelled' | 'AssignmentReplaced',
+  type: 'AssignmentCreated' | 'AssignmentCancelled' | 'AssignmentReplaced' | 'AssignmentCompleted',
   assignmentId: string,
   occurredAt: string,
   metadata: RequestMetadata,
@@ -355,6 +356,7 @@ export class MidweekSchedulingService {
 
     const student = this.#person(context, input.studentId);
     const assistant = input.assistantId ? this.#person(context, input.assistantId) : undefined;
+    if (assistant?.id === student.id) throw new Error('Student and assistant must be different people');
     if (part.assistantRequirement === 'required' && !assistant) throw new Error('Assistant is required for this part');
     if (part.assistantRequirement === 'none' && assistant) throw new Error('Assistant is not allowed for this part');
 
@@ -446,9 +448,11 @@ export class MidweekSchedulingService {
     if (!current) throw new Error('Non-student assignment not found');
     assertNonStudentAssignmentTenant(current, context.tenantId);
     if (current.state !== 'assigned') throw new Error('Only assigned non-student assignments can be replaced');
+    const nextPersonId = id(input.personId, 'personId');
+    if (current.personId === nextPersonId) return current;
     const meeting = this.#meeting(context, current.meetingId);
     if (meeting.state !== 'draft') throw new Error('Assignments can only be changed on draft meetings');
-    const person = this.#person(context, input.personId);
+    const person = this.#person(context, nextPersonId);
     const eligibility = buildEligibilityIndex([person], context.tenantId);
     assertExplicitEligibility(eligibility, context.tenantId, person.id, current.role);
     const window = this.#uow.resolveSlotWindow(context, meeting, current.slotId);
@@ -464,6 +468,48 @@ export class MidweekSchedulingService {
     return replacement;
   }
 
+  completeStudentAssignment(
+    context: AccessContext,
+    assignmentIdInput: string,
+    metadata: RequestMetadata = {},
+  ): Readonly<StudentAssignment> {
+    this.#assertWrite(context);
+    const assignmentId = id(assignmentIdInput, 'assignmentId');
+    const current = this.#uow.findStudentAssignment(context, assignmentId);
+    if (!current) throw new Error('Student assignment not found');
+    assertStudentAssignmentTenant(current, context.tenantId);
+    if (current.state === 'completed') return current;
+    const occurredAt = this.#runtime.now();
+    const assignment = transitionStudentAssignment(current, 'completed', occurredAt);
+    this.#uow.commit(context, {
+      studentAssignment: assignment,
+      auditEvents: [this.#audit(context, 'student-assignment', assignment.id, 'update', ['state'], occurredAt)],
+      domainEvents: [assignmentEvent(this.#runtime, context, 'AssignmentCompleted', assignment.id, occurredAt, metadata)],
+    });
+    return assignment;
+  }
+
+  completeNonStudentAssignment(
+    context: AccessContext,
+    assignmentIdInput: string,
+    metadata: RequestMetadata = {},
+  ): Readonly<NonStudentAssignment> {
+    this.#assertWrite(context);
+    const assignmentId = id(assignmentIdInput, 'assignmentId');
+    const current = this.#uow.findNonStudentAssignment(context, assignmentId);
+    if (!current) throw new Error('Non-student assignment not found');
+    assertNonStudentAssignmentTenant(current, context.tenantId);
+    if (current.state === 'completed') return current;
+    const occurredAt = this.#runtime.now();
+    const assignment = completeNonStudentAssignment(current, occurredAt);
+    this.#uow.commit(context, {
+      nonStudentAssignment: assignment,
+      auditEvents: [this.#audit(context, 'non-student-assignment', assignment.id, 'update', ['state'], occurredAt)],
+      domainEvents: [assignmentEvent(this.#runtime, context, 'AssignmentCompleted', assignment.id, occurredAt, metadata)],
+    });
+    return assignment;
+  }
+
   cancelStudentAssignment(
     context: AccessContext,
     assignmentIdInput: string,
@@ -474,6 +520,7 @@ export class MidweekSchedulingService {
     const current = this.#uow.findStudentAssignment(context, assignmentId);
     if (!current) throw new Error('Student assignment not found');
     assertStudentAssignmentTenant(current, context.tenantId);
+    if (current.state === 'cancelled') return current;
     const occurredAt = this.#runtime.now();
     const assignment = transitionStudentAssignment(current, 'cancelled', occurredAt);
     this.#uow.commit(context, {
@@ -494,6 +541,7 @@ export class MidweekSchedulingService {
     const current = this.#uow.findNonStudentAssignment(context, assignmentId);
     if (!current) throw new Error('Non-student assignment not found');
     assertNonStudentAssignmentTenant(current, context.tenantId);
+    if (current.state === 'cancelled') return current;
     const occurredAt = this.#runtime.now();
     const assignment = cancelNonStudentAssignment(current, occurredAt);
     this.#uow.commit(context, {
