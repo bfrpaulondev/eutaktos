@@ -136,10 +136,12 @@ describe('MidweekSchedulingService', () => {
   it('replaces an assigned non-student with explicit eligibility, audit and event in one commit', () => {
     const current = createNonStudentAssignment({ id: 'non-student-1', tenantId: 'tenant-a', meetingId: 'meeting-1', slotId: 'slot-1', personId: 'person-1', role: 'chairman', now });
     const eligible = person();
+    eligible.id = 'person-2';
+    eligible.displayName = 'Person Two';
     eligible.eligibility = [{ assignmentTypeId: 'chairman', enabled: true, decidedBy: 'elder-1', decidedAt: now }];
     const { service, changes } = harness({ nonStudentAssignment: current, person: eligible });
     const replaced = service.replaceNonStudent(context(), { assignmentId: current.id, personId: eligible.id });
-    expect(replaced).toMatchObject({ id: current.id, personId: eligible.id, state: 'assigned' });
+    expect(replaced).toMatchObject({ id: current.id, personId: 'person-2', state: 'assigned' });
     expect(changes[0].auditEvents[0].changedFields).toEqual(['personId', 'state']);
     expect(changes[0].domainEvents[0].type).toBe('AssignmentReplaced');
   });

@@ -91,6 +91,12 @@ export class StudentAssignmentReplacementService {
     assertStudentAssignmentTenant(current, context.tenantId);
     if (current.state !== 'assigned') throw new Error('Only assigned student assignments can be replaced');
 
+    const studentId = required(input.studentId, 'studentId');
+    const assistantId = input.assistantId === undefined || input.assistantId === null
+      ? null
+      : required(input.assistantId, 'assistantId');
+    if (current.studentId === studentId && current.assistantId === assistantId) return current;
+
     const meeting = this.#uow.findMeeting(context, current.meetingId);
     if (!meeting) throw new Error('Meeting not found');
     assertResourceTenant(context, meeting);
@@ -101,8 +107,8 @@ export class StudentAssignmentReplacementService {
     const part = this.#uow.findPartDefinition(slot.partDefinitionId);
     if (!part || !part.studentNeeded) throw new Error('Student part definition not found');
 
-    const student = this.#person(context, input.studentId);
-    const assistant = input.assistantId ? this.#person(context, input.assistantId) : undefined;
+    const student = this.#person(context, studentId);
+    const assistant = assistantId ? this.#person(context, assistantId) : undefined;
     if (assistant?.id === student.id) throw new Error('Student and assistant must be different people');
     if (part.assistantRequirement === 'required' && !assistant) throw new Error('Assistant is required for this part');
     if (part.assistantRequirement === 'none' && assistant) throw new Error('Assistant is not allowed for this part');
