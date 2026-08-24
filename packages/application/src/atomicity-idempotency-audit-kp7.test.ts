@@ -1,9 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { createAccessContext, type CongregationPerson } from '@eutaktos/domain';
+import {
+  createAccessContext,
+  createAssignmentResponse,
+  createNotificationPreferences,
+  type AccessContext,
+  type CongregationPerson,
+} from '@eutaktos/domain';
 import { AvailabilityService } from './availability-service';
 import { EligibilityService } from './eligibility-service';
 import { AssignmentResponseService, type AssignmentResponseChange } from './assignment-response-service';
-import { NotificationIntentService, type NotificationIntentChange } from './notification-intent-service';
+import {
+  NotificationIntentService,
+  type NotificationIntentChange,
+  type NotificationIntentRuntime,
+} from './notification-intent-service';
 import type { ApplicationRuntime, PeopleUnitOfWork, PersonChange } from './people-service';
 
 const TENANT_A = 'tenant-a';
@@ -11,7 +21,19 @@ const TENANT_B = 'tenant-b';
 const PERSON_ID = 'person-1';
 const NOW = '2026-08-24T12:00:00.000Z';
 
-function context(tenantId = TENANT_A, actorId = 'actor-a', capabilities: readonly any[] = ['people.read', 'people.write', 'availability.read', 'availability.write', 'eligibility.write']) {
+function context(
+  tenantId = TENANT_A,
+  actorId = 'actor-a',
+  capabilities: AccessContext['capabilities'] = [
+    'people.read',
+    'people.write',
+    'availability.read',
+    'availability.write',
+    'eligibility.write',
+    'schedule.read',
+    'schedule.write',
+  ],
+) {
   return createAccessContext({ tenantId, actorId, capabilities });
 }
 
@@ -35,6 +57,14 @@ function runtime(): ApplicationRuntime {
   };
 }
 
+function notificationRuntime(): NotificationIntentRuntime {
+  const counters: Record<string, number> = {};
+  return {
+    now: () => NOW,
+    nextId: scope => `${scope}-${(counters[scope] = (counters[scope] ?? 0) + 1)}`,
+  };
+}
+
 class TrackingPeopleUow implements PeopleUnitOfWork {
   person: CongregationPerson;
   readonly commits: PersonChange[] = [];
@@ -49,10 +79,14 @@ class TrackingPeopleUow implements PeopleUnitOfWork {
   }
 
   findById(ctx: ReturnType<typeof context>, personId: string): CongregationPerson | undefined {
-    return this.person.tenantId === ctx.tenantId && this.person.id === personId ? structuredClone(this.person) : undefined;
+    return this.person.tenantId === ctx.tenantId && this.person.id === personId
+      ? structuredClone(this.person)
+      : undefined;
   }
 
-  commitCreate(_ctx: ReturnType<typeof context>, _change: PersonChange): CongregationPerson { throw new Error('not used'); }
+  commitCreate(_ctx: ReturnType<typeof context>, _change: PersonChange): CongregationPerson {
+    throw new Error('not used');
+  }
 
   commitUpdate(_ctx: ReturnType<typeof context>, change: PersonChange): CongregationPerson {
     if (this.failCommit) throw new Error('simulated persistence failure');
@@ -75,7 +109,7 @@ describe('KP7 atomicity, idempotency and audit gate', () => {
     expect(uow.person.availability).toHaveLength(0);
   });
 
-  it('rejects cross-tenant eligibility before persistence and preserves actor/tenant provenance', () => {
+  it('rejects cross-tenant eligibility before persistence', () => {
     const uow = new TrackingPeopleUow();
     const service = new EligibilityService(uow, runtime());
 
@@ -102,7 +136,12 @@ describe('KP7 atomicity, idempotency and audit gate', () => {
   it('makes an exact availability retry a no-op with no duplicate audit/event effect', () => {
     const uow = new TrackingPeopleUow();
     const service = new AvailabilityService(uow, runtime());
-    const input = { personId: PERSON_ID, startsAt: '2026-09-01T10:00:00Z', endsAt: '2026-09-01T11:00:00Z', reasonCode: 'away' as const };
+    const input = {
+      personId: PERSON_ID,
+      startsAt: '2026-09-01T10:00:00Z',
+      endsAt: '2026-09-01T11:00:00Z',
+      reasonCode: 'away' as const,
+    };
 
     const first = service.addUnavailability(context(), input);
     const commitsAfterFirst = uow.commits.length;
@@ -124,13 +163,22 @@ describe('KP7 atomicity, idempotency and audit gate', () => {
     });
 
     const change = uow.commits[0];
-    expect(change.auditEvent).toMatchObject({ tenantId: TENANT_A, actorId: 'actor-a', resourceType: 'availability', action: 'create' });
-    expect(change.domainEvent).toMatchObject({ tenantId: TENANT_A, actorId: 'actor-a', type: 'AvailabilityChanged' });
+    expect(change.auditEvent).toMatchObject({
+      tenantId: TENANT_A,
+      actorId: 'actor-a',
+      resourceType: 'availability',
+      action: 'create',
+    });
+    expect(change.domainEvent).toMatchObject({
+      tenantId: TENANT_A,
+      actorId: 'actor-a',
+      type: 'AvailabilityChanged',
+    });
     expect(JSON.stringify(change.auditEvent)).not.toContain('PII Test Person');
     expect(JSON.stringify(change.domainEvent)).not.toContain('PII Test Person');
   });
 
-  it('does not allow tenant or actor values hidden in request input to override AccessContext provenance', () => {
+  it('does not allow request data to override trusted AccessContext provenance', () => {
     const uow = new TrackingPeopleUow();
     const service = new AvailabilityService(uow, runtime());
     service.addUnavailability(context(TENANT_A, 'trusted-actor'), {
@@ -144,43 +192,52 @@ describe('KP7 atomicity, idempotency and audit gate', () => {
   });
 
   it('uses idempotency on authenticated assignment responses and emits only one durable effect', () => {
-    const current = {
+    const changes: AssignmentResponseChange[] = [];
+    let stored: AssignmentResponseChange['response'] = createAssignmentResponse({
       id: 'response-1',
       tenantId: TENANT_A,
       assignmentId: 'assignment-1',
       personId: PERSON_ID,
-      status: 'pending' as const,
-      respondedAt: null,
-      responseCode: null,
-      note: null,
-    };
-    const changes: AssignmentResponseChange[] = [];
-    let stored = current;
+      now: NOW,
+    });
     const service = new AssignmentResponseService({
       findResponse: (_ctx, id) => id === stored.id ? stored : undefined,
-      commit: (_ctx, change) => { changes.push(change); stored = change.response; },
+      commit: (_ctx, change) => {
+        changes.push(change);
+        stored = change.response;
+      },
     }, runtime());
 
-    service.confirm(context(TENANT_A, PERSON_ID), current.id, { code: 'accepted' });
-    service.confirm(context(TENANT_A, PERSON_ID), current.id, { code: 'accepted' });
+    service.confirm(context(TENANT_A, PERSON_ID), stored.id, { code: 'accepted' });
+    service.confirm(context(TENANT_A, PERSON_ID), stored.id, { code: 'accepted' });
     expect(changes).toHaveLength(1);
   });
 
   it('does not queue duplicate notification intents for the same idempotency key', () => {
-    const preferences = { id: 'prefs-1', tenantId: TENANT_A, personId: 'recipient-1', channels: {
-      'in-app': { enabled: true, optedIn: true },
-      email: { enabled: false, optedIn: false },
-      push: { enabled: false, optedIn: false },
-    }} as any;
-    let delivery: NotificationIntentChange['delivery'];
+    const preferences = createNotificationPreferences({
+      id: 'prefs-1',
+      tenantId: TENANT_A,
+      personId: 'recipient-1',
+      now: NOW,
+    });
+    let delivery: NotificationIntentChange['delivery'] | undefined;
     const changes: NotificationIntentChange[] = [];
     const service = new NotificationIntentService({
       findPreferences: () => preferences,
       findDeliveryByIdempotencyKey: (_ctx, key) => delivery?.idempotencyKey === key ? delivery : undefined,
-      commit: (_ctx, change) => { changes.push(change); delivery = change.delivery; },
-    }, runtime());
+      commit: (_ctx, change) => {
+        changes.push(change);
+        delivery = change.delivery;
+      },
+    }, notificationRuntime());
 
-    const input = { sourceEventId: 'event-1', kind: 'created' as const, assignmentId: 'assignment-1', recipientId: 'recipient-1', locale: 'pt-PT' };
+    const input = {
+      sourceEventId: 'event-1',
+      kind: 'created' as const,
+      assignmentId: 'assignment-1',
+      recipientId: 'recipient-1',
+      locale: 'pt-PT',
+    };
     const first = service.queueAssignmentIntent(context(), input);
     const second = service.queueAssignmentIntent(context(), input);
     expect(first?.id).toBe(second?.id);
