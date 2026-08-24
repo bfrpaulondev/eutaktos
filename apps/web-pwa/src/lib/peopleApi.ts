@@ -1,3 +1,5 @@
+import { buildHttpError } from './httpError';
+
 export interface PersonProfileDto {
   id: string;
   displayName: string;
@@ -19,12 +21,8 @@ export interface UpdatePersonPayload {
 
 export interface PeopleApi {
   list(signal?: AbortSignal): Promise<readonly PersonProfileDto[]>;
-  create(input: CreatePersonPayload): Promise<PersonProfileDto>;
-  update(personId: string, input: UpdatePersonPayload): Promise<PersonProfileDto>;
-}
-
-interface ErrorBody {
-  error?: unknown;
+  create(input: CreatePersonPayload, signal?: AbortSignal): Promise<PersonProfileDto>;
+  update(personId: string, input: UpdatePersonPayload, signal?: AbortSignal): Promise<PersonProfileDto>;
 }
 
 function parsePersonProfile(value: unknown): PersonProfileDto {
@@ -60,12 +58,6 @@ async function readJson(response: Response): Promise<unknown> {
   }
 }
 
-function apiError(status: number, body: unknown): Error {
-  if (status >= 500) return new Error(`People API request failed (${status})`);
-  const message = body && typeof body === 'object' ? (body as ErrorBody).error : undefined;
-  return new Error(typeof message === 'string' ? message : `People API request failed (${status})`);
-}
-
 function updatePayload(input: UpdatePersonPayload): UpdatePersonPayload {
   return {
     ...(input.displayName !== undefined ? { displayName: input.displayName } : {}),
@@ -84,31 +76,33 @@ export function createPeopleApi(fetcher: typeof fetch = fetch): PeopleApi {
         signal,
       });
       const body = await readJson(response);
-      if (!response.ok) throw apiError(response.status, body);
+      if (!response.ok) throw buildHttpError({ status: response.status, body, fallbackLabel: 'People API' });
       return parsePeopleResponse(body);
     },
 
-    async create(input) {
+    async create(input, signal) {
       const response = await fetcher('/api/people', {
         method: 'POST',
         credentials: 'same-origin',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify(input),
+        signal,
       });
       const body = await readJson(response);
-      if (!response.ok) throw apiError(response.status, body);
+      if (!response.ok) throw buildHttpError({ status: response.status, body, fallbackLabel: 'People API' });
       return parsePersonProfile(body);
     },
 
-    async update(personId, input) {
+    async update(personId, input, signal) {
       const response = await fetcher(`/api/people/${encodeURIComponent(personId)}`, {
         method: 'PATCH',
         credentials: 'same-origin',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify(updatePayload(input)),
+        signal,
       });
       const body = await readJson(response);
-      if (!response.ok) throw apiError(response.status, body);
+      if (!response.ok) throw buildHttpError({ status: response.status, body, fallbackLabel: 'People API' });
       return parsePersonProfile(body);
     },
   };

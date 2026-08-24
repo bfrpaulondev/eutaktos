@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createPeopleApi, parsePeopleResponse } from './peopleApi';
+import { HttpError } from './httpError';
 
 describe('People API client', () => {
   it('parses and minimizes directory DTOs', () => {
@@ -24,6 +25,87 @@ describe('People API client', () => {
       method: 'GET',
       credentials: 'same-origin',
     }));
+  });
+
+  it('preserves HTTP status code as HttpError on 5xx', async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ error: 'Service temporarily unavailable' }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json' },
+    })) as unknown as typeof fetch;
+    const api = createPeopleApi(fetcher);
+
+    try {
+      await api.list();
+      expect.fail('should have thrown');
+    } catch (error) {
+      expect(error).toBeInstanceOf(HttpError);
+      expect((error as HttpError).status).toBe(503);
+      expect((error as HttpError).message).toBe('Service temporarily unavailable');
+    }
+  });
+
+  it('preserves HTTP status code as HttpError on 409 conflict', async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ error: 'Conflict' }), {
+      status: 409,
+      headers: { 'Content-Type': 'application/json' },
+    })) as unknown as typeof fetch;
+    const api = createPeopleApi(fetcher);
+
+    try {
+      await api.create({ displayName: 'Test' });
+      expect.fail('should have thrown');
+    } catch (error) {
+      expect(error).toBeInstanceOf(HttpError);
+      expect((error as HttpError).status).toBe(409);
+    }
+  });
+
+  it('preserves HTTP status code as HttpError on 401', async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    })) as unknown as typeof fetch;
+    const api = createPeopleApi(fetcher);
+
+    try {
+      await api.list();
+      expect.fail('should have thrown');
+    } catch (error) {
+      expect(error).toBeInstanceOf(HttpError);
+      expect((error as HttpError).status).toBe(401);
+    }
+  });
+
+  it('5xx errors use generic message without upstream body leak', async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ error: 'Internal stack trace path=/etc/passwd token=secret123' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    })) as unknown as typeof fetch;
+    const api = createPeopleApi(fetcher);
+
+    try {
+      await api.list();
+      expect.fail('should have thrown');
+    } catch (error) {
+      expect(error).toBeInstanceOf(HttpError);
+      expect((error as HttpError).message).not.toContain('/etc/passwd');
+      expect((error as HttpError).message).not.toContain('secret123');
+      expect((error as HttpError).message).toBe('Service temporarily unavailable');
+    }
+  });
+
+  it('passes AbortSignal to create and update mutations', async () => {
+    const fetcher = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      expect(init?.signal).toBeInstanceOf(AbortSignal);
+      return new Response(JSON.stringify({ id: 'p1', displayName: 'Ana', active: true }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }) as unknown as typeof fetch;
+    const api = createPeopleApi(fetcher);
+    const controller = new AbortController();
+    await api.create({ displayName: 'Ana' }, controller.signal);
+    expect(fetcher).toHaveBeenCalledWith('/api/people', expect.objectContaining({ signal: controller.signal }));
   });
 
   it('creates a person using the transport payload contract', async () => {
