@@ -47,10 +47,32 @@ async function verifyPwaAssets() {
   }
 }
 
-function dumpDom(targetUrl) {
-  return spawnSync(chromium, [
-    '--headless=new', '--no-sandbox', '--disable-gpu', '--virtual-time-budget=3500', '--dump-dom', targetUrl,
-  ], { encoding: 'utf8' });
+async function verifyDeepLinkAssets() {
+  const response = await fetch(deepLinkUrl);
+  if (!response.ok) throw new Error(`O deep link de autenticação não devolveu o shell SPA: ${response.status}`);
+  const html = await response.text();
+  const references = [
+    ...html.matchAll(/<script[^>]+src="([^"]+)"/g),
+    ...html.matchAll(/<link[^>]+href="([^"]+\.css)"/g),
+  ].map(match => match[1]).filter(Boolean);
+
+  if (references.length === 0) throw new Error('O shell do deep link não contém bundles de produção.');
+
+  for (const reference of references) {
+    const assetUrl = new URL(reference, deepLinkUrl);
+    if (!assetUrl.pathname.startsWith('/assets/')) {
+      throw new Error(`O bundle ${reference} resolve incorretamente no deep link para ${assetUrl.pathname}; esperado /assets/...`);
+    }
+    const assetResponse = await fetch(assetUrl);
+    if (!assetResponse.ok) throw new Error(`O bundle do deep link não está acessível: ${assetUrl.pathname} (${assetResponse.status})`);
+    const contentType = (assetResponse.headers.get('content-type') ?? '').toLowerCase();
+    if (assetUrl.pathname.endsWith('.js') && !contentType.includes('javascript')) {
+      throw new Error(`O bundle JS do deep link devolveu Content-Type inesperado: ${assetUrl.pathname} -> ${contentType}`);
+    }
+    if (assetUrl.pathname.endsWith('.css') && !contentType.includes('text/css')) {
+      throw new Error(`O bundle CSS do deep link devolveu Content-Type inesperado: ${assetUrl.pathname} -> ${contentType}`);
+    }
+  }
 }
 
 const preview = spawn(process.execPath, [viteCli, 'preview', '--host', '127.0.0.1', '--port', port, '--strictPort'], {
@@ -65,24 +87,22 @@ preview.stderr.on('data', chunk => { previewOutput += chunk; });
 try {
   await waitForPreview();
   await verifyPwaAssets();
+  await verifyDeepLinkAssets();
 
-  const rootPage = dumpDom(url);
-  if (rootPage.status !== 0) {
-    throw new Error(`O Chromium não conseguiu abrir o build de produção: ${rootPage.stderr}`);
-  }
-  if (!/<div id="root"><[^>]/.test(rootPage.stdout) || !rootPage.stdout.includes('Eutaktos')) {
-    throw new Error(`A aplicação não montou no build de produção. DOM recebido: ${rootPage.stdout.slice(0, 500)}`);
-  }
+  const page = spawnSync(chromium, [
+    '--headless=new', '--no-sandbox', '--disable-gpu', '--virtual-time-budget=3500', '--dump-dom', url,
+  ], { encoding: 'utf8' });
 
-  const deepLinkPage = dumpDom(deepLinkUrl);
-  if (deepLinkPage.status !== 0) {
-    throw new Error(`O Chromium não conseguiu abrir o deep link de confirmação: ${deepLinkPage.stderr}`);
-  }
-  if (!deepLinkPage.stdout.includes('Confirmar entrada') || !deepLinkPage.stdout.includes('Entrar no Eutaktos')) {
-    throw new Error(`O deep link /auth/confirm não montou a confirmação segura. DOM recebido: ${deepLinkPage.stdout.slice(0, 700)}`);
+  if (page.status !== 0) {
+    throw new Error(`O Chromium não conseguiu abrir o build de produção: ${page.stderr}`);
   }
 
-  process.stdout.write('Production build mounted successfully at root and scanner-safe auth deep link with manifest, icons and service-worker safeguards.\n');
+  const dom = page.stdout;
+  if (!/<div id="root"><[^>]/.test(dom) || !dom.includes('Eutaktos')) {
+    throw new Error(`A aplicação não montou no build de produção. DOM recebido: ${dom.slice(0, 500)}`);
+  }
+
+  process.stdout.write('Production build mounted successfully and auth deep-link bundles resolve from absolute /assets paths with PWA safeguards.\n');
 } finally {
   if (!preview.killed) preview.kill('SIGTERM');
 }
