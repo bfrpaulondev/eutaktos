@@ -4,6 +4,7 @@ import { dirname, resolve } from 'node:path';
 
 const port = '5186';
 const url = `http://127.0.0.1:${port}/`;
+const deepLinkUrl = `http://127.0.0.1:${port}/auth/confirm?token_hash=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef&type=email`;
 const chromium = process.env.CHROMIUM_BIN ?? 'chromium';
 const viteCli = resolve(dirname(fileURLToPath(import.meta.url)), '../../../node_modules/vite/bin/vite.js');
 
@@ -46,6 +47,34 @@ async function verifyPwaAssets() {
   }
 }
 
+async function verifyDeepLinkAssets() {
+  const response = await fetch(deepLinkUrl);
+  if (!response.ok) throw new Error(`O deep link de autenticação não devolveu o shell SPA: ${response.status}`);
+  const html = await response.text();
+  const references = [
+    ...html.matchAll(/<script[^>]+src="([^"]+)"/g),
+    ...html.matchAll(/<link[^>]+href="([^"]+\.css)"/g),
+  ].map(match => match[1]).filter(Boolean);
+
+  if (references.length === 0) throw new Error('O shell do deep link não contém bundles de produção.');
+
+  for (const reference of references) {
+    const assetUrl = new URL(reference, deepLinkUrl);
+    if (!assetUrl.pathname.startsWith('/assets/')) {
+      throw new Error(`O bundle ${reference} resolve incorretamente no deep link para ${assetUrl.pathname}; esperado /assets/...`);
+    }
+    const assetResponse = await fetch(assetUrl);
+    if (!assetResponse.ok) throw new Error(`O bundle do deep link não está acessível: ${assetUrl.pathname} (${assetResponse.status})`);
+    const contentType = (assetResponse.headers.get('content-type') ?? '').toLowerCase();
+    if (assetUrl.pathname.endsWith('.js') && !contentType.includes('javascript')) {
+      throw new Error(`O bundle JS do deep link devolveu Content-Type inesperado: ${assetUrl.pathname} -> ${contentType}`);
+    }
+    if (assetUrl.pathname.endsWith('.css') && !contentType.includes('text/css')) {
+      throw new Error(`O bundle CSS do deep link devolveu Content-Type inesperado: ${assetUrl.pathname} -> ${contentType}`);
+    }
+  }
+}
+
 const preview = spawn(process.execPath, [viteCli, 'preview', '--host', '127.0.0.1', '--port', port, '--strictPort'], {
   cwd: process.cwd(),
   stdio: ['ignore', 'pipe', 'pipe'],
@@ -58,6 +87,8 @@ preview.stderr.on('data', chunk => { previewOutput += chunk; });
 try {
   await waitForPreview();
   await verifyPwaAssets();
+  await verifyDeepLinkAssets();
+
   const page = spawnSync(chromium, [
     '--headless=new', '--no-sandbox', '--disable-gpu', '--virtual-time-budget=3500', '--dump-dom', url,
   ], { encoding: 'utf8' });
@@ -71,7 +102,7 @@ try {
     throw new Error(`A aplicação não montou no build de produção. DOM recebido: ${dom.slice(0, 500)}`);
   }
 
-  process.stdout.write('Production build mounted successfully with manifest, icons and service-worker safeguards.\n');
+  process.stdout.write('Production build mounted successfully and auth deep-link bundles resolve from absolute /assets paths with PWA safeguards.\n');
 } finally {
   if (!preview.killed) preview.kill('SIGTERM');
 }
