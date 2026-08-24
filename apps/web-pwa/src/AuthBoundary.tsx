@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { authenticationApi, isSupabaseAuthHash, scannerSafeMagicLinkTokenHash, supabaseAccessTokenFromHash } from './lib/authApi';
+import { sessionApi } from './lib/sessionApi';
 
 const AuthSignInPanel = lazy(async () => {
   const module = await import('./AuthSignInPanel');
@@ -12,6 +13,9 @@ const MagicLinkConfirmationPanel = lazy(async () => {
 });
 
 type GateState = 'checking' | 'signed-out' | 'unavailable' | 'confirm-link' | 'authenticated';
+type ResolvedGateState = Extract<GateState, 'signed-out' | 'unavailable' | 'authenticated'>;
+type SessionProbe = (signal?: AbortSignal) => ReturnType<typeof authenticationApi.current>;
+type SessionRotation = () => Promise<void>;
 
 export function shouldBypassAuthentication(hostname: string): boolean {
   const normalized = hostname.trim().toLowerCase();
@@ -22,6 +26,19 @@ export function scannerSafeCallback(pathname: string, search: string): string | 
   return scannerSafeMagicLinkTokenHash(pathname, search);
 }
 
+export async function resolveExistingSessionGate(
+  signal?: AbortSignal,
+  current: SessionProbe = authenticationApi.current,
+  rotate: SessionRotation = sessionApi.rotate,
+): Promise<ResolvedGateState> {
+  const result = await current(signal);
+  if (result.status === 'unauthenticated') return 'signed-out';
+  if (result.status === 'unavailable') return 'unavailable';
+  if (signal?.aborted) throw new DOMException('Session activation aborted', 'AbortError');
+  await rotate();
+  return 'authenticated';
+}
+
 export function AuthBoundary({ children }: { children: ReactNode }) {
   const localHarness = useMemo(() => typeof window !== 'undefined' && shouldBypassAuthentication(window.location.hostname), []);
   const [state, setState] = useState<GateState>(localHarness ? 'authenticated' : 'checking');
@@ -30,9 +47,7 @@ export function AuthBoundary({ children }: { children: ReactNode }) {
   const checkSession = () => {
     if (localHarness) { setState('authenticated'); return; }
     setState('checking');
-    void authenticationApi.current().then(result => {
-      setState(result.status === 'authenticated' ? 'authenticated' : result.status === 'unauthenticated' ? 'signed-out' : 'unavailable');
-    });
+    void resolveExistingSessionGate().then(setState).catch(() => setState('unavailable'));
   };
 
   useEffect(() => {
@@ -62,9 +77,10 @@ export function AuthBoundary({ children }: { children: ReactNode }) {
         if (!controller.signal.aborted) setState('signed-out');
       });
     } else {
-      void authenticationApi.current(controller.signal).then(result => {
-        if (controller.signal.aborted) return;
-        setState(result.status === 'authenticated' ? 'authenticated' : result.status === 'unauthenticated' ? 'signed-out' : 'unavailable');
+      void resolveExistingSessionGate(controller.signal).then(nextState => {
+        if (!controller.signal.aborted) setState(nextState);
+      }).catch(() => {
+        if (!controller.signal.aborted) setState('unavailable');
       });
     }
 
