@@ -94,6 +94,7 @@ export {
 export * from './conflict-engine';
 export * from './away-conflict-adapter';
 export * from './eligibility-constraints';
+export * from './scheduling-time';
 export {
   type WeekendMeetingId,
   type MeetingLocationId as WeekendMeetingLocationId,

@@ -1,4 +1,5 @@
 import type { TenantId } from './people';
+import { resolveZonedLocalTime } from './scheduling-time';
 
 // ---- Type aliases ----
 
@@ -160,6 +161,7 @@ export function createMidweekMeeting(input: {
   const date = validateDateOnly(input.date);
   const localTime = validateLocalTime(input.localTime);
   const timezone = validateTimezone(input.timezone);
+  resolveZonedLocalTime(date, localTime, timezone);
   const slots = validateSlots(input.slots ?? []);
 
   if (input.locationId !== undefined) {
@@ -279,6 +281,7 @@ export function updateMidweekMeeting(
   const date = changes.date !== undefined ? validateDateOnly(changes.date) : meeting.date;
   const localTime = changes.localTime !== undefined ? validateLocalTime(changes.localTime) : meeting.localTime;
   const timezone = changes.timezone !== undefined ? validateTimezone(changes.timezone) : meeting.timezone;
+  resolveZonedLocalTime(date, localTime, timezone);
 
   // Determine locationId: null explicitly clears it
   let locationId: MeetingLocationId | undefined = meeting.locationId;
