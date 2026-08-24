@@ -26,7 +26,7 @@ describe('canonical Eutaktos pilot production smoke', () => {
       expect(html).toMatch(/(?:src|href)="\/assets\//);
       expect(html).not.toMatch(/(?:src|href)="\.\/assets\//);
     }
-  });
+  }, 10_000);
 
   it('reports factual API health and database readiness', async () => {
     const health = await json('/api/health');
@@ -36,16 +36,18 @@ describe('canonical Eutaktos pilot production smoke', () => {
     const ready = await json('/api/ready');
     expect(ready.response.status).toBe(200);
     expect(ready.body).toEqual({ status: 'ready', database: 'reachable' });
-  });
+  }, 10_000);
 
-  it('fails closed on unauthenticated protected production reads', async () => {
-    for (const path of ['/api/session', '/api/people', '/api/midweek', '/api/audit/history', '/api/access/grants']) {
+  it.each(['/api/session', '/api/people', '/api/midweek', '/api/audit/history', '/api/access/grants'])(
+    'fails closed on unauthenticated protected production read %s',
+    async path => {
       const result = await json(path);
-      expect(result.response.status, path).toBe(401);
-      expect(result.body, path).toEqual({ error: 'Unauthorized' });
-      expect(result.response.headers.get('cache-control')?.toLowerCase(), path).toContain('no-store');
-    }
-  });
+      expect(result.response.status).toBe(401);
+      expect(result.body).toEqual({ error: 'Unauthorized' });
+      expect(result.response.headers.get('cache-control')?.toLowerCase()).toContain('no-store');
+    },
+    10_000,
+  );
 
   it('keeps passwordless request account enumeration resistant', async () => {
     const unknown = `pilot-smoke-${Date.now()}@example.invalid`;
@@ -57,7 +59,7 @@ describe('canonical Eutaktos pilot production smoke', () => {
     expect(result.response.status).toBe(202);
     expect(result.body).toEqual({ status: 'check-email' });
     expect(result.response.headers.get('cache-control')?.toLowerCase()).toContain('no-store');
-  });
+  }, 10_000);
 
   it('rejects missing CSRF provenance before passwordless mutation', async () => {
     const result = await json('/api/auth/otp', {
@@ -67,7 +69,7 @@ describe('canonical Eutaktos pilot production smoke', () => {
     });
     expect(result.response.status).toBe(403);
     expect(result.body).toEqual({ error: 'Forbidden' });
-  });
+  }, 10_000);
 
   it('maps an expired/used-shaped scanner-safe link to a generic unauthorized response', async () => {
     const bogusTokenHash = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
@@ -79,5 +81,5 @@ describe('canonical Eutaktos pilot production smoke', () => {
     expect(result.response.status).toBe(401);
     expect(result.body).toEqual({ error: 'Unauthorized' });
     expect(result.response.headers.get('cache-control')?.toLowerCase()).toContain('no-store');
-  });
+  }, 10_000);
 });
