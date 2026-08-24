@@ -1,137 +1,70 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { SECTION_PATHS, normalizeAppPath, sectionFromPath, type AppSection } from './navigation';
 
 describe('Navigation: route normalization', () => {
-  it('normalizes root path', () => {
-    expect(normalizeAppPath('/')).toBe('/');
-  });
-
-  it('strips query strings', () => {
-    expect(normalizeAppPath('/pessoas?foo=bar')).toBe('/pessoas');
-  });
-
-  it('strips hash fragments', () => {
-    expect(normalizeAppPath('/agenda#section')).toBe('/agenda');
-  });
-
-  it('strips both query and hash', () => {
-    expect(normalizeAppPath('/pessoas?q=1#frag')).toBe('/pessoas');
-  });
-
-  it('adds leading slash if missing', () => {
-    expect(normalizeAppPath('pessoas')).toBe('/pessoas');
-  });
-
-  it('collapses duplicate slashes', () => {
-    expect(normalizeAppPath('//pessoas')).toBe('/pessoas');
-    expect(normalizeAppPath('/pessoas//')).toBe('/pessoas');
-  });
-
-  it('strips trailing slashes', () => {
-    expect(normalizeAppPath('/pessoas/')).toBe('/pessoas');
-    expect(normalizeAppPath('/agenda/')).toBe('/agenda');
-  });
-
-  it('handles empty string as root', () => {
-    expect(normalizeAppPath('')).toBe('/');
+  it.each([
+    ['/', '/'],
+    ['/pessoas?foo=bar', '/pessoas'],
+    ['/agenda#section', '/agenda'],
+    ['/pessoas?q=1#frag', '/pessoas'],
+    ['pessoas', '/pessoas'],
+    ['//pessoas', '/pessoas'],
+    ['/pessoas//', '/pessoas'],
+    ['/pessoas/', '/pessoas'],
+    ['', '/'],
+  ])('normalizes %s to %s', (input, expected) => {
+    expect(normalizeAppPath(input)).toBe(expected);
   });
 });
 
 describe('Navigation: section from path', () => {
-  it('returns home for root', () => {
-    expect(sectionFromPath('/')).toBe('home');
-  });
-
-  it('returns agenda for /agenda', () => {
-    expect(sectionFromPath('/agenda')).toBe('agenda');
-  });
-
-  it('returns people for /pessoas (pt-PT route)', () => {
-    expect(sectionFromPath('/pessoas')).toBe('people');
-  });
-
-  it('returns people for /people (en alias)', () => {
-    expect(sectionFromPath('/people')).toBe('people');
-  });
-
-  it('returns assignments for /designacoes (pt-PT route)', () => {
-    expect(sectionFromPath('/designacoes')).toBe('assignments');
-  });
-
-  it('returns assignments for /assignments (en alias)', () => {
-    expect(sectionFromPath('/assignments')).toBe('assignments');
-  });
-
-  it('returns preferences for /preferencias (pt-PT route)', () => {
-    expect(sectionFromPath('/preferencias')).toBe('preferences');
-  });
-
-  it('returns preferences for /preferences (en alias)', () => {
-    expect(sectionFromPath('/preferences')).toBe('preferences');
-  });
-
-  it('returns home for unknown route', () => {
-    expect(sectionFromPath('/unknown-route')).toBe('home');
-  });
-
-  it('returns home for /auth/confirm (handled separately)', () => {
-    expect(sectionFromPath('/auth/confirm')).toBe('home');
-  });
-
-  it('handles routes with query params', () => {
-    expect(sectionFromPath('/pessoas?pilot=20260823')).toBe('people');
-  });
-
-  it('handles routes with hash', () => {
-    expect(sectionFromPath('/agenda#weekly')).toBe('agenda');
+  it.each([
+    ['/', 'home'],
+    ['/agenda', 'agenda'],
+    ['/pessoas', 'people'],
+    ['/people', 'people'],
+    ['/designacoes', 'assignments'],
+    ['/assignments', 'assignments'],
+    ['/preferencias', 'preferences'],
+    ['/preferences', 'preferences'],
+    ['/unknown-route', 'home'],
+    ['/auth/confirm', 'home'],
+    ['/pessoas?pilot=20260823', 'people'],
+    ['/agenda#weekly', 'agenda'],
+  ] as const)('maps %s to %s', (path, expected) => {
+    expect(sectionFromPath(path)).toBe(expected);
   });
 });
 
-describe('Navigation: section paths', () => {
-  it('all sections have canonical paths', () => {
-    const sections: AppSection[] = ['home', 'agenda', 'assignments', 'people', 'preferences'];
-    sections.forEach(section => {
+describe('Navigation: canonical paths are absolute', () => {
+  const sections: AppSection[] = ['home', 'agenda', 'assignments', 'people', 'preferences'];
+
+  it('defines an absolute canonical path for every section', () => {
+    for (const section of sections) {
       expect(SECTION_PATHS[section]).toBeDefined();
       expect(SECTION_PATHS[section].startsWith('/')).toBe(true);
+      expect(SECTION_PATHS[section]).not.toMatch(/^\.\//);
+    }
+  });
+
+  it('keeps the expected canonical routes', () => {
+    expect(SECTION_PATHS).toEqual({
+      home: '/',
+      agenda: '/agenda',
+      assignments: '/designacoes',
+      people: '/pessoas',
+      preferences: '/preferencias',
     });
-  });
-
-  it('home path is root', () => {
-    expect(SECTION_PATHS.home).toBe('/');
-  });
-
-  it('people path uses pt-PT', () => {
-    expect(SECTION_PATHS.people).toBe('/pessoas');
-  });
-
-  it('assignments path uses pt-PT', () => {
-    expect(SECTION_PATHS.assignments).toBe('/designacoes');
-  });
-
-  it('preferences path uses pt-PT', () => {
-    expect(SECTION_PATHS.preferences).toBe('/preferencias');
   });
 });
 
-describe('Navigation: deep link safety', () => {
-  it('/pessoas deep link loads correctly (not relative to current path)', () => {
-    // The app uses absolute paths (/pessoas, /agenda) not relative (./pessoas)
-    // This prevents issues when deep-linking from /auth/confirm
-    expect(SECTION_PATHS.people).toBe('/pessoas');
-    expect(SECTION_PATHS.people.startsWith('/')).toBe(true);
+describe('Navigation: deep-link routing contract', () => {
+  it('does not let auth callback query/hash fragments change the app section', () => {
+    expect(normalizeAppPath('/auth/confirm?token_hash=redacted&type=email#ignored')).toBe('/auth/confirm');
+    expect(sectionFromPath('/auth/confirm?token_hash=redacted&type=email#ignored')).toBe('home');
   });
 
-  it('/agenda deep link loads correctly', () => {
-    expect(SECTION_PATHS.agenda.startsWith('/')).toBe(true);
-  });
-
-  it('/auth/confirm deep link loads assets via /assets/ (absolute)', () => {
-    // Vite builds use absolute /assets/ paths by default
-    // This is verified by the production mount test
-    expect(true).toBe(true);
-  });
-
-  it('unknown route falls back to home (not 404 page)', () => {
+  it('keeps unknown routes on the factual home fallback', () => {
     expect(sectionFromPath('/nonexistent')).toBe('home');
   });
 });
