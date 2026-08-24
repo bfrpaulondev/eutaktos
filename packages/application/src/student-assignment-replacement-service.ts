@@ -50,37 +50,14 @@ export class StudentAssignmentReplacementService {
     return person;
   }
 
-  #assertNoConflict(
-    context: AccessContext,
-    currentId: string,
-    candidateId: string,
-    person: CongregationPerson,
-    window: SchedulingWindow,
-  ): void {
-    const candidate: ConflictAssignment = Object.freeze({
-      tenantId: context.tenantId,
-      assignmentId: candidateId,
-      personId: person.id,
-      startsAt: window.startsAt,
-      endsAt: window.endsAt,
-    });
-    const assignments = this.#uow
-      .listConflictAssignments(context, [person.id])
-      .filter(item => !item.assignmentId.startsWith(`${currentId}:`));
-    const conflicts = detectSchedulingConflicts({
-      tenantId: context.tenantId,
-      candidate,
-      assignments,
-      unavailable: unavailableIntervalsForPerson(person, context.tenantId),
-    });
+  #assertNoConflict(context: AccessContext, currentId: string, candidateId: string, person: CongregationPerson, window: SchedulingWindow): void {
+    const candidate: ConflictAssignment = Object.freeze({ tenantId: context.tenantId, assignmentId: candidateId, personId: person.id, startsAt: window.startsAt, endsAt: window.endsAt });
+    const assignments = this.#uow.listConflictAssignments(context, [person.id]).filter(item => !item.assignmentId.startsWith(`${currentId}:`));
+    const conflicts = detectSchedulingConflicts({ tenantId: context.tenantId, candidate, assignments, unavailable: unavailableIntervalsForPerson(person, context.tenantId) });
     if (conflicts.length > 0) throw new Error('Scheduling conflict detected');
   }
 
-  replace(
-    context: AccessContext,
-    input: ReplaceStudentAssignmentInput,
-    metadata: RequestMetadata = {},
-  ): Readonly<StudentAssignment> {
+  replace(context: AccessContext, input: ReplaceStudentAssignmentInput, metadata: RequestMetadata = {}): Readonly<StudentAssignment> {
     assertCapability(context, 'schedule.write');
     assertCapability(context, 'eligibility.read');
     assertCapability(context, 'availability.read');
@@ -106,6 +83,7 @@ export class StudentAssignmentReplacementService {
     if (assistant?.id === student.id) throw new Error('Student and assistant must be different people');
     if (part.assistantRequirement === 'required' && !assistant) throw new Error('Assistant is required for this part');
     if (part.assistantRequirement === 'none' && assistant) throw new Error('Assistant is not allowed for this part');
+    if (student.id === current.studentId && (assistant?.id ?? null) === current.assistantId) return current;
 
     const eligibility = buildEligibilityIndex(assistant ? [student, assistant] : [student], context.tenantId);
     assertExplicitEligibility(eligibility, context.tenantId, student.id, part.id);
@@ -118,31 +96,9 @@ export class StudentAssignmentReplacementService {
     const occurredAt = this.#runtime.now();
     const cancelled = transitionStudentAssignment(current, 'cancelled', occurredAt);
     const replacement = reassignStudentAssignment(cancelled, student.id, assistant?.id ?? null, occurredAt);
-    const audit = createAuditEvent({
-      id: this.#runtime.nextId('audit'),
-      tenantId: context.tenantId,
-      resourceType: 'student-assignment',
-      resourceId: replacement.id,
-      action: 'update',
-      actorId: context.actorId,
-      occurredAt,
-      changedFields: ['studentId', 'assistantId'],
-    });
-    const event = createDomainEvent({
-      id: this.#runtime.nextId('event'),
-      tenantId: context.tenantId,
-      type: 'AssignmentReplaced',
-      aggregateId: replacement.id,
-      actorId: context.actorId,
-      occurredAt,
-      schemaVersion: 1,
-      ...eventCorrelation(metadata),
-    });
-    this.#uow.commit(context, {
-      studentAssignments: [replacement],
-      auditEvents: [audit],
-      domainEvents: [event],
-    });
+    const audit = createAuditEvent({ id: this.#runtime.nextId('audit'), tenantId: context.tenantId, resourceType: 'student-assignment', resourceId: replacement.id, action: 'update', actorId: context.actorId, occurredAt, changedFields: ['studentId', 'assistantId'] });
+    const event = createDomainEvent({ id: this.#runtime.nextId('event'), tenantId: context.tenantId, type: 'AssignmentReplaced', aggregateId: replacement.id, actorId: context.actorId, occurredAt, schemaVersion: 1, ...eventCorrelation(metadata) });
+    this.#uow.commit(context, { studentAssignments: [replacement], auditEvents: [audit], domainEvents: [event] });
     return replacement;
   }
 }
