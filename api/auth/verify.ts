@@ -1,7 +1,7 @@
 import { AuthenticationError, sessionCookie } from '../_auth';
 import { BadRequestError, assertTrustedMutation, exactKeys, requestBody, requiredString, runEndpoint } from '../_endpoint';
 import { SupabaseIdentityBridge, type SupabaseOtpSession } from '../_identity-auth';
-import { consumeTemporaryPilotAccessCode } from '../_pilot-access';
+import { consumeTemporaryPilotAccessCode, temporaryPilotAccessCodesEnabled } from '../_pilot-access';
 import { json, methodNotAllowed, type ApiHandler } from '../_types';
 
 type VerifyInput =
@@ -51,7 +51,7 @@ const handler: ApiHandler = async (request, response) => {
     const sessionId = `session-${crypto.randomUUID()}`;
     const authenticatedAt = new Date().toISOString();
 
-    if (input.kind === 'otp') {
+    if (input.kind === 'otp' && temporaryPilotAccessCodesEnabled()) {
       const pilotSession = await consumeTemporaryPilotAccessCode({
         email: input.email,
         code: input.token,
