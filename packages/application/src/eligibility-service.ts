@@ -63,7 +63,12 @@ export class EligibilityService {
     assertResourceTenant(context, person);
 
     const assignmentTypeId = normalizeAssignmentTypeId(input.assignmentTypeId);
-    if (isExplicitlyEligible(person, assignmentTypeId) === input.enabled) return person;
+    const hasExplicitDecision = person.eligibility.some(
+      grant => grant.assignmentTypeId === assignmentTypeId,
+    );
+    if (hasExplicitDecision && isExplicitlyEligible(person, assignmentTypeId) === input.enabled) {
+      return person;
+    }
 
     const occurredAt = this.#runtime.now();
     const updated = recordEligibilityDecision(person, {
