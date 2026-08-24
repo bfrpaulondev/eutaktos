@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildProductionDashboardSummary } from './ProductionDashboard';
+import { buildProductionDashboardSummary, isCurrentDashboardRequest } from './ProductionDashboard';
 
 describe('buildProductionDashboardSummary', () => {
   it('summarizes only active production records and finds the next meeting', () => {
@@ -31,5 +31,13 @@ describe('buildProductionDashboardSummary', () => {
     expect(result.activeResponsibilities).toBe(1);
     expect(result.assignedParts).toBe(1);
     expect(result.nextMeeting).toEqual({ date: '2026-08-24', localTime: '19:30', state: 'published' });
+  });
+});
+
+describe('dashboard retry ownership', () => {
+  it('accepts only the current non-aborted request', () => {
+    expect(isCurrentDashboardRequest(4, 4, false)).toBe(true);
+    expect(isCurrentDashboardRequest(3, 4, false)).toBe(false);
+    expect(isCurrentDashboardRequest(4, 4, true)).toBe(false);
   });
 });
