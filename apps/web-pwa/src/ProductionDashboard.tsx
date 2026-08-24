@@ -34,7 +34,7 @@ export function buildProductionDashboardSummary(
     activePeople: people.filter(person => person.active).length,
     activeResponsibilities,
     assignedParts,
-    ...(nextMeeting ? { nextMeeting: Object.freeze({ date: nextMeeting.date, localTime: nextMeeting.localTime, state: nextMeeting.state }) } : {}),
+    ...(nextMeeting ? { nextMeeting: Object.freeze({ date: nextMeeting.date, localTime: nextMeeting.localTime, state: nextMeeting.state === 'published' ? 'published' as const : 'draft' as const }) } : {}),
   });
 }
 
