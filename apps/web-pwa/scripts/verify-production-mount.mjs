@@ -4,6 +4,7 @@ import { dirname, resolve } from 'node:path';
 
 const port = '5186';
 const url = `http://127.0.0.1:${port}/`;
+const deepLinkUrl = `http://127.0.0.1:${port}/auth/confirm?token_hash=regression-token&type=email`;
 const chromium = process.env.CHROMIUM_BIN ?? 'chromium';
 const viteCli = resolve(dirname(fileURLToPath(import.meta.url)), '../../../node_modules/vite/bin/vite.js');
 
@@ -46,6 +47,12 @@ async function verifyPwaAssets() {
   }
 }
 
+function dumpDom(targetUrl) {
+  return spawnSync(chromium, [
+    '--headless=new', '--no-sandbox', '--disable-gpu', '--virtual-time-budget=3500', '--dump-dom', targetUrl,
+  ], { encoding: 'utf8' });
+}
+
 const preview = spawn(process.execPath, [viteCli, 'preview', '--host', '127.0.0.1', '--port', port, '--strictPort'], {
   cwd: process.cwd(),
   stdio: ['ignore', 'pipe', 'pipe'],
@@ -58,20 +65,24 @@ preview.stderr.on('data', chunk => { previewOutput += chunk; });
 try {
   await waitForPreview();
   await verifyPwaAssets();
-  const page = spawnSync(chromium, [
-    '--headless=new', '--no-sandbox', '--disable-gpu', '--virtual-time-budget=3500', '--dump-dom', url,
-  ], { encoding: 'utf8' });
 
-  if (page.status !== 0) {
-    throw new Error(`O Chromium não conseguiu abrir o build de produção: ${page.stderr}`);
+  const rootPage = dumpDom(url);
+  if (rootPage.status !== 0) {
+    throw new Error(`O Chromium não conseguiu abrir o build de produção: ${rootPage.stderr}`);
+  }
+  if (!/<div id="root"><[^>]/.test(rootPage.stdout) || !rootPage.stdout.includes('Eutaktos')) {
+    throw new Error(`A aplicação não montou no build de produção. DOM recebido: ${rootPage.stdout.slice(0, 500)}`);
   }
 
-  const dom = page.stdout;
-  if (!/<div id="root"><[^>]/.test(dom) || !dom.includes('Eutaktos')) {
-    throw new Error(`A aplicação não montou no build de produção. DOM recebido: ${dom.slice(0, 500)}`);
+  const deepLinkPage = dumpDom(deepLinkUrl);
+  if (deepLinkPage.status !== 0) {
+    throw new Error(`O Chromium não conseguiu abrir o deep link de confirmação: ${deepLinkPage.stderr}`);
+  }
+  if (!deepLinkPage.stdout.includes('Confirmar entrada') || !deepLinkPage.stdout.includes('Entrar no Eutaktos')) {
+    throw new Error(`O deep link /auth/confirm não montou a confirmação segura. DOM recebido: ${deepLinkPage.stdout.slice(0, 700)}`);
   }
 
-  process.stdout.write('Production build mounted successfully with manifest, icons and service-worker safeguards.\n');
+  process.stdout.write('Production build mounted successfully at root and scanner-safe auth deep link with manifest, icons and service-worker safeguards.\n');
 } finally {
   if (!preview.killed) preview.kill('SIGTERM');
 }
