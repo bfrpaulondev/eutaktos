@@ -52,24 +52,58 @@ try {
   cdp = await connectCdp(target.webSocketDebuggerUrl);
   await cdp.send('Page.enable'); await cdp.send('Runtime.enable'); await cdp.send('DOMStorage.enable');
   const storageId = { securityOrigin: appOrigin, isLocalStorage: true };
+
+  // MP3 required viewport matrix. Routes/locales are deliberately varied so the
+  // same layout gate also catches long translated labels and lazy-route regressions.
   const cases = [
     ['pt-PT', 320, '/', 'Tudo em boa ordem.'],
-    ['en', 390, '/people', 'People and organization'],
-    ['es', 1440, '/preferencias', 'Tus elecciones'],
+    ['en', 375, '/people', 'People and organization'],
+    ['es', 390, '/pessoas', 'Personas y organización'],
+    ['pt-PT', 430, '/agenda', 'Agenda'],
+    ['en', 768, '/assignments', 'Assignments'],
+    ['es', 1024, '/preferencias', 'Preferencias'],
+    ['pt-PT', 1280, '/designacoes', 'Designações'],
+    ['en', 1440, '/preferences', 'Preferences'],
   ];
+
   for (const [locale, width, path, expected] of cases) {
-    await cdp.send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: width <= 390 });
+    await cdp.send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: width <= 430 });
     await cdp.send('Page.navigate', { url: new URL(path, appUrl).toString() });
-    await poll(async () => await evaluate(cdp, "document.readyState === 'complete'"), `Page did not load for ${locale}`);
+    await poll(async () => await evaluate(cdp, "document.readyState === 'complete'"), `Page did not load for ${locale} at ${width}px`);
     const preferences = { paletteId: 'classic', colorMode: 'light', density: 'comfortable', locale, textSize: 'default', reducedMotion: false, reducedTransparency: false, highContrast: false };
     await cdp.send('DOMStorage.setDOMStorageItem', { storageId, key: 'eutaktos.preferences.v4', value: JSON.stringify(preferences) });
     await cdp.send('Page.reload', { ignoreCache: true });
     await poll(async () => await evaluate(cdp, `document.readyState === 'complete' && document.documentElement.lang === ${JSON.stringify(locale)} && document.body.innerText.includes(${JSON.stringify(expected)})`), `Sanitized ${locale} content did not render at ${width}px`, 80);
     await poll(async () => await evaluate(cdp, "Boolean(document.querySelector('#main')) && Boolean(document.querySelector('h1, h2'))"), `Sanitized ${locale} layout landmarks did not render at ${width}px`, 80);
-    const snapshot = await evaluate(cdp, "(() => { const main = document.querySelector('#main'); const title = document.querySelector('h1, h2'); const box = main?.getBoundingClientRect(); return { width: innerWidth, mainWidth: Math.round(box?.width ?? 0), headingVisible: Boolean(title && getComputedStyle(title).visibility !== 'hidden' && getComputedStyle(title).display !== 'none'), overflow: document.documentElement.scrollWidth > innerWidth, location: location.pathname }; })()");
-    if (snapshot.width !== width || snapshot.mainWidth <= 0 || !snapshot.headingVisible || snapshot.overflow) throw new Error(`Visual layout regression at ${width}px: ${JSON.stringify(snapshot)}`);
+
+    const snapshot = await evaluate(cdp, `(() => {
+      const main = document.querySelector('#main');
+      const title = document.querySelector('h1, h2');
+      const box = main?.getBoundingClientRect();
+      const interactive = [...document.querySelectorAll('button, a[href], [role="button"]')].filter(node => {
+        const style = getComputedStyle(node);
+        const rect = node.getBoundingClientRect();
+        return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+      });
+      const clippedInteractive = interactive.filter(node => {
+        const rect = node.getBoundingClientRect();
+        return rect.right > innerWidth + 1 || rect.left < -1;
+      }).length;
+      return {
+        width: innerWidth,
+        mainWidth: Math.round(box?.width ?? 0),
+        headingVisible: Boolean(title && getComputedStyle(title).visibility !== 'hidden' && getComputedStyle(title).display !== 'none'),
+        overflow: document.documentElement.scrollWidth > innerWidth,
+        clippedInteractive,
+        location: location.pathname,
+      };
+    })()`);
+
+    if (snapshot.width !== width || snapshot.mainWidth <= 0 || !snapshot.headingVisible || snapshot.overflow || snapshot.clippedInteractive > 0) {
+      throw new Error(`Visual layout regression at ${width}px: ${JSON.stringify(snapshot)}`);
+    }
   }
-  process.stdout.write('Sanitized visual regression checks passed: ephemeral rendered-layout baselines verified at 320pt-PT, 390en and 1440es using public no-data states only; no screenshots are retained or committed.\n');
+  process.stdout.write(`Sanitized visual regression checks passed: rendered layout verified at ${cases.map(([, width]) => width).join(', ')}px across pt-PT/en/es; no retained screenshots or production data.\n`);
 } finally {
   cdp?.close(); if (browser && !browser.killed) browser.kill('SIGTERM'); if (server && !server.killed) server.kill('SIGTERM');
 }
