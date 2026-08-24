@@ -1,12 +1,10 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type Dispatch, type Ref, type SetStateAction } from 'react';
 import {
-  Alert,
   Avatar,
   Box,
   Button,
   Card,
   CardContent,
-  Chip,
   CssBaseline,
   Divider,
   Drawer,
@@ -21,6 +19,7 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
+import { ProductionDashboard } from './ProductionDashboard';
 import { PwaConnectionStatus } from './PwaConnectionStatus';
 import { PwaUpdateRecovery } from './PwaUpdateRecovery';
 import { SECTION_PATHS, sectionFromPath, type AppSection as Section } from './lib/navigation';
@@ -44,28 +43,23 @@ const STORAGE_KEY = 'eutaktos.preferences.v4';
 const copy = {
   'pt-PT': {
     skip: 'Saltar para o conteúdo principal', navigation: 'Navegação principal', home: 'Início', agenda: 'Agenda', assignments: 'Designações', people: 'Pessoas', prefs: 'Preferências', more: 'Mais', close: 'Fechar', workspaceLoading: 'A carregar área…',
-    eyebrow: 'O teu espaço de organização', title: 'Tudo em boa ordem.', subtitle: 'Encontra primeiro o que pede atenção, com contexto claro e sem ruído.', privacy: 'Privacidade primeiro', dataUnavailable: 'Dados de produção indisponíveis', dashboardUnavailableTitle: 'O painel aguarda dados reais', dashboardUnavailableDetail: 'As próximas reuniões, designações, tarefas, confirmações e alertas só serão apresentados quando as consultas de produção estiverem disponíveis. Nenhum dado demonstrativo é mostrado.', viewAgenda: 'Ver agenda',
+    eyebrow: 'O teu espaço de organização', title: 'Tudo em boa ordem.', subtitle: 'Encontra primeiro o que pede atenção, com contexto claro e sem ruído.', privacy: 'Privacidade primeiro', viewAgenda: 'Ver agenda',
     personal: 'As tuas escolhas', palette: 'Paleta', theme: 'Modo de cor', density: 'Densidade', textSize: 'Tamanho do texto', contrast: 'Contraste elevado', motion: 'Reduzir movimento', transparency: 'Reduzir transparência', language: 'Idioma', comfortable: 'Confortável', compact: 'Compacta',
     textSizes: { small: 'Pequeno', default: 'Padrão', large: 'Grande', 'extra-large': 'Muito grande' }, themes: { light: 'Claro', dark: 'Escuro', system: 'Sistema' }, palettes: ['Clássica', 'Acolhedora', 'Calma', 'Foco', 'Noturna', 'Alto contraste'],
   },
   en: {
     skip: 'Skip to main content', navigation: 'Primary navigation', home: 'Home', agenda: 'Agenda', assignments: 'Assignments', people: 'People', prefs: 'Preferences', more: 'More', close: 'Close', workspaceLoading: 'Loading area…',
-    eyebrow: 'Your organization space', title: 'Everything in good order.', subtitle: 'Find what needs attention first, with clear context and no noise.', privacy: 'Privacy first', dataUnavailable: 'Production data unavailable', dashboardUnavailableTitle: 'The dashboard is waiting for real data', dashboardUnavailableDetail: 'Upcoming meetings, assignments, duties, confirmations and alerts will appear only when production queries are available. No demonstration data are shown.', viewAgenda: 'View agenda',
+    eyebrow: 'Your organization space', title: 'Everything in good order.', subtitle: 'Find what needs attention first, with clear context and no noise.', privacy: 'Privacy first', viewAgenda: 'View agenda',
     personal: 'Your choices', palette: 'Palette', theme: 'Color mode', density: 'Density', textSize: 'Text size', contrast: 'High contrast', motion: 'Reduce motion', transparency: 'Reduce transparency', language: 'Language', comfortable: 'Comfortable', compact: 'Compact',
     textSizes: { small: 'Small', default: 'Default', large: 'Large', 'extra-large': 'Extra large' }, themes: { light: 'Light', dark: 'Dark', system: 'System' }, palettes: ['Classic', 'Welcoming', 'Calm', 'Focus', 'Night', 'High contrast'],
   },
   es: {
     skip: 'Saltar al contenido principal', navigation: 'Navegación principal', home: 'Inicio', agenda: 'Agenda', assignments: 'Asignaciones', people: 'Personas', prefs: 'Preferencias', more: 'Más', close: 'Cerrar', workspaceLoading: 'Cargando área…',
-    eyebrow: 'Tu espacio de organización', title: 'Todo en buen orden.', subtitle: 'Encuentra primero lo que necesita atención, con contexto claro y sin ruido.', privacy: 'Privacidad primero', dataUnavailable: 'Datos de producción no disponibles', dashboardUnavailableTitle: 'El panel espera datos reales', dashboardUnavailableDetail: 'Las próximas reuniones, asignaciones, tareas, confirmaciones y alertas solo aparecerán cuando estén disponibles las consultas de producción. No se muestran datos de demostración.', viewAgenda: 'Ver agenda',
+    eyebrow: 'Tu espacio de organización', title: 'Todo en buen orden.', subtitle: 'Encuentra primero lo que necesita atención, con contexto claro y sin ruido.', privacy: 'Privacidad primero', viewAgenda: 'Ver agenda',
     personal: 'Tus elecciones', palette: 'Paleta', theme: 'Modo de color', density: 'Densidad', textSize: 'Tamaño del texto', contrast: 'Contraste alto', motion: 'Reducir movimiento', transparency: 'Reducir transparencia', language: 'Idioma', comfortable: 'Cómoda', compact: 'Compacta',
     textSizes: { small: 'Pequeño', default: 'Predeterminado', large: 'Grande', 'extra-large': 'Extra grande' }, themes: { light: 'Claro', dark: 'Oscuro', system: 'Sistema' }, palettes: ['Clásica', 'Acogedora', 'Calma', 'Foco', 'Nocturna', 'Alto contraste'],
   },
 } as const;
-
-export function getDashboardAvailability(locale: Preferences['locale']) {
-  const text = copy[locale];
-  return { title: text.dashboardUnavailableTitle, detail: text.dashboardUnavailableDetail };
-}
 
 type AppCopy = (typeof copy)[keyof typeof copy];
 const paletteIds = Object.keys(EUTAKTOS_PALETTES) as PaletteId[];
@@ -164,8 +158,7 @@ function AppShell({ preferences, setPreferences }: AppShellProps) {
             {nav.map(key => <NavigationButton key={key} active={section === key} icon={navIcons[key]} label={text[key === 'preferences' ? 'prefs' : key]} onClick={() => goToSection(key)} />)}
           </Stack>
           <Paper variant="outlined" sx={{ p: 1.25, m: 0.5, borderRadius: 2, boxShadow: 'none', bgcolor: 'transparent' }}>
-            <Typography variant="caption" color="text.secondary">{text.dataUnavailable}</Typography>
-            <Typography variant="caption" sx={{ mt: 0.25, display: 'block' }}>{text.privacy}</Typography>
+            <Typography variant="caption">{text.privacy}</Typography>
           </Paper>
         </Paper>
       ) : (
@@ -207,15 +200,14 @@ function Header({ text, onAgenda }: { text: AppCopy; onAgenda: () => void }) {
   return <Paper component="header" sx={{ p: { xs: 2.25, sm: 3, lg: 4 }, mb: 2.5, borderRadius: { xs: 3, md: 4 } }}>
       <Stack direction={{ xs: 'column', lg: 'row' }} justifyContent="space-between" spacing={{ xs: 2.5, lg: 4 }} alignItems={{ lg: 'center' }}>
         <Box sx={{ maxWidth: 760 }}><Typography variant="overline" color="primary.main">{text.eyebrow}</Typography><Typography variant="h1" sx={{ fontSize: { xs: '2.35rem', sm: '3.1rem', xl: '4rem' } }}>{text.title}</Typography><Typography color="text.secondary" sx={{ mt: 1, maxWidth: 680, fontSize: { xs: '0.98rem', sm: '1.05rem' } }}>{text.subtitle}</Typography></Box>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }} sx={{ flexShrink: 0 }}><Chip label={text.dataUnavailable} color="info" variant="outlined" /><Button variant="contained" onClick={onAgenda} sx={{ minWidth: { sm: 210 } }}>{text.viewAgenda}</Button></Stack>
+        <Button variant="contained" onClick={onAgenda} sx={{ minWidth: { sm: 210 }, alignSelf: { xs: 'stretch', sm: 'flex-start', lg: 'center' } }}>{text.viewAgenda}</Button>
       </Stack>
   </Paper>;
 }
 
 function HomeDashboard({ text, preferences, update }: { text: AppCopy; preferences: Preferences; update: <K extends keyof Preferences>(key: K, value: Preferences[K]) => void }) {
-  const dashboard = getDashboardAvailability(preferences.locale);
   return <Stack spacing={2.5}>
-    <Alert severity="info" role="status" aria-live="polite"><Typography variant="subtitle2" fontWeight={700}>{dashboard.title}</Typography><Typography variant="body2">{dashboard.detail}</Typography></Alert>
+    <ProductionDashboard locale={preferences.locale} />
     <Box sx={{ maxWidth: 640 }}><PreferencesCard text={text} preferences={preferences} update={update} /></Box>
   </Stack>;
 }
