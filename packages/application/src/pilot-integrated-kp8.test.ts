@@ -367,7 +367,7 @@ describe('KP8 integrated MVP scheduling/application gate', () => {
       commitMigration: (_ctx, change) => {
         migrations.push(change);
         for (const item of change.changes) {
-          const next = {
+          const next: Existing = {
             id: item.internalId,
             externalId: item.source.externalId,
             displayName: item.source.displayName,
@@ -386,9 +386,18 @@ describe('KP8 integrated MVP scheduling/application gate', () => {
           if (step.type === 'delete') {
             existing = existing.filter(person => person.id !== step.internalId);
           } else if (step.restore) {
-            existing = existing.map(person => person.id === step.internalId
-              ? { id: step.internalId, ...step.restore }
-              : person);
+            const restore = step.restore;
+            if (!restore.externalId || !restore.displayName || typeof restore.active !== 'boolean') {
+              throw new Error('rollback restore snapshot is incomplete');
+            }
+            const restored: Existing = {
+              id: step.internalId,
+              externalId: restore.externalId,
+              displayName: restore.displayName,
+              active: restore.active,
+              ...(restore.preferredLocale ? { preferredLocale: restore.preferredLocale } : {}),
+            };
+            existing = existing.map(person => person.id === step.internalId ? restored : person);
           }
         }
         stored = { log: change.log, rollbackPlan: change.rollbackPlan };
