@@ -38,7 +38,7 @@ describe('canonical Eutaktos pilot production smoke', () => {
     expect(ready.body).toEqual({ status: 'ready', database: 'reachable' });
   }, 10_000);
 
-  it.each(['/api/session', '/api/people', '/api/midweek', '/api/audit/history', '/api/access/grants'])(
+  it.each(['/api/session', '/api/people', '/api/midweek', '/api/audit/history', '/api/access/subjects/pilot-admin/grants'])(
     'fails closed on unauthenticated protected production read %s',
     async path => {
       const result = await json(path);
@@ -48,6 +48,11 @@ describe('canonical Eutaktos pilot production smoke', () => {
     },
     10_000,
   );
+
+  it('keeps access grant creation method-scoped', async () => {
+    const result = await json('/api/access/grants');
+    expect(result.response.status).toBe(405);
+  }, 10_000);
 
   it('keeps passwordless request account enumeration resistant', async () => {
     const unknown = `pilot-smoke-${Date.now()}@example.invalid`;
