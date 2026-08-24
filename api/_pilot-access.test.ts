@@ -1,12 +1,21 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { DatabaseConfig } from './_db';
-import { consumeTemporaryPilotAccessCode } from './_pilot-access';
+import { consumeTemporaryPilotAccessCode, temporaryPilotAccessCodesEnabled } from './_pilot-access';
 
 const config: DatabaseConfig = { url: 'https://example.supabase.co', serviceRoleKey: 'sb_secret_server' };
 
 function json(value: unknown, status = 200): Response {
   return new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json' } });
 }
+
+describe('temporary pilot access configuration', () => {
+  it('is disabled by default and only accepts an explicit true value', () => {
+    expect(temporaryPilotAccessCodesEnabled({})).toBe(false);
+    expect(temporaryPilotAccessCodesEnabled({ EUTAKTOS_ENABLE_TEMPORARY_PILOT_ACCESS_CODES: 'false' })).toBe(false);
+    expect(temporaryPilotAccessCodesEnabled({ EUTAKTOS_ENABLE_TEMPORARY_PILOT_ACCESS_CODES: '1' })).toBe(false);
+    expect(temporaryPilotAccessCodesEnabled({ EUTAKTOS_ENABLE_TEMPORARY_PILOT_ACCESS_CODES: ' TRUE ' })).toBe(true);
+  });
+});
 
 describe('consumeTemporaryPilotAccessCode', () => {
   it('hashes the code server-side and never sends tenant, actor, or raw code to the RPC', async () => {
