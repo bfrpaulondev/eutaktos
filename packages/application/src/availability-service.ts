@@ -67,12 +67,25 @@ export class AvailabilityService {
     if (!person) throw new Error('Person not found');
     assertResourceTenant(context, person);
 
-    const period: AvailabilityPeriod = validateAvailability({
-      id: this.#runtime.nextId('availability'),
+    const requestedPeriod: AvailabilityPeriod = validateAvailability({
       startsAt: input.startsAt,
       endsAt: input.endsAt,
       ...(input.reasonCode ? { reasonCode: input.reasonCode } : {}),
     });
+
+    // An exact retry represents the same requested state. Return the persisted
+    // aggregate unchanged so the retry creates no duplicate state or side effects.
+    const existing = person.availability.find(period =>
+      period.startsAt === requestedPeriod.startsAt &&
+      period.endsAt === requestedPeriod.endsAt &&
+      period.reasonCode === requestedPeriod.reasonCode,
+    );
+    if (existing) return person;
+
+    const period: AvailabilityPeriod = {
+      ...requestedPeriod,
+      id: this.#runtime.nextId('availability'),
+    };
 
     const updated: CongregationPerson = {
       ...person,
