@@ -27,6 +27,8 @@ jobs:
         run: npm test
       - name: Production build
         run: npm run build
+      - name: Pilot production preflight (disposable proof)
+        run: npm run pilot:preflight
       - name: Runtime dependency audit
         run: npm audit --omit=dev --audit-level=high
 
