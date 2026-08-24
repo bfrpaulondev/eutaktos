@@ -1,9 +1,17 @@
 import { databaseConfigFromEnv, DatabaseNotConfiguredError, DatabaseRequestError, type DatabaseConfig } from './_db';
 
+declare const process: { env: Record<string, string | undefined> };
+
 export interface CreatedPilotAccessSession {
   readonly sessionId: string;
   readonly tenantId: string;
   readonly actorId: string;
+}
+
+export function temporaryPilotAccessCodesEnabled(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): boolean {
+  return env.EUTAKTOS_ENABLE_TEMPORARY_PILOT_ACCESS_CODES?.trim().toLowerCase() === 'true';
 }
 
 function exactString(value: unknown): string {
