@@ -74,6 +74,31 @@ describe('KP2 availability and eligibility invariants', () => {
     expect(readOnly.eligibility.at(-1)?.enabled).toBe(false);
   });
 
+  it('makes an exact explicit false eligibility retry idempotent', () => {
+    const uow = new TrackingPeopleUow(person());
+    const service = new EligibilityService(uow, runtime());
+    const input = {
+      personId: 'person-1',
+      assignmentTypeId: 'builtin:apply-yourself-to-the-ministry',
+      enabled: false,
+    };
+
+    const first = service.setEligibility(
+      context('tenant-a', ['people.read', 'eligibility.write']),
+      input,
+    );
+    const firstEffects = uow.updates.length;
+    const second = service.setEligibility(
+      context('tenant-a', ['people.read', 'eligibility.write']),
+      input,
+    );
+
+    expect(second).toEqual(first);
+    expect(uow.updates).toHaveLength(firstEffects);
+    expect(uow.person.eligibility).toHaveLength(1);
+    expect(uow.person.eligibility[0]?.enabled).toBe(false);
+  });
+
   it('accepts an explicit enabled decision and trims the canonical assignment type id', () => {
     const uow = new TrackingPeopleUow(person());
     const service = new EligibilityService(uow, runtime());
