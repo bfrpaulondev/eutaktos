@@ -35,8 +35,12 @@ function pushPeopleView(next: PeopleWorkspaceView): void {
   const target = `${window.location.pathname}${search}${window.location.hash}`;
   const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
   if (target !== current) {
+    // This is a view transition inside the same People route. Update browser
+    // history without synthesizing popstate: the local owner updates immediately,
+    // while real Back/Forward navigation will emit popstate and restore the view.
+    // Avoiding a synthetic event also prevents the application shell from
+    // remounting this workspace and dropping an in-flight Add Person handoff.
     window.history.pushState({ peopleView: next }, '', target);
-    window.dispatchEvent(new PopStateEvent('popstate'));
   }
 }
 
