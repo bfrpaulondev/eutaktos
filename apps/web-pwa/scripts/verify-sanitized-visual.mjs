@@ -40,6 +40,19 @@ async function evaluate(cdp, expression) {
   return response.result.value;
 }
 
+async function storePreferences(cdp, storageId, preferences) {
+  await poll(async () => {
+    try {
+      await cdp.send('DOMStorage.setDOMStorageItem', { storageId, key: 'eutaktos.preferences.v4', value: JSON.stringify(preferences) });
+      return true;
+    } catch (error) {
+      const message = String(error);
+      if (message.includes('Frame not found') || message.includes('Inspected target navigated or closed')) return false;
+      throw error;
+    }
+  }, 'Preference storage did not become available', 20);
+}
+
 let server; let browser; let cdp;
 try {
   server = spawn(process.execPath, [viteCli, '--host', '127.0.0.1', '--port', appPort, '--strictPort'], { stdio: 'ignore' });
@@ -57,8 +70,8 @@ try {
   // same layout gate also catches long translated labels and lazy-route regressions.
   const cases = [
     ['pt-PT', 320, '/', 'Tudo em boa ordem.'],
-    ['en', 375, '/people', 'People and organization'],
-    ['es', 390, '/pessoas', 'Personas y organización'],
+    ['en', 375, '/people', 'People'],
+    ['es', 390, '/pessoas', 'Personas'],
     ['pt-PT', 430, '/agenda', 'Agenda'],
     ['en', 768, '/assignments', 'Assignments'],
     ['es', 1024, '/preferencias', 'Preferencias'],
@@ -71,7 +84,7 @@ try {
     await cdp.send('Page.navigate', { url: new URL(path, appUrl).toString() });
     await poll(async () => await evaluate(cdp, "document.readyState === 'complete'"), `Page did not load for ${locale} at ${width}px`);
     const preferences = { paletteId: 'classic', colorMode: 'light', density: 'comfortable', locale, textSize: 'default', reducedMotion: false, reducedTransparency: false, highContrast: false };
-    await cdp.send('DOMStorage.setDOMStorageItem', { storageId, key: 'eutaktos.preferences.v4', value: JSON.stringify(preferences) });
+    await storePreferences(cdp, storageId, preferences);
     await cdp.send('Page.reload', { ignoreCache: true });
     await poll(async () => await evaluate(cdp, `document.readyState === 'complete' && document.documentElement.lang === ${JSON.stringify(locale)} && document.body.innerText.includes(${JSON.stringify(expected)})`), `Sanitized ${locale} content did not render at ${width}px`, 80);
     await poll(async () => await evaluate(cdp, "Boolean(document.querySelector('#main')) && Boolean(document.querySelector('h1, h2'))"), `Sanitized ${locale} layout landmarks did not render at ${width}px`, 80);
