@@ -81,12 +81,16 @@ try {
 
   for (const [locale, width, path, expected] of cases) {
     await cdp.send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: width <= 430 });
-    await cdp.send('Page.navigate', { url: new URL(path, appUrl).toString() });
-    await poll(async () => await evaluate(cdp, "document.readyState === 'complete'"), `Page did not load for ${locale} at ${width}px`);
+    const targetUrl = new URL(path, appUrl).toString();
+    // Ensure the origin is active before writing DOM storage, then perform a fresh
+    // navigation with the stored preferences instead of racing Page.reload against
+    // the previous route's lazy imports.
+    await cdp.send('Page.navigate', { url: appUrl });
+    await poll(async () => await evaluate(cdp, "document.readyState === 'complete'"), `Origin did not load for ${locale} at ${width}px`);
     const preferences = { paletteId: 'classic', colorMode: 'light', density: 'comfortable', locale, textSize: 'default', reducedMotion: false, reducedTransparency: false, highContrast: false };
     await storePreferences(cdp, storageId, preferences);
-    await cdp.send('Page.reload', { ignoreCache: true });
-    await poll(async () => await evaluate(cdp, `document.readyState === 'complete' && document.documentElement.lang === ${JSON.stringify(locale)} && document.body.innerText.includes(${JSON.stringify(expected)})`), `Sanitized ${locale} content did not render at ${width}px`, 80);
+    await cdp.send('Page.navigate', { url: targetUrl });
+    await poll(async () => await evaluate(cdp, `document.readyState === 'complete' && document.documentElement.lang === ${JSON.stringify(locale)} && location.pathname === ${JSON.stringify(new URL(path, appUrl).pathname)} && document.body.innerText.includes(${JSON.stringify(expected)})`), `Sanitized ${locale} content did not render at ${width}px`, 80);
     await poll(async () => await evaluate(cdp, "Boolean(document.querySelector('#main')) && Boolean(document.querySelector('h1, h2'))"), `Sanitized ${locale} layout landmarks did not render at ${width}px`, 80);
 
     const snapshot = await evaluate(cdp, `(() => {
