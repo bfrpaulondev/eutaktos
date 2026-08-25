@@ -8,6 +8,7 @@ import rotateSessionHandler from './session/rotate';
 import authOtpHandler from './auth/otp';
 import authVerifyHandler from './auth/verify';
 import peopleHandler from './people';
+import peopleDirectoryHandler from './people/directory';
 import peopleOverviewEvidenceHandler from './people/overview-evidence';
 import personHandler from './people/[personId]';
 import eligibilityHandler from './people/[personId]/eligibility';
@@ -51,7 +52,7 @@ export interface NetlifyApiResult {
 
 type RouteKey =
   | 'health' | 'ready' | 'session' | 'logout' | 'logout-all' | 'rotate-session' | 'auth-otp' | 'auth-verify'
-  | 'people' | 'people-overview-evidence' | 'person' | 'eligibility' | 'availability' | 'availability-period'
+  | 'people' | 'people-directory' | 'people-overview-evidence' | 'person' | 'eligibility' | 'availability' | 'availability-period'
   | 'households' | 'household' | 'service-groups' | 'service-group'
   | 'responsibilities' | 'responsibility' | 'end-responsibility' | 'congregation-settings' | 'audit-history'
   | 'access-grants' | 'subject-grants' | 'revoke-grant' | 'midweek' | 'midweek-route' | 'outbox-worker' | 'agent-respond';
@@ -71,6 +72,7 @@ const handlers: Readonly<Record<RouteKey, ApiHandler>> = Object.freeze({
   'auth-otp': authOtpHandler,
   'auth-verify': authVerifyHandler,
   people: peopleHandler,
+  'people-directory': peopleDirectoryHandler,
   'people-overview-evidence': peopleOverviewEvidenceHandler,
   person: personHandler,
   eligibility: eligibilityHandler,
@@ -127,6 +129,7 @@ export function matchNetlifyApiRoute(path: string): RouteMatch | undefined {
     '/auth/otp': 'auth-otp',
     '/auth/verify': 'auth-verify',
     '/people': 'people',
+    '/people/directory': 'people-directory',
     '/people/overview-evidence': 'people-overview-evidence',
     '/households': 'households',
     '/service-groups': 'service-groups',
