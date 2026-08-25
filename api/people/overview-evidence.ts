@@ -1,6 +1,7 @@
 import {
   PROFILE_COMPLETENESS,
   RECENT_AVAILABILITY_CHANGES,
+  affectedAssignmentsByAvailability,
   completedAssignmentHistoryFromScheduling,
   deterministicRecommendationEvidence,
   type ActiveAssignmentEvidence,
@@ -20,6 +21,21 @@ import { PeopleSnapshotUnitOfWork } from '../_uow';
 import { json, methodNotAllowed, type ApiHandler } from '../_types';
 
 type TenantEntity = { readonly id: string; readonly tenantId: string };
+
+type ReadyAffectedAssignments = Readonly<{
+  status: 'ready';
+  affectedPeopleCount: number;
+  affectedAssignmentCount: number;
+}>;
+
+type ReadyLongInterval = Readonly<{
+  status: 'ready';
+  candidateCount: number;
+  openAssignmentCount: number;
+  evaluatedOpenStudentAssignments: number;
+}>;
+
+type UnavailableEvidence = Readonly<{ status: 'unavailable' }>;
 
 function storedEntity<T extends TenantEntity>(row: EntityRow, tenantId: string): Readonly<T> {
   if (row.tenant_id !== tenantId || !row.data || typeof row.data !== 'object' || Array.isArray(row.data)) throw new Error('Invalid stored evidence entity');
@@ -101,63 +117,97 @@ function upcomingOpenStudentTargets(
   ));
 }
 
+function unavailable(): UnavailableEvidence {
+  return Object.freeze({ status: 'unavailable' });
+}
+
 const handler: ApiHandler = async (request, response) => {
   if (request.method !== 'GET') { methodNotAllowed(response, ['GET']); return; }
   await runEndpoint(request, response, async database => {
     const principal = await resolvePrincipal(request, database);
     requireCapability(principal, 'people.read');
-    requireCapability(principal, 'eligibility.read');
-    requireCapability(principal, 'availability.read');
-    requireCapability(principal, 'schedule.read');
 
-    const [peopleRows, meetingRows, studentRows, nonStudentRows] = await Promise.all([
-      database.entities(principal.tenantId, 'person'),
-      database.entities(principal.tenantId, 'midweek-meeting'),
-      database.entities(principal.tenantId, 'student-assignment'),
-      database.entities(principal.tenantId, 'non-student-assignment'),
-    ]);
+    const peopleRows = await database.entities(principal.tenantId, 'person');
     const context = createAccessContext({
       tenantId: principal.tenantId,
       actorId: principal.actorId,
       capabilities: principal.capabilities,
     });
     const people = new PeopleSnapshotUnitOfWork(principal.tenantId, peopleRows).list(context);
-    const meetings = Object.freeze(meetingRows.map(row => storedEntity<MidweekMeeting>(row, principal.tenantId)));
-    const students = Object.freeze(studentRows.map(row => storedEntity<StudentAssignment>(row, principal.tenantId)));
-    const nonStudents = Object.freeze(nonStudentRows.map(row => storedEntity<NonStudentAssignment>(row, principal.tenantId)));
-    const history = completedAssignmentHistoryFromScheduling(context, { meetings, studentAssignments: students, nonStudentAssignments: nonStudents });
-    const assignmentEvidence = assignedEvidence(principal.tenantId, meetings, students, nonStudents);
-    const targets = upcomingOpenStudentTargets(meetings, students, new Date());
-    const longIntervalPeople = new Set<string>();
-    let affectedOpenAssignments = 0;
+    const canReadSchedule = principal.capabilities.includes('schedule.read');
+    const canReadAvailability = principal.capabilities.includes('availability.read');
+    const canReadEligibility = principal.capabilities.includes('eligibility.read');
 
-    for (const target of targets) {
-      const recommendation = deterministicRecommendationEvidence(context, {
-        assignmentTypeId: target.assignmentTypeId,
-        partType: target.assignmentTypeId,
-        targetMeetingDate: target.meeting.date,
-        referenceDate: target.meeting.date,
-        startsAt: target.startsAt,
-        endsAt: target.endsAt,
-        people,
-        history,
-        activeAssignments: assignmentEvidence.active,
-        workloadAssignments: assignmentEvidence.workload,
-      });
-      const longCandidates = recommendation.candidates.filter(candidate => candidate.reasons.some(reason => reason.code === 'LONGER_SINCE_LAST_ASSIGNMENT'));
-      if (longCandidates.length === 0) continue;
-      affectedOpenAssignments += 1;
-      longCandidates.forEach(candidate => longIntervalPeople.add(candidate.personId));
+    let affectedAssignments: ReadyAffectedAssignments | UnavailableEvidence = unavailable();
+    let longInterval: ReadyLongInterval | UnavailableEvidence = unavailable();
+
+    if (canReadSchedule) {
+      const [meetingRows, studentRows, nonStudentRows] = await Promise.all([
+        database.entities(principal.tenantId, 'midweek-meeting'),
+        database.entities(principal.tenantId, 'student-assignment'),
+        database.entities(principal.tenantId, 'non-student-assignment'),
+      ]);
+      const meetings = Object.freeze(meetingRows.map(row => storedEntity<MidweekMeeting>(row, principal.tenantId)));
+      const students = Object.freeze(studentRows.map(row => storedEntity<StudentAssignment>(row, principal.tenantId)));
+      const nonStudents = Object.freeze(nonStudentRows.map(row => storedEntity<NonStudentAssignment>(row, principal.tenantId)));
+      const assignmentEvidence = assignedEvidence(principal.tenantId, meetings, students, nonStudents);
+
+      if (canReadAvailability) {
+        const affected = affectedAssignmentsByAvailability(context, {
+          people,
+          activeAssignments: assignmentEvidence.active,
+        });
+        affectedAssignments = Object.freeze({
+          status: 'ready',
+          affectedPeopleCount: new Set(affected.map(item => item.personId)).size,
+          affectedAssignmentCount: new Set(affected.map(item => item.assignmentId)).size,
+        });
+      }
+
+      if (canReadAvailability && canReadEligibility) {
+        const history = completedAssignmentHistoryFromScheduling(context, {
+          meetings,
+          studentAssignments: students,
+          nonStudentAssignments: nonStudents,
+        });
+        const targets = upcomingOpenStudentTargets(meetings, students, new Date());
+        const longIntervalPeople = new Set<string>();
+        let openAssignmentCount = 0;
+
+        for (const target of targets) {
+          const recommendation = deterministicRecommendationEvidence(context, {
+            assignmentTypeId: target.assignmentTypeId,
+            partType: target.assignmentTypeId,
+            targetMeetingDate: target.meeting.date,
+            referenceDate: target.meeting.date,
+            startsAt: target.startsAt,
+            endsAt: target.endsAt,
+            people,
+            history,
+            activeAssignments: assignmentEvidence.active,
+            workloadAssignments: assignmentEvidence.workload,
+          });
+          const longCandidates = recommendation.candidates.filter(candidate =>
+            candidate.reasons.some(reason => reason.code === 'LONGER_SINCE_LAST_ASSIGNMENT'),
+          );
+          if (longCandidates.length === 0) continue;
+          openAssignmentCount += 1;
+          longCandidates.forEach(candidate => longIntervalPeople.add(candidate.personId));
+        }
+
+        longInterval = Object.freeze({
+          status: 'ready',
+          candidateCount: longIntervalPeople.size,
+          openAssignmentCount,
+          evaluatedOpenStudentAssignments: targets.length,
+        });
+      }
     }
 
     json(response, 200, Object.freeze({
       contractVersion: 'people-overview-evidence-v1',
-      longInterval: Object.freeze({
-        status: 'ready',
-        candidateCount: longIntervalPeople.size,
-        openAssignmentCount: affectedOpenAssignments,
-        evaluatedOpenStudentAssignments: targets.length,
-      }),
+      affectedAssignments,
+      longInterval,
       profileCompleteness: PROFILE_COMPLETENESS,
       recentAvailabilityChanges: RECENT_AVAILABILITY_CHANGES,
     }));
