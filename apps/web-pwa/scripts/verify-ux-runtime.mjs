@@ -59,9 +59,7 @@ let cdp;
 
 async function evaluate(expression) {
   const response = await cdp.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
-  if (response.exceptionDetails) {
-    throw new Error(response.exceptionDetails.exception?.description ?? response.exceptionDetails.text);
-  }
+  if (response.exceptionDetails) throw new Error(response.exceptionDetails.exception?.description ?? response.exceptionDetails.text);
   return response.result.value;
 }
 
@@ -166,32 +164,23 @@ try {
     const main = document.querySelector('main#main');
     const active = document.querySelector('[aria-current="page"]');
     skip?.focus();
-    return {
-      hasSkip: Boolean(skip),
-      href: skip?.getAttribute('href'),
-      hasMain: Boolean(main),
-      navCount: document.querySelectorAll('nav').length,
-      activeLabel: active?.textContent?.trim() ?? '',
-      skipTop: skip ? getComputedStyle(skip).top : '',
-    };
+    return { hasSkip: Boolean(skip), href: skip?.getAttribute('href'), hasMain: Boolean(main), navCount: document.querySelectorAll('nav').length, activeLabel: active?.textContent?.trim() ?? '', skipTop: skip ? getComputedStyle(skip).top : '' };
   })()`);
-  if (!keyboard.hasSkip || keyboard.href !== '#main' || !keyboard.hasMain || keyboard.navCount < 1 || !keyboard.activeLabel || keyboard.skipTop === '-80px') {
-    throw new Error(`A navegação por teclado não expõe skip link, landmarks ou estado actual: ${JSON.stringify(keyboard)}`);
-  }
+  if (!keyboard.hasSkip || keyboard.href !== '#main' || !keyboard.hasMain || keyboard.navCount < 1 || !keyboard.activeLabel || keyboard.skipTop === '-80px') throw new Error(`A navegação por teclado não expõe skip link, landmarks ou estado actual: ${JSON.stringify(keyboard)}`);
 
   const mobile = await evaluate(`({ width: window.innerWidth, scrollWidth: document.documentElement.scrollWidth, labels: [...document.querySelectorAll('button')].map(button => button.innerText?.trim() || button.textContent?.trim()), body: document.body.innerText })`);
   if (mobile.scrollWidth > mobile.width) throw new Error(`A navegação móvel cria overflow horizontal: ${mobile.scrollWidth}px > ${mobile.width}px`);
   if (!mobile.body.includes('Mais')) throw new Error(`A navegação móvel não expõe o destino Mais: ${JSON.stringify(mobile.labels)}`);
 
   await evaluate(`[...document.querySelectorAll('button')].find(button => (button.innerText || button.textContent || '').includes('Mais'))?.click()`);
-  await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('[role="presentation"], [role="dialog"]')].find(node => node.textContent?.includes('Designações')))`), 'O painel Mais não abriu');
+  await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('[role="dialog"]')].find(node => node.textContent?.includes('Planeamento') && node.textContent?.includes('Organização') && node.textContent?.includes('Administração')))`), 'O painel Mais orientado a tarefas não abriu');
   await evaluate(`[...document.querySelectorAll('button')].find(button => (button.innerText || button.textContent || '').trim() === 'Fechar')?.click()`);
-  await poll(async () => await evaluate(`document.activeElement?.textContent?.trim() === '•••Mais'`), 'O foco não regressou ao botão Mais depois de fechar o painel');
+  await poll(async () => await evaluate(`document.activeElement?.textContent?.trim().endsWith('Mais')`), 'O foco não regressou ao botão Mais depois de fechar o painel');
 
   const workspaces = {
-    'pt-PT': [['/agenda', 'Agenda'], ['/designacoes', 'Designações'], ['/pessoas', 'Pessoas'], ['/preferencias', 'Preferências']],
-    en: [['/agenda', 'Agenda'], ['/assignments', 'Assignments'], ['/people', 'People'], ['/preferences', 'Preferences']],
-    es: [['/agenda', 'Agenda'], ['/designacoes', 'Asignaciones'], ['/pessoas', 'Personas'], ['/preferencias', 'Preferencias']],
+    'pt-PT': [['/agenda', 'Agenda', 'Eutaktos — Preparar reunião'], ['/designacoes', 'Designações', 'Eutaktos — Planeamento'], ['/pessoas', 'Pessoas', 'Eutaktos — Pessoas'], ['/preferencias', 'Preferências', 'Eutaktos — Administração']],
+    en: [['/agenda', 'Agenda', 'Eutaktos — Prepare meeting'], ['/assignments', 'Assignments', 'Eutaktos — Planning'], ['/people', 'People', 'Eutaktos — People'], ['/preferences', 'Preferences', 'Eutaktos — Administration']],
+    es: [['/agenda', 'Agenda', 'Eutaktos — Preparar reunión'], ['/designacoes', 'Asignaciones', 'Eutaktos — Planificación'], ['/pessoas', 'Personas', 'Eutaktos — Personas'], ['/preferencias', 'Preferencias', 'Eutaktos — Administración']],
   };
   const organization = {
     'pt-PT': { path: '/pessoas', overview: 'Pessoas', heading: 'Pessoas e organização', documentTitle: 'Eutaktos — Pessoas', overviewLabel: 'Visão geral', directory: 'Diretório', households: 'Agregados', groups: 'Grupos de serviço', responsibilities: 'Responsabilidades', hourglass: 'Inspecionar export Hourglass', audit: 'Histórico de auditoria', access: 'Gerir acessos', hourglassTitle: 'Inspeção de export Hourglass', auditTitle: 'Histórico de auditoria', accessTitle: 'Gestão de acessos', close: 'Fechar' },
@@ -201,18 +190,23 @@ try {
   for (const locale of ['pt-PT', 'en', 'es']) {
     const expectedHome = locale === 'pt-PT' ? 'Tudo em boa ordem.' : locale === 'en' ? 'Everything in good order.' : 'Todo en buen orden.';
     await setPreferences({ ...defaults, locale }, expectedHome);
-    for (const [path, heading] of workspaces[locale]) await visitWorkspace(path, heading, locale);
+    for (const [path, heading, title] of workspaces[locale]) await visitWorkspace(path, heading, locale, title);
     await verifyLocalizedOrganization(locale, organization[locale]);
   }
+
+  await setPreferences({ ...defaults, locale: 'pt-PT' }, 'Tudo em boa ordem.');
+  await visitWorkspace('/pessoas?area=organization', 'Pessoas e organização', 'pt-PT', 'Eutaktos — Organização');
+  await visitWorkspace('/pessoas?area=organization&view=groups', 'Grupos de serviço', 'pt-PT', 'Eutaktos — Organização');
+
   await setPreferences({ ...defaults, locale: 'en' }, 'Everything in good order.');
-  await visitWorkspace('/people/?source=deep-link#contacts', 'People', 'en');
+  await visitWorkspace('/people/?source=deep-link#contacts', 'People', 'en', 'Eutaktos — People');
   await visitWorkspace('/unknown-route?source=deep-link', 'Everything in good order.', 'en', 'Eutaktos — Home');
 
   await setPreferences({ ...defaults, locale: 'es', colorMode: 'dark', highContrast: true }, 'Todo en buen orden.');
   const accessibility = await evaluate(`({ mode: document.documentElement.dataset.colorMode, background: getComputedStyle(document.body).backgroundColor, border: getComputedStyle(document.querySelector('.MuiPaper-root')).borderTopWidth })`);
   if (accessibility.mode !== 'dark' || accessibility.border !== '2px' || accessibility.background === 'rgb(0, 0, 0)') throw new Error(`O tema acessível não foi aplicado corretamente: ${JSON.stringify(accessibility)}`);
 
-  process.stdout.write('UX runtime checks passed: pt-PT/en/es workspaces and organization dialogs, localized real deep-link navigations/titles, safe unknown-route fallback, More focus restore, dark/high contrast, 320px reflow, skip link, landmarks and aria-current.\n');
+  process.stdout.write('UX runtime checks passed: task-oriented shell, pt-PT/en/es workspaces, People/Organization deep links, safe unknown-route fallback, More focus restore, dark/high contrast, 320px reflow, skip link, landmarks and aria-current.\n');
 } finally {
   cdp?.close();
   if (browser && !browser.killed) browser.kill('SIGTERM');
