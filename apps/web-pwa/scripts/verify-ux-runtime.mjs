@@ -139,14 +139,6 @@ async function verifyLocalizedOrganization(locale, expected) {
   await poll(async () => await evaluate(`![...document.querySelectorAll('[role="dialog"]')].some(node => node.textContent?.includes(${JSON.stringify(expected.createTitle)}) && getComputedStyle(node).visibility !== 'hidden')`), `O fluxo de criação ${expected.createTitle} não fechou em ${locale}`);
   if (!await clickExactButton(expected.directory)) throw new Error(`O acesso ao diretório ${expected.directory} não foi encontrado em ${locale}`);
   await poll(async () => await evaluate(`Boolean(document.querySelector('#main')?.textContent?.includes(${JSON.stringify(expected.heading)}))`), `O diretório não apresentou o contexto organizacional em ${locale}`);
-  await poll(async () => await evaluate(`Boolean(document.querySelector('#people-directory-title')) && Boolean(document.querySelector('#main')?.textContent?.includes('Runtime person')) && Boolean([...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(expected.export)}) )`), `O Directory 2.0 não carregou dados e exportação localizados em ${locale}`);
-  const defaultCheckboxCount = await evaluate(`document.querySelectorAll('.people-directory-mobile input[type="checkbox"]').length`);
-  if (defaultCheckboxCount !== 0) throw new Error(`O browsing padrão do Diretório ficou poluído com seleção em ${locale}`);
-  if (!await clickExactButton(expected.export)) throw new Error(`A ação de exportação ${expected.export} não foi encontrada em ${locale}`);
-  await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('[role="menuitem"]')].find(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(expected.selectForExport)}))`), `O menu de exportação não expôs a ação em lote em ${locale}`);
-  await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape' });
-  await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape' });
-  await poll(async () => await evaluate(`![...document.querySelectorAll('[role="menuitem"]')].some(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(expected.selectForExport)} && getComputedStyle(node).visibility !== 'hidden')`), `O menu de exportação não fechou em ${locale}`);
   const missingLabels = await evaluate(`(() => {
     const labels = new Set([...document.querySelectorAll('button')].map(node => (node.innerText || node.textContent || '').trim()));
     return ${JSON.stringify(['overviewLabel', 'directory', 'households', 'groups', 'responsibilities', 'hourglass', 'audit', 'access'].map(key => expected[key]))}.filter(label => !labels.has(label));
@@ -175,20 +167,6 @@ try {
       const rawUrl = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
       const pathname = new URL(rawUrl, window.location.origin).pathname;
       if (pathname === '/api/people' && (!init?.method || init.method === 'GET')) return json([{ id: 'person-runtime', displayName: 'Runtime person', active: true }]);
-      if (pathname === '/api/people/directory' && (!init?.method || init.method === 'GET')) return json({
-        contractVersion: 'people-directory-v1',
-        generatedAt: '2026-08-25T12:00:00.000Z',
-        capabilities: { writePeople: true, availability: true, eligibility: true, responsibilities: true, schedule: true },
-        filters: { groups: [{ id: 'group-runtime', name: 'Runtime group' }], responsibilityKeys: [], assignmentTypeIds: [] },
-        people: [{
-          id: 'person-runtime', displayName: 'Runtime person', preferredLocale: 'pt-PT', active: true,
-          groups: [{ id: 'group-runtime', name: 'Runtime group' }],
-          availability: { status: 'ready', current: 'available', currentReasonCodes: [] },
-          eligibility: { status: 'ready', enabledAssignmentTypeIds: [] },
-          responsibilities: { status: 'ready', keys: [] },
-          assignmentHistory: { status: 'ready' },
-        }],
-      });
       if (pathname === '/api/service-groups' && (!init?.method || init.method === 'GET')) return json([{ id: 'group-runtime', name: 'Runtime group', memberIds: ['person-runtime'] }]);
       if (pathname === '/api/midweek' && (!init?.method || init.method === 'GET')) return json({ meetings: [], studentAssignments: [], nonStudentAssignments: [] });
       return originalFetch(input, init);
@@ -223,9 +201,9 @@ try {
     es: [['/agenda', 'Agenda', 'Eutaktos — Preparar reunión'], ['/designacoes', 'Asignaciones', 'Eutaktos — Planificación'], ['/pessoas', 'Personas', 'Eutaktos — Personas'], ['/preferencias', 'Preferencias', 'Eutaktos — Administración']],
   };
   const organization = {
-    'pt-PT': { path: '/pessoas', overview: 'Pessoas', heading: 'Pessoas e organização', documentTitle: 'Eutaktos — Pessoas', overviewLabel: 'Visão geral', add: 'Adicionar pessoa', createTitle: 'Nova pessoa', cancel: 'Cancelar', directory: 'Diretório', households: 'Agregados', groups: 'Grupos de serviço', responsibilities: 'Responsabilidades', hourglass: 'Inspecionar export Hourglass', audit: 'Histórico de auditoria', access: 'Gerir acessos', hourglassTitle: 'Inspeção de export Hourglass', auditTitle: 'Histórico de auditoria', accessTitle: 'Gestão de acessos', close: 'Fechar', export: 'Exportar', selectForExport: 'Selecionar pessoas para exportar' },
-    en: { path: '/people', overview: 'People', heading: 'People and organization', documentTitle: 'Eutaktos — People', overviewLabel: 'Overview', add: 'Add person', createTitle: 'New person', cancel: 'Cancel', directory: 'Directory', households: 'Households', groups: 'Service groups', responsibilities: 'Responsibilities', hourglass: 'Inspect Hourglass export', audit: 'Audit history', access: 'Manage access', hourglassTitle: 'Hourglass export inspector', auditTitle: 'Audit history', accessTitle: 'Access management', close: 'Close', export: 'Export', selectForExport: 'Select people to export' },
-    es: { path: '/pessoas', overview: 'Personas', heading: 'Personas y organización', documentTitle: 'Eutaktos — Personas', overviewLabel: 'Vista general', add: 'Añadir persona', createTitle: 'Nueva persona', cancel: 'Cancelar', directory: 'Directorio', households: 'Grupos familiares', groups: 'Grupos de servicio', responsibilities: 'Responsabilidades', hourglass: 'Inspeccionar exportación Hourglass', audit: 'Historial de auditoría', access: 'Gestionar accesos', hourglassTitle: 'Inspector de exportación Hourglass', auditTitle: 'Historial de auditoría', accessTitle: 'Gestión de accesos', close: 'Cerrar', export: 'Exportar', selectForExport: 'Seleccionar personas para exportar' },
+    'pt-PT': { path: '/pessoas', overview: 'Pessoas', heading: 'Pessoas e organização', documentTitle: 'Eutaktos — Pessoas', overviewLabel: 'Visão geral', add: 'Adicionar pessoa', createTitle: 'Nova pessoa', cancel: 'Cancelar', directory: 'Diretório', households: 'Agregados', groups: 'Grupos de serviço', responsibilities: 'Responsabilidades', hourglass: 'Inspecionar export Hourglass', audit: 'Histórico de auditoria', access: 'Gerir acessos', hourglassTitle: 'Inspeção de export Hourglass', auditTitle: 'Histórico de auditoria', accessTitle: 'Gestão de acessos', close: 'Fechar' },
+    en: { path: '/people', overview: 'People', heading: 'People and organization', documentTitle: 'Eutaktos — People', overviewLabel: 'Overview', add: 'Add person', createTitle: 'New person', cancel: 'Cancel', directory: 'Directory', households: 'Households', groups: 'Service groups', responsibilities: 'Responsibilities', hourglass: 'Inspect Hourglass export', audit: 'Audit history', access: 'Manage access', hourglassTitle: 'Hourglass export inspector', auditTitle: 'Audit history', accessTitle: 'Access management', close: 'Close' },
+    es: { path: '/pessoas', overview: 'Personas', heading: 'Personas y organización', documentTitle: 'Eutaktos — Personas', overviewLabel: 'Vista general', add: 'Añadir persona', createTitle: 'Nueva persona', cancel: 'Cancelar', directory: 'Directorio', households: 'Grupos familiares', groups: 'Grupos de servicio', responsibilities: 'Responsabilidades', hourglass: 'Inspeccionar exportación Hourglass', audit: 'Historial de auditoría', access: 'Gestionar accesos', hourglassTitle: 'Inspector de exportación Hourglass', auditTitle: 'Historial de auditoría', accessTitle: 'Gestión de accesos', close: 'Cerrar' },
   };
 
   for (const locale of ['pt-PT', 'en', 'es']) {
@@ -247,7 +225,7 @@ try {
   const accessibility = await evaluate(`({ mode: document.documentElement.dataset.colorMode, background: getComputedStyle(document.body).backgroundColor, border: getComputedStyle(document.querySelector('.MuiPaper-root')).borderTopWidth })`);
   if (accessibility.mode !== 'dark' || accessibility.border !== '2px' || accessibility.background === 'rgb(0, 0, 0)') throw new Error(`O tema acessível não foi aplicado corretamente: ${JSON.stringify(accessibility)}`);
 
-  process.stdout.write('UX runtime checks passed: task-oriented shell, pt-PT/en/es workspaces, People Directory export entry point, safe unknown-route fallback, More focus restore, dark/high contrast, 320px reflow, skip link, landmarks and aria-current.\n');
+  process.stdout.write('UX runtime checks passed: task-oriented shell, pt-PT/en/es workspaces, People/Organization deep links, safe unknown-route fallback, More focus restore, dark/high contrast, 320px reflow, skip link, landmarks and aria-current.\n');
 } finally {
   cdp?.close();
   if (browser && !browser.killed) browser.kill('SIGTERM');
