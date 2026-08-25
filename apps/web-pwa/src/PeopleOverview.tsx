@@ -166,19 +166,42 @@ function dayKey(value: string): string | undefined {
   return match ? match[1] : undefined;
 }
 
-function isFutureScheduledMeeting(meeting: MidweekOverviewDto['meetings'][number], today: string): boolean {
-  return (meeting.state === 'draft' || meeting.state === 'published') && meeting.date >= today;
+/**
+ * Resolve the calendar date in the meeting's IANA timezone. This mirrors the
+ * timezone-aware formatting strategy used by the scheduling domain instead of
+ * using the browser/UTC date, which is wrong around local midnight.
+ */
+export function localDateKey(now: Date, timezone: string): string | undefined {
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(now);
+    const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+    if (!values.year || !values.month || !values.day) return undefined;
+    return `${values.year}-${values.month}-${values.day}`;
+  } catch {
+    return undefined;
+  }
 }
 
+function isFutureScheduledMeeting(meeting: MidweekOverviewDto['meetings'][number], now: Date): boolean {
+  if (meeting.state !== 'draft' && meeting.state !== 'published') return false;
+  const today = localDateKey(now, meeting.timezone);
+  return Boolean(today && meeting.date >= today);
+}
+
+/**
+ * Availability is an explicit unavailable interval regardless of its optional
+ * reasonCode. The reason describes the interval; it does not decide whether the
+ * interval makes the person available.
+ */
 function isUnavailableForMeeting(period: AvailabilityPeriodDto, meetingDate: string): boolean {
   const start = dayKey(period.startsAt);
   const end = dayKey(period.endsAt);
-  return (period.reasonCode === 'away' || period.reasonCode === 'unavailable')
-    && Boolean(start && end && start <= meetingDate && meetingDate < end);
-}
-
-function formatToday(now: Date): string {
-  return `${String(now.getUTCFullYear()).padStart(4, '0')}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`;
+  return Boolean(start && end && start <= meetingDate && meetingDate < end);
 }
 
 export function buildPeopleOverviewSummary(
@@ -187,9 +210,8 @@ export function buildPeopleOverviewSummary(
   periodsByPersonId: ReadonlyMap<string, readonly AvailabilityPeriodDto[]>,
   now = new Date(),
 ): PeopleOverviewSummary {
-  const today = formatToday(now);
   const meetingsById = new Map(midweek.meetings
-    .filter(meeting => isFutureScheduledMeeting(meeting, today))
+    .filter(meeting => isFutureScheduledMeeting(meeting, now))
     .map(meeting => [meeting.id, meeting] as const));
   const affected = new Map<string, AffectedAssignment>();
 
@@ -246,6 +268,7 @@ export function classifyPeopleOverviewProblem(error: unknown): PeopleOverviewPro
   const status = match ? Number(match[1]) : undefined;
   if (status === 401) return 'unauthenticated';
   if (status === 403) return 'forbidden';
+  if (status === 429) return 'retryable';
   if (status && status >= 400 && status < 500) return 'non-retryable';
   return 'retryable';
 }
@@ -258,9 +281,8 @@ function navigateToAssignments(): void {
 }
 
 function availabilityPersonIds(midweek: MidweekOverviewDto, now: Date): readonly string[] {
-  const today = formatToday(now);
   const scheduledMeetingIds = new Set(midweek.meetings
-    .filter(meeting => isFutureScheduledMeeting(meeting, today))
+    .filter(meeting => isFutureScheduledMeeting(meeting, now))
     .map(meeting => meeting.id));
   const personIds = new Set<string>();
   for (const assignment of midweek.studentAssignments) {
