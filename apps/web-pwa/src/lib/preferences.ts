@@ -34,8 +34,10 @@ function normalizePersistedBoolean(value: unknown): boolean {
 }
 
 export function resolvePaletteId(paletteId: PaletteId, colorMode: ColorMode, systemPrefersDark: boolean): PaletteId {
-  if (paletteId === 'dark' || colorMode === 'dark' || (colorMode === 'system' && systemPrefersDark)) return 'dark';
-  return paletteId;
+  if (colorMode === 'dark' || (colorMode === 'system' && systemPrefersDark)) return 'dark';
+  // `dark` used to double as a selectable palette. Color mode is now authoritative,
+  // so explicit/system-light must never remain dark because of that legacy value.
+  return paletteId === 'dark' ? 'classic' : paletteId;
 }
 
 export function normalizePreferences(input: Partial<Preferences> | null | undefined): Preferences {
