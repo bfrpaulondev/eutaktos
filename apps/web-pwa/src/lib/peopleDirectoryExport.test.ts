@@ -61,16 +61,18 @@ describe('People Directory capability-aware CSV export', () => {
     expect(row).toBe('Ana Martins,Ativo,pt-PT,Grupo 1,,,,,');
   });
 
-  it('is deterministic, escapes CSV content and neutralizes spreadsheet formulas', () => {
+  it('is deterministic, escapes CSV content and neutralizes direct or disguised spreadsheet formulas', () => {
     const formula = person({ id: 'person-2', displayName: '=HYPERLINK("https://bad.example")', groups: Object.freeze([{ id: 'group-2', name: 'Grupo, Dois' }]) });
+    const disguisedFormula = person({ id: 'person-3', displayName: ' \t=SUM(1+1)' });
     const first = person({ id: 'person-1', displayName: 'Ana Martins' });
-    const csv = exportPeopleDirectoryCsv([formula, first], fullCapabilities, 'en');
-    expect(csv).toBe(exportPeopleDirectoryCsv([first, formula], fullCapabilities, 'en'));
+    const csv = exportPeopleDirectoryCsv([formula, disguisedFormula, first], fullCapabilities, 'en');
+    expect(csv).toBe(exportPeopleDirectoryCsv([first, disguisedFormula, formula], fullCapabilities, 'en'));
     const dataRows = csv.split('\r\n').slice(1).filter(Boolean);
     expect(dataRows.some(row => row.startsWith('Ana Martins,'))).toBe(true);
     const formulaRow = dataRows.find(row => row.includes("'=HYPERLINK"));
     expect(formulaRow).toBeDefined();
     expect(formulaRow).toContain('"Grupo, Dois"');
+    expect(csv).toContain("' \t=SUM(1+1)");
   });
 
   it('uses a stable UTC filename', () => {
