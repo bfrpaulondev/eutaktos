@@ -23,3 +23,4 @@ export * from './migration-log';
 export * from './hourglass-import';
 export * from './hourglass-handoff';
 export * from './hourglass-planning';
+export * from './people-overview-evidence';
