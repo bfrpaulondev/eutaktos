@@ -153,9 +153,9 @@ async function verifyLocalizedOrganization(locale, expected) {
   if (!await clickExactButton(expected.export)) throw new Error(`A ação de exportação ${expected.export} não foi encontrada em ${locale}`);
   await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('[role="menuitem"]')].find(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(expected.selectForExport)}))`), `O menu de exportação não abriu em ${locale}`);
   if (!await clickExactMenuItem(expected.selectForExport)) throw new Error(`A seleção para exportação não foi encontrada em ${locale}`);
-  await poll(async () => await evaluate(`document.querySelectorAll('.people-directory-mobile input[type="checkbox"]').length === 1 && Boolean(document.querySelector('#main')?.textContent?.includes(${JSON.stringify(expected.selectionHelp)}))`), `O modo de seleção em lote não ficou explícito em ${locale}`);
+  await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(expected.finishSelection)})) && Boolean(document.querySelector('#main')?.textContent?.includes(${JSON.stringify(expected.selectionHelp)}))`), `O modo de seleção em lote não ficou explícito em ${locale}`);
   if (!await clickExactButton(expected.finishSelection)) throw new Error(`A conclusão da seleção em lote não foi encontrada em ${locale}`);
-  await poll(async () => await evaluate(`document.querySelectorAll('.people-directory-mobile input[type="checkbox"]').length === 0`), `A seleção em lote não saiu de forma limpa em ${locale}`);
+  await poll(async () => await evaluate(`![...document.querySelectorAll('button')].some(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(expected.finishSelection)})`), `A seleção em lote não saiu de forma limpa em ${locale}`);
   const missingLabels = await evaluate(`(() => {
     const labels = new Set([...document.querySelectorAll('button')].map(node => (node.innerText || node.textContent || '').trim()));
     return ${JSON.stringify(['overviewLabel', 'directory', 'households', 'groups', 'responsibilities', 'hourglass', 'audit', 'access'].map(key => expected[key]))}.filter(label => !labels.has(label));
