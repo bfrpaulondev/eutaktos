@@ -10,7 +10,7 @@ import {
 } from '@eutaktos/domain';
 import { requireCapability, resolvePrincipal } from '../_auth';
 import type { EntityRow } from '../_db';
-import { responsibilityDto, serviceGroupDto } from '../_entity-read';
+import { serviceGroupDto } from '../_entity-read';
 import { runEndpoint } from '../_endpoint';
 import { PeopleSnapshotUnitOfWork } from '../_uow';
 import { json, methodNotAllowed, type ApiHandler } from '../_types';
@@ -25,7 +25,6 @@ type AvailabilityReady = Readonly<{
 }>;
 type EligibilityReady = Readonly<{ status: 'ready'; enabledAssignmentTypeIds: readonly string[] }>;
 type ResponsibilitiesReady = Readonly<{ status: 'ready'; keys: readonly string[] }>;
-type AssignmentHistoryReady = Readonly<{ status: 'ready'; lastCompletedMeetingDate?: string }>;
 
 function storedEntity<T extends TenantEntity>(row: EntityRow, tenantId: string): Readonly<T> {
   if (row.tenant_id !== tenantId || !row.data || typeof row.data !== 'object' || Array.isArray(row.data)) throw new Error('Invalid stored directory entity');
