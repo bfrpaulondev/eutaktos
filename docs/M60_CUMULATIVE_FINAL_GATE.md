@@ -1,19 +1,23 @@
 # M60 — Cumulative recovery gate
 
+> **HISTORICAL RECOVERY EVIDENCE — NOT CURRENT DEPLOYMENT OR BACKLOG TRUTH.**
+>
+> This document records the recovery state that existed on 2026-08-23. Its references to the Rainbow Netlify project are historical and are **not** the current production target. Current canonical production is `https://eutakes.netlify.app/`, and current product priorities/status are controlled by `docs/AI_HANDOFF.md` and `docs/PRODUCT_EXPERIENCE_MASTER_PLAN.md`.
+
 ## Baseline
 
 | Field | Value |
 |---|---|
 | Main baseline | `15da4af92faef8cd766ebcf610542e8d1464f38e` |
-| Canonical production | `https://rainbow-zuccutto-00d981.netlify.app/` |
+| Historical production target used by this recovery run | `https://rainbow-zuccutto-00d981.netlify.app/` |
 | Recovery date | 2026-08-23 Europe/Lisbon |
 | Scope | Consolidated frontend/PWA/source gates plus unauthenticated production runtime smoke |
 
-This document supersedes the previous M50/M53/M54/M60 evidence that used `eutakes.netlify.app` or was produced before M55–M59 were integrated.
+This document superseded the previous M50/M53/M54/M60 evidence **for that historical recovery run only**. It does not supersede the current Product Experience source of truth.
 
 ## Consolidated changes
 
-The following recovery lot is now on `main`:
+The following recovery lot was on `main` at that time:
 
 - PR #191 — stale Midweek overview responses cannot overwrite a newer retry;
 - PR #192 — audit dialog description/loading accessibility hardening;
@@ -23,7 +27,7 @@ The following recovery lot is now on `main`:
 - PR #198 — expanded canonical/deep-link navigation matrix;
 - PR #199 — sanitized rendered-layout regression at 320/390/1440 px, corrected during review and included in the permanent browser regression gate.
 
-PRs #190, #193, #194 and #200 were closed without merge because their evidence was obsolete, non-cumulative or tied to the wrong production deployment.
+PRs #190, #193, #194 and #200 were closed without merge because their evidence was obsolete, non-cumulative or tied to the wrong production deployment for that recovery pass.
 
 ## Source and browser gates
 
@@ -43,11 +47,11 @@ PR #199 was not merged until the corrected cumulative gate passed:
 
 During review, an intermittent Chromium test-harness `DOMStorage` frame error was observed in the pre-existing UX runtime gate. A rerun on the same code passed the full browser suite. It is recorded as test-infrastructure flakiness, not converted into a product PASS/FAIL claim.
 
-## Canonical Rainbow production smoke
+## Historical Rainbow production smoke
 
-A disposable, non-merged PR #202 ran a GitHub Actions job directly against the canonical production host. Workflow run `32604915171` completed successfully.
+A disposable, non-merged PR #202 ran a GitHub Actions job directly against the Rainbow host. Workflow run `32604915171` completed successfully.
 
-Observed responses:
+Observed responses at that historical point:
 
 | Request | Result |
 |---|---|
@@ -56,9 +60,7 @@ Observed responses:
 | `GET /api/health` | `200 application/json` — `{"status":"ok","service":"eutaktos-api"}` |
 | `GET /api/ready` | `200 application/json` — `{"status":"ready","database":"reachable"}` |
 
-Therefore the earlier `503 database: unconfigured` finding does **not** apply to the canonical Rainbow production deployment. That result came from the wrong Netlify project.
-
-The smoke test proves public shell/deep-link/API health/readiness at the time of the run. It does not assert the exact deployed Git SHA because the production API currently exposes no release-SHA endpoint.
+The smoke test proved public shell/deep-link/API health/readiness for that host at the time of the run. It does not assert the current production target or current deployed Git SHA.
 
 ## Acceptance matrix
 
@@ -67,11 +69,11 @@ The smoke test proves public shell/deep-link/API health/readiness at the time of
 | Source/typecheck/unit/build | PASS | Consolidated CI evidence |
 | Browser/PWA regression | PASS | Full gate including M59 passed before merge |
 | Responsive automated baseline | PASS | 320/390/1440 rendered-layout gate plus existing UX reflow checks |
-| Navigation/deep links | PASS | Source/browser tests and real Rainbow `/pessoas` smoke |
+| Navigation/deep links | PASS | Source/browser tests and historical Rainbow `/pessoas` smoke |
 | PWA privacy/cache guards | PASS | Repeatable source/build gate |
-| Rainbow public shell | PASS | Direct production smoke |
-| Rainbow API health | PASS | Direct production smoke |
-| Rainbow database readiness | PASS | Direct production smoke reports `database: reachable` |
+| Historical Rainbow public shell | PASS | Direct historical production smoke |
+| Historical Rainbow API health | PASS | Direct historical production smoke |
+| Historical Rainbow database readiness | PASS | Direct historical production smoke reports `database: reachable` |
 | Authenticated pilot session | NOT TESTED | No authorized pilot credential/session was used in this recovery gate |
 | People/Organization real CRUD in production | NOT TESTED | Requires authorized pilot session and disposable pilot records |
 | Access/Audit real mutations in production | NOT TESTED | Requires authorized pilot session |
@@ -80,10 +82,8 @@ The smoke test proves public shell/deep-link/API health/readiness at the time of
 | External notification provider delivery | NOT TESTED | Requires configured real provider; pending intent is not delivery |
 | Physical iOS/Android install/keyboard/rotation | NOT TESTED | No physical-device run in this recovery gate |
 
-## Verdict
+## Historical verdict
 
-**Recovery consolidation is accepted for source, automated browser/PWA gates and unauthenticated canonical production runtime readiness.**
+**Recovery consolidation was accepted for source, automated browser/PWA gates and unauthenticated runtime readiness in the environment used by this 2026-08-23 recovery run.**
 
-The project is no longer blocked by an unconfigured production database on the canonical Rainbow deployment. The next acceptance boundary is authenticated pilot E2E, not more frontend evidence documents.
-
-A task is considered DONE only after review, integration to `main`, Rainbow deployment and the relevant production validation have all succeeded.
+Do not use this verdict as current Product Experience acceptance. Current work follows the People-first master plan and canonical `eutakes.netlify.app` production target.
