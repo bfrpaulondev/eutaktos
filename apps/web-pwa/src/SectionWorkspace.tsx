@@ -46,7 +46,10 @@ function pushOrganizationView(next: OrganizationView): void {
   const search = params.toString();
   const target = `${window.location.pathname}${search ? `?${search}` : ''}${window.location.hash}`;
   const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-  if (target !== current) window.history.pushState({ peopleView: next }, '', target);
+  if (target !== current) {
+    window.history.pushState({ peopleView: next }, '', target);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  }
 }
 
 function OrganizationWorkspace({ locale }: { locale: Locale }) {
