@@ -4,18 +4,20 @@ import {
   createAuditEvent,
   createDomainEvent,
   normalizeDisplayName,
+  normalizePersonContactDetails,
   type AccessContext,
   type AuditEvent,
   type CongregationPerson,
   type DomainEvent,
+  type PersonContactDetails,
   type PersonId,
 } from '@eutaktos/domain';
 
 export interface RequestMetadata { correlationId?: string; }
-export interface CreatePersonInput { displayName: string; preferredLocale?: string; active?: boolean; }
+export interface CreatePersonInput { displayName: string; preferredLocale?: string; active?: boolean; contact?: PersonContactDetails; }
 export interface CreateImportedPersonInput { externalId: string; displayName: string; preferredLocale?: string; }
 export interface LinkExternalPersonReferenceInput { personId: PersonId; externalId: string; }
-export interface UpdatePersonProfileInput { personId: PersonId; displayName?: string; preferredLocale?: string | null; active?: boolean; }
+export interface UpdatePersonProfileInput { personId: PersonId; displayName?: string; preferredLocale?: string | null; active?: boolean; contact?: PersonContactDetails | null; }
 export interface PersonChange { person: CongregationPerson; auditEvent: Readonly<AuditEvent>; domainEvent: Readonly<DomainEvent>; }
 
 /** This boundary commits the person, audit row and outbox event atomically. */
@@ -55,17 +57,13 @@ export class PeopleDirectoryService {
 
   create(context: AccessContext, input: CreatePersonInput, metadata: RequestMetadata = {}): CongregationPerson { return this.#create(context, input, [], metadata); }
 
-  /**
-   * Internal import path. Imported people are deliberately inactive until an
-   * authorized user verifies their operational status; source status is never inferred.
-   */
+  /** Internal import path. Imported people are inactive until an authorized human verifies status. */
   createImported(context: AccessContext, input: CreateImportedPersonInput, metadata: RequestMetadata = {}): CongregationPerson {
     const externalId = normalizeExternalId(input.externalId);
     if (this.#unitOfWork.list(context).some(person => externalIdsOf(person).includes(externalId))) throw new Error('External person reference already exists');
     return this.#create(context, { displayName: input.displayName, ...(input.preferredLocale ? { preferredLocale: input.preferredLocale } : {}), active: false }, [externalId], metadata);
   }
 
-  /** Links an explicit source identifier to an existing person after a human conflict decision. */
   linkExternalReference(context: AccessContext, input: LinkExternalPersonReferenceInput, metadata: RequestMetadata = {}): CongregationPerson {
     assertCapability(context, 'people.read'); assertCapability(context, 'people.write');
     const externalId = normalizeExternalId(input.externalId);
@@ -85,13 +83,17 @@ export class PeopleDirectoryService {
     const existing = this.#unitOfWork.findById(context, input.personId);
     if (!existing) throw new Error('Person not found');
     assertResourceTenant(context, existing);
-    let displayName = existing.displayName; let preferredLocale = existing.preferredLocale; let active = existing.active;
+    let displayName = existing.displayName; let preferredLocale = existing.preferredLocale; let active = existing.active; let contact = existing.contact;
     const changedFields: string[] = [];
     if (input.displayName !== undefined) { const next = normalizeDisplayName(input.displayName); if (next !== displayName) { displayName = next; changedFields.push('displayName'); } }
     if (input.preferredLocale !== undefined) { const next = input.preferredLocale === null ? undefined : normalizeLocale(input.preferredLocale); if (next !== preferredLocale) { preferredLocale = next; changedFields.push('preferredLocale'); } }
     if (input.active !== undefined && input.active !== active) { active = input.active; changedFields.push('active'); }
+    if (input.contact !== undefined) {
+      const next = normalizePersonContactDetails(input.contact);
+      if (JSON.stringify(next ?? null) !== JSON.stringify(contact ?? null)) { contact = next; changedFields.push('contact'); }
+    }
     if (changedFields.length === 0) return existing;
-    const person: CongregationPerson = { ...existing, displayName, ...(preferredLocale ? { preferredLocale } : { preferredLocale: undefined }), active, availability: existing.availability, eligibility: existing.eligibility, emergencyContacts: existing.emergencyContacts };
+    const person: CongregationPerson = { ...existing, displayName, ...(preferredLocale ? { preferredLocale } : { preferredLocale: undefined }), active, ...(contact ? { contact } : { contact: undefined }), availability: existing.availability, eligibility: existing.eligibility, emergencyContacts: existing.emergencyContacts };
     const occurredAt = this.#runtime.now();
     return this.#unitOfWork.commitUpdate(context, { person, auditEvent: createAuditEvent({ id: this.#runtime.nextId('audit'), tenantId: context.tenantId, resourceType: 'person', resourceId: person.id, action: 'update', actorId: context.actorId, occurredAt, changedFields }), domainEvent: createDomainEvent({ id: this.#runtime.nextId('event'), tenantId: context.tenantId, type: 'PersonUpdated', aggregateId: person.id, actorId: context.actorId, occurredAt, schemaVersion: 1, ...eventCorrelation(metadata) }) });
   }
@@ -101,8 +103,9 @@ export class PeopleDirectoryService {
     const occurredAt = this.#runtime.now();
     const personId = this.#runtime.nextId('person');
     const preferredLocale = input.preferredLocale ? normalizeLocale(input.preferredLocale) : undefined;
-    const person: CongregationPerson = { id: personId, tenantId: context.tenantId, displayName: normalizeDisplayName(input.displayName), ...(preferredLocale ? { preferredLocale } : {}), active: input.active ?? true, availability: [], eligibility: [], emergencyContacts: [], ...(externalIds.length ? { externalIds: Object.freeze([...externalIds]) } : {}) };
-    const changedFields = [ 'active', 'displayName', ...(preferredLocale ? ['preferredLocale'] : []), ...(externalIds.length ? ['externalReferences'] : []) ];
+    const contact = normalizePersonContactDetails(input.contact);
+    const person: CongregationPerson = { id: personId, tenantId: context.tenantId, displayName: normalizeDisplayName(input.displayName), ...(preferredLocale ? { preferredLocale } : {}), active: input.active ?? true, ...(contact ? { contact } : {}), availability: [], eligibility: [], emergencyContacts: [], ...(externalIds.length ? { externalIds: Object.freeze([...externalIds]) } : {}) };
+    const changedFields = ['active', 'displayName', ...(preferredLocale ? ['preferredLocale'] : []), ...(contact ? ['contact'] : []), ...(externalIds.length ? ['externalReferences'] : [])];
     return this.#unitOfWork.commitCreate(context, { person, auditEvent: createAuditEvent({ id: this.#runtime.nextId('audit'), tenantId: context.tenantId, resourceType: 'person', resourceId: personId, action: 'create', actorId: context.actorId, occurredAt, changedFields }), domainEvent: createDomainEvent({ id: this.#runtime.nextId('event'), tenantId: context.tenantId, type: 'PersonCreated', aggregateId: personId, actorId: context.actorId, occurredAt, schemaVersion: 1, ...eventCorrelation(metadata) }) });
   }
 }
