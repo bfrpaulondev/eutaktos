@@ -1,22 +1,32 @@
-export type AppSection = 'home' | 'agenda' | 'assignments' | 'people' | 'preferences';
+export type AppSection = 'home' | 'prepare' | 'people' | 'organization' | 'planning' | 'administration';
+export type PrepareMeetingView = 'agenda' | 'assignments';
 
 export const SECTION_PATHS: Readonly<Record<AppSection, string>> = Object.freeze({
   home: '/',
-  agenda: '/agenda',
-  assignments: '/designacoes',
+  prepare: '/preparar-reuniao',
   people: '/pessoas',
-  preferences: '/preferencias',
+  organization: '/organizacao',
+  planning: '/planeamento',
+  administration: '/administracao',
 });
 
 const PATH_SECTIONS: Readonly<Record<string, AppSection>> = Object.freeze({
   '/': 'home',
-  '/agenda': 'agenda',
-  '/designacoes': 'assignments',
-  '/assignments': 'assignments',
+  '/preparar-reuniao': 'prepare',
+  '/prepare-meeting': 'prepare',
+  '/agenda': 'prepare',
+  '/designacoes': 'prepare',
+  '/assignments': 'prepare',
   '/pessoas': 'people',
   '/people': 'people',
-  '/preferencias': 'preferences',
-  '/preferences': 'preferences',
+  '/organizacao': 'organization',
+  '/organization': 'organization',
+  '/planeamento': 'planning',
+  '/planning': 'planning',
+  '/administracao': 'administration',
+  '/administration': 'administration',
+  '/preferencias': 'administration',
+  '/preferences': 'administration',
 });
 
 export function normalizeAppPath(pathname: string): string {
@@ -28,4 +38,13 @@ export function normalizeAppPath(pathname: string): string {
 
 export function sectionFromPath(pathname: string): AppSection {
   return PATH_SECTIONS[normalizeAppPath(pathname)] ?? 'home';
+}
+
+/**
+ * Legacy Agenda/Designações deep links remain first-class while the new top-level
+ * information architecture groups both under "Preparar reunião".
+ */
+export function prepareMeetingViewFromPath(pathname: string): PrepareMeetingView {
+  const path = normalizeAppPath(pathname);
+  return path === '/designacoes' || path === '/assignments' ? 'assignments' : 'agenda';
 }
