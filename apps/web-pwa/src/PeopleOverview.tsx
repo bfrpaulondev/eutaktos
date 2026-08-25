@@ -12,12 +12,15 @@ import Skeleton from 'antd/es/skeleton';
 import Space from 'antd/es/space';
 import Tag from 'antd/es/tag';
 import Typography from 'antd/es/typography';
+import { theme } from 'antd';
 import type { AvailabilityPeriodDto } from './lib/availabilityApi';
 import { availabilityApi } from './lib/availabilityApi';
 import type { MidweekOverviewDto } from './lib/midweekApi';
 import { midweekApi } from './lib/midweekApi';
 import type { PersonProfileDto } from './lib/peopleApi';
 import { peopleApi } from './lib/peopleApi';
+import type { ServiceGroupDto } from './lib/serviceGroupsApi';
+import { serviceGroupsApi } from './lib/serviceGroupsApi';
 import type { Locale } from './lib/preferences';
 
 const { Paragraph, Text, Title } = Typography;
@@ -59,10 +62,14 @@ const copy = {
     directory: 'Diretório',
     people: 'pessoas',
     person: 'pessoa',
+    groups: 'grupos de serviço',
+    group: 'grupo de serviço',
+    attentionItems: 'itens requerem atenção',
+    attentionItem: 'item requer atenção',
     activePeople: 'perfis ativos',
     activePerson: 'perfil ativo',
     loading: 'A carregar os dados de Pessoas…',
-    loadingDetails: 'A analisar designações e ausências…',
+    loadingDetails: 'A analisar designações, ausências e grupos…',
     attention: 'Precisa da sua atenção',
     affectedTitle: 'pessoas com designações afetadas por ausência',
     affectedSingularTitle: 'pessoa com designações afetadas por ausência',
@@ -70,6 +77,7 @@ const copy = {
     reviewAssignments: 'Rever designações',
     partial: 'Alguns dados necessários para identificar designações afetadas estão temporariamente indisponíveis. Os itens apresentados usam apenas os dados recebidos.',
     scheduleUnavailable: 'Não foi possível verificar designações e ausências neste momento. O resumo de pessoas continua disponível.',
+    groupsUnavailable: 'Não foi possível verificar os grupos de serviço neste momento. O resumo de pessoas continua disponível.',
     noAttention: 'Não existem designações futuras afetadas por ausências nos dados disponíveis.',
     emptyTitle: 'Ainda não existem pessoas',
     emptyDescription: 'Adicione a primeira pessoa para começar a organizar perfis e disponibilidade.',
@@ -95,10 +103,14 @@ const copy = {
     directory: 'Directory',
     people: 'people',
     person: 'person',
+    groups: 'service groups',
+    group: 'service group',
+    attentionItems: 'items need attention',
+    attentionItem: 'item needs attention',
     activePeople: 'active profiles',
     activePerson: 'active profile',
     loading: 'Loading People data…',
-    loadingDetails: 'Checking assignments and away periods…',
+    loadingDetails: 'Checking assignments, away periods and groups…',
     attention: 'Needs your attention',
     affectedTitle: 'people have assignments affected by an absence',
     affectedSingularTitle: 'person has assignments affected by an absence',
@@ -106,6 +118,7 @@ const copy = {
     reviewAssignments: 'Review assignments',
     partial: 'Some data needed to identify affected assignments is temporarily unavailable. The items shown use only data that was received.',
     scheduleUnavailable: 'Assignments and away periods could not be checked right now. The people summary remains available.',
+    groupsUnavailable: 'Service groups could not be checked right now. The people summary remains available.',
     noAttention: 'No future assignments are affected by away periods in the available data.',
     emptyTitle: 'There are no people yet',
     emptyDescription: 'Add the first person to start organizing profiles and availability.',
@@ -131,10 +144,14 @@ const copy = {
     directory: 'Directorio',
     people: 'personas',
     person: 'persona',
+    groups: 'grupos de servicio',
+    group: 'grupo de servicio',
+    attentionItems: 'elementos requieren atención',
+    attentionItem: 'elemento requiere atención',
     activePeople: 'perfiles activos',
     activePerson: 'perfil activo',
     loading: 'Cargando los datos de Personas…',
-    loadingDetails: 'Revisando asignaciones y períodos de ausencia…',
+    loadingDetails: 'Revisando asignaciones, períodos de ausencia y grupos…',
     attention: 'Requiere su atención',
     affectedTitle: 'personas tienen asignaciones afectadas por una ausencia',
     affectedSingularTitle: 'persona tiene asignaciones afectadas por una ausencia',
@@ -142,6 +159,7 @@ const copy = {
     reviewAssignments: 'Revisar asignaciones',
     partial: 'Algunos datos necesarios para identificar asignaciones afectadas no están disponibles temporalmente. Los elementos mostrados usan solo los datos recibidos.',
     scheduleUnavailable: 'No se pudieron revisar las asignaciones y los períodos de ausencia por ahora. El resumen de personas sigue disponible.',
+    groupsUnavailable: 'No se pudieron revisar los grupos de servicio por ahora. El resumen de personas sigue disponible.',
     noAttention: 'No hay asignaciones futuras afectadas por ausencias en los datos disponibles.',
     emptyTitle: 'Todavía no hay personas',
     emptyDescription: 'Añada la primera persona para empezar a organizar perfiles y disponibilidad.',
@@ -258,6 +276,10 @@ export function buildPeopleOverviewSummary(
   });
 }
 
+export function countServiceGroups(groups: readonly ServiceGroupDto[]): number {
+  return groups.length;
+}
+
 export function isCurrentPeopleOverviewRequest(requestVersion: number, currentVersion: number, aborted: boolean): boolean {
   return requestVersion === currentVersion && !aborted;
 }
@@ -274,10 +296,11 @@ export function classifyPeopleOverviewProblem(error: unknown): PeopleOverviewPro
 }
 
 function navigateToAssignments(): void {
-  if (window.location.pathname !== '/designacoes') {
-    window.history.pushState({ section: 'assignments' }, '', '/designacoes');
-    window.dispatchEvent(new PopStateEvent('popstate'));
-  }
+  if (window.location.pathname === '/designacoes' && !window.location.search && !window.location.hash) return;
+  window.history.pushState({ section: 'assignments' }, '', '/designacoes');
+  window.dispatchEvent(new PopStateEvent('popstate'));
+  window.scrollTo({ top: 0, behavior: 'auto' });
+  window.requestAnimationFrame(() => document.getElementById('main')?.focus({ preventScroll: true }));
 }
 
 function availabilityPersonIds(midweek: MidweekOverviewDto, now: Date): readonly string[] {
@@ -305,9 +328,11 @@ export function PeopleOverview({ locale, onOpenDirectory, onAddPerson }: { local
   const text = copy[locale];
   const [people, setPeople] = useState<QueryState<readonly PersonProfileDto[]>>({ status: 'loading' });
   const [midweek, setMidweek] = useState<QueryState<MidweekOverviewDto>>({ status: 'loading' });
+  const [serviceGroups, setServiceGroups] = useState<QueryState<readonly ServiceGroupDto[]>>({ status: 'loading' });
   const [availability, setAvailability] = useState<AvailabilityState>({ status: 'idle' });
   const requestVersionRef = useRef(0);
   const controllerRef = useRef<AbortController | null>(null);
+  const { token } = theme.useToken();
 
   const load = async () => {
     const requestVersion = ++requestVersionRef.current;
@@ -316,12 +341,14 @@ export function PeopleOverview({ locale, onOpenDirectory, onAddPerson }: { local
     controllerRef.current = controller;
     setPeople({ status: 'loading' });
     setMidweek({ status: 'loading' });
+    setServiceGroups({ status: 'loading' });
     setAvailability({ status: 'idle' });
 
     const accept = () => isCurrentPeopleOverviewRequest(requestVersion, requestVersionRef.current, controller.signal.aborted);
-    const [peopleResult, midweekResult] = await Promise.allSettled([
+    const [peopleResult, midweekResult, serviceGroupsResult] = await Promise.allSettled([
       peopleApi.list(controller.signal),
       midweekApi.overview(controller.signal),
+      serviceGroupsApi.list(controller.signal),
     ]);
     if (!accept()) return;
 
@@ -329,6 +356,8 @@ export function PeopleOverview({ locale, onOpenDirectory, onAddPerson }: { local
     else setPeople({ status: 'error', error: peopleResult.reason });
     if (midweekResult.status === 'fulfilled') setMidweek({ status: 'ready', value: midweekResult.value });
     else setMidweek({ status: 'error', error: midweekResult.reason });
+    if (serviceGroupsResult.status === 'fulfilled') setServiceGroups({ status: 'ready', value: serviceGroupsResult.value });
+    else setServiceGroups({ status: 'error', error: serviceGroupsResult.reason });
 
     if (peopleResult.status !== 'fulfilled' || midweekResult.status !== 'fulfilled') {
       setAvailability({ status: 'idle' });
@@ -370,9 +399,9 @@ export function PeopleOverview({ locale, onOpenDirectory, onAddPerson }: { local
     return buildPeopleOverviewSummary(people.value, midweek.value, availability.periodsByPersonId);
   }, [availability, midweek, people]);
   const showingInitialLoading = people.status === 'loading';
-  const isLoadingDetails = people.status === 'ready' && (midweek.status === 'loading' || availability.status === 'loading');
+  const isLoadingDetails = people.status === 'ready' && (midweek.status === 'loading' || serviceGroups.status === 'loading' || availability.status === 'loading');
   const affectedCount = summary ? countAffectedPeople(summary.affectedPeople) : 0;
-  const hasPartialData = midweek.status === 'error' || availability.status === 'partial' || availability.status === 'error';
+  const hasPartialData = midweek.status === 'error' || serviceGroups.status === 'error' || availability.status === 'partial' || availability.status === 'error';
 
   if (primaryProblem === 'unauthenticated' || primaryProblem === 'forbidden') {
     return <section aria-label={text.title}>
@@ -436,7 +465,7 @@ export function PeopleOverview({ locale, onOpenDirectory, onAddPerson }: { local
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginTop: 24 }}>
         <Card size="small">
           <Space direction="vertical" size={2}>
-            <Text type="secondary">{text.people}</Text>
+            <Text type="secondary">{people.value.length === 1 ? text.person : text.people}</Text>
             <Title level={2} style={{ margin: 0 }}>{people.value.length}</Title>
           </Space>
         </Card>
@@ -446,6 +475,18 @@ export function PeopleOverview({ locale, onOpenDirectory, onAddPerson }: { local
             <Title level={2} style={{ margin: 0 }}>{people.value.filter(person => person.active).length}</Title>
           </Space>
         </Card>
+        {serviceGroups.status === 'ready' ? <Card size="small">
+          <Space direction="vertical" size={2}>
+            <Text type="secondary">{countServiceGroups(serviceGroups.value) === 1 ? text.group : text.groups}</Text>
+            <Title level={2} style={{ margin: 0 }}>{countServiceGroups(serviceGroups.value)}</Title>
+          </Space>
+        </Card> : null}
+        {summary && availability.status === 'ready' ? <Card size="small">
+          <Space direction="vertical" size={2}>
+            <Text type="secondary">{affectedCount === 1 ? text.attentionItem : text.attentionItems}</Text>
+            <Title level={2} style={{ margin: 0 }}>{affectedCount}</Title>
+          </Space>
+        </Card> : null}
       </div>
     </Card>
 
@@ -457,14 +498,15 @@ export function PeopleOverview({ locale, onOpenDirectory, onAddPerson }: { local
         </div>
 
         {isLoadingDetails ? <Card aria-busy="true"><Space direction="vertical" size="small" style={{ display: 'flex' }}><Skeleton active title={{ width: '42%' }} paragraph={{ rows: 2 }} /><Text role="status" type="secondary">{text.loadingDetails}</Text></Space></Card> : null}
+        {serviceGroups.status === 'error' ? <Alert type="warning" showIcon message={text.groupsUnavailable} action={<Button size="small" onClick={() => void load()}>{text.retry}</Button>} /> : null}
         {midweek.status === 'error' ? <Alert type="warning" showIcon message={text.scheduleUnavailable} action={<Button size="small" onClick={() => void load()}>{text.retry}</Button>} /> : null}
         {availability.status === 'partial' ? <Alert type="warning" showIcon message={text.partial} action={<Button size="small" onClick={() => void load()}>{text.retry}</Button>} /> : null}
         {availability.status === 'error' ? <Alert type="warning" showIcon message={text.scheduleUnavailable} action={<Button size="small" onClick={() => void load()}>{text.retry}</Button>} /> : null}
 
-        {summary && affectedCount > 0 ? <Card style={{ borderInlineStart: '4px solid var(--ant-color-warning)' }}>
+        {summary && affectedCount > 0 ? <Card style={{ borderInlineStart: `4px solid ${token.colorWarning}` }}>
           <Space direction="vertical" size="small" style={{ display: 'flex' }}>
             <Space align="start">
-              <ExclamationCircleOutlined aria-hidden="true" style={{ color: 'var(--ant-color-warning)', fontSize: 20, marginTop: 3 }} />
+              <ExclamationCircleOutlined aria-hidden="true" style={{ color: token.colorWarning, fontSize: 20, marginTop: 3 }} />
               <div>
                 <Title level={3} style={{ margin: 0 }}>{affectedCount} {affectedCount === 1 ? text.affectedSingularTitle : text.affectedTitle}</Title>
                 <Paragraph type="secondary" style={{ margin: '4px 0 0' }}>{text.affectedDescription}</Paragraph>

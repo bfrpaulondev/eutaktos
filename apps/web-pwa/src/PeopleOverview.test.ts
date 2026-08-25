@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
   buildPeopleOverviewSummary,
   classifyPeopleOverviewProblem,
+  countServiceGroups,
   isCurrentPeopleOverviewRequest,
   localDateKey,
 } from './PeopleOverview';
 import type { MidweekOverviewDto } from './lib/midweekApi';
 import type { PersonProfileDto } from './lib/peopleApi';
+import type { ServiceGroupDto } from './lib/serviceGroupsApi';
 
 const people: readonly PersonProfileDto[] = [
   { id: 'person-1', displayName: 'Ana Martins', active: true },
@@ -30,6 +32,16 @@ const midweek: MidweekOverviewDto = {
 };
 
 describe('People Overview summary', () => {
+  it('counts only the service groups returned by the authorized API contract', () => {
+    const groups: readonly ServiceGroupDto[] = [
+      { id: 'group-1', name: 'Centro', memberIds: ['person-1'] },
+      { id: 'group-2', name: 'Norte', memberIds: [] },
+    ];
+
+    expect(countServiceGroups(groups)).toBe(2);
+    expect(countServiceGroups([])).toBe(0);
+  });
+
   it('uses the people and scheduling contracts without inventing metrics or alerts', () => {
     const summary = buildPeopleOverviewSummary(people, midweek, new Map([
       ['person-1', [{ id: 'away-1', startsAt: '2030-05-14', endsAt: '2030-05-16', reasonCode: 'away' }]],
