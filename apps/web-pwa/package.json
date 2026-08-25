@@ -17,6 +17,7 @@
     "test:visual-sanitized": "node scripts/verify-sanitized-visual.mjs"
   },
   "dependencies": {
+    "@ant-design/icons": "^6.3.2",
     "@eutaktos/application": "file:../../packages/application",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
