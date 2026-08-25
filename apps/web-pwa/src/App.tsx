@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { CssBaseline, ThemeProvider } from '@mui/material';
+import { AppRecoveryBoundary } from './AppRecoveryBoundary';
 import { PwaConnectionStatus } from './PwaConnectionStatus';
 import { PwaUpdateRecovery } from './PwaUpdateRecovery';
 import {
@@ -49,9 +50,11 @@ export default function App() {
 
   return <ThemeProvider theme={theme}>
     <CssBaseline />
-    <Suspense fallback={<main id="main" tabIndex={-1} style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', padding: 24 }}><p role="status">A carregar área…</p></main>}>
-      <TaskShell preferences={preferences} setPreferences={setPreferences} />
-    </Suspense>
+    <AppRecoveryBoundary locale={preferences.locale}>
+      <Suspense fallback={<main id="main" tabIndex={-1} style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', padding: 24 }}><p role="status">A carregar área…</p></main>}>
+        <TaskShell preferences={preferences} setPreferences={setPreferences} />
+      </Suspense>
+    </AppRecoveryBoundary>
     <PwaConnectionStatus locale={preferences.locale} />
     <PwaUpdateRecovery />
   </ThemeProvider>;
