@@ -1,5 +1,9 @@
 # M50 Final V1 Acceptance — Reviewed
 
+> **HISTORICAL V1/PILOT EVIDENCE — NOT THE ACTIVE PRODUCT BACKLOG.**
+>
+> This document predates the Product Experience reset. Its PASS/BLOCKED statements describe that historical acceptance scope and do not certify the current People-first Product Experience. Use `docs/AI_HANDOFF.md` and `docs/PRODUCT_EXPERIENCE_MASTER_PLAN.md` for current status.
+
 ## Baseline
 
 | Campo | Valor |

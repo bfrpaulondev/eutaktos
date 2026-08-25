@@ -1,5 +1,9 @@
 # Eutaktos — frontend pilot acceptance
 
+> **HISTORICAL ACCEPTANCE EVIDENCE — NOT THE ACTIVE PRODUCT BACKLOG.**
+>
+> This document records the pre-Product-Experience pilot state. Current UI/UX priorities and completion status are controlled by `docs/AI_HANDOFF.md` and `docs/PRODUCT_EXPERIENCE_MASTER_PLAN.md`. A PASS here does not certify the rebuilt Product Experience as complete.
+
 Date: 2026-08-24
 
 Canonical production: `https://eutakes.netlify.app/`

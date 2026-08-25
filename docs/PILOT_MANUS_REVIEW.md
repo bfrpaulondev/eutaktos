@@ -1,5 +1,9 @@
 # Eutaktos — principal review of Manus pilot queue
 
+> **HISTORICAL WORKER/ACCEPTANCE EVIDENCE — NOT AN ACTIVE QUEUE.**
+>
+> This record is retained to show what was delivered versus what the principal actually accepted during the pre-Product-Experience pilot. Current tasks and completion status are controlled by `docs/AI_HANDOFF.md`, `docs/PRODUCT_EXPERIENCE_MASTER_PLAN.md` and coordination issue #268.
+
 Date: 2026-08-24
 
 Final frontend acceptance base: `3d0880a5dd6f350a373de36bd47777835e0fa6fe`
@@ -15,7 +19,7 @@ This record distinguishes work delivered by Manus from work actually accepted af
 | MP5 — PWA update/offline | **PASS** | PR #253 adds real controller lifecycle tests for waiting workers, `SKIP_WAITING`, one-time reload, disposal and update checks. Existing PWA privacy/service-worker gates remain authoritative. |
 | MP6 — browser privacy | **PASS via existing real gate; Manus PR rejected** | PR #255 was closed without merge because most tests asserted constants/comments or used no-op assertions. `npm run test:pwa-privacy --workspace @eutaktos/web-pwa` scans actual production source/storage access and service-worker cache rules and is part of browser regression. |
 | MP7 — navigation/deep links | **PASS** | PR #250 was corrected to remove a no-op auth/deep-link assertion and now tests the real navigation helpers. Production-mount/UX-runtime/visual gates provide rendered deep-link evidence. |
-| MP8 — final frontend acceptance | **PASS** | Principal PR #265 regenerates the final acceptance record after KP1-KP8 integration, includes the MP1 Home correction, and passed full quality + browser-regression. Canonical report: `docs/PILOT_FRONTEND_ACCEPTANCE.md`. |
+| MP8 — final frontend acceptance | **PASS** | Principal PR #265 regenerates the final acceptance record after KP1-KP8 integration, includes the MP1 Home correction, and passed full quality + browser-regression. Canonical historical report: `docs/PILOT_FRONTEND_ACCEPTANCE.md`. |
 
 ## Combined frontend gates
 
@@ -32,11 +36,11 @@ The repository browser regression command runs the real integrated checks for:
 
 The final MP8 candidate passed both the repository quality job and browser-regression before integration.
 
-## Frontend queue closure
+## Historical frontend queue closure
 
-The frontend/PWA repository scope MP1–MP8 is complete. No tracked open repository issue was found explicitly titled or labelled P0/P1 at final review time.
+The frontend/PWA repository scope MP1–MP8 was complete for that historical pilot. This does not complete the active People-first Product Experience backlog.
 
-The following are **not frontend queue defects** and remain in principal production acceptance #237:
+The following were outside that historical frontend queue and remained in principal production acceptance #237:
 
 - final authenticated production E2E after the MP8 merge;
 - three real email identities for admin / limited operator / ordinary-user behavior;

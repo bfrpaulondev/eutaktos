@@ -1,5 +1,9 @@
 # Eutaktos — principal pilot finalization
 
+> **HISTORICAL PILOT FINALIZATION — NOT CURRENT PRODUCT-EXPERIENCE COMPLETION.**
+>
+> This document records the pre-Product-Experience pilot state. Current priorities, canonical active backlog and UI/UX completion are defined by `docs/AI_HANDOFF.md` and `docs/PRODUCT_EXPERIENCE_MASTER_PLAN.md`. Statements such as “repository integration is complete” below apply only to that historical pilot scope.
+
 Date: 2026-08-24
 
 Canonical production: `https://eutakes.netlify.app/`

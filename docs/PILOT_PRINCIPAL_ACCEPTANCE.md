@@ -1,5 +1,9 @@
 # Eutaktos — principal pilot-readiness acceptance
 
+> **HISTORICAL ACCEPTANCE EVIDENCE — NOT THE ACTIVE PRODUCT BACKLOG.**
+>
+> This file records pre-Product-Experience pilot readiness evidence. Current product priorities, UI/UX completion and active task status are controlled by `docs/AI_HANDOFF.md` and `docs/PRODUCT_EXPERIENCE_MASTER_PLAN.md`. Do not use this document to declare the rebuilt Product Experience complete.
+
 Date: 2026-08-24
 
 Canonical production: `https://eutakes.netlify.app/`
