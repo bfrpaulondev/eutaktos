@@ -493,14 +493,21 @@ Required:
 ### PX0 — Freeze, governance and source of truth
 
 - [x] **PX0.1** Establish People-first product-experience reset and master plan.  
-  Evidence: this document, candidate branch `principal/people-product-experience-plan`; principal must replace with merged PR/main evidence after integration.
-- [ ] **PX0.2** Update `docs/AI_HANDOFF.md` so every agent is required to read this plan and recognizes Product Experience as the current priority.
-- [ ] **PX0.3** Reconcile `docs/DESIGN-SYSTEM.md` with this plan; remove any guidance that conflicts with clarity-first Ant Design implementation.
-- [ ] **PX0.4** Mark historical pilot documents as historical acceptance evidence where necessary so they cannot be mistaken for the active product backlog.
-- [ ] **PX0.5** Inventory all current MUI imports/components and identify migration boundaries.
-- [ ] **PX0.6** Inventory current People/domain/API capabilities versus the People target in this document; do not rebuild working backend behavior unnecessarily.
+  Evidence: PR #267 / main SHA `1f95be15917e56dbf4212a835bb0bd74bdea4786` / quality + browser-regression PASS.
+- [x] **PX0.2** Update `docs/AI_HANDOFF.md` so every agent is required to read this plan and recognizes Product Experience as the current priority.  
+  Evidence: PR #267 / main SHA `1f95be15917e56dbf4212a835bb0bd74bdea4786` / quality + browser-regression PASS.
+- [x] **PX0.3** Reconcile `docs/DESIGN-SYSTEM.md` with this plan; remove any guidance that conflicts with clarity-first Ant Design implementation.  
+  Evidence: PR #292 / main SHA `4b7dbb20bb29be81470a270ec279288afed7f166` / quality + browser-regression PASS.
+- [x] **PX0.4** Mark historical pilot documents as historical acceptance evidence where necessary so they cannot be mistaken for the active product backlog.  
+  Evidence: PR #292 / main SHA `4b7dbb20bb29be81470a270ec279288afed7f166` / quality + browser-regression PASS.
+- [x] **PX0.5** Inventory all current MUI imports/components and identify migration boundaries.  
+  Evidence: PR #292 / main SHA `4b7dbb20bb29be81470a270ec279288afed7f166` / `docs/PRODUCT_EXPERIENCE_INVENTORY.md`; quality + browser-regression PASS.
+- [x] **PX0.6** Inventory current People/domain/API capabilities versus the People target in this document; do not rebuild working backend behavior unnecessarily.  
+  Evidence: PR #292 / main SHA `4b7dbb20bb29be81470a270ec279288afed7f166` / `docs/PRODUCT_EXPERIENCE_INVENTORY.md`; quality + browser-regression PASS.
 
 ### PX1 — Ant Design foundation and functioning themes
+
+> Technical Ant foundation work is integrated in PR #283, but PX1 items remain unchecked until the independent Light/Dark/System real-user/visual acceptance assigned in #270 is complete. Integrated code alone is not final theme acceptance.
 
 - [ ] **PX1.1** Add Ant Design 6 and compatible Ant Design icons to `apps/web-pwa` using versions compatible with React 19.
 - [ ] **PX1.2** Create Eutaktos `ConfigProvider` foundation with semantic design tokens.
@@ -519,14 +526,22 @@ Required:
 
 ### PX2 — New application shell and task-oriented navigation
 
-- [ ] **PX2.1** Rebuild desktop shell using Ant Layout/Menu patterns with clear active state and visual hierarchy.
-- [ ] **PX2.2** Rebuild mobile shell with reachable navigation and safe-area handling.
-- [ ] **PX2.3** Implement target top-level information architecture: Início / Preparar reunião / Pessoas / Organização / Planeamento / Administração.
-- [ ] **PX2.4** Preserve deep links, browser back/forward and refresh routing.
-- [ ] **PX2.5** Preserve keyboard/focus behavior and skip-to-content accessibility.
-- [ ] **PX2.6** Remove decorative or duplicated header content that does not help the current task.
+- [x] **PX2.1** Rebuild desktop shell using Ant Layout/Menu patterns with clear active state and visual hierarchy.  
+  Evidence: PR #291 / main SHA `1a7974186bd5a9daa7736c17ed0b3ee1149a8aa2` / quality + browser-regression PASS; final `eutakes` Netlify preview success at PR head `1168e2dbb5f3f1b5ce65d86b5391e7e35992675a`.
+- [x] **PX2.2** Rebuild mobile shell with reachable navigation and safe-area handling.  
+  Evidence: PR #291 / main SHA `1a7974186bd5a9daa7736c17ed0b3ee1149a8aa2` / browser-regression PASS at 320px plus final `eutakes` Netlify preview success.
+- [x] **PX2.3** Implement target top-level information architecture: Início / Preparar reunião / Pessoas / Organização / Planeamento / Administração.  
+  Evidence: PR #291 / main SHA `1a7974186bd5a9daa7736c17ed0b3ee1149a8aa2` / pt-PT/en/es browser runtime PASS plus final `eutakes` Netlify preview success.
+- [x] **PX2.4** Preserve deep links, browser back/forward and refresh routing.  
+  Evidence: PR #291 / main SHA `1a7974186bd5a9daa7736c17ed0b3ee1149a8aa2` / production-mount + browser-regression PASS plus final `eutakes` Netlify preview success.
+- [x] **PX2.5** Preserve keyboard/focus behavior and skip-to-content accessibility.  
+  Evidence: PR #291 / main SHA `1a7974186bd5a9daa7736c17ed0b3ee1149a8aa2` / browser-regression PASS including skip-link, landmarks, `aria-current` and focus restoration.
+- [x] **PX2.6** Remove decorative or duplicated header content that does not help the current task.  
+  Evidence: PR #291 / main SHA `1a7974186bd5a9daa7736c17ed0b3ee1149a8aa2` / principal diff review + browser-regression PASS.
 
 ### PX3 — People Overview
+
+> The first People Overview slice was integrated in PR #289 after principal correction, but PX3 remains a partial product slice: required-field completeness, long-interval recommendation evidence and recent-availability history are not yet all supported by authoritative contracts. Keep these tasks unchecked until their full acceptance evidence exists.
 
 - [ ] **PX3.1** Build `/pessoas` People Overview as the default People entry.
 - [ ] **PX3.2** Add meaningful summary counts derived from real APIs.
