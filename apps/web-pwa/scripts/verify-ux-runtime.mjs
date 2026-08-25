@@ -32,10 +32,10 @@ function connectCdp(url) {
   let nextId = 1;
   socket.addEventListener('message', event => {
     const message = JSON.parse(String(event.data));
-    const resolve = pending.get(message.id);
-    if (resolve) {
+    const resolver = pending.get(message.id);
+    if (resolver) {
       pending.delete(message.id);
-      resolve(message);
+      resolver(message);
     }
   });
   return new Promise((resolve, reject) => {
@@ -77,9 +77,16 @@ async function setPreferences(preferences, expectedHeading) {
       throw error;
     }
   }, 'O armazenamento de preferências não ficou disponível', 20);
-  await cdp.send('Page.reload', { ignoreCache: true });
+
+  // Start each locale/theme verification from Home. The old shell rendered its
+  // generic Home hero on every route, so a reload could accidentally satisfy
+  // the assertion while remaining on a feature route. PX2 intentionally
+  // removed that duplicate hero; a full navigation to Home now verifies both
+  // persisted preferences and the real task-oriented shell without depending
+  // on whichever route a previous scenario left active.
+  await cdp.send('Page.navigate', { url: appUrl });
   await poll(
-    async () => await evaluate(`document.readyState === 'complete' && document.documentElement.lang === ${JSON.stringify(preferences.locale)} && Boolean(document.querySelector('#root')?.textContent?.includes(${JSON.stringify(expectedHeading)}))`),
+    async () => await evaluate(`document.readyState === 'complete' && location.pathname === '/' && document.documentElement.lang === ${JSON.stringify(preferences.locale)} && Boolean(document.querySelector('#root')?.textContent?.includes(${JSON.stringify(expectedHeading)}))`),
     `A interface não carregou em ${preferences.locale}`,
     80,
   );
@@ -106,13 +113,16 @@ async function visitWorkspace(path, expectedHeading, locale, expectedTitle = `Eu
   }
 }
 
-async function openLocalizedDialog(trigger, title, closeLabel, locale) {
-  const foundTrigger = await evaluate(`(() => {
-    const button = [...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(trigger)});
+async function clickExactButton(label) {
+  return await evaluate(`(() => {
+    const button = [...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(label)});
     button?.click();
     return Boolean(button);
   })()`);
-  if (!foundTrigger) throw new Error(`O gatilho localizado ${trigger} não foi encontrado em ${locale}`);
+}
+
+async function openLocalizedDialog(trigger, title, closeLabel, locale) {
+  if (!await clickExactButton(trigger)) throw new Error(`O gatilho localizado ${trigger} não foi encontrado em ${locale}`);
   await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('[role="dialog"]')].find(node => node.textContent?.includes(${JSON.stringify(title)})))`), `O diálogo ${title} não abriu em ${locale}`);
   const closed = await evaluate(`(() => {
     const dialog = [...document.querySelectorAll('[role="dialog"]')].find(node => node.textContent?.includes(${JSON.stringify(title)}));
@@ -126,13 +136,14 @@ async function openLocalizedDialog(trigger, title, closeLabel, locale) {
 
 async function verifyLocalizedOrganization(locale, expected) {
   await visitWorkspace(expected.path, expected.overview, locale, expected.documentTitle);
-  const openedDirectory = await evaluate(`(() => {
-    const button = [...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(expected.directory)});
-    button?.click();
-    return Boolean(button);
-  })()`);
-  if (!openedDirectory) throw new Error(`O acesso ao diretório ${expected.directory} não foi encontrado em ${locale}`);
-  await poll(async () => await evaluate(`Boolean(document.querySelector('#main')?.textContent?.includes(${JSON.stringify(expected.heading)}))`), `O diretório não apresentou o contexto organizacional em ${locale}`);
+
+  // Regression for the reviewed PX3 hand-off: Overview -> Add person must open
+  // the actual create dialog even though the directory mounts in the same flow.
+  if (!await clickExactButton(expected.add)) throw new Error(`A ação ${expected.add} não foi encontrada em ${locale}`);
+  await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('[role="dialog"]')].find(node => node.textContent?.includes(${JSON.stringify(expected.createTitle)})))`), `O fluxo Overview → ${expected.add} não abriu o formulário em ${locale}`);
+  if (!await clickExactButton(expected.close)) throw new Error(`Não foi possível fechar o formulário ${expected.createTitle} em ${locale}`);
+  await poll(async () => await evaluate(`![...document.querySelectorAll('[role="dialog"]')].some(node => node.textContent?.includes(${JSON.stringify(expected.createTitle)}) && getComputedStyle(node).visibility !== 'hidden')`), `O formulário ${expected.createTitle} não fechou em ${locale}`);
+
   const missingLabels = await evaluate(`(() => {
     const labels = new Set([...document.querySelectorAll('button')].map(node => (node.innerText || node.textContent || '').trim()));
     return ${JSON.stringify(['overviewLabel', 'directory', 'households', 'groups', 'responsibilities', 'hourglass', 'audit', 'access'].map(key => expected[key]))}.filter(label => !labels.has(label));
@@ -168,13 +179,13 @@ try {
   })()`);
   if (!keyboard.hasSkip || keyboard.href !== '#main' || !keyboard.hasMain || keyboard.navCount < 1 || !keyboard.activeLabel || keyboard.skipTop === '-80px') throw new Error(`A navegação por teclado não expõe skip link, landmarks ou estado actual: ${JSON.stringify(keyboard)}`);
 
-  const mobile = await evaluate(`({ width: window.innerWidth, scrollWidth: document.documentElement.scrollWidth, labels: [...document.querySelectorAll('button')].map(button => button.innerText?.trim() || button.textContent?.trim()), body: document.body.innerText })`);
+  const mobile = await evaluate(`({ width: window.innerWidth, scrollWidth: document.documentElement.scrollWidth, body: document.body.innerText })`);
   if (mobile.scrollWidth > mobile.width) throw new Error(`A navegação móvel cria overflow horizontal: ${mobile.scrollWidth}px > ${mobile.width}px`);
-  if (!mobile.body.includes('Mais')) throw new Error(`A navegação móvel não expõe o destino Mais: ${JSON.stringify(mobile.labels)}`);
+  if (!mobile.body.includes('Mais')) throw new Error('A navegação móvel não expõe o destino Mais');
 
-  await evaluate(`[...document.querySelectorAll('button')].find(button => (button.innerText || button.textContent || '').includes('Mais'))?.click()`);
+  if (!await clickExactButton('Mais')) throw new Error('O botão Mais não foi encontrado');
   await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('[role="dialog"]')].find(node => node.textContent?.includes('Planeamento') && node.textContent?.includes('Organização') && node.textContent?.includes('Administração')))`), 'O painel Mais orientado a tarefas não abriu');
-  await evaluate(`[...document.querySelectorAll('button')].find(button => (button.innerText || button.textContent || '').trim() === 'Fechar')?.click()`);
+  if (!await clickExactButton('Fechar')) throw new Error('O botão Fechar não foi encontrado');
   await poll(async () => await evaluate(`document.activeElement?.textContent?.trim().endsWith('Mais')`), 'O foco não regressou ao botão Mais depois de fechar o painel');
 
   const workspaces = {
@@ -183,10 +194,11 @@ try {
     es: [['/agenda', 'Agenda', 'Eutaktos — Preparar reunión'], ['/designacoes', 'Asignaciones', 'Eutaktos — Planificación'], ['/pessoas', 'Personas', 'Eutaktos — Personas'], ['/preferencias', 'Preferencias', 'Eutaktos — Administración']],
   };
   const organization = {
-    'pt-PT': { path: '/pessoas', overview: 'Pessoas', heading: 'Pessoas e organização', documentTitle: 'Eutaktos — Pessoas', overviewLabel: 'Visão geral', directory: 'Diretório', households: 'Agregados', groups: 'Grupos de serviço', responsibilities: 'Responsabilidades', hourglass: 'Inspecionar export Hourglass', audit: 'Histórico de auditoria', access: 'Gerir acessos', hourglassTitle: 'Inspeção de export Hourglass', auditTitle: 'Histórico de auditoria', accessTitle: 'Gestão de acessos', close: 'Fechar' },
-    en: { path: '/people', overview: 'People', heading: 'People and organization', documentTitle: 'Eutaktos — People', overviewLabel: 'Overview', directory: 'Directory', households: 'Households', groups: 'Service groups', responsibilities: 'Responsibilities', hourglass: 'Inspect Hourglass export', audit: 'Audit history', access: 'Manage access', hourglassTitle: 'Hourglass export inspector', auditTitle: 'Audit history', accessTitle: 'Access management', close: 'Close' },
-    es: { path: '/pessoas', overview: 'Personas', heading: 'Personas y organización', documentTitle: 'Eutaktos — Personas', overviewLabel: 'Vista general', directory: 'Directorio', households: 'Grupos familiares', groups: 'Grupos de servicio', responsibilities: 'Responsabilidades', hourglass: 'Inspeccionar exportación Hourglass', audit: 'Historial de auditoría', access: 'Gestionar accesos', hourglassTitle: 'Inspector de exportación Hourglass', auditTitle: 'Historial de auditoría', accessTitle: 'Gestión de accesos', close: 'Cerrar' },
+    'pt-PT': { path: '/pessoas', overview: 'Pessoas', documentTitle: 'Eutaktos — Pessoas', overviewLabel: 'Visão geral', directory: 'Diretório', add: 'Adicionar pessoa', createTitle: 'Nova pessoa', households: 'Agregados', groups: 'Grupos de serviço', responsibilities: 'Responsabilidades', hourglass: 'Inspecionar export Hourglass', audit: 'Histórico de auditoria', access: 'Gerir acessos', hourglassTitle: 'Inspeção de export Hourglass', auditTitle: 'Histórico de auditoria', accessTitle: 'Gestão de acessos', close: 'Fechar' },
+    en: { path: '/people', overview: 'People', documentTitle: 'Eutaktos — People', overviewLabel: 'Overview', directory: 'Directory', add: 'Add person', createTitle: 'New person', households: 'Households', groups: 'Service groups', responsibilities: 'Responsibilities', hourglass: 'Inspect Hourglass export', audit: 'Audit history', access: 'Manage access', hourglassTitle: 'Hourglass export inspector', auditTitle: 'Audit history', accessTitle: 'Access management', close: 'Close' },
+    es: { path: '/pessoas', overview: 'Personas', documentTitle: 'Eutaktos — Personas', overviewLabel: 'Vista general', directory: 'Directorio', add: 'Añadir persona', createTitle: 'Nueva persona', households: 'Grupos familiares', groups: 'Grupos de servicio', responsibilities: 'Responsabilidades', hourglass: 'Inspeccionar exportación Hourglass', audit: 'Historial de auditoría', access: 'Gestionar accesos', hourglassTitle: 'Inspector de exportación Hourglass', auditTitle: 'Historial de auditoría', accessTitle: 'Gestión de accesos', close: 'Cerrar' },
   };
+
   for (const locale of ['pt-PT', 'en', 'es']) {
     const expectedHome = locale === 'pt-PT' ? 'Tudo em boa ordem.' : locale === 'en' ? 'Everything in good order.' : 'Todo en buen orden.';
     await setPreferences({ ...defaults, locale }, expectedHome);
@@ -206,7 +218,7 @@ try {
   const accessibility = await evaluate(`({ mode: document.documentElement.dataset.colorMode, background: getComputedStyle(document.body).backgroundColor, border: getComputedStyle(document.querySelector('.MuiPaper-root')).borderTopWidth })`);
   if (accessibility.mode !== 'dark' || accessibility.border !== '2px' || accessibility.background === 'rgb(0, 0, 0)') throw new Error(`O tema acessível não foi aplicado corretamente: ${JSON.stringify(accessibility)}`);
 
-  process.stdout.write('UX runtime checks passed: task-oriented shell, pt-PT/en/es workspaces, People/Organization deep links, safe unknown-route fallback, More focus restore, dark/high contrast, 320px reflow, skip link, landmarks and aria-current.\n');
+  process.stdout.write('UX runtime checks passed: task-oriented shell, pt-PT/en/es workspaces, Overview → Add person, People/Organization deep links, safe unknown-route fallback, More focus restore, dark/high contrast, 320px reflow, skip link, landmarks and aria-current.\n');
 } finally {
   cdp?.close();
   if (browser && !browser.killed) browser.kill('SIGTERM');
