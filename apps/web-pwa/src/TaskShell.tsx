@@ -166,7 +166,7 @@ function HomeDashboard({ text, preferences, update }: { text: AppCopy; preferenc
 }
 
 function PreferencesCard(props: PreferenceProps) { return <Card><CardContent><Typography variant="overline" color="text.secondary">{props.text.personal}</Typography><Typography variant="h4" sx={{ mb: 2 }}>{props.text.prefs}</Typography><PreferenceControls {...props} compact /></CardContent></Card>; }
-function PreferencesPanel(props: PreferenceProps) { return <Paper sx={{ p: { xs: 2, sm: 3 }, maxWidth: 980, borderRadius: 3 }}><Typography variant="overline" color="primary.main">{props.text.personal}</Typography><Typography variant="h3" sx={{ mb: 0.5 }}>{props.text.prefs}</Typography><Typography color="text.secondary" sx={{ mb: 3 }}>{props.text.personal}</Typography><PreferenceControls {...props} /></Paper>; }
+function PreferencesPanel(props: PreferenceProps) { return <Paper component="section" aria-labelledby="preferences-title" sx={{ p: { xs: 2, sm: 3 }, maxWidth: 980, borderRadius: 3 }}><Typography variant="overline" color="primary.main">{props.text.personal}</Typography><Typography id="preferences-title" component="h1" variant="h3" sx={{ mb: 0.5 }}>{props.text.prefs}</Typography><Typography color="text.secondary" sx={{ mb: 3 }}>{props.text.personal}</Typography><PreferenceControls {...props} /></Paper>; }
 
 type PreferenceProps = { text: AppCopy; preferences: Preferences; update: <K extends keyof Preferences>(key: K, value: Preferences[K]) => void; compact?: boolean };
 function PreferenceControls({ text, preferences, update, compact = false }: PreferenceProps) {
