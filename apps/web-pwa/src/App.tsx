@@ -1,13 +1,9 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type Dispatch, type Ref, type SetStateAction } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import {
-  Avatar,
   Box,
-  Button,
   Card,
   CardContent,
   CssBaseline,
-  Divider,
-  Drawer,
   FormControl,
   FormControlLabel,
   InputLabel,
@@ -17,12 +13,34 @@ import {
   Switch,
   ThemeProvider,
   useMediaQuery,
-  useTheme,
 } from '@mui/material';
+import HomeOutlined from '@ant-design/icons/es/icons/HomeOutlined';
+import CalendarOutlined from '@ant-design/icons/es/icons/CalendarOutlined';
+import TeamOutlined from '@ant-design/icons/es/icons/TeamOutlined';
+import ApartmentOutlined from '@ant-design/icons/es/icons/ApartmentOutlined';
+import ProjectOutlined from '@ant-design/icons/es/icons/ProjectOutlined';
+import SafetyCertificateOutlined from '@ant-design/icons/es/icons/SafetyCertificateOutlined';
+import MoreOutlined from '@ant-design/icons/es/icons/MoreOutlined';
+import LockOutlined from '@ant-design/icons/es/icons/LockOutlined';
+import AntButton from 'antd/es/button';
+import AntDrawer from 'antd/es/drawer';
+import Layout from 'antd/es/layout';
+import Menu from 'antd/es/menu';
+import Result from 'antd/es/result';
+import Space from 'antd/es/space';
+import Tabs from 'antd/es/tabs';
+import AntTypography from 'antd/es/typography';
 import { ProductionDashboard } from './ProductionDashboard';
 import { PwaConnectionStatus } from './PwaConnectionStatus';
 import { PwaUpdateRecovery } from './PwaUpdateRecovery';
-import { SECTION_PATHS, sectionFromPath, type AppSection as Section } from './lib/navigation';
+import {
+  PREPARE_PATHS,
+  SECTION_PATHS,
+  normalizeAppPath,
+  prepareMeetingViewFromPath,
+  sectionFromPath,
+  type AppSection as Section,
+} from './lib/navigation';
 import {
   DEFAULT_PREFERENCES,
   normalizePreferences,
@@ -32,30 +50,42 @@ import {
 } from './lib/preferences';
 import { buildEutaktosTheme, EUTAKTOS_PALETTES } from './theme';
 import { Stack, Typography } from './ui/MuiCompat';
+import './task-shell.css';
 
 const SectionWorkspace = lazy(async () => {
   const module = await import('./SectionWorkspace');
   return { default: module.SectionWorkspace };
 });
 
+const { Sider, Content } = Layout;
+const { Text: AntText, Title: AntTitle } = AntTypography;
 const STORAGE_KEY = 'eutaktos.preferences.v4';
 
 const copy = {
   'pt-PT': {
-    skip: 'Saltar para o conteúdo principal', navigation: 'Navegação principal', home: 'Início', agenda: 'Agenda', assignments: 'Designações', people: 'Pessoas', prefs: 'Preferências', more: 'Mais', close: 'Fechar', workspaceLoading: 'A carregar área…',
-    eyebrow: 'O teu espaço de organização', title: 'Tudo em boa ordem.', subtitle: 'Encontra primeiro o que pede atenção, com contexto claro e sem ruído.', privacy: 'Privacidade primeiro', viewAgenda: 'Ver agenda',
+    skip: 'Saltar para o conteúdo principal', navigation: 'Navegação principal', home: 'Início', prepare: 'Preparar reunião', people: 'Pessoas', organization: 'Organização', planning: 'Planeamento', administration: 'Administração', more: 'Mais', close: 'Fechar', workspaceLoading: 'A carregar área…', privacy: 'Privacidade primeiro',
+    agenda: 'Agenda', assignments: 'Designações', prefs: 'Preferências',
+    organizationPendingTitle: 'Organização está a ser reunida numa experiência própria', organizationPendingBody: 'Agregados, grupos e responsabilidades continuam disponíveis na área Pessoas enquanto esta migração é concluída.', organizationPendingAction: 'Abrir Pessoas',
+    planningPendingTitle: 'Planeamento guiado está a ser preparado', planningPendingBody: 'Agenda e Designações continuam funcionais em Preparar reunião. Esta área só ganhará conteúdo quando houver um fluxo próprio e factual.', planningPendingAction: 'Preparar reunião',
+    administrationNote: 'As ferramentas administrativas serão reunidas aqui gradualmente. As preferências pessoais continuam disponíveis sem alterar permissões ou dados da congregação.',
     personal: 'As tuas escolhas', palette: 'Paleta', theme: 'Modo de cor', density: 'Densidade', textSize: 'Tamanho do texto', contrast: 'Contraste elevado', motion: 'Reduzir movimento', transparency: 'Reduzir transparência', language: 'Idioma', comfortable: 'Confortável', compact: 'Compacta',
     textSizes: { small: 'Pequeno', default: 'Padrão', large: 'Grande', 'extra-large': 'Muito grande' }, themes: { light: 'Claro', dark: 'Escuro', system: 'Sistema' }, palettes: ['Clássica', 'Acolhedora', 'Calma', 'Foco', 'Noturna', 'Alto contraste'],
   },
   en: {
-    skip: 'Skip to main content', navigation: 'Primary navigation', home: 'Home', agenda: 'Agenda', assignments: 'Assignments', people: 'People', prefs: 'Preferences', more: 'More', close: 'Close', workspaceLoading: 'Loading area…',
-    eyebrow: 'Your organization space', title: 'Everything in good order.', subtitle: 'Find what needs attention first, with clear context and no noise.', privacy: 'Privacy first', viewAgenda: 'View agenda',
+    skip: 'Skip to main content', navigation: 'Primary navigation', home: 'Home', prepare: 'Prepare meeting', people: 'People', organization: 'Organization', planning: 'Planning', administration: 'Administration', more: 'More', close: 'Close', workspaceLoading: 'Loading area…', privacy: 'Privacy first',
+    agenda: 'Agenda', assignments: 'Assignments', prefs: 'Preferences',
+    organizationPendingTitle: 'Organization is being consolidated into its own experience', organizationPendingBody: 'Households, groups and responsibilities remain available under People while this migration is completed.', organizationPendingAction: 'Open People',
+    planningPendingTitle: 'Guided planning is being prepared', planningPendingBody: 'Agenda and Assignments remain functional under Prepare meeting. This area will only gain content when a distinct factual workflow exists.', planningPendingAction: 'Prepare meeting',
+    administrationNote: 'Administrative tools will be consolidated here gradually. Personal preferences remain available without changing permissions or congregation data.',
     personal: 'Your choices', palette: 'Palette', theme: 'Color mode', density: 'Density', textSize: 'Text size', contrast: 'High contrast', motion: 'Reduce motion', transparency: 'Reduce transparency', language: 'Language', comfortable: 'Comfortable', compact: 'Compact',
     textSizes: { small: 'Small', default: 'Default', large: 'Large', 'extra-large': 'Extra large' }, themes: { light: 'Light', dark: 'Dark', system: 'System' }, palettes: ['Classic', 'Welcoming', 'Calm', 'Focus', 'Night', 'High contrast'],
   },
   es: {
-    skip: 'Saltar al contenido principal', navigation: 'Navegación principal', home: 'Inicio', agenda: 'Agenda', assignments: 'Asignaciones', people: 'Personas', prefs: 'Preferencias', more: 'Más', close: 'Cerrar', workspaceLoading: 'Cargando área…',
-    eyebrow: 'Tu espacio de organización', title: 'Todo en buen orden.', subtitle: 'Encuentra primero lo que necesita atención, con contexto claro y sin ruido.', privacy: 'Privacidad primero', viewAgenda: 'Ver agenda',
+    skip: 'Saltar al contenido principal', navigation: 'Navegación principal', home: 'Inicio', prepare: 'Preparar reunión', people: 'Personas', organization: 'Organización', planning: 'Planificación', administration: 'Administración', more: 'Más', close: 'Cerrar', workspaceLoading: 'Cargando área…', privacy: 'Privacidad primero',
+    agenda: 'Agenda', assignments: 'Asignaciones', prefs: 'Preferencias',
+    organizationPendingTitle: 'Organización se está reuniendo en una experiencia propia', organizationPendingBody: 'Los grupos familiares, grupos y responsabilidades siguen disponibles en Personas mientras se completa esta migración.', organizationPendingAction: 'Abrir Personas',
+    planningPendingTitle: 'La planificación guiada se está preparando', planningPendingBody: 'Agenda y Asignaciones siguen funcionando en Preparar reunión. Esta área solo tendrá contenido cuando exista un flujo propio y factual.', planningPendingAction: 'Preparar reunión',
+    administrationNote: 'Las herramientas administrativas se reunirán aquí gradualmente. Las preferencias personales siguen disponibles sin cambiar permisos ni datos de la congregación.',
     personal: 'Tus elecciones', palette: 'Paleta', theme: 'Modo de color', density: 'Densidad', textSize: 'Tamaño del texto', contrast: 'Contraste alto', motion: 'Reducir movimiento', transparency: 'Reducir transparencia', language: 'Idioma', comfortable: 'Cómoda', compact: 'Compacta',
     textSizes: { small: 'Pequeño', default: 'Predeterminado', large: 'Grande', 'extra-large': 'Extra grande' }, themes: { light: 'Claro', dark: 'Oscuro', system: 'Sistema' }, palettes: ['Clásica', 'Acogedora', 'Calma', 'Foco', 'Nocturna', 'Alto contraste'],
   },
@@ -64,7 +94,6 @@ const copy = {
 type AppCopy = (typeof copy)[keyof typeof copy];
 const paletteIds = Object.keys(EUTAKTOS_PALETTES) as PaletteId[];
 const textSizes: Preferences['textSize'][] = ['small', 'default', 'large', 'extra-large'];
-const navIcons: Record<Section, string> = { home: '⌂', agenda: '▦', assignments: '✓', people: '◌', preferences: '⚙' };
 
 function loadPreferences(): Preferences {
   try {
@@ -78,6 +107,19 @@ function loadPreferences(): Preferences {
   } catch {
     return DEFAULT_PREFERENCES;
   }
+}
+
+function useDesktopShell(): boolean {
+  const query = '(min-width: 900px)';
+  const [desktop, setDesktop] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    const update = () => setDesktop(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+  return desktop;
 }
 
 export default function App() {
@@ -107,16 +149,18 @@ export default function App() {
 interface AppShellProps { preferences: Preferences; setPreferences: Dispatch<SetStateAction<Preferences>> }
 
 function AppShell({ preferences, setPreferences }: AppShellProps) {
+  const [path, setPath] = useState(() => window.location.pathname);
   const [section, setSection] = useState<Section>(() => sectionFromPath(window.location.pathname));
   const [moreOpen, setMoreOpen] = useState(false);
   const moreButtonRef = useRef<HTMLButtonElement | null>(null);
-  const theme = useTheme();
-  const desktop = useMediaQuery(theme.breakpoints.up('md'));
+  const desktop = useDesktopShell();
   const text = copy[preferences.locale];
+  const prepareView = prepareMeetingViewFromPath(path);
   const update = <K extends keyof Preferences>(key: K, value: Preferences[K]) => setPreferences(current => ({ ...current, [key]: value }));
 
   useEffect(() => {
     const onPopState = () => {
+      setPath(window.location.pathname);
       setSection(sectionFromPath(window.location.pathname));
       setMoreOpen(false);
     };
@@ -125,85 +169,97 @@ function AppShell({ preferences, setPreferences }: AppShellProps) {
   }, []);
 
   useEffect(() => {
-    const label = text[section === 'preferences' ? 'prefs' : section];
+    const normalized = normalizeAppPath(path);
+    let label: string = text[section];
+    if (section === 'prepare') {
+      label = normalized === '/preparar-reuniao' || normalized === '/prepare-meeting'
+        ? text.prepare
+        : prepareView === 'assignments' ? text.assignments : text.agenda;
+    } else if (section === 'administration' && (normalized === '/preferencias' || normalized === '/preferences')) {
+      label = text.prefs;
+    }
     document.title = `Eutaktos — ${label}`;
-  }, [section, text]);
+  }, [path, prepareView, section, text]);
 
+  const focusMain = () => window.requestAnimationFrame(() => document.getElementById('main')?.focus({ preventScroll: true }));
   const closeMore = () => {
     setMoreOpen(false);
     window.requestAnimationFrame(() => moreButtonRef.current?.focus());
   };
-  const goToSection = (next: Section) => {
-    const nextPath = SECTION_PATHS[next];
-    if (window.location.pathname !== nextPath || window.location.search || window.location.hash) window.history.pushState({ section: next }, '', nextPath);
-    setSection(next);
+  const goToPath = (nextPath: string) => {
+    if (window.location.pathname !== nextPath || window.location.search || window.location.hash) window.history.pushState({ section: sectionFromPath(nextPath) }, '', nextPath);
+    setPath(nextPath);
+    setSection(sectionFromPath(nextPath));
     setMoreOpen(false);
     window.scrollTo({ top: 0, behavior: 'auto' });
-    window.requestAnimationFrame(() => document.getElementById('main')?.focus({ preventScroll: true }));
+    focusMain();
   };
-  const nav: Section[] = ['home', 'agenda', 'assignments', 'people', 'preferences'];
-  const mobileNav: Section[] = ['home', 'agenda', 'people'];
+  const goToSection = (next: Section) => goToPath(SECTION_PATHS[next]);
+
+  const icons: Record<Section, React.ReactNode> = {
+    home: <HomeOutlined />,
+    prepare: <CalendarOutlined />,
+    people: <TeamOutlined />,
+    organization: <ApartmentOutlined />,
+    planning: <ProjectOutlined />,
+    administration: <SafetyCertificateOutlined />,
+  };
+  const desktopItems = (['home', 'prepare', 'people', 'organization', 'planning', 'administration'] as const).map(key => ({ key, icon: icons[key], label: text[key] }));
+  const moreSections: readonly Section[] = ['organization', 'planning', 'administration'];
 
   return (
-    <Box sx={{ minHeight: '100dvh', pb: { xs: 'calc(84px + env(safe-area-inset-bottom))', md: 0 } }}>
-      <Button className="skip-link" href="#main" variant="contained" size="small">{text.skip}</Button>
+    <Layout className="eutaktos-task-shell">
+      <AntButton className="skip-link" href="#main" type="primary" size="small">{text.skip}</AntButton>
 
-      {desktop ? (
-        <Paper component="aside" aria-label={text.navigation} sx={{ position: 'fixed', inset: 16, right: 'auto', width: 264, p: 1.25, zIndex: 10, borderRadius: 4, display: 'flex', flexDirection: 'column' }}>
-          <Stack direction="row" spacing={1.25} alignItems="center" sx={{ p: 1.25, mb: 1.5 }}>
-            <Avatar sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', width: 42, height: 42, fontWeight: 800 }}>E</Avatar>
-            <Box><Typography fontWeight={800}>Eutaktos</Typography><Typography variant="caption" color="text.secondary">{text.privacy}</Typography></Box>
-          </Stack>
-          <Stack component="nav" spacing={0.5} sx={{ flex: 1 }}>
-            {nav.map(key => <NavigationButton key={key} active={section === key} icon={navIcons[key]} label={text[key === 'preferences' ? 'prefs' : key]} onClick={() => goToSection(key)} />)}
-          </Stack>
-          <Paper variant="outlined" sx={{ p: 1.25, m: 0.5, borderRadius: 2, boxShadow: 'none', bgcolor: 'transparent' }}>
-            <Typography variant="caption">{text.privacy}</Typography>
-          </Paper>
-        </Paper>
-      ) : (
-        <Paper component="nav" aria-label={text.navigation} sx={{ position: 'fixed', zIndex: 20, left: 8, right: 8, bottom: 'max(8px, env(safe-area-inset-bottom))', px: 0.5, py: 0.65, borderRadius: 3 }}>
-          <Stack direction="row" justifyContent="space-between">
-            {mobileNav.map(key => <MobileNavigationButton key={key} active={section === key} icon={navIcons[key]} label={key === 'preferences' ? text.prefs : text[key]} onClick={() => goToSection(key)} />)}
-            <MobileNavigationButton buttonRef={moreButtonRef} active={section === 'assignments' || section === 'preferences'} icon="•••" label={text.more} onClick={() => setMoreOpen(true)} />
-          </Stack>
-        </Paper>
-      )}
+      {desktop ? <Sider width={264} theme="light" className="eutaktos-task-sider" aria-label={text.navigation}>
+        <div className="eutaktos-task-brand">
+          <div className="eutaktos-task-mark" aria-hidden="true">E</div>
+          <div><AntTitle level={4}>Eutaktos</AntTitle><AntText type="secondary"><LockOutlined aria-hidden="true" /> {text.privacy}</AntText></div>
+        </div>
+        <Menu aria-label={text.navigation} mode="inline" selectedKeys={[section]} items={desktopItems} onClick={({ key }) => goToSection(key as Section)} />
+      </Sider> : null}
 
-      <Drawer anchor="bottom" open={moreOpen} onClose={closeMore} slotProps={{ paper: { sx: { borderTopLeftRadius: 24, borderTopRightRadius: 24, p: 2, pb: 'calc(16px + env(safe-area-inset-bottom))' } } }}>
-        <Stack spacing={1.25} sx={{ maxWidth: 560, width: '100%', mx: 'auto' }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center"><Typography variant="h6">{text.more}</Typography><Button onClick={closeMore}>{text.close}</Button></Stack>
-          <Divider />
-          {(['assignments', 'preferences'] as const).map(key => <Button key={key} variant={section === key ? 'contained' : 'outlined'} startIcon={<span aria-hidden="true">{navIcons[key]}</span>} onClick={() => goToSection(key)} sx={{ justifyContent: 'flex-start' }}>{text[key === 'preferences' ? 'prefs' : key]}</Button>)}
-        </Stack>
-      </Drawer>
+      {!desktop ? <nav className="eutaktos-mobile-nav" aria-label={text.navigation}>
+        {(['home', 'prepare', 'people'] as const).map(key => <AntButton key={key} type="text" className="eutaktos-mobile-nav-button" aria-current={section === key ? 'page' : undefined} onClick={() => goToSection(key)}><span aria-hidden="true">{icons[key]}</span><span>{text[key]}</span></AntButton>)}
+        <AntButton ref={moreButtonRef} type="text" className="eutaktos-mobile-nav-button" aria-current={moreSections.includes(section) ? 'page' : undefined} onClick={() => setMoreOpen(true)}><MoreOutlined aria-hidden="true" /><span>{text.more}</span></AntButton>
+      </nav> : null}
 
-      <Box component="main" id="main" tabIndex={-1} sx={{ ml: { md: '296px' }, width: { md: 'calc(100% - 296px)' }, px: { xs: 1.5, sm: 2.5, lg: 4 }, py: { xs: 1.5, md: 2 }, maxWidth: 1640 }}>
-        <Header text={text} onAgenda={() => goToSection('agenda')} />
-        {section === 'home' ? <HomeDashboard text={text} preferences={preferences} update={update} /> : section === 'preferences' ? <PreferencesPanel text={text} preferences={preferences} update={update} /> : <Suspense fallback={<WorkspaceLoading label={text.workspaceLoading} />}><SectionWorkspace locale={preferences.locale} section={section} /></Suspense>}
-      </Box>
-    </Box>
+      <AntDrawer title={text.more} placement="bottom" open={moreOpen} onClose={closeMore} closeIcon={false} extra={<AntButton onClick={closeMore}>{text.close}</AntButton>} height="auto" className="eutaktos-more-drawer">
+        <Space direction="vertical" size="small" style={{ display: 'flex' }}>
+          {moreSections.map(key => <AntButton key={key} type={section === key ? 'primary' : 'default'} icon={icons[key]} block onClick={() => goToSection(key)}>{text[key]}</AntButton>)}
+        </Space>
+      </AntDrawer>
+
+      <Layout className={desktop ? 'eutaktos-task-main-layout eutaktos-task-main-layout--desktop' : 'eutaktos-task-main-layout'}>
+        <Content component="main" id="main" tabIndex={-1} className="eutaktos-task-content">
+          {section === 'home' ? <HomeDashboard text={text} preferences={preferences} update={update} /> : null}
+          {section === 'prepare' ? <PrepareMeetingArea text={text} locale={preferences.locale} active={prepareView} onChange={view => goToPath(PREPARE_PATHS[view])} /> : null}
+          {section === 'people' ? <Suspense fallback={<WorkspaceLoading label={text.workspaceLoading} />}><SectionWorkspace locale={preferences.locale} section="people" /></Suspense> : null}
+          {section === 'organization' ? <MigrationArea title={text.organizationPendingTitle} body={text.organizationPendingBody} action={text.organizationPendingAction} onAction={() => goToSection('people')} /> : null}
+          {section === 'planning' ? <MigrationArea title={text.planningPendingTitle} body={text.planningPendingBody} action={text.planningPendingAction} onAction={() => goToSection('prepare')} /> : null}
+          {section === 'administration' ? <AdministrationArea text={text} preferences={preferences} update={update} /> : null}
+        </Content>
+      </Layout>
+    </Layout>
   );
 }
 
-function NavigationButton({ active, icon, label, onClick }: { active: boolean; icon: string; label: string; onClick: () => void }) {
-  return <Button onClick={onClick} aria-current={active ? 'page' : undefined} variant={active ? 'contained' : 'text'} color={active ? 'primary' : 'inherit'} sx={{ justifyContent: 'flex-start', gap: 1.25, px: 1.5 }}><Box component="span" aria-hidden="true" sx={{ width: 22, textAlign: 'center' }}>{icon}</Box>{label}</Button>;
+function PrepareMeetingArea({ text, locale, active, onChange }: { text: AppCopy; locale: Preferences['locale']; active: 'agenda' | 'assignments'; onChange: (view: 'agenda' | 'assignments') => void }) {
+  return <div className="eutaktos-prepare-area">
+    <Tabs activeKey={active} onChange={key => onChange(key as 'agenda' | 'assignments')} items={[{ key: 'agenda', label: text.agenda }, { key: 'assignments', label: text.assignments }]} />
+    <Suspense fallback={<WorkspaceLoading label={text.workspaceLoading} />}><SectionWorkspace locale={locale} section={active} /></Suspense>
+  </div>;
 }
 
-function MobileNavigationButton({ active, icon, label, onClick, buttonRef }: { active: boolean; icon: string; label: string; onClick: () => void; buttonRef?: Ref<HTMLButtonElement> }) {
-  return <Button ref={buttonRef} onClick={onClick} aria-current={active ? 'page' : undefined} color={active ? 'primary' : 'inherit'} sx={{ minWidth: 0, flex: 1, px: 0.35, display: 'grid', gap: 0.15, fontSize: '0.68rem', lineHeight: 1.1, whiteSpace: 'normal' }}><Typography component="span" aria-hidden="true" sx={{ fontSize: 18, lineHeight: 1 }}>{icon}</Typography>{label}</Button>;
+function MigrationArea({ title, body, action, onAction }: { title: string; body: string; action: string; onAction: () => void }) {
+  return <Result status="info" title={title} subTitle={body} extra={<AntButton type="primary" onClick={onAction}>{action}</AntButton>} />;
 }
 
-function WorkspaceLoading({ label }: { label: string }) { return <Box role="status" aria-live="polite" sx={{ py: 5, textAlign: 'center' }}><Typography color="text.secondary">{label}</Typography></Box>; }
-
-function Header({ text, onAgenda }: { text: AppCopy; onAgenda: () => void }) {
-  return <Paper component="header" sx={{ p: { xs: 2.25, sm: 3, lg: 4 }, mb: 2.5, borderRadius: { xs: 3, md: 4 } }}>
-      <Stack direction={{ xs: 'column', lg: 'row' }} justifyContent="space-between" spacing={{ xs: 2.5, lg: 4 }} alignItems={{ lg: 'center' }}>
-        <Box sx={{ maxWidth: 760 }}><Typography variant="overline" color="primary.main">{text.eyebrow}</Typography><Typography variant="h1" sx={{ fontSize: { xs: '2.35rem', sm: '3.1rem', xl: '4rem' } }}>{text.title}</Typography><Typography color="text.secondary" sx={{ mt: 1, maxWidth: 680, fontSize: { xs: '0.98rem', sm: '1.05rem' } }}>{text.subtitle}</Typography></Box>
-        <Button variant="contained" onClick={onAgenda} sx={{ minWidth: { sm: 210 }, alignSelf: { xs: 'stretch', sm: 'flex-start', lg: 'center' } }}>{text.viewAgenda}</Button>
-      </Stack>
-  </Paper>;
+function AdministrationArea(props: PreferenceProps) {
+  return <div className="eutaktos-administration-area"><AntText type="secondary">{props.text.administrationNote}</AntText><PreferencesPanel {...props} /></div>;
 }
+
+function WorkspaceLoading({ label }: { label: string }) { return <div role="status" aria-live="polite" className="eutaktos-workspace-loading"><AntText type="secondary">{label}</AntText></div>; }
 
 function HomeDashboard({ text, preferences, update }: { text: AppCopy; preferences: Preferences; update: <K extends keyof Preferences>(key: K, value: Preferences[K]) => void }) {
   return <Stack spacing={2.5}>
@@ -213,7 +269,7 @@ function HomeDashboard({ text, preferences, update }: { text: AppCopy; preferenc
 }
 
 function PreferencesCard(props: PreferenceProps) { return <Card><CardContent><Typography variant="overline" color="text.secondary">{props.text.personal}</Typography><Typography variant="h4" sx={{ mb: 2 }}>{props.text.prefs}</Typography><PreferenceControls {...props} compact /></CardContent></Card>; }
-function PreferencesPanel(props: PreferenceProps) { return <Paper sx={{ p: { xs: 2, sm: 3 }, maxWidth: 980, borderRadius: 3 }}><Typography variant="overline" color="primary.main">{props.text.personal}</Typography><Typography variant="h3" sx={{ mb: 0.5 }}>{props.text.prefs}</Typography><Typography color="text.secondary" sx={{ mb: 3 }}>{props.text.personal}</Typography><PreferenceControls {...props} /></Paper>; }
+function PreferencesPanel(props: PreferenceProps) { return <Paper sx={{ p: { xs: 2, sm: 3 }, maxWidth: 980, borderRadius: 3, mt: 2 }}><Typography variant="overline" color="primary.main">{props.text.personal}</Typography><Typography variant="h3" sx={{ mb: 0.5 }}>{props.text.prefs}</Typography><Typography color="text.secondary" sx={{ mb: 3 }}>{props.text.personal}</Typography><PreferenceControls {...props} /></Paper>; }
 
 type PreferenceProps = { text: AppCopy; preferences: Preferences; update: <K extends keyof Preferences>(key: K, value: Preferences[K]) => void; compact?: boolean };
 function PreferenceControls({ text, preferences, update, compact = false }: PreferenceProps) {
