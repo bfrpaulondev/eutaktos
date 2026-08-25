@@ -109,7 +109,16 @@ async function activateBulkSelection() {
   for (let attempt = 0; attempt < 8; attempt += 1) {
     if (await selectionModeReady()) return;
 
-    if (!await clickButton('Exportar')) throw new Error('Export button is missing');
+    if (!await clickButton('Exportar')) {
+      const diagnostic = await evaluate(`({
+        lang: document.documentElement.lang,
+        route: location.pathname + location.search + location.hash,
+        buttons: [...document.querySelectorAll('button')].map(node => ({ text: (node.innerText || node.textContent || '').trim(), disabled: node.disabled, rect: node.getBoundingClientRect().toJSON(), display: getComputedStyle(node).display, visibility: getComputedStyle(node).visibility })),
+        title: document.querySelector('#people-directory-title')?.textContent ?? null,
+        main: document.querySelector('#main')?.textContent?.slice(0, 1200) ?? ''
+      })`);
+      throw new Error(`Export button is missing; observed=${JSON.stringify(diagnostic)}`);
+    }
 
     try {
       await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('[role="menuitem"]')].find(node => {
