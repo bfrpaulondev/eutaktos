@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
-import { CssBaseline, ThemeProvider, useMediaQuery } from '@mui/material';
+import { CssBaseline, ThemeProvider } from '@mui/material';
 import { PwaConnectionStatus } from './PwaConnectionStatus';
 import { PwaUpdateRecovery } from './PwaUpdateRecovery';
 import {
@@ -8,6 +8,7 @@ import {
   resolvePaletteId,
   type Preferences,
 } from './lib/preferences';
+import { useSystemPrefersDark } from './lib/systemColorMode';
 import { buildEutaktosTheme } from './theme';
 
 const TaskShell = lazy(async () => {
@@ -33,7 +34,7 @@ function loadPreferences(): Preferences {
 
 export default function App() {
   const [preferences, setPreferences] = useState<Preferences>(loadPreferences);
-  const systemPrefersDark = useMediaQuery('(prefers-color-scheme: dark)', { noSsr: true });
+  const systemPrefersDark = useSystemPrefersDark();
   const effectivePalette = resolvePaletteId(preferences.paletteId, preferences.colorMode, systemPrefersDark);
   const theme = useMemo(() => buildEutaktosTheme({ ...preferences, paletteId: effectivePalette }), [effectivePalette, preferences]);
 
@@ -43,7 +44,8 @@ export default function App() {
     document.documentElement.dataset.palette = effectivePalette;
     document.documentElement.dataset.textSize = preferences.textSize;
     document.documentElement.dataset.colorMode = preferences.colorMode;
-  }, [effectivePalette, preferences]);
+    document.documentElement.style.colorScheme = theme.palette.mode;
+  }, [effectivePalette, preferences, theme.palette.mode]);
 
   return <ThemeProvider theme={theme}>
     <CssBaseline />
