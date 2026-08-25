@@ -61,39 +61,46 @@ async function evaluate(expression) {
   return response.result.value;
 }
 
-async function clickVisibleButton(label) {
+async function visibleCenter(selector, label) {
   return await evaluate(`(() => {
-    const element = [...document.querySelectorAll('button')].find(node => {
-      const rect = node.getBoundingClientRect();
-      const style = getComputedStyle(node);
-      return (node.innerText || node.textContent || '').trim() === ${JSON.stringify(label)} && rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+    const node = [...document.querySelectorAll(${JSON.stringify(selector)})].find(item => {
+      const rect = item.getBoundingClientRect();
+      const style = getComputedStyle(item);
+      return (item.innerText || item.textContent || '').trim() === ${JSON.stringify(label)} && rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
     });
-    element?.click();
-    return Boolean(element);
+    if (!node) return null;
+    const rect = node.getBoundingClientRect();
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
   })()`);
 }
 
+async function mouseClick(point) {
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: point.x, y: point.y });
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: point.x, y: point.y, button: 'left', buttons: 1, clickCount: 1 });
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: point.x, y: point.y, button: 'left', buttons: 0, clickCount: 1 });
+}
+
+async function clickVisibleButton(label) {
+  const point = await visibleCenter('button', label);
+  if (!point) return false;
+  await mouseClick(point);
+  return true;
+}
+
 async function activateBulkSelection() {
-  await poll(async () => await evaluate(`(() => {
-    const done = [...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === 'Concluir');
-    if (done) return true;
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const ready = await evaluate(`Boolean([...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === 'Concluir'))`);
+    if (ready) return;
 
-    const visible = node => {
-      const rect = node.getBoundingClientRect();
-      const style = getComputedStyle(node);
-      return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
-    };
-
-    const menuItem = [...document.querySelectorAll('[role="menuitem"]')].find(node => visible(node) && (node.innerText || node.textContent || '').trim() === 'Selecionar pessoas para exportar');
-    if (menuItem) {
-      menuItem.click();
-      return false;
+    const menuPoint = await visibleCenter('[role="menuitem"]', 'Selecionar pessoas para exportar');
+    if (menuPoint) await mouseClick(menuPoint);
+    else {
+      const exportPoint = await visibleCenter('button', 'Exportar');
+      if (exportPoint) await mouseClick(exportPoint);
     }
-
-    const exportButton = [...document.querySelectorAll('button')].find(node => visible(node) && (node.innerText || node.textContent || '').trim() === 'Exportar');
-    exportButton?.click();
-    return false;
-  })()`), 'Bulk selection mode could not be activated');
+    await wait(180);
+  }
+  throw new Error('Bulk selection mode could not be activated');
 }
 
 try {
