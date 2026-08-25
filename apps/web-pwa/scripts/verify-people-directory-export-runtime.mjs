@@ -80,6 +80,11 @@ async function mouseClick(point) {
   await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: point.x, y: point.y, button: 'left', buttons: 0, clickCount: 1 });
 }
 
+async function pressKey(key, code, virtualKeyCode) {
+  await cdp.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key, code, windowsVirtualKeyCode: virtualKeyCode, nativeVirtualKeyCode: virtualKeyCode });
+  await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, windowsVirtualKeyCode: virtualKeyCode, nativeVirtualKeyCode: virtualKeyCode });
+}
+
 async function clickVisibleButton(label) {
   const point = await visibleCenter('button', label);
   if (!point) return false;
@@ -87,20 +92,71 @@ async function clickVisibleButton(label) {
   return true;
 }
 
-async function activateBulkSelection() {
-  for (let attempt = 0; attempt < 50; attempt += 1) {
-    const ready = await evaluate(`Boolean([...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === 'Concluir'))`);
-    if (ready) return;
+async function selectionModeReady() {
+  return await evaluate(`Boolean([...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === 'Concluir'))`);
+}
 
-    const menuPoint = await visibleCenter('[role="menuitem"]', 'Selecionar pessoas para exportar');
-    if (menuPoint) await mouseClick(menuPoint);
-    else {
-      const exportPoint = await visibleCenter('button', 'Exportar');
-      if (exportPoint) await mouseClick(exportPoint);
+async function activateBulkSelection() {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    if (await selectionModeReady()) return;
+
+    const exportPoint = await visibleCenter('button', 'Exportar');
+    if (!exportPoint) throw new Error('Export button is not visible');
+    await mouseClick(exportPoint);
+
+    try {
+      await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('[role="menuitem"]')].find(node => {
+        const rect = node.getBoundingClientRect();
+        const style = getComputedStyle(node);
+        return (node.innerText || node.textContent || '').trim() === 'Selecionar pessoas para exportar' && rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none' && node.getAttribute('aria-disabled') !== 'true';
+      }))`), 'Export menu did not become keyboard-ready', 20);
+    } catch {
+      continue;
     }
-    await wait(180);
+
+    const focused = await evaluate(`(() => {
+      const menu = [...document.querySelectorAll('[role="menu"]')].find(node => {
+        const rect = node.getBoundingClientRect();
+        const style = getComputedStyle(node);
+        return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+      });
+      if (!menu) return false;
+      menu.focus();
+      return document.activeElement === menu || menu.contains(document.activeElement);
+    })()`);
+
+    if (focused) {
+      await pressKey('ArrowDown', 'ArrowDown', 40);
+      await pressKey('ArrowDown', 'ArrowDown', 40);
+      await pressKey('Enter', 'Enter', 13);
+      await wait(350);
+      if (await selectionModeReady()) return;
+    }
+
+    const targetFocused = await evaluate(`(() => {
+      const item = [...document.querySelectorAll('[role="menuitem"]')].find(node => {
+        const rect = node.getBoundingClientRect();
+        const style = getComputedStyle(node);
+        return (node.innerText || node.textContent || '').trim() === 'Selecionar pessoas para exportar' && rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none' && node.getAttribute('aria-disabled') !== 'true';
+      });
+      if (!item) return false;
+      item.setAttribute('tabindex', '0');
+      item.focus();
+      return document.activeElement === item;
+    })()`);
+    if (targetFocused) {
+      await pressKey('Enter', 'Enter', 13);
+      await wait(350);
+      if (await selectionModeReady()) return;
+    }
   }
-  throw new Error('Bulk selection mode could not be activated');
+
+  const diagnostic = await evaluate(`({
+    active: document.activeElement ? { role: document.activeElement.getAttribute('role'), text: (document.activeElement.innerText || document.activeElement.textContent || '').trim() } : null,
+    menus: [...document.querySelectorAll('[role="menu"]')].map(node => ({ text: (node.innerText || node.textContent || '').trim(), display: getComputedStyle(node).display, visibility: getComputedStyle(node).visibility, rect: node.getBoundingClientRect().toJSON() })),
+    items: [...document.querySelectorAll('[role="menuitem"]')].map(node => ({ text: (node.innerText || node.textContent || '').trim(), disabled: node.getAttribute('aria-disabled'), display: getComputedStyle(node).display, visibility: getComputedStyle(node).visibility, rect: node.getBoundingClientRect().toJSON() }))
+  })`);
+  throw new Error(`Bulk selection mode could not be activated; observed=${JSON.stringify(diagnostic)}`);
 }
 
 try {
@@ -182,7 +238,7 @@ try {
   if (finalState.visibleCheckboxes !== 0) throw new Error('Selection controls remained visible after leaving bulk mode');
   if (finalState.url !== initial.path) throw new Error(`Bulk selection changed the route: ${initial.path} -> ${finalState.url}`);
 
-  process.stdout.write('PX4.11 runtime passed: export menu, opt-in bulk selection, safe default browsing, select/clear/done state and URL privacy.\n');
+  process.stdout.write('PX4.11 runtime passed: export menu, keyboard-activatable bulk selection, safe default browsing, select/clear/done state and URL privacy.\n');
 } finally {
   cdp?.close();
   if (browser && !browser.killed) browser.kill('SIGTERM');
