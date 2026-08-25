@@ -129,14 +129,15 @@ async function openLocalizedDialog(trigger, title, closeLabel, locale) {
 async function verifyLocalizedOrganization(locale, expected) {
   await visitWorkspace(expected.path, expected.overview, locale, expected.documentTitle);
 
-  // Regression for the Overview -> Add person handoff. The directory must be
-  // mounted before the external create request is emitted, otherwise the first
-  // request can be swallowed as the component's initial value.
-  const openedCreate = await evaluate(`(() => {
-    const button = [...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(expected.add)});
-    button?.click();
-    return Boolean(button);
-  })()`);
+  const openedCreate = await poll(
+    async () => await evaluate(`(() => {
+      const button = [...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(expected.add)});
+      button?.click();
+      return Boolean(button);
+    })()`),
+    `A ação ${expected.add} não ficou disponível no overview em ${locale}`,
+    80,
+  );
   if (!openedCreate) throw new Error(`A ação ${expected.add} não foi encontrada no overview em ${locale}`);
   await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('[role="dialog"]')].find(node => node.textContent?.includes(${JSON.stringify(expected.createTitle)})))`), `O formulário ${expected.createTitle} não abriu a partir do overview em ${locale}`);
   const cancelledCreate = await evaluate(`(() => {
