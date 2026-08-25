@@ -1,0 +1,183 @@
+.eutaktos-task-shell {
+  min-height: 100dvh;
+  background: var(--ant-color-bg-layout, transparent);
+}
+
+.eutaktos-task-sider {
+  position: fixed !important;
+  inset: 16px auto 16px 16px;
+  height: calc(100dvh - 32px);
+  border: 1px solid var(--ant-color-border-secondary, rgba(127, 127, 127, 0.2));
+  border-radius: 24px;
+  overflow: hidden;
+  z-index: 20;
+  box-shadow: var(--ant-box-shadow-tertiary, 0 8px 24px rgba(0, 0, 0, 0.08));
+}
+
+.eutaktos-task-sider .ant-layout-sider-children {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  padding: 12px;
+}
+
+.eutaktos-task-sider .ant-menu {
+  flex: 1;
+  border-inline-end: 0 !important;
+  background: transparent;
+}
+
+.eutaktos-task-sider .ant-menu-item {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.eutaktos-task-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 10px 20px;
+}
+
+.eutaktos-task-brand .ant-typography {
+  margin: 0 !important;
+}
+
+.eutaktos-task-mark {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--ant-color-primary, currentColor);
+  color: var(--ant-color-text-light-solid, #fff);
+  font-weight: 800;
+  font-size: 18px;
+}
+
+.eutaktos-task-main-layout {
+  min-width: 0;
+  min-height: 100dvh;
+  background: transparent !important;
+}
+
+.eutaktos-task-main-layout--desktop {
+  margin-inline-start: 296px;
+}
+
+.eutaktos-task-content {
+  width: 100%;
+  max-width: 1640px;
+  min-width: 0;
+  padding: 16px 16px calc(92px + env(safe-area-inset-bottom));
+  outline: none;
+}
+
+.eutaktos-mobile-nav {
+  position: fixed;
+  z-index: 30;
+  left: 8px;
+  right: 8px;
+  bottom: max(8px, env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid var(--ant-color-border-secondary, rgba(127, 127, 127, 0.2));
+  border-radius: 20px;
+  background: var(--ant-color-bg-container, #fff);
+  box-shadow: var(--ant-box-shadow-secondary, 0 8px 24px rgba(0, 0, 0, 0.12));
+}
+
+.eutaktos-mobile-nav-button.ant-btn {
+  min-width: 0;
+  min-height: 52px;
+  height: auto;
+  padding: 6px 2px;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 3px;
+  white-space: normal;
+  line-height: 1.05;
+  font-size: 11px;
+}
+
+.eutaktos-mobile-nav-button.ant-btn[aria-current='page'] {
+  color: var(--ant-color-primary, currentColor);
+  background: var(--ant-color-primary-bg, transparent);
+  font-weight: 650;
+}
+
+.eutaktos-mobile-nav-button .anticon {
+  font-size: 18px;
+}
+
+.eutaktos-more-drawer .ant-drawer-content {
+  border-start-start-radius: 24px;
+  border-start-end-radius: 24px;
+  overflow: hidden;
+}
+
+.eutaktos-more-drawer .ant-drawer-body {
+  padding-bottom: calc(18px + env(safe-area-inset-bottom));
+}
+
+.eutaktos-prepare-area > .ant-tabs {
+  margin-bottom: 12px;
+}
+
+.eutaktos-prepare-area > .ant-tabs .ant-tabs-tab {
+  min-height: 44px;
+}
+
+.eutaktos-administration-area {
+  max-width: 980px;
+}
+
+.eutaktos-workspace-loading {
+  padding: 48px 16px;
+  text-align: center;
+}
+
+@media (min-width: 600px) {
+  .eutaktos-task-content {
+    padding: 20px 24px calc(96px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (min-width: 900px) {
+  .eutaktos-task-content {
+    padding: 20px 28px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .eutaktos-task-content {
+    padding: 24px 36px;
+  }
+}
+
+@media (max-width: 359px) {
+  .eutaktos-mobile-nav {
+    left: 4px;
+    right: 4px;
+  }
+
+  .eutaktos-mobile-nav-button.ant-btn {
+    font-size: 10px;
+  }
+}
+
+@media (forced-colors: active) {
+  .eutaktos-task-sider,
+  .eutaktos-mobile-nav {
+    border: 1px solid CanvasText;
+  }
+
+  .eutaktos-mobile-nav-button.ant-btn[aria-current='page'] {
+    outline: 2px solid Highlight;
+  }
+}
