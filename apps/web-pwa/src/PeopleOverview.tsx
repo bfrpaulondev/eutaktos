@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ArrowRightOutlined from '@ant-design/icons/es/icons/ArrowRightOutlined';
 import ExclamationCircleOutlined from '@ant-design/icons/es/icons/ExclamationCircleOutlined';
 import PlusOutlined from '@ant-design/icons/es/icons/PlusOutlined';
@@ -14,11 +14,11 @@ import Tag from 'antd/es/tag';
 import Typography from 'antd/es/typography';
 import { theme } from 'antd';
 import type { AvailabilityPeriodDto } from './lib/availabilityApi';
-import { availabilityApi } from './lib/availabilityApi';
 import type { MidweekOverviewDto } from './lib/midweekApi';
-import { midweekApi } from './lib/midweekApi';
 import type { PersonProfileDto } from './lib/peopleApi';
 import { peopleApi } from './lib/peopleApi';
+import type { PeopleOverviewEvidenceDto } from './lib/peopleOverviewEvidenceApi';
+import { peopleOverviewEvidenceApi } from './lib/peopleOverviewEvidenceApi';
 import type { ServiceGroupDto } from './lib/serviceGroupsApi';
 import { serviceGroupsApi } from './lib/serviceGroupsApi';
 import type { Locale } from './lib/preferences';
@@ -28,13 +28,6 @@ const { Paragraph, Text, Title } = Typography;
 type QueryState<T> =
   | Readonly<{ status: 'loading' }>
   | Readonly<{ status: 'ready'; value: T }>
-  | Readonly<{ status: 'error'; error: unknown }>;
-
-type AvailabilityState =
-  | Readonly<{ status: 'idle' }>
-  | Readonly<{ status: 'loading' }>
-  | Readonly<{ status: 'ready'; periodsByPersonId: ReadonlyMap<string, readonly AvailabilityPeriodDto[]> }>
-  | Readonly<{ status: 'partial'; periodsByPersonId: ReadonlyMap<string, readonly AvailabilityPeriodDto[]> }>
   | Readonly<{ status: 'error'; error: unknown }>;
 
 export interface AffectedAssignment {
@@ -64,21 +57,24 @@ const copy = {
     person: 'pessoa',
     groups: 'grupos de serviço',
     group: 'grupo de serviço',
-    attentionItems: 'itens requerem atenção',
-    attentionItem: 'item requer atenção',
+    attentionItems: 'condições requerem atenção',
+    attentionItem: 'condição requer atenção',
     activePeople: 'perfis ativos',
     activePerson: 'perfil ativo',
     loading: 'A carregar os dados de Pessoas…',
-    loadingDetails: 'A analisar designações, ausências e grupos…',
+    loadingDetails: 'A analisar grupos, designações, disponibilidade e histórico…',
     attention: 'Precisa da sua atenção',
     affectedTitle: 'pessoas com designações afetadas por ausência',
-    affectedSingularTitle: 'pessoa com designações afetadas por ausência',
-    affectedDescription: 'Há ausências ou indisponibilidades registadas durante uma reunião futura com designação.',
+    affectedSingularTitle: 'pessoa com uma designação afetada por ausência',
+    affectedDescription: 'Há uma indisponibilidade registada que se sobrepõe a uma designação ativa.',
+    longTitle: 'pessoas elegíveis têm um intervalo maior desde a última designação concluída',
+    longSingularTitle: 'pessoa elegível tem um intervalo maior desde a última designação concluída',
+    longDescription: 'Há partes futuras em aberto em que a comparação factual entre candidatos válidos identifica um intervalo maior.',
     reviewAssignments: 'Rever designações',
-    partial: 'Alguns dados necessários para identificar designações afetadas estão temporariamente indisponíveis. Os itens apresentados usam apenas os dados recebidos.',
-    scheduleUnavailable: 'Não foi possível verificar designações e ausências neste momento. O resumo de pessoas continua disponível.',
     groupsUnavailable: 'Não foi possível verificar os grupos de serviço neste momento. O resumo de pessoas continua disponível.',
-    noAttention: 'Não existem designações futuras afetadas por ausências nos dados disponíveis.',
+    evidenceUnavailable: 'Algumas verificações de atenção não estão disponíveis com as permissões atuais. Não são apresentados valores estimados.',
+    evidenceError: 'Não foi possível verificar todas as condições de atenção neste momento. O resumo de pessoas continua disponível.',
+    noAttention: 'Não existem condições de atenção suportadas pelos contratos atuais nos dados disponíveis.',
     emptyTitle: 'Ainda não existem pessoas',
     emptyDescription: 'Adicione a primeira pessoa para começar a organizar perfis e disponibilidade.',
     unauthorizedTitle: 'É necessário iniciar sessão',
@@ -93,7 +89,6 @@ const copy = {
     goHome: 'Ir para o início',
     statusReady: 'Dados atuais',
     statusPartial: 'Dados parciais',
-    availabilityPartial: 'Verificação parcial de ausências',
   },
   en: {
     eyebrow: 'People',
@@ -105,21 +100,24 @@ const copy = {
     person: 'person',
     groups: 'service groups',
     group: 'service group',
-    attentionItems: 'items need attention',
-    attentionItem: 'item needs attention',
+    attentionItems: 'conditions need attention',
+    attentionItem: 'condition needs attention',
     activePeople: 'active profiles',
     activePerson: 'active profile',
     loading: 'Loading People data…',
-    loadingDetails: 'Checking assignments, away periods and groups…',
+    loadingDetails: 'Checking groups, assignments, availability and history…',
     attention: 'Needs your attention',
     affectedTitle: 'people have assignments affected by an absence',
-    affectedSingularTitle: 'person has assignments affected by an absence',
-    affectedDescription: 'Registered away periods or unavailability overlap with a future meeting assignment.',
+    affectedSingularTitle: 'person has an assignment affected by an absence',
+    affectedDescription: 'Recorded unavailability overlaps an active assignment.',
+    longTitle: 'eligible people have a longer interval since their last completed assignment',
+    longSingularTitle: 'eligible person has a longer interval since their last completed assignment',
+    longDescription: 'There are future open parts where factual comparison between valid candidates identifies a longer interval.',
     reviewAssignments: 'Review assignments',
-    partial: 'Some data needed to identify affected assignments is temporarily unavailable. The items shown use only data that was received.',
-    scheduleUnavailable: 'Assignments and away periods could not be checked right now. The people summary remains available.',
     groupsUnavailable: 'Service groups could not be checked right now. The people summary remains available.',
-    noAttention: 'No future assignments are affected by away periods in the available data.',
+    evidenceUnavailable: 'Some attention checks are unavailable with the current permissions. No estimated values are shown.',
+    evidenceError: 'Not all attention conditions could be checked right now. The people summary remains available.',
+    noAttention: 'There are no attention conditions supported by the current contracts in the available data.',
     emptyTitle: 'There are no people yet',
     emptyDescription: 'Add the first person to start organizing profiles and availability.',
     unauthorizedTitle: 'Sign-in is required',
@@ -134,7 +132,6 @@ const copy = {
     goHome: 'Go to home',
     statusReady: 'Current data',
     statusPartial: 'Partial data',
-    availabilityPartial: 'Away-period check is partial',
   },
   es: {
     eyebrow: 'Personas',
@@ -146,21 +143,24 @@ const copy = {
     person: 'persona',
     groups: 'grupos de servicio',
     group: 'grupo de servicio',
-    attentionItems: 'elementos requieren atención',
-    attentionItem: 'elemento requiere atención',
+    attentionItems: 'condiciones requieren atención',
+    attentionItem: 'condición requiere atención',
     activePeople: 'perfiles activos',
     activePerson: 'perfil activo',
     loading: 'Cargando los datos de Personas…',
-    loadingDetails: 'Revisando asignaciones, períodos de ausencia y grupos…',
+    loadingDetails: 'Revisando grupos, asignaciones, disponibilidad e historial…',
     attention: 'Requiere su atención',
     affectedTitle: 'personas tienen asignaciones afectadas por una ausencia',
-    affectedSingularTitle: 'persona tiene asignaciones afectadas por una ausencia',
-    affectedDescription: 'Las ausencias o indisponibilidades registradas coinciden con una asignación en una reunión futura.',
+    affectedSingularTitle: 'persona tiene una asignación afectada por una ausencia',
+    affectedDescription: 'Una indisponibilidad registrada coincide con una asignación activa.',
+    longTitle: 'personas elegibles tienen un intervalo mayor desde su última asignación completada',
+    longSingularTitle: 'persona elegible tiene un intervalo mayor desde su última asignación completada',
+    longDescription: 'Hay partes futuras abiertas donde la comparación factual entre candidatos válidos identifica un intervalo mayor.',
     reviewAssignments: 'Revisar asignaciones',
-    partial: 'Algunos datos necesarios para identificar asignaciones afectadas no están disponibles temporalmente. Los elementos mostrados usan solo los datos recibidos.',
-    scheduleUnavailable: 'No se pudieron revisar las asignaciones y los períodos de ausencia por ahora. El resumen de personas sigue disponible.',
     groupsUnavailable: 'No se pudieron revisar los grupos de servicio por ahora. El resumen de personas sigue disponible.',
-    noAttention: 'No hay asignaciones futuras afectadas por ausencias en los datos disponibles.',
+    evidenceUnavailable: 'Algunas comprobaciones de atención no están disponibles con los permisos actuales. No se muestran valores estimados.',
+    evidenceError: 'No se pudieron comprobar todas las condiciones de atención. El resumen de personas sigue disponible.',
+    noAttention: 'No hay condiciones de atención admitidas por los contratos actuales en los datos disponibles.',
     emptyTitle: 'Todavía no hay personas',
     emptyDescription: 'Añada la primera persona para empezar a organizar perfiles y disponibilidad.',
     unauthorizedTitle: 'Es necesario iniciar sesión',
@@ -175,7 +175,6 @@ const copy = {
     goHome: 'Ir al inicio',
     statusReady: 'Datos actuales',
     statusPartial: 'Datos parciales',
-    availabilityPartial: 'Comprobación parcial de ausencias',
   },
 } as const;
 
@@ -184,11 +183,6 @@ function dayKey(value: string): string | undefined {
   return match ? match[1] : undefined;
 }
 
-/**
- * Resolve the calendar date in the meeting's IANA timezone. This mirrors the
- * timezone-aware formatting strategy used by the scheduling domain instead of
- * using the browser/UTC date, which is wrong around local midnight.
- */
 export function localDateKey(now: Date, timezone: string): string | undefined {
   try {
     const parts = new Intl.DateTimeFormat('en-CA', {
@@ -211,17 +205,13 @@ function isFutureScheduledMeeting(meeting: MidweekOverviewDto['meetings'][number
   return Boolean(today && meeting.date >= today);
 }
 
-/**
- * Availability is an explicit unavailable interval regardless of its optional
- * reasonCode. The reason describes the interval; it does not decide whether the
- * interval makes the person available.
- */
 function isUnavailableForMeeting(period: AvailabilityPeriodDto, meetingDate: string): boolean {
   const start = dayKey(period.startsAt);
   const end = dayKey(period.endsAt);
   return Boolean(start && end && start <= meetingDate && meetingDate < end);
 }
 
+/** Legacy pure regression helper retained while the runtime now consumes the server-owned evidence contract. */
 export function buildPeopleOverviewSummary(
   people: readonly PersonProfileDto[],
   midweek: MidweekOverviewDto,
@@ -303,33 +293,15 @@ function navigateToAssignments(): void {
   window.requestAnimationFrame(() => document.getElementById('main')?.focus({ preventScroll: true }));
 }
 
-function availabilityPersonIds(midweek: MidweekOverviewDto, now: Date): readonly string[] {
-  const scheduledMeetingIds = new Set(midweek.meetings
-    .filter(meeting => isFutureScheduledMeeting(meeting, now))
-    .map(meeting => meeting.id));
-  const personIds = new Set<string>();
-  for (const assignment of midweek.studentAssignments) {
-    if (assignment.state === 'assigned' && scheduledMeetingIds.has(assignment.meetingId)) {
-      personIds.add(assignment.studentId);
-      if (assignment.assistantId) personIds.add(assignment.assistantId);
-    }
-  }
-  for (const assignment of midweek.nonStudentAssignments) {
-    if (assignment.state === 'assigned' && scheduledMeetingIds.has(assignment.meetingId)) personIds.add(assignment.personId);
-  }
-  return Object.freeze([...personIds]);
-}
-
-function countAffectedPeople(affected: readonly AffectedAssignment[]): number {
-  return new Set(affected.map(item => item.personId)).size;
+function readyEvidence(value: QueryState<PeopleOverviewEvidenceDto>): PeopleOverviewEvidenceDto | undefined {
+  return value.status === 'ready' ? value.value : undefined;
 }
 
 export function PeopleOverview({ locale, onOpenDirectory, onAddPerson }: { locale: Locale; onOpenDirectory: () => void; onAddPerson: () => void }) {
   const text = copy[locale];
   const [people, setPeople] = useState<QueryState<readonly PersonProfileDto[]>>({ status: 'loading' });
-  const [midweek, setMidweek] = useState<QueryState<MidweekOverviewDto>>({ status: 'loading' });
   const [serviceGroups, setServiceGroups] = useState<QueryState<readonly ServiceGroupDto[]>>({ status: 'loading' });
-  const [availability, setAvailability] = useState<AvailabilityState>({ status: 'idle' });
+  const [evidence, setEvidence] = useState<QueryState<PeopleOverviewEvidenceDto>>({ status: 'loading' });
   const requestVersionRef = useRef(0);
   const controllerRef = useRef<AbortController | null>(null);
   const { token } = theme.useToken();
@@ -340,49 +312,26 @@ export function PeopleOverview({ locale, onOpenDirectory, onAddPerson }: { local
     const controller = new AbortController();
     controllerRef.current = controller;
     setPeople({ status: 'loading' });
-    setMidweek({ status: 'loading' });
     setServiceGroups({ status: 'loading' });
-    setAvailability({ status: 'idle' });
+    setEvidence({ status: 'loading' });
 
     const accept = () => isCurrentPeopleOverviewRequest(requestVersion, requestVersionRef.current, controller.signal.aborted);
-    const [peopleResult, midweekResult, serviceGroupsResult] = await Promise.allSettled([
+    const [peopleResult, groupsResult, evidenceResult] = await Promise.allSettled([
       peopleApi.list(controller.signal),
-      midweekApi.overview(controller.signal),
       serviceGroupsApi.list(controller.signal),
+      peopleOverviewEvidenceApi.get(controller.signal),
     ]);
     if (!accept()) return;
 
-    if (peopleResult.status === 'fulfilled') setPeople({ status: 'ready', value: peopleResult.value });
-    else setPeople({ status: 'error', error: peopleResult.reason });
-    if (midweekResult.status === 'fulfilled') setMidweek({ status: 'ready', value: midweekResult.value });
-    else setMidweek({ status: 'error', error: midweekResult.reason });
-    if (serviceGroupsResult.status === 'fulfilled') setServiceGroups({ status: 'ready', value: serviceGroupsResult.value });
-    else setServiceGroups({ status: 'error', error: serviceGroupsResult.reason });
-
-    if (peopleResult.status !== 'fulfilled' || midweekResult.status !== 'fulfilled') {
-      setAvailability({ status: 'idle' });
-      return;
-    }
-
-    const personIds = availabilityPersonIds(midweekResult.value, new Date());
-    if (personIds.length === 0) {
-      setAvailability({ status: 'ready', periodsByPersonId: new Map() });
-      return;
-    }
-
-    setAvailability({ status: 'loading' });
-    const results = await Promise.allSettled(personIds.map(async personId => [personId, await availabilityApi.list(personId, controller.signal)] as const));
-    if (!accept()) return;
-
-    const periodsByPersonId = new Map<string, readonly AvailabilityPeriodDto[]>();
-    let failures = 0;
-    for (const result of results) {
-      if (result.status === 'fulfilled') periodsByPersonId.set(result.value[0], result.value[1]);
-      else failures += 1;
-    }
-    setAvailability(failures === 0
-      ? { status: 'ready', periodsByPersonId }
-      : periodsByPersonId.size > 0 ? { status: 'partial', periodsByPersonId } : { status: 'error', error: results[0]?.status === 'rejected' ? results[0].reason : undefined });
+    setPeople(peopleResult.status === 'fulfilled'
+      ? { status: 'ready', value: peopleResult.value }
+      : { status: 'error', error: peopleResult.reason });
+    setServiceGroups(groupsResult.status === 'fulfilled'
+      ? { status: 'ready', value: groupsResult.value }
+      : { status: 'error', error: groupsResult.reason });
+    setEvidence(evidenceResult.status === 'fulfilled'
+      ? { status: 'ready', value: evidenceResult.value }
+      : { status: 'error', error: evidenceResult.reason });
   };
 
   useEffect(() => {
@@ -393,15 +342,9 @@ export function PeopleOverview({ locale, onOpenDirectory, onAddPerson }: { local
     };
   }, []);
 
-  const primaryProblem = people.status === 'error' ? classifyPeopleOverviewProblem(people.error) : undefined;
-  const summary = useMemo(() => {
-    if (people.status !== 'ready' || midweek.status !== 'ready' || (availability.status !== 'ready' && availability.status !== 'partial')) return undefined;
-    return buildPeopleOverviewSummary(people.value, midweek.value, availability.periodsByPersonId);
-  }, [availability, midweek, people]);
-  const showingInitialLoading = people.status === 'loading';
-  const isLoadingDetails = people.status === 'ready' && (midweek.status === 'loading' || serviceGroups.status === 'loading' || availability.status === 'loading');
-  const affectedCount = summary ? countAffectedPeople(summary.affectedPeople) : 0;
-  const hasPartialData = midweek.status === 'error' || serviceGroups.status === 'error' || availability.status === 'partial' || availability.status === 'error';
+  const peopleProblem = people.status === 'error' ? classifyPeopleOverviewProblem(people.error) : undefined;
+  const evidenceProblem = evidence.status === 'error' ? classifyPeopleOverviewProblem(evidence.error) : undefined;
+  const primaryProblem = peopleProblem ?? (evidenceProblem === 'unauthenticated' ? 'unauthenticated' : undefined);
 
   if (primaryProblem === 'unauthenticated' || primaryProblem === 'forbidden') {
     return <section aria-label={text.title}>
@@ -414,19 +357,19 @@ export function PeopleOverview({ locale, onOpenDirectory, onAddPerson }: { local
     </section>;
   }
 
-  if (primaryProblem === 'non-retryable') {
+  if (peopleProblem === 'non-retryable') {
     return <section aria-label={text.title}>
       <Result status="error" title={<Title level={2} style={{ margin: 0 }}>{text.invalidTitle}</Title>} subTitle={text.invalidDescription} extra={<Space wrap><Button onClick={onOpenDirectory}>{text.directory}</Button><Button href="/">{text.goHome}</Button></Space>} />
     </section>;
   }
 
-  if (primaryProblem === 'retryable' && people.status === 'error') {
+  if (peopleProblem === 'retryable' && people.status === 'error') {
     return <section aria-label={text.title}>
       <Result status="error" title={<Title level={2} style={{ margin: 0 }}>{text.errorTitle}</Title>} subTitle={text.errorDescription} extra={<Space wrap><Button onClick={onOpenDirectory}>{text.directory}</Button><Button type="primary" onClick={() => void load()}>{text.retry}</Button></Space>} />
     </section>;
   }
 
-  if (showingInitialLoading) {
+  if (people.status === 'loading') {
     return <section aria-label={text.title} aria-busy="true">
       <Card>
         <Space direction="vertical" size="middle" style={{ display: 'flex' }}>
@@ -449,6 +392,17 @@ export function PeopleOverview({ locale, onOpenDirectory, onAddPerson }: { local
     </section>;
   }
 
+  const evidenceValue = readyEvidence(evidence);
+  const affected = evidenceValue?.affectedAssignments.status === 'ready' ? evidenceValue.affectedAssignments : undefined;
+  const longInterval = evidenceValue?.longInterval.status === 'ready' ? evidenceValue.longInterval : undefined;
+  const affectedCount = affected?.affectedPeopleCount ?? 0;
+  const longCount = longInterval?.candidateCount ?? 0;
+  const attentionCount = Number(affectedCount > 0) + Number(longCount > 0);
+  const attentionComplete = Boolean(affected && longInterval);
+  const evidenceUnavailable = Boolean(evidenceValue && (!affected || !longInterval));
+  const hasPartialData = serviceGroups.status === 'error' || evidence.status === 'error' || evidenceUnavailable;
+  const isLoadingDetails = serviceGroups.status === 'loading' || evidence.status === 'loading';
+
   return <section aria-label={text.title}>
     <Card>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, justifyContent: 'space-between', alignItems: 'flex-end' }}>
@@ -463,30 +417,10 @@ export function PeopleOverview({ locale, onOpenDirectory, onAddPerson }: { local
         </Space>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginTop: 24 }}>
-        <Card size="small">
-          <Space direction="vertical" size={2}>
-            <Text type="secondary">{people.value.length === 1 ? text.person : text.people}</Text>
-            <Title level={2} style={{ margin: 0 }}>{people.value.length}</Title>
-          </Space>
-        </Card>
-        <Card size="small">
-          <Space direction="vertical" size={2}>
-            <Text type="secondary">{people.value.length === 1 ? text.activePerson : text.activePeople}</Text>
-            <Title level={2} style={{ margin: 0 }}>{people.value.filter(person => person.active).length}</Title>
-          </Space>
-        </Card>
-        {serviceGroups.status === 'ready' ? <Card size="small">
-          <Space direction="vertical" size={2}>
-            <Text type="secondary">{countServiceGroups(serviceGroups.value) === 1 ? text.group : text.groups}</Text>
-            <Title level={2} style={{ margin: 0 }}>{countServiceGroups(serviceGroups.value)}</Title>
-          </Space>
-        </Card> : null}
-        {summary && availability.status === 'ready' ? <Card size="small">
-          <Space direction="vertical" size={2}>
-            <Text type="secondary">{affectedCount === 1 ? text.attentionItem : text.attentionItems}</Text>
-            <Title level={2} style={{ margin: 0 }}>{affectedCount}</Title>
-          </Space>
-        </Card> : null}
+        <Card size="small"><Space direction="vertical" size={2}><Text type="secondary">{people.value.length === 1 ? text.person : text.people}</Text><Title level={2} style={{ margin: 0 }}>{people.value.length}</Title></Space></Card>
+        <Card size="small"><Space direction="vertical" size={2}><Text type="secondary">{people.value.length === 1 ? text.activePerson : text.activePeople}</Text><Title level={2} style={{ margin: 0 }}>{people.value.filter(person => person.active).length}</Title></Space></Card>
+        {serviceGroups.status === 'ready' ? <Card size="small"><Space direction="vertical" size={2}><Text type="secondary">{countServiceGroups(serviceGroups.value) === 1 ? text.group : text.groups}</Text><Title level={2} style={{ margin: 0 }}>{countServiceGroups(serviceGroups.value)}</Title></Space></Card> : null}
+        {attentionComplete ? <Card size="small"><Space direction="vertical" size={2}><Text type="secondary">{attentionCount === 1 ? text.attentionItem : text.attentionItems}</Text><Title level={2} style={{ margin: 0 }}>{attentionCount}</Title></Space></Card> : null}
       </div>
     </Card>
 
@@ -499,11 +433,10 @@ export function PeopleOverview({ locale, onOpenDirectory, onAddPerson }: { local
 
         {isLoadingDetails ? <Card aria-busy="true"><Space direction="vertical" size="small" style={{ display: 'flex' }}><Skeleton active title={{ width: '42%' }} paragraph={{ rows: 2 }} /><Text role="status" type="secondary">{text.loadingDetails}</Text></Space></Card> : null}
         {serviceGroups.status === 'error' ? <Alert type="warning" showIcon message={text.groupsUnavailable} action={<Button size="small" onClick={() => void load()}>{text.retry}</Button>} /> : null}
-        {midweek.status === 'error' ? <Alert type="warning" showIcon message={text.scheduleUnavailable} action={<Button size="small" onClick={() => void load()}>{text.retry}</Button>} /> : null}
-        {availability.status === 'partial' ? <Alert type="warning" showIcon message={text.partial} action={<Button size="small" onClick={() => void load()}>{text.retry}</Button>} /> : null}
-        {availability.status === 'error' ? <Alert type="warning" showIcon message={text.scheduleUnavailable} action={<Button size="small" onClick={() => void load()}>{text.retry}</Button>} /> : null}
+        {evidence.status === 'error' ? <Alert type="warning" showIcon message={text.evidenceError} action={<Button size="small" onClick={() => void load()}>{text.retry}</Button>} /> : null}
+        {evidenceUnavailable ? <Alert type="warning" showIcon message={text.evidenceUnavailable} /> : null}
 
-        {summary && affectedCount > 0 ? <Card style={{ borderInlineStart: `4px solid ${token.colorWarning}` }}>
+        {affected && affectedCount > 0 ? <Card style={{ borderInlineStart: `4px solid ${token.colorWarning}` }}>
           <Space direction="vertical" size="small" style={{ display: 'flex' }}>
             <Space align="start">
               <ExclamationCircleOutlined aria-hidden="true" style={{ color: token.colorWarning, fontSize: 20, marginTop: 3 }} />
@@ -515,7 +448,21 @@ export function PeopleOverview({ locale, onOpenDirectory, onAddPerson }: { local
             <Button type="link" icon={<ArrowRightOutlined />} iconPosition="end" onClick={navigateToAssignments} style={{ alignSelf: 'flex-start', paddingInline: 0 }}>{text.reviewAssignments}</Button>
           </Space>
         </Card> : null}
-        {summary && affectedCount === 0 && availability.status === 'ready' ? <Card><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={text.noAttention} /></Card> : null}
+
+        {longInterval && longCount > 0 ? <Card style={{ borderInlineStart: `4px solid ${token.colorWarning}` }}>
+          <Space direction="vertical" size="small" style={{ display: 'flex' }}>
+            <Space align="start">
+              <ExclamationCircleOutlined aria-hidden="true" style={{ color: token.colorWarning, fontSize: 20, marginTop: 3 }} />
+              <div>
+                <Title level={3} style={{ margin: 0 }}>{longCount} {longCount === 1 ? text.longSingularTitle : text.longTitle}</Title>
+                <Paragraph type="secondary" style={{ margin: '4px 0 0' }}>{text.longDescription}</Paragraph>
+              </div>
+            </Space>
+            <Button type="link" icon={<ArrowRightOutlined />} iconPosition="end" onClick={navigateToAssignments} style={{ alignSelf: 'flex-start', paddingInline: 0 }}>{text.reviewAssignments}</Button>
+          </Space>
+        </Card> : null}
+
+        {attentionComplete && attentionCount === 0 ? <Card><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={text.noAttention} /></Card> : null}
       </Space>
     </div>
   </section>;
