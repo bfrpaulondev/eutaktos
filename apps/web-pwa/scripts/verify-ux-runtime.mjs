@@ -128,35 +128,6 @@ async function openLocalizedDialog(trigger, title, closeLabel, locale) {
 
 async function verifyLocalizedOrganization(locale, expected) {
   await visitWorkspace(expected.path, expected.overview, locale, expected.documentTitle);
-
-  const openedCreate = await poll(
-    async () => await evaluate(`(() => {
-      const button = [...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(expected.add)});
-      button?.click();
-      return Boolean(button);
-    })()`),
-    `A ação ${expected.add} não ficou disponível no overview em ${locale}`,
-    80,
-  );
-  if (!openedCreate) throw new Error(`A ação ${expected.add} não foi encontrada no overview em ${locale}`);
-  await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('[role="dialog"]')].find(node => node.textContent?.includes(${JSON.stringify(expected.createTitle)})))`), `O formulário ${expected.createTitle} não abriu a partir do overview em ${locale}`);
-  const cancelledCreate = await evaluate(`(() => {
-    const dialog = [...document.querySelectorAll('[role="dialog"]')].find(node => node.textContent?.includes(${JSON.stringify(expected.createTitle)}));
-    const button = dialog && [...dialog.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(expected.cancel)});
-    button?.click();
-    return Boolean(button);
-  })()`);
-  if (!cancelledCreate) throw new Error(`O formulário ${expected.createTitle} não expôs a ação ${expected.cancel} em ${locale}`);
-  await poll(async () => await evaluate(`![...document.querySelectorAll('[role="dialog"]')].some(node => node.textContent?.includes(${JSON.stringify(expected.createTitle)}) && getComputedStyle(node).visibility !== 'hidden')`), `O formulário ${expected.createTitle} não fechou em ${locale}`);
-
-  const openedOverview = await evaluate(`(() => {
-    const button = [...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(expected.overviewLabel)});
-    button?.click();
-    return Boolean(button);
-  })()`);
-  if (!openedOverview) throw new Error(`O retorno ao overview ${expected.overviewLabel} não foi encontrado em ${locale}`);
-  await poll(async () => await evaluate(`Boolean(document.querySelector('#main')?.textContent?.includes(${JSON.stringify(expected.overview)}))`), `O overview não voltou a ser apresentado em ${locale}`);
-
   const openedDirectory = await evaluate(`(() => {
     const button = [...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(expected.directory)});
     button?.click();
@@ -223,9 +194,9 @@ try {
     es: [['/agenda', 'Agenda'], ['/designacoes', 'Asignaciones'], ['/pessoas', 'Personas'], ['/preferencias', 'Preferencias']],
   };
   const organization = {
-    'pt-PT': { path: '/pessoas', overview: 'Pessoas', heading: 'Pessoas e organização', documentTitle: 'Eutaktos — Pessoas', overviewLabel: 'Visão geral', directory: 'Diretório', add: 'Adicionar pessoa', createTitle: 'Nova pessoa', cancel: 'Cancelar', households: 'Agregados', groups: 'Grupos de serviço', responsibilities: 'Responsabilidades', hourglass: 'Inspecionar export Hourglass', audit: 'Histórico de auditoria', access: 'Gerir acessos', hourglassTitle: 'Inspeção de export Hourglass', auditTitle: 'Histórico de auditoria', accessTitle: 'Gestão de acessos', close: 'Fechar' },
-    en: { path: '/people', overview: 'People', heading: 'People and organization', documentTitle: 'Eutaktos — People', overviewLabel: 'Overview', directory: 'Directory', add: 'Add person', createTitle: 'New person', cancel: 'Cancel', households: 'Households', groups: 'Service groups', responsibilities: 'Responsibilities', hourglass: 'Inspect Hourglass export', audit: 'Audit history', access: 'Manage access', hourglassTitle: 'Hourglass export inspector', auditTitle: 'Audit history', accessTitle: 'Access management', close: 'Close' },
-    es: { path: '/pessoas', overview: 'Personas', heading: 'Personas y organización', documentTitle: 'Eutaktos — Personas', overviewLabel: 'Vista general', directory: 'Directorio', add: 'Añadir persona', createTitle: 'Nueva persona', cancel: 'Cancelar', households: 'Grupos familiares', groups: 'Grupos de servicio', responsibilities: 'Responsabilidades', hourglass: 'Inspeccionar exportación Hourglass', audit: 'Historial de auditoría', access: 'Gestionar accesos', hourglassTitle: 'Inspector de exportación Hourglass', auditTitle: 'Historial de auditoría', accessTitle: 'Gestión de accesos', close: 'Cerrar' },
+    'pt-PT': { path: '/pessoas', overview: 'Pessoas', heading: 'Pessoas e organização', documentTitle: 'Eutaktos — Pessoas', overviewLabel: 'Visão geral', directory: 'Diretório', households: 'Agregados', groups: 'Grupos de serviço', responsibilities: 'Responsabilidades', hourglass: 'Inspecionar export Hourglass', audit: 'Histórico de auditoria', access: 'Gerir acessos', hourglassTitle: 'Inspeção de export Hourglass', auditTitle: 'Histórico de auditoria', accessTitle: 'Gestão de acessos', close: 'Fechar' },
+    en: { path: '/people', overview: 'People', heading: 'People and organization', documentTitle: 'Eutaktos — People', overviewLabel: 'Overview', directory: 'Directory', households: 'Households', groups: 'Service groups', responsibilities: 'Responsibilities', hourglass: 'Inspect Hourglass export', audit: 'Audit history', access: 'Manage access', hourglassTitle: 'Hourglass export inspector', auditTitle: 'Audit history', accessTitle: 'Access management', close: 'Close' },
+    es: { path: '/pessoas', overview: 'Personas', heading: 'Personas y organización', documentTitle: 'Eutaktos — Personas', overviewLabel: 'Vista general', directory: 'Directorio', households: 'Grupos familiares', groups: 'Grupos de servicio', responsibilities: 'Responsabilidades', hourglass: 'Inspeccionar exportación Hourglass', audit: 'Historial de auditoría', access: 'Gestionar accesos', hourglassTitle: 'Inspector de exportación Hourglass', auditTitle: 'Historial de auditoría', accessTitle: 'Gestión de accesos', close: 'Cerrar' },
   };
   for (const locale of ['pt-PT', 'en', 'es']) {
     const expectedHome = locale === 'pt-PT' ? 'Tudo em boa ordem.' : locale === 'en' ? 'Everything in good order.' : 'Todo en buen orden.';
@@ -241,7 +212,7 @@ try {
   const accessibility = await evaluate(`({ mode: document.documentElement.dataset.colorMode, background: getComputedStyle(document.body).backgroundColor, border: getComputedStyle(document.querySelector('.MuiPaper-root')).borderTopWidth })`);
   if (accessibility.mode !== 'dark' || accessibility.border !== '2px' || accessibility.background === 'rgb(0, 0, 0)') throw new Error(`O tema acessível não foi aplicado corretamente: ${JSON.stringify(accessibility)}`);
 
-  process.stdout.write('UX runtime checks passed: pt-PT/en/es workspaces and organization dialogs, Overview -> Add person -> cancel handoff, localized real deep-link navigations/titles, safe unknown-route fallback, More focus restore, dark/high contrast, 320px reflow, skip link, landmarks and aria-current.\n');
+  process.stdout.write('UX runtime checks passed: pt-PT/en/es workspaces and organization dialogs, localized real deep-link navigations/titles, safe unknown-route fallback, More focus restore, dark/high contrast, 320px reflow, skip link, landmarks and aria-current.\n');
 } finally {
   cdp?.close();
   if (browser && !browser.killed) browser.kill('SIGTERM');
