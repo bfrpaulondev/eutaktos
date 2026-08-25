@@ -19,7 +19,10 @@ const STATE = {
 } as const;
 
 function spreadsheetSafe(value: string): string {
-  return /^[=+\-@]/.test(value) ? `'${value}` : value;
+  // Spreadsheet engines can ignore leading whitespace/control characters before
+  // a formula marker. Prefix the complete cell with an apostrophe whenever the
+  // first non-control/space character could start a formula.
+  return /^[\u0000-\u0020]*[=+\-@]/.test(value) ? `'${value}` : value;
 }
 
 function escapeCsv(value: string): string {
