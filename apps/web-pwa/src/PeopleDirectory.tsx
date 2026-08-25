@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import CheckSquareOutlined from '@ant-design/icons/es/icons/CheckSquareOutlined';
+import DownloadOutlined from '@ant-design/icons/es/icons/DownloadOutlined';
 import EditOutlined from '@ant-design/icons/es/icons/EditOutlined';
 import FilterOutlined from '@ant-design/icons/es/icons/FilterOutlined';
 import PlusOutlined from '@ant-design/icons/es/icons/PlusOutlined';
@@ -7,6 +9,8 @@ import Alert from 'antd/es/alert';
 import Avatar from 'antd/es/avatar';
 import Button from 'antd/es/button';
 import Card from 'antd/es/card';
+import Checkbox from 'antd/es/checkbox';
+import Dropdown from 'antd/es/dropdown';
 import Empty from 'antd/es/empty';
 import Input from 'antd/es/input';
 import Modal from 'antd/es/modal';
@@ -24,6 +28,7 @@ import { assignmentTypeLabel } from './lib/assignmentTypeCatalog';
 import type { Locale } from './lib/preferences';
 import { peopleApi, type PersonProfileDto } from './lib/peopleApi';
 import { peopleDirectoryApi, type PeopleDirectoryDto, type PeopleDirectoryPersonDto } from './lib/peopleDirectoryApi';
+import { exportPeopleDirectoryCsv, peopleDirectoryExportFilename } from './lib/peopleDirectoryExport';
 import {
   DEFAULT_PEOPLE_DIRECTORY_FILTERS,
   filterPeopleDirectory,
@@ -55,6 +60,9 @@ const copy = {
     nextUnavailable: 'Próxima indisponibilidade', noNextUnavailable: 'Sem próxima indisponibilidade registada', eligibleFor: 'Elegível para', eligibleTypes: 'tipos', noEligibility: 'Sem elegibilidade ativa registada',
     responsibilities: 'Responsabilidades', noResponsibilities: 'Sem responsabilidade ativa', lastAssignment: 'Última designação concluída', noAssignmentHistory: 'Sem designação concluída registada',
     locale: 'Idioma', actions: 'Ações', edit: 'Editar', contacts: 'Contactos de emergência', away: 'Ausências',
+    export: 'Exportar', exportFiltered: 'Exportar resultados filtrados', selectForExport: 'Selecionar pessoas para exportar', exportSelected: 'Exportar selecionadas',
+    selectedOne: 'pessoa selecionada', selectedMany: 'pessoas selecionadas', selectAllFiltered: 'Selecionar resultados', clearSelection: 'Limpar seleção', finishSelection: 'Concluir',
+    selectionHelp: 'A exportação em lote inclui apenas os campos autorizados pelas suas permissões atuais.', selectPerson: 'Selecionar pessoa',
     dialogTitle: 'Nova pessoa', editTitle: 'Editar pessoa', name: 'Nome', preferredLocale: 'Idioma preferido', enabled: 'Perfil ativo', cancel: 'Cancelar', save: 'Guardar', saving: 'A guardar…',
     formError: 'Não foi possível guardar a pessoa. Tenta novamente.', success: 'Pessoa adicionada com sucesso.', updated: 'Pessoa atualizada com sucesso.', close: 'Fechar',
     discardTitle: 'Descartar alterações?', discardDetail: 'As alterações não guardadas serão perdidas.', keepEditing: 'Continuar a editar', discard: 'Descartar',
@@ -71,6 +79,9 @@ const copy = {
     nextUnavailable: 'Next unavailability', noNextUnavailable: 'No upcoming unavailability recorded', eligibleFor: 'Eligible for', eligibleTypes: 'types', noEligibility: 'No active eligibility recorded',
     responsibilities: 'Responsibilities', noResponsibilities: 'No active responsibility', lastAssignment: 'Last completed assignment', noAssignmentHistory: 'No completed assignment recorded',
     locale: 'Language', actions: 'Actions', edit: 'Edit', contacts: 'Emergency contacts', away: 'Away periods',
+    export: 'Export', exportFiltered: 'Export filtered results', selectForExport: 'Select people to export', exportSelected: 'Export selected',
+    selectedOne: 'person selected', selectedMany: 'people selected', selectAllFiltered: 'Select results', clearSelection: 'Clear selection', finishSelection: 'Done',
+    selectionHelp: 'Bulk export includes only fields authorized by your current permissions.', selectPerson: 'Select person',
     dialogTitle: 'New person', editTitle: 'Edit person', name: 'Name', preferredLocale: 'Preferred language', enabled: 'Active profile', cancel: 'Cancel', save: 'Save', saving: 'Saving…',
     formError: 'The person could not be saved. Please try again.', success: 'Person added successfully.', updated: 'Person updated successfully.', close: 'Close',
     discardTitle: 'Discard changes?', discardDetail: 'Unsaved changes will be lost.', keepEditing: 'Keep editing', discard: 'Discard',
@@ -87,6 +98,9 @@ const copy = {
     nextUnavailable: 'Próxima indisponibilidad', noNextUnavailable: 'No hay próxima indisponibilidad registrada', eligibleFor: 'Elegible para', eligibleTypes: 'tipos', noEligibility: 'Sin elegibilidad activa registrada',
     responsibilities: 'Responsabilidades', noResponsibilities: 'Sin responsabilidad activa', lastAssignment: 'Última asignación completada', noAssignmentHistory: 'Sin asignación completada registrada',
     locale: 'Idioma', actions: 'Acciones', edit: 'Editar', contacts: 'Contactos de emergencia', away: 'Ausencias',
+    export: 'Exportar', exportFiltered: 'Exportar resultados filtrados', selectForExport: 'Seleccionar personas para exportar', exportSelected: 'Exportar seleccionadas',
+    selectedOne: 'persona seleccionada', selectedMany: 'personas seleccionadas', selectAllFiltered: 'Seleccionar resultados', clearSelection: 'Limpiar selección', finishSelection: 'Finalizar',
+    selectionHelp: 'La exportación por lotes incluye solo los campos autorizados por sus permisos actuales.', selectPerson: 'Seleccionar persona',
     dialogTitle: 'Nueva persona', editTitle: 'Editar persona', name: 'Nombre', preferredLocale: 'Idioma preferido', enabled: 'Perfil activo', cancel: 'Cancelar', save: 'Guardar', saving: 'Guardando…',
     formError: 'No se pudo guardar la persona. Inténtelo de nuevo.', success: 'Persona añadida correctamente.', updated: 'Persona actualizada correctamente.', close: 'Cerrar',
     discardTitle: '¿Descartar cambios?', discardDetail: 'Se perderán los cambios no guardados.', keepEditing: 'Seguir editando', discard: 'Descartar',
@@ -127,6 +141,19 @@ function responsibilityLabel(value: string): string {
   return value.replace(/[-_]+/g, ' ').replace(/^./, first => first.toLocaleUpperCase());
 }
 
+function downloadCsv(content: string, filename: string): void {
+  const blob = new Blob(['\uFEFF', content], { type: 'text/csv;charset=utf-8' });
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = objectUrl;
+  anchor.download = filename;
+  anchor.hidden = true;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(objectUrl);
+}
+
 export function PeopleDirectory({ locale, createRequest = 0 }: { locale: Locale; createRequest?: number }) {
   const text = copy[locale];
   const { token } = theme.useToken();
@@ -135,6 +162,8 @@ export function PeopleDirectory({ locale, createRequest = 0 }: { locale: Locale;
   const [loadError, setLoadError] = useState<unknown>(null);
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<PeopleDirectoryFilters>(() => peopleDirectoryFiltersFromSearch(window.location.search));
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedPersonIds, setSelectedPersonIds] = useState<readonly string[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [editingPerson, setEditingPerson] = useState<PeopleDirectoryPersonDto | null>(null);
   const [discardOpen, setDiscardOpen] = useState<'create' | 'edit' | null>(null);
@@ -201,6 +230,7 @@ export function PeopleDirectory({ locale, createRequest = 0 }: { locale: Locale;
   };
 
   const openCreate = () => {
+    if (!directory?.capabilities.writePeople) return;
     resetForm();
     setNotice(null);
     setDiscardOpen(null);
@@ -208,12 +238,13 @@ export function PeopleDirectory({ locale, createRequest = 0 }: { locale: Locale;
   };
 
   useEffect(() => {
-    if (handledCreateRequestRef.current === createRequest) return;
+    if (handledCreateRequestRef.current === createRequest || !directory) return;
     handledCreateRequestRef.current = createRequest;
-    openCreate();
-  }, [createRequest, locale]);
+    if (directory.capabilities.writePeople) openCreate();
+  }, [createRequest, directory, locale]);
 
   const beginEdit = (person: PeopleDirectoryPersonDto) => {
+    if (!directory?.capabilities.writePeople) return;
     setEditingPerson(person);
     setDisplayName(person.displayName);
     setPreferredLocale(person.preferredLocale ?? '');
@@ -245,7 +276,7 @@ export function PeopleDirectory({ locale, createRequest = 0 }: { locale: Locale;
 
   const submitCreate = async (event: FormEvent) => {
     event.preventDefault();
-    if (!canSubmitPerson(displayName, saving) || submittingRef.current) return;
+    if (!directory?.capabilities.writePeople || !canSubmitPerson(displayName, saving) || submittingRef.current) return;
     submittingRef.current = true;
     setSaving(true);
     setFormError(false);
@@ -265,7 +296,7 @@ export function PeopleDirectory({ locale, createRequest = 0 }: { locale: Locale;
 
   const submitEdit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!editingPerson || !canSubmitPerson(displayName, saving) || submittingRef.current) return;
+    if (!directory?.capabilities.writePeople || !editingPerson || !canSubmitPerson(displayName, saving) || submittingRef.current) return;
     submittingRef.current = true;
     setSaving(true);
     setFormError(false);
@@ -285,10 +316,33 @@ export function PeopleDirectory({ locale, createRequest = 0 }: { locale: Locale;
 
   const effectiveFilters = directory ? sanitizePeopleDirectoryFilters(filters, directory) : DEFAULT_PEOPLE_DIRECTORY_FILTERS;
   const filtered = useMemo(() => directory ? filterPeopleDirectory(directory.people, query, effectiveFilters, locale) : [], [directory, effectiveFilters, locale, query]);
+  const selectedPeople = useMemo(() => filtered.filter(person => selectedPersonIds.includes(person.id)), [filtered, selectedPersonIds]);
   const hasFilters = hasPeopleDirectoryFilters(query, effectiveFilters);
   const advancedCount = Number(Boolean(effectiveFilters.eligibilityTypeId)) + Number(Boolean(effectiveFilters.responsibilityKey));
   const clearFilters = () => { setQuery(''); syncFilters(DEFAULT_PEOPLE_DIRECTORY_FILTERS); };
   const updateFilter = <K extends keyof PeopleDirectoryFilters>(key: K, value: PeopleDirectoryFilters[K]) => syncFilters(Object.freeze({ ...effectiveFilters, [key]: value || undefined }));
+
+  useEffect(() => {
+    if (!selectionMode) return;
+    const visibleIds = new Set(filtered.map(person => person.id));
+    setSelectedPersonIds(current => current.filter(id => visibleIds.has(id)));
+  }, [filtered, selectionMode]);
+
+  const toggleSelection = (personId: string, checked: boolean) => {
+    setSelectedPersonIds(current => checked
+      ? current.includes(personId) ? current : Object.freeze([...current, personId])
+      : Object.freeze(current.filter(id => id !== personId)));
+  };
+
+  const finishSelection = () => {
+    setSelectionMode(false);
+    setSelectedPersonIds([]);
+  };
+
+  const exportRows = (people: readonly PeopleDirectoryPersonDto[]) => {
+    if (!directory || people.length === 0) return;
+    downloadCsv(exportPeopleDirectoryCsv(people, directory.capabilities, locale), peopleDirectoryExportFilename());
+  };
 
   const availabilityNode = (person: PeopleDirectoryPersonDto) => {
     if (person.availability.status !== 'ready') return <Text type="secondary">{text.unknown}</Text>;
@@ -316,7 +370,7 @@ export function PeopleDirectory({ locale, createRequest = 0 }: { locale: Locale;
   };
 
   const actionsNode = (person: PeopleDirectoryPersonDto) => <Space size={4} wrap>
-    <Button type="link" size="small" icon={<EditOutlined />} onClick={() => beginEdit(person)}>{text.edit}</Button>
+    {directory?.capabilities.writePeople ? <Button type="link" size="small" icon={<EditOutlined />} onClick={() => beginEdit(person)}>{text.edit}</Button> : null}
     <Button type="link" size="small" onClick={() => setAwayPerson(person)}>{text.away}</Button>
     {directory?.capabilities.eligibility ? <Button type="link" size="small" onClick={() => setEligibilityPerson(person)}>{text.eligibility}</Button> : null}
     <Button type="link" size="small" onClick={() => setContactsPerson(person)}>{text.contacts}</Button>
@@ -340,7 +394,7 @@ export function PeopleDirectory({ locale, createRequest = 0 }: { locale: Locale;
   ];
 
   const error = errorStatus(loadError);
-  const partial = directory && Object.values(directory.capabilities).some(value => !value);
+  const partial = directory && [directory.capabilities.availability, directory.capabilities.eligibility, directory.capabilities.responsibilities, directory.capabilities.schedule].some(value => !value);
   const advancedFilters = directory ? <Space direction="vertical" size="middle" style={{ width: 280 }}>
     <div><Text strong>{text.eligibility}</Text><Select aria-label={text.eligibility} style={{ width: '100%', marginTop: 6 }} value={effectiveFilters.eligibilityTypeId ?? ''} disabled={!directory.capabilities.eligibility} onChange={value => updateFilter('eligibilityTypeId', value || undefined)} options={[{ value: '', label: text.allEligibility }, ...directory.filters.assignmentTypeIds.map(id => ({ value: id, label: assignmentTypeLabel(id, locale) }))]} /></div>
     <div><Text strong>{text.responsibility}</Text><Select aria-label={text.responsibility} style={{ width: '100%', marginTop: 6 }} value={effectiveFilters.responsibilityKey ?? ''} disabled={!directory.capabilities.responsibilities} onChange={value => updateFilter('responsibilityKey', value || undefined)} options={[{ value: '', label: text.allResponsibilities }, ...directory.filters.responsibilityKeys.map(key => ({ value: key, label: responsibilityLabel(key) }))]} /></div>
@@ -353,7 +407,19 @@ export function PeopleDirectory({ locale, createRequest = 0 }: { locale: Locale;
           <Text type="secondary" strong>{text.eyebrow}</Text>
           <Space align="start" style={{ width: '100%', justifyContent: 'space-between' }} wrap>
             <div style={{ maxWidth: 760 }}><Title level={2} id="people-directory-title" style={{ margin: 0 }}>{text.title}</Title><Paragraph type="secondary" style={{ margin: '8px 0 0' }}>{text.subtitle}</Paragraph></div>
-            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>{text.add}</Button>
+            <Space wrap>
+              {directory ? <Dropdown trigger={['click']} menu={{
+                items: [
+                  { key: 'filtered', icon: <DownloadOutlined />, label: text.exportFiltered, disabled: filtered.length === 0 },
+                  { key: 'select', icon: <CheckSquareOutlined />, label: text.selectForExport, disabled: filtered.length === 0 },
+                ],
+                onClick: ({ key }) => {
+                  if (key === 'filtered') exportRows(filtered);
+                  if (key === 'select') { setSelectionMode(true); setSelectedPersonIds([]); }
+                },
+              }}><Button icon={<DownloadOutlined />}>{text.export}</Button></Dropdown> : null}
+              {directory?.capabilities.writePeople ? <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>{text.add}</Button> : null}
+            </Space>
           </Space>
         </Space>
       </Card>
@@ -373,17 +439,44 @@ export function PeopleDirectory({ locale, createRequest = 0 }: { locale: Locale;
         {hasFilters ? <div style={{ marginTop: 12 }}><Button type="link" onClick={clearFilters} style={{ paddingInline: 0 }}>{text.clear}</Button></div> : null}
       </Card>
 
+      {selectionMode && directory ? <Alert
+        type="info"
+        showIcon
+        message={`${selectedPeople.length} ${selectedPeople.length === 1 ? text.selectedOne : text.selectedMany}`}
+        description={text.selectionHelp}
+        action={<Space wrap>
+          <Button size="small" onClick={() => setSelectedPersonIds(Object.freeze(filtered.map(person => person.id)))} disabled={filtered.length === 0}>{text.selectAllFiltered}</Button>
+          <Button size="small" onClick={() => setSelectedPersonIds([])} disabled={selectedPeople.length === 0}>{text.clearSelection}</Button>
+          <Button size="small" type="primary" icon={<DownloadOutlined />} onClick={() => exportRows(selectedPeople)} disabled={selectedPeople.length === 0}>{text.exportSelected}</Button>
+          <Button size="small" onClick={finishSelection}>{text.finishSelection}</Button>
+        </Space>}
+      /> : null}
+
       {loadState === 'loading' && !directory ? <Card><Skeleton active paragraph={{ rows: 6 }} /></Card> : null}
       {directory ? <>
         <Text type="secondary" aria-live="polite">{filtered.length} {filtered.length === 1 ? text.result : text.results}</Text>
         {directory.people.length === 0 ? <Card><Empty description={text.noPeople} /></Card> : filtered.length === 0 ? <Card><Empty description={text.noResults}><Button onClick={clearFilters}>{text.clear}</Button></Empty></Card> : <>
           <div className="people-directory-desktop">
-            <Card styles={{ body: { padding: 0 } }}><Table rowKey="id" columns={columns} dataSource={[...filtered]} pagination={{ pageSize: 25, showSizeChanger: true }} scroll={{ x: 1500 }} /></Card>
+            <Card styles={{ body: { padding: 0 } }}><Table
+              rowKey="id"
+              columns={columns}
+              dataSource={[...filtered]}
+              rowSelection={selectionMode ? { selectedRowKeys: [...selectedPersonIds], onChange: keys => setSelectedPersonIds(Object.freeze(keys.map(key => String(key)))) } : undefined}
+              pagination={{ pageSize: 25, showSizeChanger: true }}
+              scroll={{ x: 1500 }}
+            /></Card>
           </div>
           <div className="people-directory-mobile">
             <Space direction="vertical" size="middle" style={{ width: '100%' }}>{filtered.map(person => <Card key={person.id}>
               <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                <Space align="start" style={{ width: '100%', justifyContent: 'space-between' }}><Space><Avatar size="large">{person.displayName.slice(0, 1).toLocaleUpperCase(locale)}</Avatar><span><Text strong style={{ fontSize: 16 }}>{person.displayName}</Text>{person.preferredLocale ? <><br /><Text type="secondary">{text.locale}: {person.preferredLocale}</Text></> : null}</span></Space><Tag color={person.active ? 'success' : 'default'}>{person.active ? text.active : text.inactive}</Tag></Space>
+                <Space align="start" style={{ width: '100%', justifyContent: 'space-between' }}>
+                  <Space align="start">
+                    {selectionMode ? <Checkbox checked={selectedPersonIds.includes(person.id)} onChange={event => toggleSelection(person.id, event.target.checked)} aria-label={`${text.selectPerson}: ${person.displayName}`} /> : null}
+                    <Avatar size="large">{person.displayName.slice(0, 1).toLocaleUpperCase(locale)}</Avatar>
+                    <span><Text strong style={{ fontSize: 16 }}>{person.displayName}</Text>{person.preferredLocale ? <><br /><Text type="secondary">{text.locale}: {person.preferredLocale}</Text></> : null}</span>
+                  </Space>
+                  <Tag color={person.active ? 'success' : 'default'}>{person.active ? text.active : text.inactive}</Tag>
+                </Space>
                 <div className="people-directory-card-meta">
                   <div><Text type="secondary">{text.group}</Text><div>{person.groups.length ? <Space size={[4, 4]} wrap>{person.groups.map(group => <Tag key={group.id}>{group.name}</Tag>)}</Space> : <Text>{text.noGroup}</Text>}</div></div>
                   <div><Text type="secondary">{text.availability}</Text><div>{availabilityNode(person)}</div></div>
@@ -405,7 +498,7 @@ export function PeopleDirectory({ locale, createRequest = 0 }: { locale: Locale;
         <label><Text strong>{text.preferredLocale}</Text><Input maxLength={35} value={preferredLocale} onChange={event => setPreferredLocale(event.target.value)} /></label>
         <Space><Switch checked={active} onChange={setActive} /><Text>{text.enabled}</Text></Space>
         {formError ? <Alert type="error" showIcon message={text.formError} /> : null}
-        <Space style={{ width: '100%', justifyContent: 'flex-end' }}><Button onClick={closeCreate} disabled={saving}>{text.cancel}</Button><Button htmlType="submit" type="primary" loading={saving} disabled={!canSubmitPerson(displayName, saving)}>{saving ? text.saving : text.save}</Button></Space>
+        <Space style={{ width: '100%', justifyContent: 'flex-end' }}><Button onClick={closeCreate} disabled={saving}>{text.cancel}</Button><Button htmlType="submit" type="primary" loading={saving} disabled={!directory?.capabilities.writePeople || !canSubmitPerson(displayName, saving)}>{saving ? text.saving : text.save}</Button></Space>
       </Space></form>
     </Modal>
 
@@ -415,7 +508,7 @@ export function PeopleDirectory({ locale, createRequest = 0 }: { locale: Locale;
         <label><Text strong>{text.preferredLocale}</Text><Input maxLength={35} value={preferredLocale} onChange={event => setPreferredLocale(event.target.value)} /></label>
         <Space><Switch checked={active} onChange={setActive} /><Text>{text.enabled}</Text></Space>
         {formError ? <Alert type="error" showIcon message={text.formError} /> : null}
-        <Space style={{ width: '100%', justifyContent: 'flex-end' }}><Button onClick={closeEdit} disabled={saving}>{text.cancel}</Button><Button htmlType="submit" type="primary" loading={saving} disabled={!editingPerson || !canSubmitPerson(displayName, saving) || !hasPersonProfileChanges(editingPerson, displayName, preferredLocale, active)}>{saving ? text.saving : text.save}</Button></Space>
+        <Space style={{ width: '100%', justifyContent: 'flex-end' }}><Button onClick={closeEdit} disabled={saving}>{text.cancel}</Button><Button htmlType="submit" type="primary" loading={saving} disabled={!directory?.capabilities.writePeople || !editingPerson || !canSubmitPerson(displayName, saving) || !hasPersonProfileChanges(editingPerson, displayName, preferredLocale, active)}>{saving ? text.saving : text.save}</Button></Space>
       </Space></form>
     </Modal>
 
