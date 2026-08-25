@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SECTION_PATHS, normalizeAppPath, sectionFromPath, type AppSection } from './navigation';
+import { SECTION_PATHS, normalizeAppPath, prepareMeetingViewFromPath, sectionFromPath, type AppSection } from './navigation';
 
 describe('Navigation: route normalization', () => {
   it.each([
@@ -20,26 +20,32 @@ describe('Navigation: route normalization', () => {
 describe('Navigation: section from path', () => {
   it.each([
     ['/', 'home'],
-    ['/agenda', 'agenda'],
+    ['/preparar-reuniao', 'prepare'],
+    ['/agenda', 'prepare'],
+    ['/designacoes', 'prepare'],
+    ['/assignments', 'prepare'],
     ['/pessoas', 'people'],
     ['/people', 'people'],
-    ['/designacoes', 'assignments'],
-    ['/assignments', 'assignments'],
-    ['/preferencias', 'preferences'],
-    ['/preferences', 'preferences'],
+    ['/organizacao', 'organization'],
+    ['/organization', 'organization'],
+    ['/planeamento', 'planning'],
+    ['/planning', 'planning'],
+    ['/administracao', 'administration'],
+    ['/preferencias', 'administration'],
+    ['/preferences', 'administration'],
     ['/unknown-route', 'home'],
     ['/auth/confirm', 'home'],
     ['/pessoas?pilot=20260823', 'people'],
-    ['/agenda#weekly', 'agenda'],
+    ['/agenda#weekly', 'prepare'],
   ] as const)('maps %s to %s', (path, expected) => {
     expect(sectionFromPath(path)).toBe(expected);
   });
 });
 
 describe('Navigation: canonical paths are absolute', () => {
-  const sections: AppSection[] = ['home', 'agenda', 'assignments', 'people', 'preferences'];
+  const sections: AppSection[] = ['home', 'prepare', 'people', 'organization', 'planning', 'administration'];
 
-  it('defines an absolute canonical path for every section', () => {
+  it('defines an absolute canonical path for every top-level product area', () => {
     for (const section of sections) {
       expect(SECTION_PATHS[section]).toBeDefined();
       expect(SECTION_PATHS[section].startsWith('/')).toBe(true);
@@ -47,14 +53,20 @@ describe('Navigation: canonical paths are absolute', () => {
     }
   });
 
-  it('keeps the expected canonical routes', () => {
+  it('keeps the target product information architecture', () => {
     expect(SECTION_PATHS).toEqual({
       home: '/',
-      agenda: '/agenda',
-      assignments: '/designacoes',
+      prepare: '/preparar-reuniao',
       people: '/pessoas',
-      preferences: '/preferencias',
+      organization: '/organizacao',
+      planning: '/planeamento',
+      administration: '/administracao',
     });
+  });
+
+  it('keeps legacy meeting deep links semantically distinct inside Preparar reunião', () => {
+    expect(prepareMeetingViewFromPath('/agenda')).toBe('agenda');
+    expect(prepareMeetingViewFromPath('/designacoes')).toBe('assignments');
   });
 });
 
