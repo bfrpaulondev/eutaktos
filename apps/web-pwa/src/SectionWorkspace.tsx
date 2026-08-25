@@ -9,11 +9,11 @@ import { PeopleDirectory } from './PeopleDirectory';
 import { ResponsibilitiesSection } from './ResponsibilitiesSection';
 import { ServiceGroupsSection } from './ServiceGroupsSection';
 import type { Locale } from './lib/preferences';
+import { peopleWorkspaceSearchForView, peopleWorkspaceViewFromSearch, type PeopleWorkspaceView } from './lib/peopleWorkspaceRoute';
 import { getWorkspaceCopy, type WorkspaceSection } from './lib/sectionData';
 import { Stack, Typography } from './ui/MuiCompat';
 
 interface SectionWorkspaceProps { locale: Locale; section: WorkspaceSection }
-type OrganizationView = 'overview' | 'directory' | 'households' | 'groups' | 'responsibilities';
 
 const PeopleOverview = lazy(async () => {
   const module = await import('./PeopleOverview');
@@ -26,34 +26,26 @@ const copy = {
   es: { organization: 'Organización', organizationTitle: 'Personas y organización', organizationSubtitle: 'Mantén perfiles, grupos familiares, grupos, responsabilidades, ausencias y permisos en el mismo contexto.', overview: 'Vista general', directory: 'Directorio', households: 'Grupos familiares', groups: 'Grupos de servicio', responsibilities: 'Responsabilidades', audit: 'Historial de auditoría', access: 'Gestionar accesos', hourglass: 'Inspeccionar exportación Hourglass', overviewLoading: 'Cargando Personas…' },
 } as const;
 
-function organizationViewFromLocation(): OrganizationView {
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('area') !== 'organization') return 'overview';
-  const view = params.get('view');
-  if (view === 'groups' || view === 'responsibilities' || view === 'households') return view;
-  return 'households';
+function peopleViewFromLocation(): PeopleWorkspaceView {
+  return peopleWorkspaceViewFromSearch(window.location.search);
 }
 
-function pushOrganizationView(next: OrganizationView): void {
-  const params = new URLSearchParams(window.location.search);
-  if (next === 'overview' || next === 'directory') {
-    params.delete('area');
-    params.delete('view');
-  } else {
-    params.set('area', 'organization');
-    params.set('view', next);
-  }
-  const search = params.toString();
-  const target = `${window.location.pathname}${search ? `?${search}` : ''}${window.location.hash}`;
+function pushPeopleView(next: PeopleWorkspaceView): void {
+  const search = peopleWorkspaceSearchForView(window.location.search, next);
+  const target = `${window.location.pathname}${search}${window.location.hash}`;
   const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
   if (target !== current) {
+    // This is a view transition inside the same People route. Update browser
+    // history without synthesizing popstate: the local owner updates immediately,
+    // while real Back/Forward navigation will emit popstate and restore the view.
+    // Avoiding a synthetic event also prevents the application shell from
+    // remounting this workspace and dropping an in-flight Add Person handoff.
     window.history.pushState({ peopleView: next }, '', target);
-    window.dispatchEvent(new PopStateEvent('popstate'));
   }
 }
 
 function OrganizationWorkspace({ locale }: { locale: Locale }) {
-  const [view, setView] = useState<OrganizationView>(organizationViewFromLocation);
+  const [view, setView] = useState<PeopleWorkspaceView>(peopleViewFromLocation);
   const [createRequest, setCreateRequest] = useState(0);
   const [auditOpen, setAuditOpen] = useState(false);
   const [accessOpen, setAccessOpen] = useState(false);
@@ -61,22 +53,22 @@ function OrganizationWorkspace({ locale }: { locale: Locale }) {
   const auditButtonRef = useRef<HTMLButtonElement | null>(null);
   const accessButtonRef = useRef<HTMLButtonElement | null>(null);
   const text = copy[locale];
-  const views: readonly OrganizationView[] = ['overview', 'directory', 'households', 'groups', 'responsibilities'];
-  const labels: Record<OrganizationView, string> = { overview: text.overview, directory: text.directory, households: text.households, groups: text.groups, responsibilities: text.responsibilities };
+  const views: readonly PeopleWorkspaceView[] = ['overview', 'directory', 'households', 'groups', 'responsibilities'];
+  const labels: Record<PeopleWorkspaceView, string> = { overview: text.overview, directory: text.directory, households: text.households, groups: text.groups, responsibilities: text.responsibilities };
 
   useEffect(() => {
-    const onPopState = () => setView(organizationViewFromLocation());
+    const onPopState = () => setView(peopleViewFromLocation());
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
-  const selectView = (next: OrganizationView) => {
-    pushOrganizationView(next);
+  const selectView = (next: PeopleWorkspaceView) => {
+    pushPeopleView(next);
     setView(next);
   };
 
   const openCreate = () => {
-    pushOrganizationView('directory');
+    pushPeopleView('directory');
     setView('directory');
     window.requestAnimationFrame(() => setCreateRequest(current => current + 1));
   };
