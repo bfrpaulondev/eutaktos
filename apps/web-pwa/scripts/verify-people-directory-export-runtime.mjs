@@ -177,11 +177,11 @@ async function activateBulkSelection() {
 
 try {
   await poll(async () => (await fetch(appUrl)).ok, 'Vite did not start');
-  browser = spawn(chromium, ['--headless=new', '--no-sandbox', '--disable-gpu', `--remote-debugging-port=${debugPort}`, `--user-data-dir=/tmp/eutaktos-px4-11-${process.pid}`, appUrl], { stdio: 'ignore' });
+  browser = spawn(chromium, ['--headless=new', '--no-sandbox', '--disable-gpu', `--remote-debugging-port=${debugPort}`, `--user-data-dir=/tmp/eutaktos-px4-11-${process.pid}`, 'about:blank'], { stdio: 'ignore' });
   const target = await poll(async () => {
     const targets = await (await fetch(`${debugUrl}/json`)).json();
-    return targets.find(item => item.type === 'page' && item.url.startsWith(appUrl));
-  }, 'Chromium did not open the application');
+    return targets.find(item => item.type === 'page' && item.url === 'about:blank');
+  }, 'Chromium did not open the harness page');
 
   cdp = await connectCdp(target.webSocketDebuggerUrl);
   await cdp.send('Runtime.enable');
