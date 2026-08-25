@@ -92,6 +92,15 @@ async function clickVisibleButton(label) {
   return true;
 }
 
+async function clickButton(label) {
+  return await evaluate(`(() => {
+    const button = [...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(label)});
+    if (!button) return false;
+    button.click();
+    return true;
+  })()`);
+}
+
 async function selectionModeReady() {
   return await evaluate(`Boolean([...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === 'Concluir'))`);
 }
@@ -100,9 +109,7 @@ async function activateBulkSelection() {
   for (let attempt = 0; attempt < 8; attempt += 1) {
     if (await selectionModeReady()) return;
 
-    const exportPoint = await visibleCenter('button', 'Exportar');
-    if (!exportPoint) throw new Error('Export button is not visible');
-    await mouseClick(exportPoint);
+    if (!await clickButton('Exportar')) throw new Error('Export button is missing');
 
     try {
       await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('[role="menuitem"]')].find(node => {
