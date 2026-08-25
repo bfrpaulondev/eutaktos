@@ -1,9 +1,15 @@
+export type DirectoryNextPeriod = Readonly<{
+  startsAt: string;
+  endsAt: string;
+  reasonCode?: 'away' | 'unavailable' | 'other';
+}>;
+
 export type DirectoryAvailability =
   | Readonly<{
       status: 'ready';
       current: 'available' | 'unavailable';
       currentReasonCodes: readonly ('away' | 'unavailable' | 'other')[];
-      nextPeriod?: Readonly<{ startsAt: string; endsAt: string; reasonCode?: 'away' | 'unavailable' | 'other' }>;
+      nextPeriod?: DirectoryNextPeriod;
     }>
   | Readonly<{ status: 'unavailable' }>;
 
@@ -76,7 +82,7 @@ function availability(value: unknown): DirectoryAvailability {
   }
   const allowed = new Set(['away', 'unavailable', 'other']);
   if (!item.currentReasonCodes.every(code => typeof code === 'string' && allowed.has(code))) throw new Error('Invalid People directory response');
-  let nextPeriod: DirectoryAvailability extends Readonly<{ status: 'ready'; nextPeriod?: infer T }> ? T : never;
+  let nextPeriod: DirectoryNextPeriod | undefined;
   if (item.nextPeriod !== undefined) {
     const next = record(item.nextPeriod);
     const reasonCode = next.reasonCode;
