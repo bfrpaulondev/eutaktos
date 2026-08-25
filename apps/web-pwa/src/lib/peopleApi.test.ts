@@ -12,18 +12,28 @@ describe('People API client', () => {
     expect(() => parsePeopleResponse([{ id: 'p1', displayName: 'Ana' }])).toThrow('Invalid People API response');
   });
 
-  it('uses same-origin credentials and surfaces safe API errors', async () => {
+  it('uses same-origin credentials and preserves safe API errors with their HTTP status', async () => {
     const fetcher = vi.fn(async () => new Response(JSON.stringify({ error: 'Forbidden' }), {
       status: 403,
       headers: { 'Content-Type': 'application/json' },
     })) as unknown as typeof fetch;
     const api = createPeopleApi(fetcher);
 
-    await expect(api.list()).rejects.toThrow('Forbidden');
+    await expect(api.list()).rejects.toThrow('Forbidden (403)');
     expect(fetcher).toHaveBeenCalledWith('/api/people', expect.objectContaining({
       method: 'GET',
       credentials: 'same-origin',
     }));
+  });
+
+  it('preserves 401 status even when the server returns a safe JSON error body', async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    })) as unknown as typeof fetch;
+    const api = createPeopleApi(fetcher);
+
+    await expect(api.list()).rejects.toThrow('Unauthorized (401)');
   });
 
   it('creates a person using the transport payload contract', async () => {
