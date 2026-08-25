@@ -63,7 +63,7 @@ async function readJson(response: Response): Promise<unknown> {
 function apiError(status: number, body: unknown): Error {
   if (status >= 500) return new Error(`People API request failed (${status})`);
   const message = body && typeof body === 'object' ? (body as ErrorBody).error : undefined;
-  return new Error(typeof message === 'string' ? message : `People API request failed (${status})`);
+  return new Error(typeof message === 'string' ? `${message} (${status})` : `People API request failed (${status})`);
 }
 
 function updatePayload(input: UpdatePersonPayload): UpdatePersonPayload {
