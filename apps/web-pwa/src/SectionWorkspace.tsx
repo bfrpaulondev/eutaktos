@@ -37,9 +37,14 @@ function OrganizationWorkspace({ locale }: { locale: Locale }) {
   const text = copy[locale];
   const views: readonly OrganizationView[] = ['overview', 'directory', 'households', 'groups', 'responsibilities'];
   const labels: Record<OrganizationView, string> = { overview: text.overview, directory: text.directory, households: text.households, groups: text.groups, responsibilities: text.responsibilities };
+
   const openCreate = () => {
+    // Mount the directory first, then emit a distinct create request. If both
+    // state changes happen in the same render, PeopleDirectory sees the new
+    // request as its initial value and correctly assumes there is nothing new
+    // to handle.
     setView('directory');
-    setCreateRequest(current => current + 1);
+    window.requestAnimationFrame(() => setCreateRequest(current => current + 1));
   };
 
   if (view === 'overview') return <Suspense fallback={<Box component="section" role="status" sx={{ py: 4 }}><Typography color="text.secondary">{text.overviewLoading}</Typography></Box>}><PeopleOverview locale={locale} onOpenDirectory={() => setView('directory')} onAddPerson={openCreate} /></Suspense>;
