@@ -27,6 +27,7 @@ import revokeGrantHandler from './access/grants/[grantId]/revoke';
 import midweekHandler from './midweek';
 import midweekRouteHandler from './midweek/[...route]';
 import outboxWorkerHandler from './workers/outbox';
+import agentRespondHandler from './agent/respond';
 
 export interface NetlifyApiEvent {
   readonly httpMethod?: string;
@@ -52,7 +53,7 @@ type RouteKey =
   | 'people' | 'person' | 'eligibility' | 'availability' | 'availability-period'
   | 'households' | 'household' | 'service-groups' | 'service-group'
   | 'responsibilities' | 'responsibility' | 'end-responsibility' | 'congregation-settings' | 'audit-history'
-  | 'access-grants' | 'subject-grants' | 'revoke-grant' | 'midweek' | 'midweek-route' | 'outbox-worker';
+  | 'access-grants' | 'subject-grants' | 'revoke-grant' | 'midweek' | 'midweek-route' | 'outbox-worker' | 'agent-respond';
 
 interface RouteMatch {
   readonly key: RouteKey;
@@ -88,6 +89,7 @@ const handlers: Readonly<Record<RouteKey, ApiHandler>> = Object.freeze({
   midweek: midweekHandler,
   'midweek-route': midweekRouteHandler,
   'outbox-worker': outboxWorkerHandler,
+  'agent-respond': agentRespondHandler,
 });
 
 function decodeSegment(value: string): string | undefined {
@@ -131,6 +133,7 @@ export function matchNetlifyApiRoute(path: string): RouteMatch | undefined {
     '/access/grants': 'access-grants',
     '/midweek': 'midweek',
     '/workers/outbox': 'outbox-worker',
+    '/agent/respond': 'agent-respond',
   });
   const exactKey = exact[path];
   if (exactKey) return Object.freeze({ key: exactKey, params: Object.freeze({}) });

@@ -35,6 +35,17 @@ export function logRequestSuccess(request: ApiRequest, correlationId: string, st
   });
 }
 
+/**
+ * Agent telemetry is metadata-only. The SafeLogger runtime allowlist excludes
+ * bodies, tenant/actor identifiers, names, secrets and free-form text.
+ */
+export function logAgentEvent(
+  event: 'agent.requested' | 'agent.tool_invoked' | 'agent.completed' | 'agent.denied' | 'agent.failed' | 'agent.feedback_recorded',
+  metadata: Readonly<Record<string, unknown>>,
+): void {
+  logger.info(event, metadata);
+}
+
 export function logRequestFailure(
   request: ApiRequest,
   correlationId: string,
