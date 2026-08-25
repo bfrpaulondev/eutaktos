@@ -205,11 +205,22 @@ try {
   await visitWorkspace('/people/?source=deep-link#contacts', 'People', 'en', 'Eutaktos — People');
   await visitWorkspace('/unknown-route?source=deep-link', 'Everything in good order.', 'en', 'Eutaktos — Home');
 
+  await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'light' }] });
+  await setPreferences({ ...defaults, locale: 'pt-PT', colorMode: 'system' }, 'Tudo em boa ordem.');
+  const systemLight = await evaluate(`({ matchesDark: matchMedia('(prefers-color-scheme: dark)').matches, mode: document.documentElement.dataset.colorMode, palette: document.documentElement.dataset.palette, colorScheme: getComputedStyle(document.documentElement).colorScheme })`);
+  if (systemLight.matchesDark || systemLight.mode !== 'system' || systemLight.palette !== 'classic' || !systemLight.colorScheme.includes('light')) throw new Error(`O modo Sistema não iniciou em claro corretamente: ${JSON.stringify(systemLight)}`);
+
+  await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'dark' }] });
+  await poll(async () => await evaluate(`matchMedia('(prefers-color-scheme: dark)').matches && document.documentElement.dataset.colorMode === 'system' && document.documentElement.dataset.palette === 'dark' && getComputedStyle(document.documentElement).colorScheme.includes('dark')`), 'O modo Sistema não reagiu à preferência escura sem reload', 80);
+
+  await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'light' }] });
+  await poll(async () => await evaluate(`!matchMedia('(prefers-color-scheme: dark)').matches && document.documentElement.dataset.colorMode === 'system' && document.documentElement.dataset.palette === 'classic' && getComputedStyle(document.documentElement).colorScheme.includes('light')`), 'O modo Sistema não regressou à preferência clara sem reload', 80);
+
   await setPreferences({ ...defaults, locale: 'es', colorMode: 'dark', highContrast: true }, 'Todo en buen orden.');
   const accessibility = await evaluate(`({ mode: document.documentElement.dataset.colorMode, background: getComputedStyle(document.body).backgroundColor, border: getComputedStyle(document.querySelector('.MuiPaper-root')).borderTopWidth })`);
   if (accessibility.mode !== 'dark' || accessibility.border !== '2px' || accessibility.background === 'rgb(0, 0, 0)') throw new Error(`O tema acessível não foi aplicado corretamente: ${JSON.stringify(accessibility)}`);
 
-  process.stdout.write('UX runtime checks passed: task-oriented shell, pt-PT/en/es workspaces, People/Organization deep links, safe unknown-route fallback, More focus restore, dark/high contrast, 320px reflow, skip link, landmarks and aria-current.\n');
+  process.stdout.write('UX runtime checks passed: task-oriented shell, pt-PT/en/es workspaces, People/Organization deep links, safe unknown-route fallback, More focus restore, live System light/dark switching, dark/high contrast, 320px reflow, skip link, landmarks and aria-current.\n');
 } finally {
   cdp?.close();
   if (browser && !browser.killed) browser.kill('SIGTERM');
