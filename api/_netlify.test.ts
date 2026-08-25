@@ -11,7 +11,8 @@ describe('Netlify API adapter', () => {
     expect(normalizeNetlifyApiPath({ path: '/api/congregation/settings' })).toBe('/congregation/settings');
   });
 
-  it('matches dynamic identifiers from the path', () => {
+  it('matches People evidence and dynamic identifiers from the path', () => {
+    expect(matchNetlifyApiRoute('/people/overview-evidence')).toEqual({ key: 'people-overview-evidence', params: {} });
     expect(matchNetlifyApiRoute('/people/person-1')).toEqual({ key: 'person', params: { personId: 'person-1' } });
     expect(matchNetlifyApiRoute('/people/person-1/eligibility')).toEqual({ key: 'eligibility', params: { personId: 'person-1' } });
     expect(matchNetlifyApiRoute('/people/person-1/availability')).toEqual({ key: 'availability', params: { personId: 'person-1' } });
