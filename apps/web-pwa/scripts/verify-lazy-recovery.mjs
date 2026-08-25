@@ -81,7 +81,7 @@ try {
   // mounted, but the lazy workspace chunk is unavailable during navigation.
   await cdp.send('Network.setBlockedURLs', { urls: ['*SectionWorkspace*'] });
   const clicked = await evaluate(cdp, `(() => {
-    const target = [...document.querySelectorAll('button, a[href]')].find(node => node.textContent?.trim() === 'Pessoas');
+    const target = [...document.querySelectorAll('button, a[href], [role="menuitem"]')].find(node => node.textContent?.trim() === 'Pessoas');
     if (!target) return false;
     target.click();
     return true;
