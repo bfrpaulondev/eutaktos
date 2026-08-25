@@ -167,6 +167,20 @@ try {
       const rawUrl = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
       const pathname = new URL(rawUrl, window.location.origin).pathname;
       if (pathname === '/api/people' && (!init?.method || init.method === 'GET')) return json([{ id: 'person-runtime', displayName: 'Runtime person', active: true }]);
+      if (pathname === '/api/people/directory' && (!init?.method || init.method === 'GET')) return json({
+        contractVersion: 'people-directory-v1',
+        generatedAt: '2026-08-25T12:00:00.000Z',
+        capabilities: { writePeople: true, availability: true, eligibility: true, responsibilities: true, schedule: true },
+        filters: { groups: [{ id: 'group-runtime', name: 'Runtime group' }], responsibilityKeys: [], assignmentTypeIds: [] },
+        people: [{
+          id: 'person-runtime', displayName: 'Runtime person', preferredLocale: 'pt-PT', active: true,
+          groups: [{ id: 'group-runtime', name: 'Runtime group' }],
+          availability: { status: 'ready', current: 'available', currentReasonCodes: [] },
+          eligibility: { status: 'ready', enabledAssignmentTypeIds: [] },
+          responsibilities: { status: 'ready', keys: [] },
+          assignmentHistory: { status: 'ready' },
+        }],
+      });
       if (pathname === '/api/service-groups' && (!init?.method || init.method === 'GET')) return json([{ id: 'group-runtime', name: 'Runtime group', memberIds: ['person-runtime'] }]);
       if (pathname === '/api/midweek' && (!init?.method || init.method === 'GET')) return json({ meetings: [], studentAssignments: [], nonStudentAssignments: [] });
       return originalFetch(input, init);
