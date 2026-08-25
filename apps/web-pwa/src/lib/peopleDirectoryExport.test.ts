@@ -65,10 +65,12 @@ describe('People Directory capability-aware CSV export', () => {
     const formula = person({ id: 'person-2', displayName: '=HYPERLINK("https://bad.example")', groups: Object.freeze([{ id: 'group-2', name: 'Grupo, Dois' }]) });
     const first = person({ id: 'person-1', displayName: 'Ana Martins' });
     const csv = exportPeopleDirectoryCsv([formula, first], fullCapabilities, 'en');
-    const rows = csv.split('\r\n');
-    expect(rows[1]!.startsWith('Ana Martins,')).toBe(true);
-    expect(rows[2]).toContain("'=HYPERLINK");
-    expect(rows[2]).toContain('"Grupo, Dois"');
+    expect(csv).toBe(exportPeopleDirectoryCsv([first, formula], fullCapabilities, 'en'));
+    const dataRows = csv.split('\r\n').slice(1).filter(Boolean);
+    expect(dataRows.some(row => row.startsWith('Ana Martins,'))).toBe(true);
+    const formulaRow = dataRows.find(row => row.includes("'=HYPERLINK"));
+    expect(formulaRow).toBeDefined();
+    expect(formulaRow).toContain('"Grupo, Dois"');
   });
 
   it('uses a stable UTC filename', () => {
