@@ -1,6 +1,6 @@
 # AI HANDOFF — CURRENT SOURCE OF TRUTH
 
-> Updated 2026-08-25 after PX2 integration and principal PX0 inventory. Read this before taking any Eutaktos task. Historical pilot/worker reports may contain stale deployment, branch or priority information.
+> Updated 2026-08-25 after principal PX0/PX2 closeout. Read this before taking any Eutaktos task. Historical pilot/worker reports may contain stale deployment, branch or priority information.
 
 ## Mandatory reading order
 
@@ -18,7 +18,7 @@ No agent may invent a competing UI direction or begin an unchecked Product Exper
 
 - Repository: `bfrpaulondev/eutaktos`
 - Product Experience reset baseline: `be68797922b2a9f96b5fe47e906a95cdfbcf77cb`
-- Wave A foundation through PX2 was integrated on `main` at `1a7974186bd5a9daa7736c17ed0b3ee1149a8aa2`; always fetch current `main` because this SHA becomes historical as soon as new work merges.
+- Principal foundation/governance closeout baseline: `4d9c141764862ee5b8826b069c63a6db30c84420`; always fetch current `main` before branching because this SHA becomes historical as new work merges.
 - **Canonical production: `https://eutakes.netlify.app/`**
 - `https://rainbow-zuccutto-00d981.netlify.app/` is not the production acceptance target.
 - Vercel deployments are not Eutaktos production acceptance evidence.
@@ -38,12 +38,16 @@ Eutaktos is an **organization assistant**, not a prettier CRUD application. It m
 
 ## Current foundation status
 
-### Integrated
+### Integrated and principal-closed
 
-- PX1 technical Ant Design 6 foundation and semantic Light/Dark/System implementation: PR #283.
-- PX3 first People Overview slice with principal corrections: PR #289.
-- Secure advisory administrator-AI server core: PR #288; the AI feature itself is not complete.
-- PX2 task-oriented Ant shell/navigation: PR #291.
+- PX0 governance/source-of-truth inventory and historical-document cleanup: PRs #292/#293; PX0.1–PX0.6 are recorded complete.
+- PX2 task-oriented Ant shell/navigation: PR #291; PX2.1–PX2.6 are recorded complete.
+
+### Integrated technical foundations with remaining product acceptance
+
+- PX1 technical Ant Design 6 foundation and semantic Light/Dark/System implementation: PR #283. Independent Light/Dark/System real-user/visual acceptance in #270 is still required before PX1 master items are closed.
+- PX3 first People Overview slice with principal corrections: PR #289. The worker slice is integrated, but master PX3 remains partial until the missing authoritative completeness/history/PX7-backed conditions are finished and accepted.
+- Secure advisory administrator-AI server core: PR #288. The AI feature itself is not complete; it still depends on the remaining approved tools/PX7 evidence, frontend UI and independent acceptance.
 
 ### Important acceptance distinction
 
@@ -56,7 +60,7 @@ The Product Experience rebuild uses **Ant Design 6** as the primary component fo
 Migration is incremental:
 
 1. Ant Design foundation/themes — technically integrated;
-2. task-oriented shell/navigation — integrated;
+2. task-oriented shell/navigation — integrated and principal-closed;
 3. rebuild People end to end — active;
 4. prove the new patterns;
 5. migrate remaining screens;
@@ -68,17 +72,19 @@ Legacy MUI runtime consumers and the migration boundary are inventoried in `docs
 
 ## Current priority order
 
-Wave A foundation is technically integrated. The active product sequence is now:
+The principal foundation/governance work required before the next product wave is complete. The active sequence is now:
 
-1. Finish PX0 governance/evidence synchronization.
+1. Independent #270 Light/Dark/System and baseline UX acceptance may close the remaining PX1 acceptance gap in parallel.
 2. PX4 — Directory 2.0.
 3. PX5 — Unified Person Profile.
 4. PX6 — Guided Add/Edit Person.
 5. PX7 — deterministic explainable recommendation engine may proceed in parallel in domain/application.
-6. PX8 — responsible-person assistance using PX7 evidence.
+6. PX8 — responsible-person assistance using reviewed PX7 evidence.
 7. PX9 — useful Hourglass People parity, simplified and improved.
 8. PX10 — UX/accessibility/security/production acceptance.
 9. PX11 — remaining MUI retirement after People proves the pattern.
+
+PX3 missing conditions are completed through the authoritative contracts discovered while building PX4–PX7; do not fake profile-completeness/history/long-interval data merely to close the earlier Overview checklist.
 
 Do not skip ahead to broad feature expansion while the reference People experience remains unfinished.
 
