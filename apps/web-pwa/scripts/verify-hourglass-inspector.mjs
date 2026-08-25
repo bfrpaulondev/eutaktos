@@ -85,6 +85,8 @@ try {
   }, 'O Chromium não abriu a área de Pessoas');
   cdp = await connectCdp(target.webSocketDebuggerUrl);
 
+  await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('button')].find(button => button.textContent?.trim() === 'Diretório'))`), 'O acesso ao diretório não foi apresentado');
+  await evaluate(`[...document.querySelectorAll('button')].find(button => button.textContent?.trim() === 'Diretório')?.click()`);
   await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('button')].find(button => button.textContent?.includes('Inspecionar export Hourglass')))`), 'A entrada Hourglass não foi apresentada');
   await evaluate(`[...document.querySelectorAll('button')].find(button => button.textContent?.includes('Inspecionar export Hourglass'))?.click()`);
   await poll(async () => await evaluate(`Boolean(document.querySelector('[role="dialog"]')?.textContent?.includes('Inspeção de export Hourglass'))`), 'O diálogo Hourglass não abriu');

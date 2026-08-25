@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { lazy, Suspense, useRef, useState } from 'react';
 import { Box, Button, Divider, Paper } from '@mui/material';
 import { AccessManagementDialog } from './AccessManagementDialog';
 import { AuditHistoryDialog } from './AuditHistoryDialog';
@@ -13,24 +13,41 @@ import { getWorkspaceCopy, type WorkspaceSection } from './lib/sectionData';
 import { Stack, Typography } from './ui/MuiCompat';
 
 interface SectionWorkspaceProps { locale: Locale; section: WorkspaceSection }
-type OrganizationView = 'people' | 'households' | 'groups' | 'responsibilities';
+type OrganizationView = 'overview' | 'directory' | 'households' | 'groups' | 'responsibilities';
+
+const PeopleOverview = lazy(async () => {
+  const module = await import('./PeopleOverview');
+  return { default: module.PeopleOverview };
+});
 
 const copy = {
-  'pt-PT': { organization: 'Organização', organizationTitle: 'Pessoas e organização', organizationSubtitle: 'Mantém perfis, agregados, grupos, responsabilidades, ausências e permissões no mesmo contexto.', people: 'Pessoas', households: 'Agregados', groups: 'Grupos de serviço', responsibilities: 'Responsabilidades', audit: 'Histórico de auditoria', access: 'Gerir acessos', hourglass: 'Inspecionar export Hourglass' },
-  en: { organization: 'Organization', organizationTitle: 'People and organization', organizationSubtitle: 'Keep profiles, households, groups, responsibilities, absences and permissions in the same context.', people: 'People', households: 'Households', groups: 'Service groups', responsibilities: 'Responsibilities', audit: 'Audit history', access: 'Manage access', hourglass: 'Inspect Hourglass export' },
-  es: { organization: 'Organización', organizationTitle: 'Personas y organización', organizationSubtitle: 'Mantén perfiles, grupos familiares, grupos, responsabilidades, ausencias y permisos en el mismo contexto.', people: 'Personas', households: 'Grupos familiares', groups: 'Grupos de servicio', responsibilities: 'Responsabilidades', audit: 'Historial de auditoría', access: 'Gestionar accesos', hourglass: 'Inspeccionar exportación Hourglass' },
+  'pt-PT': { organization: 'Organização', organizationTitle: 'Pessoas e organização', organizationSubtitle: 'Mantém perfis, agregados, grupos, responsabilidades, ausências e permissões no mesmo contexto.', overview: 'Visão geral', directory: 'Diretório', households: 'Agregados', groups: 'Grupos de serviço', responsibilities: 'Responsabilidades', audit: 'Histórico de auditoria', access: 'Gerir acessos', hourglass: 'Inspecionar export Hourglass', overviewLoading: 'A carregar Pessoas…' },
+  en: { organization: 'Organization', organizationTitle: 'People and organization', organizationSubtitle: 'Keep profiles, households, groups, responsibilities, away periods and permissions in the same context.', overview: 'Overview', directory: 'Directory', households: 'Households', groups: 'Service groups', responsibilities: 'Responsibilities', audit: 'Audit history', access: 'Manage access', hourglass: 'Inspect Hourglass export', overviewLoading: 'Loading People…' },
+  es: { organization: 'Organización', organizationTitle: 'Personas y organización', organizationSubtitle: 'Mantén perfiles, grupos familiares, grupos, responsabilidades, ausencias y permisos en el mismo contexto.', overview: 'Vista general', directory: 'Directorio', households: 'Grupos familiares', groups: 'Grupos de servicio', responsibilities: 'Responsabilidades', audit: 'Historial de auditoría', access: 'Gestionar accesos', hourglass: 'Inspeccionar exportación Hourglass', overviewLoading: 'Cargando Personas…' },
 } as const;
 
 function OrganizationWorkspace({ locale }: { locale: Locale }) {
-  const [view, setView] = useState<OrganizationView>('people');
+  const [view, setView] = useState<OrganizationView>('overview');
+  const [createRequest, setCreateRequest] = useState(0);
   const [auditOpen, setAuditOpen] = useState(false);
   const [accessOpen, setAccessOpen] = useState(false);
   const [hourglassOpen, setHourglassOpen] = useState(false);
   const auditButtonRef = useRef<HTMLButtonElement | null>(null);
   const accessButtonRef = useRef<HTMLButtonElement | null>(null);
   const text = copy[locale];
-  const views: readonly OrganizationView[] = ['people', 'households', 'groups', 'responsibilities'];
-  const labels: Record<OrganizationView, string> = { people: text.people, households: text.households, groups: text.groups, responsibilities: text.responsibilities };
+  const views: readonly OrganizationView[] = ['overview', 'directory', 'households', 'groups', 'responsibilities'];
+  const labels: Record<OrganizationView, string> = { overview: text.overview, directory: text.directory, households: text.households, groups: text.groups, responsibilities: text.responsibilities };
+
+  const openCreate = () => {
+    // Mount the directory first, then emit a distinct create request. If both
+    // state changes happen in the same render, PeopleDirectory sees the new
+    // request as its initial value and correctly assumes there is nothing new
+    // to handle.
+    setView('directory');
+    window.requestAnimationFrame(() => setCreateRequest(current => current + 1));
+  };
+
+  if (view === 'overview') return <Suspense fallback={<Box component="section" role="status" sx={{ py: 4 }}><Typography color="text.secondary">{text.overviewLoading}</Typography></Box>}><PeopleOverview locale={locale} onOpenDirectory={() => setView('directory')} onAddPerson={openCreate} /></Suspense>;
 
   return <Stack spacing={2}>
     <Paper component="section" aria-labelledby="organization-title" sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3 }}>
@@ -43,7 +60,7 @@ function OrganizationWorkspace({ locale }: { locale: Locale }) {
         <Stack component="nav" aria-label={text.organizationTitle} direction="row" gap={0.75} flexWrap="wrap" useFlexGap>{views.map(item => <Button key={item} variant={view === item ? 'contained' : 'text'} aria-current={view === item ? 'page' : undefined} onClick={() => setView(item)}>{labels[item]}</Button>)}</Stack>
       </Stack>
     </Paper>
-    {view === 'people' ? <PeopleDirectory locale={locale} /> : null}
+    {view === 'directory' ? <PeopleDirectory locale={locale} createRequest={createRequest} /> : null}
     {view === 'households' ? <HouseholdsSection locale={locale} /> : null}
     {view === 'groups' ? <ServiceGroupsSection locale={locale} /> : null}
     {view === 'responsibilities' ? <ResponsibilitiesSection locale={locale} /> : null}

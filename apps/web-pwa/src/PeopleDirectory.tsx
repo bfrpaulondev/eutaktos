@@ -37,7 +37,7 @@ export function hasPersonProfileChanges(person: PersonProfileDto, displayName: s
   return person.displayName !== displayName.trim() || (person.preferredLocale ?? '') !== preferredLocale.trim() || person.active !== active;
 }
 
-export function PeopleDirectory({ locale }: { locale: Locale }) {
+export function PeopleDirectory({ locale, createRequest = 0 }: { locale: Locale; createRequest?: number }) {
   const text = copy[locale];
   const [people, setPeople] = useState<readonly PersonProfileDto[]>([]);
   const [query, setQuery] = useState('');
@@ -63,6 +63,7 @@ export function PeopleDirectory({ locale }: { locale: Locale }) {
   const settingsButtonRef = useRef<HTMLButtonElement | null>(null);
   const lastDialogTriggerRef = useRef<HTMLButtonElement | null>(null);
   const submittingRef = useRef(false);
+  const handledCreateRequestRef = useRef(createRequest);
 
   const restoreFocus = (target: React.RefObject<HTMLButtonElement | null>) => window.requestAnimationFrame(() => target.current?.focus());
   const resetCreateForm = () => {
@@ -131,6 +132,19 @@ export function PeopleDirectory({ locale }: { locale: Locale }) {
     void load(controller.signal);
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    if (handledCreateRequestRef.current === createRequest) return;
+    handledCreateRequestRef.current = createRequest;
+    setCreated(false);
+    setUpdated(false);
+    setDiscardOpen(false);
+    setDisplayName('');
+    setPreferredLocale(locale);
+    setActive(true);
+    setFormError(false);
+    setOpen(true);
+  }, [createRequest, locale]);
 
   const filtered = useMemo(() => filterPeople(people, query, statusFilter, locale), [locale, people, query, statusFilter]);
   const hasFilters = Boolean(query.trim()) || statusFilter !== 'all';
