@@ -1,0 +1,40 @@
+.people-directory-desktop {
+  display: none;
+}
+
+.people-directory-mobile {
+  display: block;
+}
+
+.people-directory-filter-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.people-directory-card-meta {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+@media (min-width: 600px) {
+  .people-directory-filter-grid {
+    grid-template-columns: minmax(220px, 1fr) repeat(3, minmax(150px, 210px)) auto;
+    align-items: end;
+  }
+
+  .people-directory-card-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 768px) {
+  .people-directory-desktop {
+    display: block;
+  }
+
+  .people-directory-mobile {
+    display: none;
+  }
+}
