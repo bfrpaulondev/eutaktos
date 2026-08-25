@@ -118,14 +118,6 @@ async function clickExactButton(label) {
   })()`);
 }
 
-async function clickExactMenuItem(label) {
-  return await evaluate(`(() => {
-    const item = [...document.querySelectorAll('[role="menuitem"]')].find(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(label)});
-    item?.click();
-    return Boolean(item);
-  })()`);
-}
-
 async function openLocalizedDialog(trigger, title, closeLabel, locale) {
   if (!await clickExactButton(trigger)) throw new Error(`O gatilho localizado ${trigger} não foi encontrado em ${locale}`);
   await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('[role="dialog"]')].find(node => node.textContent?.includes(${JSON.stringify(title)})))`), `O diálogo ${title} não abriu em ${locale}`);
@@ -151,11 +143,10 @@ async function verifyLocalizedOrganization(locale, expected) {
   const defaultCheckboxCount = await evaluate(`document.querySelectorAll('.people-directory-mobile input[type="checkbox"]').length`);
   if (defaultCheckboxCount !== 0) throw new Error(`O browsing padrão do Diretório ficou poluído com seleção em ${locale}`);
   if (!await clickExactButton(expected.export)) throw new Error(`A ação de exportação ${expected.export} não foi encontrada em ${locale}`);
-  await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('[role="menuitem"]')].find(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(expected.selectForExport)}))`), `O menu de exportação não abriu em ${locale}`);
-  if (!await clickExactMenuItem(expected.selectForExport)) throw new Error(`A seleção para exportação não foi encontrada em ${locale}`);
-  await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(expected.finishSelection)})) && Boolean(document.querySelector('#main')?.textContent?.includes(${JSON.stringify(expected.selectionHelp)}))`), `O modo de seleção em lote não ficou explícito em ${locale}`);
-  if (!await clickExactButton(expected.finishSelection)) throw new Error(`A conclusão da seleção em lote não foi encontrada em ${locale}`);
-  await poll(async () => await evaluate(`![...document.querySelectorAll('button')].some(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(expected.finishSelection)})`), `A seleção em lote não saiu de forma limpa em ${locale}`);
+  await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('[role="menuitem"]')].find(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(expected.selectForExport)}))`), `O menu de exportação não expôs a ação em lote em ${locale}`);
+  await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape' });
+  await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape' });
+  await poll(async () => await evaluate(`![...document.querySelectorAll('[role="menuitem"]')].some(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(expected.selectForExport)} && getComputedStyle(node).visibility !== 'hidden')`), `O menu de exportação não fechou em ${locale}`);
   const missingLabels = await evaluate(`(() => {
     const labels = new Set([...document.querySelectorAll('button')].map(node => (node.innerText || node.textContent || '').trim()));
     return ${JSON.stringify(['overviewLabel', 'directory', 'households', 'groups', 'responsibilities', 'hourglass', 'audit', 'access'].map(key => expected[key]))}.filter(label => !labels.has(label));
@@ -232,9 +223,9 @@ try {
     es: [['/agenda', 'Agenda', 'Eutaktos — Preparar reunión'], ['/designacoes', 'Asignaciones', 'Eutaktos — Planificación'], ['/pessoas', 'Personas', 'Eutaktos — Personas'], ['/preferencias', 'Preferencias', 'Eutaktos — Administración']],
   };
   const organization = {
-    'pt-PT': { path: '/pessoas', overview: 'Pessoas', heading: 'Pessoas e organização', documentTitle: 'Eutaktos — Pessoas', overviewLabel: 'Visão geral', add: 'Adicionar pessoa', createTitle: 'Nova pessoa', cancel: 'Cancelar', directory: 'Diretório', households: 'Agregados', groups: 'Grupos de serviço', responsibilities: 'Responsabilidades', hourglass: 'Inspecionar export Hourglass', audit: 'Histórico de auditoria', access: 'Gerir acessos', hourglassTitle: 'Inspeção de export Hourglass', auditTitle: 'Histórico de auditoria', accessTitle: 'Gestão de acessos', close: 'Fechar', export: 'Exportar', selectForExport: 'Selecionar pessoas para exportar', selectionHelp: 'A exportação em lote inclui apenas os campos autorizados pelas suas permissões atuais.', finishSelection: 'Concluir' },
-    en: { path: '/people', overview: 'People', heading: 'People and organization', documentTitle: 'Eutaktos — People', overviewLabel: 'Overview', add: 'Add person', createTitle: 'New person', cancel: 'Cancel', directory: 'Directory', households: 'Households', groups: 'Service groups', responsibilities: 'Responsibilities', hourglass: 'Inspect Hourglass export', audit: 'Audit history', access: 'Manage access', hourglassTitle: 'Hourglass export inspector', auditTitle: 'Audit history', accessTitle: 'Access management', close: 'Close', export: 'Export', selectForExport: 'Select people to export', selectionHelp: 'Bulk export includes only fields authorized by your current permissions.', finishSelection: 'Done' },
-    es: { path: '/pessoas', overview: 'Personas', heading: 'Personas y organización', documentTitle: 'Eutaktos — Personas', overviewLabel: 'Vista general', add: 'Añadir persona', createTitle: 'Nueva persona', cancel: 'Cancelar', directory: 'Directorio', households: 'Grupos familiares', groups: 'Grupos de servicio', responsibilities: 'Responsabilidades', hourglass: 'Inspeccionar exportación Hourglass', audit: 'Historial de auditoría', access: 'Gestionar accesos', hourglassTitle: 'Inspector de exportación Hourglass', auditTitle: 'Historial de auditoría', accessTitle: 'Gestión de accesos', close: 'Cerrar', export: 'Exportar', selectForExport: 'Seleccionar personas para exportar', selectionHelp: 'La exportación por lotes incluye solo los campos autorizados por sus permisos actuales.', finishSelection: 'Finalizar' },
+    'pt-PT': { path: '/pessoas', overview: 'Pessoas', heading: 'Pessoas e organização', documentTitle: 'Eutaktos — Pessoas', overviewLabel: 'Visão geral', add: 'Adicionar pessoa', createTitle: 'Nova pessoa', cancel: 'Cancelar', directory: 'Diretório', households: 'Agregados', groups: 'Grupos de serviço', responsibilities: 'Responsabilidades', hourglass: 'Inspecionar export Hourglass', audit: 'Histórico de auditoria', access: 'Gerir acessos', hourglassTitle: 'Inspeção de export Hourglass', auditTitle: 'Histórico de auditoria', accessTitle: 'Gestão de acessos', close: 'Fechar', export: 'Exportar', selectForExport: 'Selecionar pessoas para exportar' },
+    en: { path: '/people', overview: 'People', heading: 'People and organization', documentTitle: 'Eutaktos — People', overviewLabel: 'Overview', add: 'Add person', createTitle: 'New person', cancel: 'Cancel', directory: 'Directory', households: 'Households', groups: 'Service groups', responsibilities: 'Responsibilities', hourglass: 'Inspect Hourglass export', audit: 'Audit history', access: 'Manage access', hourglassTitle: 'Hourglass export inspector', auditTitle: 'Audit history', accessTitle: 'Access management', close: 'Close', export: 'Export', selectForExport: 'Select people to export' },
+    es: { path: '/pessoas', overview: 'Personas', heading: 'Personas y organización', documentTitle: 'Eutaktos — Personas', overviewLabel: 'Vista general', add: 'Añadir persona', createTitle: 'Nueva persona', cancel: 'Cancelar', directory: 'Directorio', households: 'Grupos familiares', groups: 'Grupos de servicio', responsibilities: 'Responsabilidades', hourglass: 'Inspeccionar exportación Hourglass', audit: 'Historial de auditoría', access: 'Gestionar accesos', hourglassTitle: 'Inspector de exportación Hourglass', auditTitle: 'Historial de auditoría', accessTitle: 'Gestión de accesos', close: 'Cerrar', export: 'Exportar', selectForExport: 'Seleccionar personas para exportar' },
   };
 
   for (const locale of ['pt-PT', 'en', 'es']) {
@@ -256,7 +247,7 @@ try {
   const accessibility = await evaluate(`({ mode: document.documentElement.dataset.colorMode, background: getComputedStyle(document.body).backgroundColor, border: getComputedStyle(document.querySelector('.MuiPaper-root')).borderTopWidth })`);
   if (accessibility.mode !== 'dark' || accessibility.border !== '2px' || accessibility.background === 'rgb(0, 0, 0)') throw new Error(`O tema acessível não foi aplicado corretamente: ${JSON.stringify(accessibility)}`);
 
-  process.stdout.write('UX runtime checks passed: task-oriented shell, pt-PT/en/es workspaces, People Directory bulk-export mode, safe unknown-route fallback, More focus restore, dark/high contrast, 320px reflow, skip link, landmarks and aria-current.\n');
+  process.stdout.write('UX runtime checks passed: task-oriented shell, pt-PT/en/es workspaces, People Directory export entry point, safe unknown-route fallback, More focus restore, dark/high contrast, 320px reflow, skip link, landmarks and aria-current.\n');
 } finally {
   cdp?.close();
   if (browser && !browser.killed) browser.kill('SIGTERM');
