@@ -78,7 +78,12 @@ describe('resolvePaletteId', () => {
     expect(resolvePaletteId('classic', 'system', true)).toBe('dark');
   });
 
-  it('keeps the night preset when it is selected directly', () => {
-    expect(resolvePaletteId('dark', 'light', false)).toBe('dark');
+  it('does not let the legacy night palette override explicit light mode', () => {
+    expect(resolvePaletteId('dark', 'light', false)).toBe('classic');
+    expect(resolvePaletteId('dark', 'light', true)).toBe('classic');
+  });
+
+  it('does not let the legacy night palette override system light mode', () => {
+    expect(resolvePaletteId('dark', 'system', false)).toBe('classic');
   });
 });

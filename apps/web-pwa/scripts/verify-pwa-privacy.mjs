@@ -5,6 +5,8 @@ import { dirname, join, relative, resolve } from 'node:path';
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const applicationDirectory = resolve(scriptDirectory, '../src');
 const serviceWorkerPath = resolve(scriptDirectory, '../public/sw.js');
+const preferenceStorageFiles = ['App.tsx', 'ui/AntDesignFoundation.tsx'];
+const preferenceStorageKey = "eutaktos.preferences.v4";
 
 async function sourceFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -26,19 +28,24 @@ for (const file of files) {
   if (/\b(?:caches|CacheStorage)\b/.test(content)) cacheApiFiles.push(relative(applicationDirectory, file));
 }
 
-if (storageFiles.length !== 1 || storageFiles[0] !== 'App.tsx') {
-  throw new Error(`Unexpected browser storage use in production source: ${storageFiles.join(', ') || 'none'}.`);
+const unexpectedStorageFiles = storageFiles.filter(file => !preferenceStorageFiles.includes(file));
+const missingPreferenceStorageFiles = preferenceStorageFiles.filter(file => !storageFiles.includes(file));
+if (unexpectedStorageFiles.length > 0 || missingPreferenceStorageFiles.length > 0) {
+  throw new Error(`Unexpected browser storage use in production source: found=${storageFiles.join(', ') || 'none'}; allowed=${preferenceStorageFiles.join(', ')}.`);
 }
 if (cacheApiFiles.length > 0) {
   throw new Error(`React source must not access Cache Storage directly: ${cacheApiFiles.join(', ')}.`);
 }
 
-const app = await readFile(resolve(applicationDirectory, 'App.tsx'), 'utf8');
-if (!app.includes("const STORAGE_KEY = 'eutaktos.preferences.v4'")) {
-  throw new Error('Preferences storage key is missing or was changed without a privacy review.');
-}
-if (/hourglass|emergency|audit|person|contact/i.test(app.match(/localStorage\.[\s\S]{0,200}/)?.[0] ?? '')) {
-  throw new Error('Local storage near the preferences access contains a sensitive-data identifier.');
+for (const storageFile of preferenceStorageFiles) {
+  const content = await readFile(resolve(applicationDirectory, storageFile), 'utf8');
+  if (!content.includes(preferenceStorageKey)) {
+    throw new Error(`Preferences storage key is missing from ${storageFile} or was changed without a privacy review.`);
+  }
+  const storageWindows = [...content.matchAll(/localStorage\.[\s\S]{0,240}/g)].map(match => match[0]);
+  if (storageWindows.some(window => /hourglass|emergency|audit|person|contact|assignment|tenant|actor|capabilit/i.test(window))) {
+    throw new Error(`Browser storage in ${storageFile} is not limited to preference state.`);
+  }
 }
 
 const serviceWorker = await readFile(serviceWorkerPath, 'utf8');
@@ -62,4 +69,4 @@ if (!serviceWorker.includes('new Response(') || !serviceWorker.includes("'Cache-
   throw new Error('The offline document must be an informational no-store response.');
 }
 
-process.stdout.write('PWA privacy checks passed: browser storage is limited to preferences; React source has no Cache Storage access; static cache excludes API, auth, authorization, query and private/no-store responses.\n');
+process.stdout.write('PWA privacy checks passed: browser storage is restricted to the approved preferences key in the legacy App bridge and Ant foundation; React source has no Cache Storage access; static cache excludes API, auth, authorization, query and private/no-store responses.\n');
