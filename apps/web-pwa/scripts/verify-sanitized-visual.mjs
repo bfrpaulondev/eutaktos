@@ -66,8 +66,8 @@ try {
   await cdp.send('Page.enable'); await cdp.send('Runtime.enable'); await cdp.send('DOMStorage.enable');
   const storageId = { securityOrigin: appOrigin, isLocalStorage: true };
 
-  // MP3 required viewport matrix. Routes/locales are deliberately varied so the
-  // same layout gate also catches long translated labels and lazy-route regressions.
+  // PX1/PX10 viewport matrix. Routes/locales are deliberately varied so the
+  // same layout gate also catches translated labels and lazy-route regressions.
   const cases = [
     ['pt-PT', 320, '/', 'Tudo em boa ordem.'],
     ['en', 375, '/people', 'People'],
@@ -78,45 +78,51 @@ try {
     ['pt-PT', 1280, '/designacoes', 'Designações'],
     ['en', 1440, '/preferences', 'Preferences'],
   ];
+  const colorModes = ['light', 'dark'];
 
-  for (const [locale, width, path, expected] of cases) {
-    await cdp.send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: width <= 430 });
-    await cdp.send('Page.navigate', { url: new URL(path, appUrl).toString() });
-    await poll(async () => await evaluate(cdp, "document.readyState === 'complete'"), `Page did not load for ${locale} at ${width}px`);
-    const preferences = { paletteId: 'classic', colorMode: 'light', density: 'comfortable', locale, textSize: 'default', reducedMotion: false, reducedTransparency: false, highContrast: false };
-    await storePreferences(cdp, storageId, preferences);
-    await cdp.send('Page.reload', { ignoreCache: true });
-    await poll(async () => await evaluate(cdp, `document.readyState === 'complete' && document.documentElement.lang === ${JSON.stringify(locale)} && document.body.innerText.includes(${JSON.stringify(expected)})`), `Sanitized ${locale} content did not render at ${width}px`, 80);
-    await poll(async () => await evaluate(cdp, "Boolean(document.querySelector('#main')) && Boolean(document.querySelector('h1, h2'))"), `Sanitized ${locale} layout landmarks did not render at ${width}px`, 80);
+  for (const colorMode of colorModes) {
+    for (const [locale, width, path, expected] of cases) {
+      await cdp.send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: width <= 430 });
+      await cdp.send('Page.navigate', { url: new URL(path, appUrl).toString() });
+      await poll(async () => await evaluate(cdp, "document.readyState === 'complete'"), `Page did not load for ${locale}/${colorMode} at ${width}px`);
+      const preferences = { paletteId: 'classic', colorMode, density: 'comfortable', locale, textSize: 'default', reducedMotion: false, reducedTransparency: false, highContrast: false };
+      await storePreferences(cdp, storageId, preferences);
+      await cdp.send('Page.reload', { ignoreCache: true });
+      await poll(async () => await evaluate(cdp, `document.readyState === 'complete' && document.documentElement.lang === ${JSON.stringify(locale)} && document.documentElement.dataset.colorMode === ${JSON.stringify(colorMode)} && document.body.innerText.includes(${JSON.stringify(expected)})`), `Sanitized ${locale}/${colorMode} content did not render at ${width}px`, 80);
+      await poll(async () => await evaluate(cdp, "Boolean(document.querySelector('#main')) && Boolean(document.querySelector('h1, h2'))"), `Sanitized ${locale}/${colorMode} layout landmarks did not render at ${width}px`, 80);
 
-    const snapshot = await evaluate(cdp, `(() => {
-      const main = document.querySelector('#main');
-      const title = document.querySelector('h1, h2');
-      const box = main?.getBoundingClientRect();
-      const interactive = [...document.querySelectorAll('button, a[href], [role="button"]')].filter(node => {
-        const style = getComputedStyle(node);
-        const rect = node.getBoundingClientRect();
-        return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
-      });
-      const clippedInteractive = interactive.filter(node => {
-        const rect = node.getBoundingClientRect();
-        return rect.right > innerWidth + 1 || rect.left < -1;
-      }).length;
-      return {
-        width: innerWidth,
-        mainWidth: Math.round(box?.width ?? 0),
-        headingVisible: Boolean(title && getComputedStyle(title).visibility !== 'hidden' && getComputedStyle(title).display !== 'none'),
-        overflow: document.documentElement.scrollWidth > innerWidth,
-        clippedInteractive,
-        location: location.pathname,
-      };
-    })()`);
+      const snapshot = await evaluate(cdp, `(() => {
+        const main = document.querySelector('#main');
+        const title = document.querySelector('h1, h2');
+        const box = main?.getBoundingClientRect();
+        const interactive = [...document.querySelectorAll('button, a[href], [role="button"]')].filter(node => {
+          const style = getComputedStyle(node);
+          const rect = node.getBoundingClientRect();
+          return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+        });
+        const clippedInteractive = interactive.filter(node => {
+          const rect = node.getBoundingClientRect();
+          return rect.right > innerWidth + 1 || rect.left < -1;
+        }).length;
+        const rootStyle = getComputedStyle(document.documentElement);
+        return {
+          width: innerWidth,
+          mainWidth: Math.round(box?.width ?? 0),
+          headingVisible: Boolean(title && getComputedStyle(title).visibility !== 'hidden' && getComputedStyle(title).display !== 'none'),
+          overflow: document.documentElement.scrollWidth > innerWidth,
+          clippedInteractive,
+          location: location.pathname,
+          colorMode: document.documentElement.dataset.colorMode,
+          colorScheme: rootStyle.colorScheme,
+        };
+      })()`);
 
-    if (snapshot.width !== width || snapshot.mainWidth <= 0 || !snapshot.headingVisible || snapshot.overflow || snapshot.clippedInteractive > 0) {
-      throw new Error(`Visual layout regression at ${width}px: ${JSON.stringify(snapshot)}`);
+      if (snapshot.width !== width || snapshot.mainWidth <= 0 || !snapshot.headingVisible || snapshot.overflow || snapshot.clippedInteractive > 0 || snapshot.colorMode !== colorMode || !snapshot.colorScheme.includes(colorMode)) {
+        throw new Error(`Visual layout/theme regression for ${colorMode} at ${width}px: ${JSON.stringify(snapshot)}`);
+      }
     }
   }
-  process.stdout.write(`Sanitized visual regression checks passed: rendered layout verified at ${cases.map(([, width]) => width).join(', ')}px across pt-PT/en/es; no retained screenshots or production data.\n`);
+  process.stdout.write(`Sanitized visual regression checks passed: Light+Dark rendered layout verified at ${cases.map(([, width]) => width).join(', ')}px across pt-PT/en/es; no retained screenshots or production data.\n`);
 } finally {
   cdp?.close(); if (browser && !browser.killed) browser.kill('SIGTERM'); if (server && !server.killed) server.kill('SIGTERM');
 }
