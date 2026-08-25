@@ -1,28 +1,102 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { Alert, Avatar, Box, Button, Card, CardContent, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Divider, FormControl, FormControlLabel, InputLabel, MenuItem, Paper, Select, Switch, TextField } from '@mui/material';
+import EditOutlined from '@ant-design/icons/es/icons/EditOutlined';
+import FilterOutlined from '@ant-design/icons/es/icons/FilterOutlined';
+import PlusOutlined from '@ant-design/icons/es/icons/PlusOutlined';
+import SearchOutlined from '@ant-design/icons/es/icons/SearchOutlined';
+import Alert from 'antd/es/alert';
+import Avatar from 'antd/es/avatar';
+import Button from 'antd/es/button';
+import Card from 'antd/es/card';
+import Empty from 'antd/es/empty';
+import Input from 'antd/es/input';
+import Modal from 'antd/es/modal';
+import Popover from 'antd/es/popover';
+import Select from 'antd/es/select';
+import Skeleton from 'antd/es/skeleton';
+import Space from 'antd/es/space';
+import Switch from 'antd/es/switch';
+import Table from 'antd/es/table';
+import Tag from 'antd/es/tag';
+import Typography from 'antd/es/typography';
+import type { ColumnsType } from 'antd/es/table';
+import { theme } from 'antd';
+import { assignmentTypeLabel } from './lib/assignmentTypeCatalog';
 import type { Locale } from './lib/preferences';
 import { peopleApi, type PersonProfileDto } from './lib/peopleApi';
+import { peopleDirectoryApi, type PeopleDirectoryDto, type PeopleDirectoryPersonDto } from './lib/peopleDirectoryApi';
+import {
+  DEFAULT_PEOPLE_DIRECTORY_FILTERS,
+  filterPeopleDirectory,
+  hasPeopleDirectoryFilters,
+  peopleDirectoryFiltersFromSearch,
+  peopleDirectorySearchWithFilters,
+  sanitizePeopleDirectoryFilters,
+  type PeopleDirectoryFilters,
+} from './lib/peopleDirectoryFilters';
 import { EmergencyContactsDialog } from './EmergencyContactsDialog';
 import { EligibilityDialog } from './EligibilityDialog';
-import { CongregationSettingsDialog } from './CongregationSettingsDialog';
 import { AwayPeriodsSection } from './AwayPeriodsSection';
-import { Stack, Typography } from './ui/MuiCompat';
+import './PeopleDirectory.css';
 
-type PersonStatusFilter = 'all' | 'active' | 'inactive';
+const { Paragraph, Text, Title } = Typography;
+
+type LoadState = 'loading' | 'ready' | 'error';
 
 const copy = {
-  'pt-PT': { eyebrow: 'Organização', title: 'Pessoas', subtitle: 'Perfis, contactos, elegibilidade e disponibilidade reunidos num único local.', search: 'Procurar por nome ou idioma', add: 'Adicionar pessoa', edit: 'Editar', filter: 'Estado do perfil', all: 'Todas as pessoas', active: 'Ativo', inactive: 'Inativo', results: 'resultados', result: 'resultado', clear: 'Limpar filtros', locale: 'Idioma', empty: 'Ainda não existem pessoas para mostrar.', noResults: 'Nenhuma pessoa corresponde aos filtros atuais.', loading: 'A carregar pessoas…', retry: 'Tentar novamente', unavailable: 'Não foi possível carregar as pessoas. Tenta novamente.', contacts: 'Contactos de emergência', eligibility: 'Elegibilidade', away: 'Ausências', congregation: 'Configurações da congregação', dialogTitle: 'Nova pessoa', editTitle: 'Editar pessoa', name: 'Nome', preferredLocale: 'Idioma preferido', enabled: 'Perfil ativo', cancel: 'Cancelar', save: 'Guardar', saving: 'A guardar…', actions: 'Ações da pessoa', formError: 'Não foi possível guardar a pessoa. Tenta novamente.', success: 'Pessoa adicionada com sucesso.', updated: 'Pessoa atualizada com sucesso.', close: 'Fechar', discardTitle: 'Descartar alterações?', discardDetail: 'As alterações não guardadas a esta pessoa serão perdidas.', keepEditing: 'Continuar a editar', discard: 'Descartar alterações' },
-  en: { eyebrow: 'Organization', title: 'People', subtitle: 'Profiles, contacts, eligibility and availability together in one place.', search: 'Search by name or language', add: 'Add person', edit: 'Edit', filter: 'Profile status', all: 'All people', active: 'Active', inactive: 'Inactive', results: 'results', result: 'result', clear: 'Clear filters', locale: 'Language', empty: 'There are no people to show yet.', noResults: 'No people match the current filters.', loading: 'Loading people…', retry: 'Try again', unavailable: 'People could not be loaded. Please try again.', contacts: 'Emergency contacts', eligibility: 'Eligibility', away: 'Away periods', congregation: 'Congregation settings', dialogTitle: 'New person', editTitle: 'Edit person', name: 'Name', preferredLocale: 'Preferred language', enabled: 'Active profile', cancel: 'Cancel', save: 'Save', saving: 'Saving…', actions: 'Person actions', formError: 'The person could not be saved. Please try again.', success: 'Person added successfully.', updated: 'Person updated successfully.', close: 'Close', discardTitle: 'Discard changes?', discardDetail: 'Unsaved changes to this person will be lost.', keepEditing: 'Keep editing', discard: 'Discard changes' },
-  es: { eyebrow: 'Organización', title: 'Personas', subtitle: 'Perfiles, contactos, elegibilidad y disponibilidad reunidos en un solo lugar.', search: 'Buscar por nombre o idioma', add: 'Añadir persona', edit: 'Editar', filter: 'Estado del perfil', all: 'Todas las personas', active: 'Activo', inactive: 'Inactivo', results: 'resultados', result: 'resultado', clear: 'Limpiar filtros', locale: 'Idioma', empty: 'Todavía no hay personas para mostrar.', noResults: 'Ninguna persona coincide con los filtros actuales.', loading: 'Cargando personas…', retry: 'Intentar de nuevo', unavailable: 'No se pudieron cargar las personas. Inténtalo de nuevo.', contacts: 'Contactos de emergencia', eligibility: 'Elegibilidad', away: 'Ausencias', congregation: 'Configuración de la congregación', dialogTitle: 'Nueva persona', editTitle: 'Editar persona', name: 'Nombre', preferredLocale: 'Idioma preferido', enabled: 'Perfil activo', cancel: 'Cancelar', save: 'Guardar', saving: 'Guardando…', actions: 'Acciones de la persona', formError: 'No se pudo guardar la persona. Inténtalo de nuevo.', success: 'Persona añadida correctamente.', updated: 'Persona actualizada correctamente.', close: 'Cerrar', discardTitle: '¿Descartar cambios?', discardDetail: 'Se perderán los cambios no guardados de esta persona.', keepEditing: 'Seguir editando', discard: 'Descartar cambios' },
+  'pt-PT': {
+    eyebrow: 'Pessoas', title: 'Diretório', subtitle: 'Encontre rapidamente uma pessoa e veja apenas o contexto operacional que está autorizado a consultar.',
+    search: 'Procurar por nome', add: 'Adicionar pessoa', state: 'Estado', all: 'Todos', active: 'Ativo', inactive: 'Inativo',
+    group: 'Grupo', allGroups: 'Todos os grupos', availability: 'Disponibilidade', available: 'Disponível agora', unavailableNow: 'Indisponível agora',
+    more: 'Mais filtros', eligibility: 'Elegibilidade', allEligibility: 'Todos os tipos', responsibility: 'Responsabilidade', allResponsibilities: 'Todas',
+    clear: 'Limpar filtros', results: 'resultados', result: 'resultado', loading: 'A carregar diretório…', retry: 'Tentar novamente',
+    loadError: 'Não foi possível carregar o diretório. Os dados não foram substituídos por informação estimada.', unauthorized: 'É necessário iniciar sessão para consultar Pessoas.', forbidden: 'Não tem permissão para consultar Pessoas.',
+    partial: 'Algum contexto operacional não está disponível com as permissões atuais. Os campos indisponíveis são mostrados como tal, nunca como zero.',
+    noPeople: 'Ainda não existem pessoas.', noResults: 'Nenhuma pessoa corresponde aos filtros atuais.', noGroup: 'Sem grupo', unknown: 'Não disponível',
+    nextUnavailable: 'Próxima indisponibilidade', noNextUnavailable: 'Sem próxima indisponibilidade registada', eligibleFor: 'Elegível para', eligibleTypes: 'tipos', noEligibility: 'Sem elegibilidade ativa registada',
+    responsibilities: 'Responsabilidades', noResponsibilities: 'Sem responsabilidade ativa', lastAssignment: 'Última designação concluída', noAssignmentHistory: 'Sem designação concluída registada',
+    locale: 'Idioma', actions: 'Ações', edit: 'Editar', contacts: 'Contactos de emergência', away: 'Ausências',
+    dialogTitle: 'Nova pessoa', editTitle: 'Editar pessoa', name: 'Nome', preferredLocale: 'Idioma preferido', enabled: 'Perfil ativo', cancel: 'Cancelar', save: 'Guardar', saving: 'A guardar…',
+    formError: 'Não foi possível guardar a pessoa. Tenta novamente.', success: 'Pessoa adicionada com sucesso.', updated: 'Pessoa atualizada com sucesso.', close: 'Fechar',
+    discardTitle: 'Descartar alterações?', discardDetail: 'As alterações não guardadas serão perdidas.', keepEditing: 'Continuar a editar', discard: 'Descartar',
+  },
+  en: {
+    eyebrow: 'People', title: 'Directory', subtitle: 'Find a person quickly and see only the operational context you are authorized to view.',
+    search: 'Search by name', add: 'Add person', state: 'State', all: 'All', active: 'Active', inactive: 'Inactive',
+    group: 'Group', allGroups: 'All groups', availability: 'Availability', available: 'Available now', unavailableNow: 'Unavailable now',
+    more: 'More filters', eligibility: 'Eligibility', allEligibility: 'All types', responsibility: 'Responsibility', allResponsibilities: 'All',
+    clear: 'Clear filters', results: 'results', result: 'result', loading: 'Loading directory…', retry: 'Try again',
+    loadError: 'The directory could not be loaded. No estimated information replaced your data.', unauthorized: 'Sign-in is required to view People.', forbidden: 'You do not have permission to view People.',
+    partial: 'Some operational context is unavailable with the current permissions. Unavailable fields are shown as such, never as zero.',
+    noPeople: 'There are no people yet.', noResults: 'No people match the current filters.', noGroup: 'No group', unknown: 'Unavailable',
+    nextUnavailable: 'Next unavailability', noNextUnavailable: 'No upcoming unavailability recorded', eligibleFor: 'Eligible for', eligibleTypes: 'types', noEligibility: 'No active eligibility recorded',
+    responsibilities: 'Responsibilities', noResponsibilities: 'No active responsibility', lastAssignment: 'Last completed assignment', noAssignmentHistory: 'No completed assignment recorded',
+    locale: 'Language', actions: 'Actions', edit: 'Edit', contacts: 'Emergency contacts', away: 'Away periods',
+    dialogTitle: 'New person', editTitle: 'Edit person', name: 'Name', preferredLocale: 'Preferred language', enabled: 'Active profile', cancel: 'Cancel', save: 'Save', saving: 'Saving…',
+    formError: 'The person could not be saved. Please try again.', success: 'Person added successfully.', updated: 'Person updated successfully.', close: 'Close',
+    discardTitle: 'Discard changes?', discardDetail: 'Unsaved changes will be lost.', keepEditing: 'Keep editing', discard: 'Discard',
+  },
+  es: {
+    eyebrow: 'Personas', title: 'Directorio', subtitle: 'Encuentre rápidamente una persona y vea solo el contexto operativo que está autorizado a consultar.',
+    search: 'Buscar por nombre', add: 'Añadir persona', state: 'Estado', all: 'Todos', active: 'Activo', inactive: 'Inactivo',
+    group: 'Grupo', allGroups: 'Todos los grupos', availability: 'Disponibilidad', available: 'Disponible ahora', unavailableNow: 'No disponible ahora',
+    more: 'Más filtros', eligibility: 'Elegibilidad', allEligibility: 'Todos los tipos', responsibility: 'Responsabilidad', allResponsibilities: 'Todas',
+    clear: 'Limpiar filtros', results: 'resultados', result: 'resultado', loading: 'Cargando directorio…', retry: 'Intentar de nuevo',
+    loadError: 'No se pudo cargar el directorio. Ninguna información estimada sustituyó sus datos.', unauthorized: 'Es necesario iniciar sesión para consultar Personas.', forbidden: 'No tiene permiso para consultar Personas.',
+    partial: 'Parte del contexto operativo no está disponible con los permisos actuales. Los campos no disponibles se muestran como tales, nunca como cero.',
+    noPeople: 'Todavía no hay personas.', noResults: 'Ninguna persona coincide con los filtros actuales.', noGroup: 'Sin grupo', unknown: 'No disponible',
+    nextUnavailable: 'Próxima indisponibilidad', noNextUnavailable: 'No hay próxima indisponibilidad registrada', eligibleFor: 'Elegible para', eligibleTypes: 'tipos', noEligibility: 'Sin elegibilidad activa registrada',
+    responsibilities: 'Responsabilidades', noResponsibilities: 'Sin responsabilidad activa', lastAssignment: 'Última asignación completada', noAssignmentHistory: 'Sin asignación completada registrada',
+    locale: 'Idioma', actions: 'Acciones', edit: 'Editar', contacts: 'Contactos de emergencia', away: 'Ausencias',
+    dialogTitle: 'Nueva persona', editTitle: 'Editar persona', name: 'Nombre', preferredLocale: 'Idioma preferido', enabled: 'Perfil activo', cancel: 'Cancelar', save: 'Guardar', saving: 'Guardando…',
+    formError: 'No se pudo guardar la persona. Inténtelo de nuevo.', success: 'Persona añadida correctamente.', updated: 'Persona actualizada correctamente.', close: 'Cerrar',
+    discardTitle: '¿Descartar cambios?', discardDetail: 'Se perderán los cambios no guardados.', keepEditing: 'Seguir editando', discard: 'Descartar',
+  },
 } as const;
 
-export function filterPeople(people: readonly PersonProfileDto[], query: string, status: PersonStatusFilter, locale: Locale): readonly PersonProfileDto[] {
+/** Legacy pure helper retained for regression coverage while Directory 2.0 consumes the projection API. */
+export function filterPeople(people: readonly PersonProfileDto[], query: string, status: 'all' | 'active' | 'inactive', locale: Locale): readonly PersonProfileDto[] {
   const needle = query.trim().toLocaleLowerCase(locale);
-  return people.filter(person => {
-    const matchesQuery = !needle || person.displayName.toLocaleLowerCase(locale).includes(needle) || person.preferredLocale?.toLocaleLowerCase(locale).includes(needle);
-    const matchesStatus = status === 'all' || (status === 'active' ? person.active : !person.active);
-    return Boolean(matchesQuery && matchesStatus);
-  });
+  return people.filter(person => (!needle || person.displayName.toLocaleLowerCase(locale).includes(needle) || person.preferredLocale?.toLocaleLowerCase(locale).includes(needle)) && (status === 'all' || person.active === (status === 'active')));
 }
 
 export function canSubmitPerson(displayName: string, saving: boolean): boolean {
@@ -33,139 +107,154 @@ export function hasUnsavedPersonDraft(displayName: string, preferredLocale: stri
   return displayName.trim().length > 0 || preferredLocale.trim() !== initialLocale || !active;
 }
 
-export function hasPersonProfileChanges(person: PersonProfileDto, displayName: string, preferredLocale: string, active: boolean): boolean {
+export function hasPersonProfileChanges(person: Pick<PersonProfileDto, 'displayName' | 'preferredLocale' | 'active'>, displayName: string, preferredLocale: string, active: boolean): boolean {
   return person.displayName !== displayName.trim() || (person.preferredLocale ?? '') !== preferredLocale.trim() || person.active !== active;
+}
+
+function formatCivilDate(value: string, locale: Locale): string {
+  const normalizedLocale = locale === 'en' ? 'en-GB' : locale;
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T12:00:00Z`) : new Date(value);
+  if (!Number.isFinite(date.getTime())) return value;
+  return new Intl.DateTimeFormat(normalizedLocale, { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(date);
+}
+
+function errorStatus(error: unknown): number | undefined {
+  const match = /\((\d{3})\)$/.exec(error instanceof Error ? error.message : '');
+  return match ? Number(match[1]) : undefined;
+}
+
+function responsibilityLabel(value: string): string {
+  return value.replace(/[-_]+/g, ' ').replace(/^./, first => first.toLocaleUpperCase());
 }
 
 export function PeopleDirectory({ locale, createRequest = 0 }: { locale: Locale; createRequest?: number }) {
   const text = copy[locale];
-  const [people, setPeople] = useState<readonly PersonProfileDto[]>([]);
+  const { token } = theme.useToken();
+  const [directory, setDirectory] = useState<PeopleDirectoryDto | null>(null);
+  const [loadState, setLoadState] = useState<LoadState>('loading');
+  const [loadError, setLoadError] = useState<unknown>(null);
   const [query, setQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<PersonStatusFilter>('all');
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
-  const [formError, setFormError] = useState(false);
-  const [created, setCreated] = useState(false);
-  const [updated, setUpdated] = useState(false);
-  const [open, setOpen] = useState(false);
-  const [editingPerson, setEditingPerson] = useState<PersonProfileDto | null>(null);
-  const [discardOpen, setDiscardOpen] = useState(false);
-  const [editDiscardOpen, setEditDiscardOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [contactsPerson, setContactsPerson] = useState<PersonProfileDto | null>(null);
-  const [eligibilityPerson, setEligibilityPerson] = useState<PersonProfileDto | null>(null);
-  const [awayPerson, setAwayPerson] = useState<PersonProfileDto | null>(null);
+  const [filters, setFilters] = useState<PeopleDirectoryFilters>(() => peopleDirectoryFiltersFromSearch(window.location.search));
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editingPerson, setEditingPerson] = useState<PeopleDirectoryPersonDto | null>(null);
+  const [discardOpen, setDiscardOpen] = useState<'create' | 'edit' | null>(null);
+  const [contactsPerson, setContactsPerson] = useState<PeopleDirectoryPersonDto | null>(null);
+  const [eligibilityPerson, setEligibilityPerson] = useState<PeopleDirectoryPersonDto | null>(null);
+  const [awayPerson, setAwayPerson] = useState<PeopleDirectoryPersonDto | null>(null);
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState(false);
+  const [notice, setNotice] = useState<'created' | 'updated' | null>(null);
   const [displayName, setDisplayName] = useState('');
   const [preferredLocale, setPreferredLocale] = useState<string>(locale);
   const [active, setActive] = useState(true);
-  const addButtonRef = useRef<HTMLButtonElement | null>(null);
-  const settingsButtonRef = useRef<HTMLButtonElement | null>(null);
-  const lastDialogTriggerRef = useRef<HTMLButtonElement | null>(null);
   const submittingRef = useRef(false);
   const handledCreateRequestRef = useRef(createRequest);
+  const requestVersionRef = useRef(0);
+  const controllerRef = useRef<AbortController | null>(null);
 
-  const restoreFocus = (target: React.RefObject<HTMLButtonElement | null>) => window.requestAnimationFrame(() => target.current?.focus());
-  const resetCreateForm = () => {
-    setDisplayName('');
-    setPreferredLocale(locale);
-    setActive(true);
-    setFormError(false);
-  };
-  const resetEditForm = () => {
-    setEditingPerson(null);
-    setDisplayName('');
-    setPreferredLocale(locale);
-    setActive(true);
-    setFormError(false);
-  };
-  const closeCreate = () => {
-    if (saving) return;
-    if (hasUnsavedPersonDraft(displayName, preferredLocale, active, locale)) {
-      setDiscardOpen(true);
-      return;
-    }
-    setOpen(false);
-    setFormError(false);
-    restoreFocus(addButtonRef);
-  };
-  const discardCreate = () => {
-    setDiscardOpen(false);
-    resetCreateForm();
-    setOpen(false);
-    restoreFocus(addButtonRef);
-  };
-  const closeEdit = () => {
-    if (saving || !editingPerson) return;
-    if (hasPersonProfileChanges(editingPerson, displayName, preferredLocale, active)) {
-      setEditDiscardOpen(true);
-      return;
-    }
-    resetEditForm();
-    window.requestAnimationFrame(() => lastDialogTriggerRef.current?.focus());
-  };
-  const discardEdit = () => {
-    setEditDiscardOpen(false);
-    resetEditForm();
-    window.requestAnimationFrame(() => lastDialogTriggerRef.current?.focus());
-  };
-  const closePersonDialog = (setter: (value: null) => void) => {
-    setter(null);
-    window.requestAnimationFrame(() => lastDialogTriggerRef.current?.focus());
+  const syncFilters = (next: PeopleDirectoryFilters) => {
+    setFilters(next);
+    const search = peopleDirectorySearchWithFilters(window.location.search, next);
+    const target = `${window.location.pathname}${search}${window.location.hash}`;
+    const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (target !== current) window.history.replaceState(window.history.state, '', target);
   };
 
-  const load = async (signal?: AbortSignal) => {
-    setLoading(true);
-    setLoadError(false);
+  const load = async () => {
+    const requestVersion = requestVersionRef.current + 1;
+    requestVersionRef.current = requestVersion;
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    if (!directory) setLoadState('loading');
+    setLoadError(null);
     try {
-      setPeople(await peopleApi.list(signal));
-    } catch (reason) {
-      if (reason instanceof DOMException && reason.name === 'AbortError') return;
-      setLoadError(true);
-    } finally {
-      if (!signal?.aborted) setLoading(false);
+      const value = await peopleDirectoryApi.get(controller.signal);
+      if (controller.signal.aborted || requestVersion !== requestVersionRef.current) return;
+      setDirectory(value);
+      setLoadState('ready');
+      const sanitized = sanitizePeopleDirectoryFilters(peopleDirectoryFiltersFromSearch(window.location.search), value);
+      syncFilters(sanitized);
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      setLoadError(error);
+      setLoadState('error');
     }
   };
 
   useEffect(() => {
-    const controller = new AbortController();
-    void load(controller.signal);
-    return () => controller.abort();
+    void load();
+    return () => controllerRef.current?.abort();
   }, []);
+
+  useEffect(() => {
+    const onPopState = () => setFilters(peopleDirectoryFiltersFromSearch(window.location.search));
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  const resetForm = () => {
+    setDisplayName('');
+    setPreferredLocale(locale);
+    setActive(true);
+    setFormError(false);
+  };
+
+  const openCreate = () => {
+    resetForm();
+    setNotice(null);
+    setDiscardOpen(null);
+    setCreateOpen(true);
+  };
 
   useEffect(() => {
     if (handledCreateRequestRef.current === createRequest) return;
     handledCreateRequestRef.current = createRequest;
-    setCreated(false);
-    setUpdated(false);
-    setDiscardOpen(false);
-    setDisplayName('');
-    setPreferredLocale(locale);
-    setActive(true);
-    setFormError(false);
-    setOpen(true);
+    openCreate();
   }, [createRequest, locale]);
 
-  const filtered = useMemo(() => filterPeople(people, query, statusFilter, locale), [locale, people, query, statusFilter]);
-  const hasFilters = Boolean(query.trim()) || statusFilter !== 'all';
+  const beginEdit = (person: PeopleDirectoryPersonDto) => {
+    setEditingPerson(person);
+    setDisplayName(person.displayName);
+    setPreferredLocale(person.preferredLocale ?? '');
+    setActive(person.active);
+    setFormError(false);
+    setNotice(null);
+  };
 
-  const submit = async (event: FormEvent) => {
+  const closeCreate = () => {
+    if (saving) return;
+    if (hasUnsavedPersonDraft(displayName, preferredLocale, active, locale)) { setDiscardOpen('create'); return; }
+    setCreateOpen(false);
+    resetForm();
+  };
+
+  const closeEdit = () => {
+    if (saving || !editingPerson) return;
+    if (hasPersonProfileChanges(editingPerson, displayName, preferredLocale, active)) { setDiscardOpen('edit'); return; }
+    setEditingPerson(null);
+    resetForm();
+  };
+
+  const confirmDiscard = () => {
+    if (discardOpen === 'create') setCreateOpen(false);
+    if (discardOpen === 'edit') setEditingPerson(null);
+    setDiscardOpen(null);
+    resetForm();
+  };
+
+  const submitCreate = async (event: FormEvent) => {
     event.preventDefault();
     if (!canSubmitPerson(displayName, saving) || submittingRef.current) return;
     submittingRef.current = true;
-    const name = displayName.trim();
     setSaving(true);
     setFormError(false);
-    setCreated(false);
-    setUpdated(false);
     try {
-      const person = await peopleApi.create({ displayName: name, preferredLocale: preferredLocale.trim() || undefined, active });
-      setPeople(current => [...current, person].sort((first, second) => first.displayName.localeCompare(second.displayName, locale)));
-      setOpen(false);
-      setDiscardOpen(false);
-      resetCreateForm();
-      setCreated(true);
-      restoreFocus(addButtonRef);
+      await peopleApi.create({ displayName: displayName.trim(), preferredLocale: preferredLocale.trim() || undefined, active });
+      setCreateOpen(false);
+      resetForm();
+      setNotice('created');
+      await load();
     } catch {
       setFormError(true);
     } finally {
@@ -180,20 +269,12 @@ export function PeopleDirectory({ locale, createRequest = 0 }: { locale: Locale;
     submittingRef.current = true;
     setSaving(true);
     setFormError(false);
-    setCreated(false);
-    setUpdated(false);
     try {
-      const person = await peopleApi.update(editingPerson.id, {
-        displayName: displayName.trim(),
-        preferredLocale: preferredLocale.trim() || null,
-        active,
-      });
-      setPeople(current => current.map(item => item.id === person.id ? person : item).sort((first, second) => first.displayName.localeCompare(second.displayName, locale)));
+      await peopleApi.update(editingPerson.id, { displayName: displayName.trim(), preferredLocale: preferredLocale.trim() || null, active });
       setEditingPerson(null);
-      setEditDiscardOpen(false);
-      resetCreateForm();
-      setUpdated(true);
-      window.requestAnimationFrame(() => lastDialogTriggerRef.current?.focus());
+      resetForm();
+      setNotice('updated');
+      await load();
     } catch {
       setFormError(true);
     } finally {
@@ -202,63 +283,145 @@ export function PeopleDirectory({ locale, createRequest = 0 }: { locale: Locale;
     }
   };
 
-  const beginEdit = (person: PersonProfileDto, trigger: HTMLButtonElement) => {
-    lastDialogTriggerRef.current = trigger;
-    setEditingPerson(person);
-    setDisplayName(person.displayName);
-    setPreferredLocale(person.preferredLocale ?? '');
-    setActive(person.active);
-    setFormError(false);
-    setEditDiscardOpen(false);
-    setCreated(false);
-    setUpdated(false);
+  const effectiveFilters = directory ? sanitizePeopleDirectoryFilters(filters, directory) : DEFAULT_PEOPLE_DIRECTORY_FILTERS;
+  const filtered = useMemo(() => directory ? filterPeopleDirectory(directory.people, query, effectiveFilters, locale) : [], [directory, effectiveFilters, locale, query]);
+  const hasFilters = hasPeopleDirectoryFilters(query, effectiveFilters);
+  const advancedCount = Number(Boolean(effectiveFilters.eligibilityTypeId)) + Number(Boolean(effectiveFilters.responsibilityKey));
+  const clearFilters = () => { setQuery(''); syncFilters(DEFAULT_PEOPLE_DIRECTORY_FILTERS); };
+  const updateFilter = <K extends keyof PeopleDirectoryFilters>(key: K, value: PeopleDirectoryFilters[K]) => syncFilters(Object.freeze({ ...effectiveFilters, [key]: value || undefined }));
+
+  const availabilityNode = (person: PeopleDirectoryPersonDto) => {
+    if (person.availability.status !== 'ready') return <Text type="secondary">{text.unknown}</Text>;
+    return <Space direction="vertical" size={2}>
+      <Tag color={person.availability.current === 'available' ? 'success' : 'warning'}>{person.availability.current === 'available' ? text.available : text.unavailableNow}</Tag>
+      <Text type="secondary" style={{ fontSize: 12 }}>{person.availability.nextPeriod ? `${text.nextUnavailable}: ${formatCivilDate(person.availability.nextPeriod.startsAt, locale)}` : text.noNextUnavailable}</Text>
+    </Space>;
   };
 
-  const clearFilters = () => {
-    setQuery('');
-    setStatusFilter('all');
-  };
-  const openPersonDialog = (person: PersonProfileDto, trigger: HTMLButtonElement, setter: (value: PersonProfileDto) => void) => {
-    lastDialogTriggerRef.current = trigger;
-    setter(person);
+  const eligibilityNode = (person: PeopleDirectoryPersonDto) => {
+    if (person.eligibility.status !== 'ready') return <Text type="secondary">{text.unknown}</Text>;
+    if (!person.eligibility.enabledAssignmentTypeIds.length) return <Text type="secondary">{text.noEligibility}</Text>;
+    return <Text>{person.eligibility.enabledAssignmentTypeIds.length} {text.eligibleTypes}</Text>;
   };
 
-  return <Box component="section" aria-labelledby="people-directory-title">
-    <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 2, borderRadius: 3 }}>
-      <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" gap={2.5} alignItems={{ md: 'flex-end' }}>
-        <Box sx={{ maxWidth: 720 }}><Typography variant="overline" color="primary.main">{text.eyebrow}</Typography><Typography variant="h2" id="people-directory-title" sx={{ fontSize: { xs: '2rem', sm: '2.6rem' } }}>{text.title}</Typography><Typography color="text.secondary" sx={{ mt: 1 }}>{text.subtitle}</Typography></Box>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ flexShrink: 0 }}><Button ref={settingsButtonRef} variant="outlined" onClick={() => setSettingsOpen(true)}>{text.congregation}</Button><Button ref={addButtonRef} variant="contained" onClick={() => { setCreated(false); setUpdated(false); setFormError(false); setDiscardOpen(false); resetCreateForm(); setOpen(true); }}>{text.add}</Button></Stack>
-      </Stack>
-    </Paper>
-    <Stack spacing={2}>
-      <Paper component="form" onSubmit={event => event.preventDefault()} variant="outlined" sx={{ p: { xs: 1.25, sm: 1.5 }, borderRadius: 2.5, boxShadow: 'none', bgcolor: 'transparent' }}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} alignItems={{ sm: 'center' }}>
-          <TextField label={text.search} value={query} onChange={event => setQuery(event.target.value)} type="search" fullWidth slotProps={{ htmlInput: { autoComplete: 'off' } }} />
-          <FormControl fullWidth sx={{ maxWidth: { sm: 230 }, flexShrink: 0 }}><InputLabel id="people-status-filter-label">{text.filter}</InputLabel><Select labelId="people-status-filter-label" label={text.filter} value={statusFilter} onChange={event => setStatusFilter(event.target.value as PersonStatusFilter)}><MenuItem value="all">{text.all}</MenuItem><MenuItem value="active">{text.active}</MenuItem><MenuItem value="inactive">{text.inactive}</MenuItem></Select></FormControl>
-          {hasFilters ? <Button variant="text" onClick={clearFilters} sx={{ flexShrink: 0 }}>{text.clear}</Button> : null}
-        </Stack>
-      </Paper>
-      {created ? <Alert severity="success" onClose={() => setCreated(false)}>{text.success}</Alert> : null}
-      {updated ? <Alert severity="success" onClose={() => setUpdated(false)}>{text.updated}</Alert> : null}
-      {loadError ? <Alert severity="warning" action={<Button color="inherit" size="small" disabled={loading} onClick={() => void load()}>{text.retry}</Button>}>{text.unavailable}</Alert> : null}
-      <Box aria-live="polite" aria-atomic="true" sx={{ minHeight: { xs: 32, sm: 28 } }}>{!loading && !loadError ? <Typography variant="body2" color="text.secondary">{filtered.length} {filtered.length === 1 ? text.result : text.results}</Typography> : null}</Box>
-      <Box sx={{ minHeight: { xs: 280, sm: 320 } }}>
-        {loading ? <Stack direction="row" alignItems="center" justifyContent="center" spacing={1.5} sx={{ py: 7 }} role="status"><CircularProgress size={24} /><Typography color="text.secondary">{text.loading}</Typography></Stack> : null}
-        {!loading && !loadError && filtered.length === 0 ? <Paper variant="outlined" sx={{ p: 5, textAlign: 'center', borderRadius: 3, boxShadow: 'none', bgcolor: 'transparent' }}><Stack spacing={1.5} alignItems="center"><Typography color="text.secondary">{hasFilters ? text.noResults : text.empty}</Typography>{hasFilters ? <Button variant="outlined" onClick={clearFilters}>{text.clear}</Button> : null}</Stack></Paper> : null}
-        {!loading && !loadError && filtered.length > 0 ? <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5 }}>{filtered.map(person => <Card component="article" key={person.id}><CardContent><Stack spacing={1.75}>
-          <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={1.5}><Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0 }}><Avatar sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', fontWeight: 800, flexShrink: 0 }}>{person.displayName.slice(0, 1).toLocaleUpperCase(locale)}</Avatar><Box sx={{ minWidth: 0 }}><Typography variant="h5" fontWeight={750} noWrap title={person.displayName}>{person.displayName}</Typography>{person.preferredLocale ? <Typography variant="body2" color="text.secondary" noWrap>{text.locale}: {person.preferredLocale}</Typography> : null}</Box></Stack><Chip label={person.active ? text.active : text.inactive} size="small" variant="outlined" color={person.active ? 'success' : 'default'} /></Stack>
-          <Divider />
-          <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap aria-label={`${text.actions} — ${person.displayName}`}><Button size="small" variant="outlined" onClick={event => beginEdit(person, event.currentTarget)} aria-label={`${text.edit} — ${person.displayName}`}>{text.edit}</Button><Button size="small" variant="text" onClick={event => openPersonDialog(person, event.currentTarget, setContactsPerson)} aria-label={`${text.contacts} — ${person.displayName}`}>{text.contacts}</Button><Button size="small" variant="text" onClick={event => openPersonDialog(person, event.currentTarget, setEligibilityPerson)} aria-label={`${text.eligibility} — ${person.displayName}`}>{text.eligibility}</Button><Button size="small" variant="text" onClick={event => openPersonDialog(person, event.currentTarget, setAwayPerson)} aria-label={`${text.away} — ${person.displayName}`}>{text.away}</Button></Stack>
-        </Stack></CardContent></Card>)}</Box> : null}
-      </Box>
-    </Stack>
-    <Dialog open={open} onClose={closeCreate} fullWidth maxWidth="sm" aria-describedby="person-create-error"><Box component="form" onSubmit={submit}><DialogTitle>{text.dialogTitle}</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}><TextField label={text.name} value={displayName} onChange={event => setDisplayName(event.target.value)} required autoFocus slotProps={{ htmlInput: { maxLength: 120 } }} /><TextField label={text.preferredLocale} value={preferredLocale} onChange={event => setPreferredLocale(event.target.value)} slotProps={{ htmlInput: { maxLength: 35 } }} /><FormControlLabel control={<Switch checked={active} onChange={event => setActive(event.target.checked)} />} label={text.enabled} />{formError ? <Alert id="person-create-error" severity="error">{text.formError}</Alert> : null}</Stack></DialogContent><DialogActions><Button onClick={closeCreate} disabled={saving}>{text.cancel}</Button><Button type="submit" variant="contained" disabled={!canSubmitPerson(displayName, saving)}>{saving ? text.saving : text.save}</Button></DialogActions></Box></Dialog>
-    <Dialog open={editingPerson !== null} onClose={closeEdit} fullWidth maxWidth="sm" aria-describedby="person-edit-error"><Box component="form" onSubmit={submitEdit}><DialogTitle>{text.editTitle}</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}><TextField label={text.name} value={displayName} onChange={event => setDisplayName(event.target.value)} required autoFocus slotProps={{ htmlInput: { maxLength: 120 } }} /><TextField label={text.preferredLocale} value={preferredLocale} onChange={event => setPreferredLocale(event.target.value)} slotProps={{ htmlInput: { maxLength: 35 } }} /><FormControlLabel control={<Switch checked={active} onChange={event => setActive(event.target.checked)} />} label={text.enabled} />{formError ? <Alert id="person-edit-error" severity="error">{text.formError}</Alert> : null}</Stack></DialogContent><DialogActions><Button onClick={closeEdit} disabled={saving}>{text.cancel}</Button><Button type="submit" variant="contained" disabled={!canSubmitPerson(displayName, saving) || !editingPerson || !hasPersonProfileChanges(editingPerson, displayName, preferredLocale, active)}>{saving ? text.saving : text.save}</Button></DialogActions></Box></Dialog>
-    <Dialog open={discardOpen} onClose={() => setDiscardOpen(false)} aria-labelledby="person-discard-title" aria-describedby="person-discard-detail"><DialogTitle id="person-discard-title">{text.discardTitle}</DialogTitle><DialogContent><Typography id="person-discard-detail">{text.discardDetail}</Typography></DialogContent><DialogActions><Button autoFocus onClick={() => setDiscardOpen(false)}>{text.keepEditing}</Button><Button variant="contained" color="warning" onClick={discardCreate}>{text.discard}</Button></DialogActions></Dialog>
-    <Dialog open={editDiscardOpen} onClose={() => setEditDiscardOpen(false)} aria-labelledby="person-edit-discard-title" aria-describedby="person-edit-discard-detail"><DialogTitle id="person-edit-discard-title">{text.discardTitle}</DialogTitle><DialogContent><Typography id="person-edit-discard-detail">{text.discardDetail}</Typography></DialogContent><DialogActions><Button autoFocus onClick={() => setEditDiscardOpen(false)}>{text.keepEditing}</Button><Button variant="contained" color="warning" onClick={discardEdit}>{text.discard}</Button></DialogActions></Dialog>
-    {contactsPerson ? <EmergencyContactsDialog personId={contactsPerson.id} personName={contactsPerson.displayName} locale={locale} open onClose={() => closePersonDialog(setContactsPerson)} /> : null}
-    {eligibilityPerson ? <EligibilityDialog personId={eligibilityPerson.id} personName={eligibilityPerson.displayName} locale={locale} open onClose={() => closePersonDialog(setEligibilityPerson)} /> : null}
-    <Dialog open={awayPerson !== null} onClose={() => closePersonDialog(setAwayPerson)} fullWidth maxWidth="md"><DialogTitle>{awayPerson ? `${text.away} — ${awayPerson.displayName}` : text.away}</DialogTitle><DialogContent>{awayPerson ? <AwayPeriodsSection locale={locale} personId={awayPerson.id} /> : null}</DialogContent><DialogActions><Button onClick={() => closePersonDialog(setAwayPerson)}>{text.close}</Button></DialogActions></Dialog>
-    <CongregationSettingsDialog locale={locale} open={settingsOpen} onClose={() => { setSettingsOpen(false); restoreFocus(settingsButtonRef); }} />
-  </Box>;
+  const responsibilitiesNode = (person: PeopleDirectoryPersonDto) => {
+    if (person.responsibilities.status !== 'ready') return <Text type="secondary">{text.unknown}</Text>;
+    if (!person.responsibilities.keys.length) return <Text type="secondary">{text.noResponsibilities}</Text>;
+    return <Space size={[4, 4]} wrap>{person.responsibilities.keys.slice(0, 3).map(key => <Tag key={key}>{responsibilityLabel(key)}</Tag>)}</Space>;
+  };
+
+  const historyNode = (person: PeopleDirectoryPersonDto) => {
+    if (person.assignmentHistory.status !== 'ready') return <Text type="secondary">{text.unknown}</Text>;
+    return <Text>{person.assignmentHistory.lastCompletedMeetingDate ? formatCivilDate(person.assignmentHistory.lastCompletedMeetingDate, locale) : text.noAssignmentHistory}</Text>;
+  };
+
+  const actionsNode = (person: PeopleDirectoryPersonDto) => <Space size={4} wrap>
+    <Button type="link" size="small" icon={<EditOutlined />} onClick={() => beginEdit(person)}>{text.edit}</Button>
+    <Button type="link" size="small" onClick={() => setAwayPerson(person)}>{text.away}</Button>
+    {directory?.capabilities.eligibility ? <Button type="link" size="small" onClick={() => setEligibilityPerson(person)}>{text.eligibility}</Button> : null}
+    <Button type="link" size="small" onClick={() => setContactsPerson(person)}>{text.contacts}</Button>
+  </Space>;
+
+  const columns: ColumnsType<PeopleDirectoryPersonDto> = [
+    {
+      title: text.title,
+      key: 'person',
+      width: 230,
+      sorter: (left, right) => left.displayName.localeCompare(right.displayName, locale),
+      render: (_, person) => <Space><Avatar>{person.displayName.slice(0, 1).toLocaleUpperCase(locale)}</Avatar><span><Text strong>{person.displayName}</Text>{person.preferredLocale ? <><br /><Text type="secondary" style={{ fontSize: 12 }}>{text.locale}: {person.preferredLocale}</Text></> : null}</span></Space>,
+    },
+    { title: text.group, key: 'group', width: 150, render: (_, person) => person.groups.length ? <Space size={[4, 4]} wrap>{person.groups.map(group => <Tag key={group.id}>{group.name}</Tag>)}</Space> : <Text type="secondary">{text.noGroup}</Text> },
+    { title: text.availability, key: 'availability', width: 220, render: (_, person) => availabilityNode(person) },
+    { title: text.eligibility, key: 'eligibility', width: 150, render: (_, person) => eligibilityNode(person) },
+    { title: text.responsibilities, key: 'responsibilities', width: 190, render: (_, person) => responsibilitiesNode(person) },
+    { title: text.lastAssignment, key: 'history', width: 180, render: (_, person) => historyNode(person) },
+    { title: text.state, key: 'state', width: 100, render: (_, person) => <Tag color={person.active ? 'success' : 'default'}>{person.active ? text.active : text.inactive}</Tag> },
+    { title: text.actions, key: 'actions', fixed: 'right', width: 300, render: (_, person) => actionsNode(person) },
+  ];
+
+  const error = errorStatus(loadError);
+  const partial = directory && Object.values(directory.capabilities).some(value => !value);
+  const advancedFilters = directory ? <Space direction="vertical" size="middle" style={{ width: 280 }}>
+    <div><Text strong>{text.eligibility}</Text><Select aria-label={text.eligibility} style={{ width: '100%', marginTop: 6 }} value={effectiveFilters.eligibilityTypeId ?? ''} disabled={!directory.capabilities.eligibility} onChange={value => updateFilter('eligibilityTypeId', value || undefined)} options={[{ value: '', label: text.allEligibility }, ...directory.filters.assignmentTypeIds.map(id => ({ value: id, label: assignmentTypeLabel(id, locale) }))]} /></div>
+    <div><Text strong>{text.responsibility}</Text><Select aria-label={text.responsibility} style={{ width: '100%', marginTop: 6 }} value={effectiveFilters.responsibilityKey ?? ''} disabled={!directory.capabilities.responsibilities} onChange={value => updateFilter('responsibilityKey', value || undefined)} options={[{ value: '', label: text.allResponsibilities }, ...directory.filters.responsibilityKeys.map(key => ({ value: key, label: responsibilityLabel(key) }))]} /></div>
+  </Space> : null;
+
+  return <section aria-labelledby="people-directory-title">
+    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <Card styles={{ body: { padding: 24 } }}>
+        <Space direction="vertical" size="small" style={{ width: '100%' }}>
+          <Text type="secondary" strong>{text.eyebrow}</Text>
+          <Space align="start" style={{ width: '100%', justifyContent: 'space-between' }} wrap>
+            <div style={{ maxWidth: 760 }}><Title level={2} id="people-directory-title" style={{ margin: 0 }}>{text.title}</Title><Paragraph type="secondary" style={{ margin: '8px 0 0' }}>{text.subtitle}</Paragraph></div>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>{text.add}</Button>
+          </Space>
+        </Space>
+      </Card>
+
+      {notice ? <Alert type="success" showIcon closable onClose={() => setNotice(null)} message={notice === 'created' ? text.success : text.updated} /> : null}
+      {partial ? <Alert type="info" showIcon message={text.partial} /> : null}
+      {loadState === 'error' ? <Alert type="error" showIcon message={error === 401 ? text.unauthorized : error === 403 ? text.forbidden : text.loadError} action={error !== 401 && error !== 403 ? <Button size="small" onClick={() => void load()}>{text.retry}</Button> : undefined} /> : null}
+
+      <Card>
+        <div className="people-directory-filter-grid">
+          <Input allowClear prefix={<SearchOutlined />} value={query} onChange={event => setQuery(event.target.value)} placeholder={text.search} aria-label={text.search} />
+          <Select aria-label={text.group} value={effectiveFilters.groupId ?? ''} onChange={value => updateFilter('groupId', value || undefined)} showSearch optionFilterProp="label" options={[{ value: '', label: text.allGroups }, ...(directory?.filters.groups ?? []).map(group => ({ value: group.id, label: group.name }))]} />
+          <Select aria-label={text.availability} value={effectiveFilters.availability} disabled={directory ? !directory.capabilities.availability : false} onChange={value => updateFilter('availability', value)} options={[{ value: 'all', label: text.all }, { value: 'available', label: text.available }, { value: 'unavailable', label: text.unavailableNow }]} />
+          <Select aria-label={text.state} value={effectiveFilters.status} onChange={value => updateFilter('status', value)} options={[{ value: 'all', label: text.all }, { value: 'active', label: text.active }, { value: 'inactive', label: text.inactive }]} />
+          <Popover trigger="click" placement="bottomRight" content={advancedFilters} title={text.more}><Button icon={<FilterOutlined />}>{advancedCount ? `${text.more} (${advancedCount})` : text.more}</Button></Popover>
+        </div>
+        {hasFilters ? <div style={{ marginTop: 12 }}><Button type="link" onClick={clearFilters} style={{ paddingInline: 0 }}>{text.clear}</Button></div> : null}
+      </Card>
+
+      {loadState === 'loading' && !directory ? <Card><Skeleton active paragraph={{ rows: 6 }} /></Card> : null}
+      {directory ? <>
+        <Text type="secondary" aria-live="polite">{filtered.length} {filtered.length === 1 ? text.result : text.results}</Text>
+        {directory.people.length === 0 ? <Card><Empty description={text.noPeople} /></Card> : filtered.length === 0 ? <Card><Empty description={text.noResults}><Button onClick={clearFilters}>{text.clear}</Button></Empty></Card> : <>
+          <div className="people-directory-desktop">
+            <Card styles={{ body: { padding: 0 } }}><Table rowKey="id" columns={columns} dataSource={[...filtered]} pagination={{ pageSize: 25, showSizeChanger: true }} scroll={{ x: 1500 }} /></Card>
+          </div>
+          <div className="people-directory-mobile">
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>{filtered.map(person => <Card key={person.id}>
+              <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                <Space align="start" style={{ width: '100%', justifyContent: 'space-between' }}><Space><Avatar size="large">{person.displayName.slice(0, 1).toLocaleUpperCase(locale)}</Avatar><span><Text strong style={{ fontSize: 16 }}>{person.displayName}</Text>{person.preferredLocale ? <><br /><Text type="secondary">{text.locale}: {person.preferredLocale}</Text></> : null}</span></Space><Tag color={person.active ? 'success' : 'default'}>{person.active ? text.active : text.inactive}</Tag></Space>
+                <div className="people-directory-card-meta">
+                  <div><Text type="secondary">{text.group}</Text><div>{person.groups.length ? <Space size={[4, 4]} wrap>{person.groups.map(group => <Tag key={group.id}>{group.name}</Tag>)}</Space> : <Text>{text.noGroup}</Text>}</div></div>
+                  <div><Text type="secondary">{text.availability}</Text><div>{availabilityNode(person)}</div></div>
+                  <div><Text type="secondary">{text.eligibility}</Text><div>{eligibilityNode(person)}</div></div>
+                  <div><Text type="secondary">{text.responsibilities}</Text><div>{responsibilitiesNode(person)}</div></div>
+                  <div><Text type="secondary">{text.lastAssignment}</Text><div>{historyNode(person)}</div></div>
+                </div>
+                <div style={{ borderTop: `1px solid ${token.colorBorderSecondary}`, paddingTop: 10 }}>{actionsNode(person)}</div>
+              </Space>
+            </Card>)}</Space>
+          </div>
+        </>}
+      </> : null}
+    </Space>
+
+    <Modal open={createOpen} title={text.dialogTitle} onCancel={closeCreate} footer={null} destroyOnHidden>
+      <form onSubmit={submitCreate}><Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        <label><Text strong>{text.name}</Text><Input autoFocus maxLength={120} value={displayName} onChange={event => setDisplayName(event.target.value)} status={formError ? 'error' : undefined} /></label>
+        <label><Text strong>{text.preferredLocale}</Text><Input maxLength={35} value={preferredLocale} onChange={event => setPreferredLocale(event.target.value)} /></label>
+        <Space><Switch checked={active} onChange={setActive} /><Text>{text.enabled}</Text></Space>
+        {formError ? <Alert type="error" showIcon message={text.formError} /> : null}
+        <Space style={{ width: '100%', justifyContent: 'flex-end' }}><Button onClick={closeCreate} disabled={saving}>{text.cancel}</Button><Button htmlType="submit" type="primary" loading={saving} disabled={!canSubmitPerson(displayName, saving)}>{saving ? text.saving : text.save}</Button></Space>
+      </Space></form>
+    </Modal>
+
+    <Modal open={editingPerson !== null} title={text.editTitle} onCancel={closeEdit} footer={null} destroyOnHidden>
+      <form onSubmit={submitEdit}><Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        <label><Text strong>{text.name}</Text><Input autoFocus maxLength={120} value={displayName} onChange={event => setDisplayName(event.target.value)} status={formError ? 'error' : undefined} /></label>
+        <label><Text strong>{text.preferredLocale}</Text><Input maxLength={35} value={preferredLocale} onChange={event => setPreferredLocale(event.target.value)} /></label>
+        <Space><Switch checked={active} onChange={setActive} /><Text>{text.enabled}</Text></Space>
+        {formError ? <Alert type="error" showIcon message={text.formError} /> : null}
+        <Space style={{ width: '100%', justifyContent: 'flex-end' }}><Button onClick={closeEdit} disabled={saving}>{text.cancel}</Button><Button htmlType="submit" type="primary" loading={saving} disabled={!editingPerson || !canSubmitPerson(displayName, saving) || !hasPersonProfileChanges(editingPerson, displayName, preferredLocale, active)}>{saving ? text.saving : text.save}</Button></Space>
+      </Space></form>
+    </Modal>
+
+    <Modal open={discardOpen !== null} title={text.discardTitle} onCancel={() => setDiscardOpen(null)} onOk={confirmDiscard} okText={text.discard} cancelText={text.keepEditing} okButtonProps={{ danger: true }}>{text.discardDetail}</Modal>
+    {contactsPerson ? <EmergencyContactsDialog personId={contactsPerson.id} personName={contactsPerson.displayName} locale={locale} open onClose={() => setContactsPerson(null)} /> : null}
+    {eligibilityPerson ? <EligibilityDialog personId={eligibilityPerson.id} personName={eligibilityPerson.displayName} locale={locale} open onClose={() => { setEligibilityPerson(null); void load(); }} /> : null}
+    <Modal open={awayPerson !== null} title={awayPerson ? `${text.away} — ${awayPerson.displayName}` : text.away} onCancel={() => { setAwayPerson(null); void load(); }} footer={<Button onClick={() => { setAwayPerson(null); void load(); }}>{text.close}</Button>} width={760} destroyOnHidden>{awayPerson ? <AwayPeriodsSection locale={locale} personId={awayPerson.id} /> : null}</Modal>
+  </section>;
 }
