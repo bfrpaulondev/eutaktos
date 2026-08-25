@@ -231,13 +231,15 @@ function AppShell({ preferences, setPreferences }: AppShellProps) {
       </AntDrawer>
 
       <Layout className={desktop ? 'eutaktos-task-main-layout eutaktos-task-main-layout--desktop' : 'eutaktos-task-main-layout'}>
-        <Content component="main" id="main" tabIndex={-1} className="eutaktos-task-content">
-          {section === 'home' ? <HomeDashboard text={text} preferences={preferences} update={update} /> : null}
-          {section === 'prepare' ? <PrepareMeetingArea text={text} locale={preferences.locale} active={prepareView} onChange={view => goToPath(PREPARE_PATHS[view])} /> : null}
-          {section === 'people' ? <Suspense fallback={<WorkspaceLoading label={text.workspaceLoading} />}><SectionWorkspace locale={preferences.locale} section="people" /></Suspense> : null}
-          {section === 'organization' ? <MigrationArea title={text.organizationPendingTitle} body={text.organizationPendingBody} action={text.organizationPendingAction} onAction={() => goToSection('people')} /> : null}
-          {section === 'planning' ? <MigrationArea title={text.planningPendingTitle} body={text.planningPendingBody} action={text.planningPendingAction} onAction={() => goToSection('prepare')} /> : null}
-          {section === 'administration' ? <AdministrationArea text={text} preferences={preferences} update={update} /> : null}
+        <Content>
+          <main id="main" tabIndex={-1} className="eutaktos-task-content">
+            {section === 'home' ? <HomeDashboard text={text} preferences={preferences} update={update} /> : null}
+            {section === 'prepare' ? <PrepareMeetingArea text={text} locale={preferences.locale} active={prepareView} onChange={view => goToPath(PREPARE_PATHS[view])} /> : null}
+            {section === 'people' ? <Suspense fallback={<WorkspaceLoading label={text.workspaceLoading} />}><SectionWorkspace locale={preferences.locale} section="people" /></Suspense> : null}
+            {section === 'organization' ? <MigrationArea title={text.organizationPendingTitle} body={text.organizationPendingBody} action={text.organizationPendingAction} onAction={() => goToSection('people')} /> : null}
+            {section === 'planning' ? <MigrationArea title={text.planningPendingTitle} body={text.planningPendingBody} action={text.planningPendingAction} onAction={() => goToSection('prepare')} /> : null}
+            {section === 'administration' ? <AdministrationArea text={text} preferences={preferences} update={update} /> : null}
+          </main>
         </Content>
       </Layout>
     </Layout>
