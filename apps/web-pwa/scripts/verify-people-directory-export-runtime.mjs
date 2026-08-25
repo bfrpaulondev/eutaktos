@@ -73,21 +73,27 @@ async function clickVisibleButton(label) {
   })()`);
 }
 
-async function clickVisibleMenuItem(label) {
-  return await evaluate(`(() => {
-    const element = [...document.querySelectorAll('[role="menuitem"]')].find(node => {
+async function activateBulkSelection(): Promise<void> {
+  await poll(async () => await evaluate(`(() => {
+    const done = [...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === 'Concluir');
+    if (done) return true;
+
+    const visible = node => {
       const rect = node.getBoundingClientRect();
       const style = getComputedStyle(node);
-      return (node.innerText || node.textContent || '').trim() === ${JSON.stringify(label)} && rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
-    });
-    if (!element) return false;
-    element.focus();
-    element.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerId: 1, pointerType: 'mouse', isPrimary: true }));
-    element.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 }));
-    element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, button: 0 }));
-    element.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }));
-    return true;
-  })()`);
+      return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+    };
+
+    const menuItem = [...document.querySelectorAll('[role="menuitem"]')].find(node => visible(node) && (node.innerText || node.textContent || '').trim() === 'Selecionar pessoas para exportar');
+    if (menuItem) {
+      menuItem.click();
+      return false;
+    }
+
+    const exportButton = [...document.querySelectorAll('button')].find(node => visible(node) && (node.innerText || node.textContent || '').trim() === 'Exportar');
+    exportButton?.click();
+    return false;
+  })()`), 'Bulk selection mode could not be activated');
 }
 
 try {
@@ -141,10 +147,7 @@ try {
   if (!initial.hasExport) throw new Error('PX4.11 export entry point is missing');
   if (initial.visibleCheckboxes !== 0) throw new Error(`Default directory browsing exposed ${initial.visibleCheckboxes} selection checkboxes`);
 
-  if (!await clickVisibleButton('Exportar')) throw new Error('Export button could not be activated');
-  await poll(async () => await evaluate(`[...document.querySelectorAll('[role="menuitem"]')].some(node => { const rect = node.getBoundingClientRect(); return rect.width > 0 && rect.height > 0 && (node.innerText || node.textContent || '').trim() === 'Selecionar pessoas para exportar'; })`), 'Bulk export menu item did not become visible');
-  if (!await clickVisibleMenuItem('Selecionar pessoas para exportar')) throw new Error('Bulk export menu item could not be activated');
-
+  await activateBulkSelection();
   await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === 'Concluir')) && Boolean(document.querySelector('#main')?.textContent?.includes('A exportação em lote inclui apenas os campos autorizados pelas suas permissões atuais.'))`), 'Bulk selection mode did not open');
 
   const bulkState = await evaluate(`({
