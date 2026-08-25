@@ -6,7 +6,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   quality:
@@ -15,27 +15,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref }}
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 24
       - name: Install dependencies
         run: npm install --no-audit --no-fund
-      - name: PX1 temporary synchronize resolved lockfile
-        if: github.event_name == 'pull_request' && github.head_ref == 'principal/px1-ant-foundation'
-        shell: bash
-        run: |
-          if git diff --quiet -- package-lock.json; then
-            echo "package-lock.json already synchronized."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json
-          git commit -m "chore(px1): refresh package lock for Ant Design icons"
-          git push origin HEAD:${{ github.head_ref }}
       - name: Typecheck
         run: npm run typecheck
       - name: Unit tests
