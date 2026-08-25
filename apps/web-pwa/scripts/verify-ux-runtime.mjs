@@ -32,10 +32,10 @@ function connectCdp(url) {
   let nextId = 1;
   socket.addEventListener('message', event => {
     const message = JSON.parse(String(event.data));
-    const resolve = pending.get(message.id);
-    if (resolve) {
+    const resolver = pending.get(message.id);
+    if (resolver) {
       pending.delete(message.id);
-      resolve(message);
+      resolver(message);
     }
   });
   return new Promise((resolve, reject) => {
@@ -59,9 +59,7 @@ let cdp;
 
 async function evaluate(expression) {
   const response = await cdp.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
-  if (response.exceptionDetails) {
-    throw new Error(response.exceptionDetails.exception?.description ?? response.exceptionDetails.text);
-  }
+  if (response.exceptionDetails) throw new Error(response.exceptionDetails.exception?.description ?? response.exceptionDetails.text);
   return response.result.value;
 }
 
@@ -79,9 +77,13 @@ async function setPreferences(preferences, expectedHeading) {
       throw error;
     }
   }, 'O armazenamento de preferências não ficou disponível', 20);
-  await cdp.send('Page.reload', { ignoreCache: true });
+
+  // PX2 deliberately removed the old generic Home hero from feature routes.
+  // Start locale/theme checks from Home so the assertion verifies the persisted
+  // preference itself rather than depending on the route left by a prior case.
+  await cdp.send('Page.navigate', { url: appUrl });
   await poll(
-    async () => await evaluate(`document.readyState === 'complete' && document.documentElement.lang === ${JSON.stringify(preferences.locale)} && Boolean(document.querySelector('#root')?.textContent?.includes(${JSON.stringify(expectedHeading)}))`),
+    async () => await evaluate(`document.readyState === 'complete' && location.pathname === '/' && document.documentElement.lang === ${JSON.stringify(preferences.locale)} && Boolean(document.querySelector('#root')?.textContent?.includes(${JSON.stringify(expectedHeading)}))`),
     `A interface não carregou em ${preferences.locale}`,
     80,
   );
@@ -108,13 +110,16 @@ async function visitWorkspace(path, expectedHeading, locale, expectedTitle = `Eu
   }
 }
 
-async function openLocalizedDialog(trigger, title, closeLabel, locale) {
-  const foundTrigger = await evaluate(`(() => {
-    const button = [...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(trigger)});
+async function clickExactButton(label) {
+  return await evaluate(`(() => {
+    const button = [...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(label)});
     button?.click();
     return Boolean(button);
   })()`);
-  if (!foundTrigger) throw new Error(`O gatilho localizado ${trigger} não foi encontrado em ${locale}`);
+}
+
+async function openLocalizedDialog(trigger, title, closeLabel, locale) {
+  if (!await clickExactButton(trigger)) throw new Error(`O gatilho localizado ${trigger} não foi encontrado em ${locale}`);
   await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('[role="dialog"]')].find(node => node.textContent?.includes(${JSON.stringify(title)})))`), `O diálogo ${title} não abriu em ${locale}`);
   const closed = await evaluate(`(() => {
     const dialog = [...document.querySelectorAll('[role="dialog"]')].find(node => node.textContent?.includes(${JSON.stringify(title)}));
@@ -128,12 +133,7 @@ async function openLocalizedDialog(trigger, title, closeLabel, locale) {
 
 async function verifyLocalizedOrganization(locale, expected) {
   await visitWorkspace(expected.path, expected.overview, locale, expected.documentTitle);
-  const openedDirectory = await evaluate(`(() => {
-    const button = [...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(expected.directory)});
-    button?.click();
-    return Boolean(button);
-  })()`);
-  if (!openedDirectory) throw new Error(`O acesso ao diretório ${expected.directory} não foi encontrado em ${locale}`);
+  if (!await clickExactButton(expected.directory)) throw new Error(`O acesso ao diretório ${expected.directory} não foi encontrado em ${locale}`);
   await poll(async () => await evaluate(`Boolean(document.querySelector('#main')?.textContent?.includes(${JSON.stringify(expected.heading)}))`), `O diretório não apresentou o contexto organizacional em ${locale}`);
   const missingLabels = await evaluate(`(() => {
     const labels = new Set([...document.querySelectorAll('button')].map(node => (node.innerText || node.textContent || '').trim()));
@@ -166,53 +166,50 @@ try {
     const main = document.querySelector('main#main');
     const active = document.querySelector('[aria-current="page"]');
     skip?.focus();
-    return {
-      hasSkip: Boolean(skip),
-      href: skip?.getAttribute('href'),
-      hasMain: Boolean(main),
-      navCount: document.querySelectorAll('nav').length,
-      activeLabel: active?.textContent?.trim() ?? '',
-      skipTop: skip ? getComputedStyle(skip).top : '',
-    };
+    return { hasSkip: Boolean(skip), href: skip?.getAttribute('href'), hasMain: Boolean(main), navCount: document.querySelectorAll('nav').length, activeLabel: active?.textContent?.trim() ?? '', skipTop: skip ? getComputedStyle(skip).top : '' };
   })()`);
-  if (!keyboard.hasSkip || keyboard.href !== '#main' || !keyboard.hasMain || keyboard.navCount < 1 || !keyboard.activeLabel || keyboard.skipTop === '-80px') {
-    throw new Error(`A navegação por teclado não expõe skip link, landmarks ou estado actual: ${JSON.stringify(keyboard)}`);
-  }
+  if (!keyboard.hasSkip || keyboard.href !== '#main' || !keyboard.hasMain || keyboard.navCount < 1 || !keyboard.activeLabel || keyboard.skipTop === '-80px') throw new Error(`A navegação por teclado não expõe skip link, landmarks ou estado actual: ${JSON.stringify(keyboard)}`);
 
-  const mobile = await evaluate(`({ width: window.innerWidth, scrollWidth: document.documentElement.scrollWidth, labels: [...document.querySelectorAll('button')].map(button => button.innerText?.trim() || button.textContent?.trim()), body: document.body.innerText })`);
+  const mobile = await evaluate(`({ width: window.innerWidth, scrollWidth: document.documentElement.scrollWidth, body: document.body.innerText })`);
   if (mobile.scrollWidth > mobile.width) throw new Error(`A navegação móvel cria overflow horizontal: ${mobile.scrollWidth}px > ${mobile.width}px`);
-  if (!mobile.body.includes('Mais')) throw new Error(`A navegação móvel não expõe o destino Mais: ${JSON.stringify(mobile.labels)}`);
+  if (!mobile.body.includes('Mais')) throw new Error('A navegação móvel não expõe o destino Mais');
 
-  await evaluate(`[...document.querySelectorAll('button')].find(button => (button.innerText || button.textContent || '').includes('Mais'))?.click()`);
-  await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('[role="presentation"], [role="dialog"]')].find(node => node.textContent?.includes('Designações')))`), 'O painel Mais não abriu');
-  await evaluate(`[...document.querySelectorAll('button')].find(button => (button.innerText || button.textContent || '').trim() === 'Fechar')?.click()`);
-  await poll(async () => await evaluate(`document.activeElement?.textContent?.trim() === '•••Mais'`), 'O foco não regressou ao botão Mais depois de fechar o painel');
+  if (!await clickExactButton('Mais')) throw new Error('O botão Mais não foi encontrado');
+  await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('[role="dialog"]')].find(node => node.textContent?.includes('Planeamento') && node.textContent?.includes('Organização') && node.textContent?.includes('Administração')))`), 'O painel Mais orientado a tarefas não abriu');
+  if (!await clickExactButton('Fechar')) throw new Error('O botão Fechar não foi encontrado');
+  await poll(async () => await evaluate(`document.activeElement?.textContent?.trim().endsWith('Mais')`), 'O foco não regressou ao botão Mais depois de fechar o painel');
 
   const workspaces = {
-    'pt-PT': [['/agenda', 'Agenda'], ['/designacoes', 'Designações'], ['/pessoas', 'Pessoas'], ['/preferencias', 'Preferências']],
-    en: [['/agenda', 'Agenda'], ['/assignments', 'Assignments'], ['/people', 'People'], ['/preferences', 'Preferences']],
-    es: [['/agenda', 'Agenda'], ['/designacoes', 'Asignaciones'], ['/pessoas', 'Personas'], ['/preferencias', 'Preferencias']],
+    'pt-PT': [['/agenda', 'Agenda', 'Eutaktos — Preparar reunião'], ['/designacoes', 'Designações', 'Eutaktos — Planeamento'], ['/pessoas', 'Pessoas', 'Eutaktos — Pessoas'], ['/preferencias', 'Preferências', 'Eutaktos — Administração']],
+    en: [['/agenda', 'Agenda', 'Eutaktos — Prepare meeting'], ['/assignments', 'Assignments', 'Eutaktos — Planning'], ['/people', 'People', 'Eutaktos — People'], ['/preferences', 'Preferences', 'Eutaktos — Administration']],
+    es: [['/agenda', 'Agenda', 'Eutaktos — Preparar reunión'], ['/designacoes', 'Asignaciones', 'Eutaktos — Planificación'], ['/pessoas', 'Personas', 'Eutaktos — Personas'], ['/preferencias', 'Preferencias', 'Eutaktos — Administración']],
   };
   const organization = {
     'pt-PT': { path: '/pessoas', overview: 'Pessoas', heading: 'Pessoas e organização', documentTitle: 'Eutaktos — Pessoas', overviewLabel: 'Visão geral', directory: 'Diretório', households: 'Agregados', groups: 'Grupos de serviço', responsibilities: 'Responsabilidades', hourglass: 'Inspecionar export Hourglass', audit: 'Histórico de auditoria', access: 'Gerir acessos', hourglassTitle: 'Inspeção de export Hourglass', auditTitle: 'Histórico de auditoria', accessTitle: 'Gestão de acessos', close: 'Fechar' },
     en: { path: '/people', overview: 'People', heading: 'People and organization', documentTitle: 'Eutaktos — People', overviewLabel: 'Overview', directory: 'Directory', households: 'Households', groups: 'Service groups', responsibilities: 'Responsibilities', hourglass: 'Inspect Hourglass export', audit: 'Audit history', access: 'Manage access', hourglassTitle: 'Hourglass export inspector', auditTitle: 'Audit history', accessTitle: 'Access management', close: 'Close' },
     es: { path: '/pessoas', overview: 'Personas', heading: 'Personas y organización', documentTitle: 'Eutaktos — Personas', overviewLabel: 'Vista general', directory: 'Directorio', households: 'Grupos familiares', groups: 'Grupos de servicio', responsibilities: 'Responsabilidades', hourglass: 'Inspeccionar exportación Hourglass', audit: 'Historial de auditoría', access: 'Gestionar accesos', hourglassTitle: 'Inspector de exportación Hourglass', auditTitle: 'Historial de auditoría', accessTitle: 'Gestión de accesos', close: 'Cerrar' },
   };
+
   for (const locale of ['pt-PT', 'en', 'es']) {
     const expectedHome = locale === 'pt-PT' ? 'Tudo em boa ordem.' : locale === 'en' ? 'Everything in good order.' : 'Todo en buen orden.';
     await setPreferences({ ...defaults, locale }, expectedHome);
-    for (const [path, heading] of workspaces[locale]) await visitWorkspace(path, heading, locale);
+    for (const [path, heading, title] of workspaces[locale]) await visitWorkspace(path, heading, locale, title);
     await verifyLocalizedOrganization(locale, organization[locale]);
   }
+
+  await setPreferences({ ...defaults, locale: 'pt-PT' }, 'Tudo em boa ordem.');
+  await visitWorkspace('/pessoas?area=organization', 'Pessoas e organização', 'pt-PT', 'Eutaktos — Organização');
+  await visitWorkspace('/pessoas?area=organization&view=groups', 'Grupos de serviço', 'pt-PT', 'Eutaktos — Organização');
+
   await setPreferences({ ...defaults, locale: 'en' }, 'Everything in good order.');
-  await visitWorkspace('/people/?source=deep-link#contacts', 'People', 'en');
+  await visitWorkspace('/people/?source=deep-link#contacts', 'People', 'en', 'Eutaktos — People');
   await visitWorkspace('/unknown-route?source=deep-link', 'Everything in good order.', 'en', 'Eutaktos — Home');
 
   await setPreferences({ ...defaults, locale: 'es', colorMode: 'dark', highContrast: true }, 'Todo en buen orden.');
   const accessibility = await evaluate(`({ mode: document.documentElement.dataset.colorMode, background: getComputedStyle(document.body).backgroundColor, border: getComputedStyle(document.querySelector('.MuiPaper-root')).borderTopWidth })`);
   if (accessibility.mode !== 'dark' || accessibility.border !== '2px' || accessibility.background === 'rgb(0, 0, 0)') throw new Error(`O tema acessível não foi aplicado corretamente: ${JSON.stringify(accessibility)}`);
 
-  process.stdout.write('UX runtime checks passed: pt-PT/en/es workspaces and organization dialogs, localized real deep-link navigations/titles, safe unknown-route fallback, More focus restore, dark/high contrast, 320px reflow, skip link, landmarks and aria-current.\n');
+  process.stdout.write('UX runtime checks passed: task-oriented shell, pt-PT/en/es workspaces, People/Organization deep links, safe unknown-route fallback, More focus restore, dark/high contrast, 320px reflow, skip link, landmarks and aria-current.\n');
 } finally {
   cdp?.close();
   if (browser && !browser.killed) browser.kill('SIGTERM');

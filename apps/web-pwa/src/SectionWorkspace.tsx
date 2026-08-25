@@ -1,4 +1,4 @@
-import { lazy, Suspense, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Box, Button, Divider, Paper } from '@mui/material';
 import { AccessManagementDialog } from './AccessManagementDialog';
 import { AuditHistoryDialog } from './AuditHistoryDialog';
@@ -26,8 +26,34 @@ const copy = {
   es: { organization: 'Organización', organizationTitle: 'Personas y organización', organizationSubtitle: 'Mantén perfiles, grupos familiares, grupos, responsabilidades, ausencias y permisos en el mismo contexto.', overview: 'Vista general', directory: 'Directorio', households: 'Grupos familiares', groups: 'Grupos de servicio', responsibilities: 'Responsabilidades', audit: 'Historial de auditoría', access: 'Gestionar accesos', hourglass: 'Inspeccionar exportación Hourglass', overviewLoading: 'Cargando Personas…' },
 } as const;
 
+function organizationViewFromLocation(): OrganizationView {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('area') !== 'organization') return 'overview';
+  const view = params.get('view');
+  if (view === 'groups' || view === 'responsibilities' || view === 'households') return view;
+  return 'households';
+}
+
+function pushOrganizationView(next: OrganizationView): void {
+  const params = new URLSearchParams(window.location.search);
+  if (next === 'overview' || next === 'directory') {
+    params.delete('area');
+    params.delete('view');
+  } else {
+    params.set('area', 'organization');
+    params.set('view', next);
+  }
+  const search = params.toString();
+  const target = `${window.location.pathname}${search ? `?${search}` : ''}${window.location.hash}`;
+  const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  if (target !== current) {
+    window.history.pushState({ peopleView: next }, '', target);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  }
+}
+
 function OrganizationWorkspace({ locale }: { locale: Locale }) {
-  const [view, setView] = useState<OrganizationView>('overview');
+  const [view, setView] = useState<OrganizationView>(organizationViewFromLocation);
   const [createRequest, setCreateRequest] = useState(0);
   const [auditOpen, setAuditOpen] = useState(false);
   const [accessOpen, setAccessOpen] = useState(false);
@@ -38,16 +64,24 @@ function OrganizationWorkspace({ locale }: { locale: Locale }) {
   const views: readonly OrganizationView[] = ['overview', 'directory', 'households', 'groups', 'responsibilities'];
   const labels: Record<OrganizationView, string> = { overview: text.overview, directory: text.directory, households: text.households, groups: text.groups, responsibilities: text.responsibilities };
 
+  useEffect(() => {
+    const onPopState = () => setView(organizationViewFromLocation());
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  const selectView = (next: OrganizationView) => {
+    pushOrganizationView(next);
+    setView(next);
+  };
+
   const openCreate = () => {
-    // Mount the directory first, then emit a distinct create request. If both
-    // state changes happen in the same render, PeopleDirectory sees the new
-    // request as its initial value and correctly assumes there is nothing new
-    // to handle.
+    pushOrganizationView('directory');
     setView('directory');
     window.requestAnimationFrame(() => setCreateRequest(current => current + 1));
   };
 
-  if (view === 'overview') return <Suspense fallback={<Box component="section" role="status" sx={{ py: 4 }}><Typography color="text.secondary">{text.overviewLoading}</Typography></Box>}><PeopleOverview locale={locale} onOpenDirectory={() => setView('directory')} onAddPerson={openCreate} /></Suspense>;
+  if (view === 'overview') return <Suspense fallback={<Box component="section" role="status" sx={{ py: 4 }}><Typography color="text.secondary">{text.overviewLoading}</Typography></Box>}><PeopleOverview locale={locale} onOpenDirectory={() => selectView('directory')} onAddPerson={openCreate} /></Suspense>;
 
   return <Stack spacing={2}>
     <Paper component="section" aria-labelledby="organization-title" sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3 }}>
@@ -57,7 +91,7 @@ function OrganizationWorkspace({ locale }: { locale: Locale }) {
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ flexShrink: 0 }}><Button variant="outlined" onClick={() => setHourglassOpen(true)}>{text.hourglass}</Button><Button ref={auditButtonRef} variant="outlined" onClick={() => setAuditOpen(true)}>{text.audit}</Button><Button ref={accessButtonRef} variant="outlined" onClick={() => setAccessOpen(true)}>{text.access}</Button></Stack>
         </Stack>
         <Divider />
-        <Stack component="nav" aria-label={text.organizationTitle} direction="row" gap={0.75} flexWrap="wrap" useFlexGap>{views.map(item => <Button key={item} variant={view === item ? 'contained' : 'text'} aria-current={view === item ? 'page' : undefined} onClick={() => setView(item)}>{labels[item]}</Button>)}</Stack>
+        <Stack component="nav" aria-label={text.organizationTitle} direction="row" gap={0.75} flexWrap="wrap" useFlexGap>{views.map(item => <Button key={item} variant={view === item ? 'contained' : 'text'} aria-current={view === item ? 'page' : undefined} onClick={() => selectView(item)}>{labels[item]}</Button>)}</Stack>
       </Stack>
     </Paper>
     {view === 'directory' ? <PeopleDirectory locale={locale} createRequest={createRequest} /> : null}
