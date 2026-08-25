@@ -73,7 +73,7 @@ async function clickVisibleButton(label) {
   })()`);
 }
 
-async function activateBulkSelection(): Promise<void> {
+async function activateBulkSelection() {
   await poll(async () => await evaluate(`(() => {
     const done = [...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === 'Concluir');
     if (done) return true;
