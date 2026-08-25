@@ -92,6 +92,7 @@ const handler: ApiHandler = async (request, response) => {
     const principal = await resolvePrincipal(request, database);
     requireCapability(principal, 'people.read');
 
+    const canWritePeople = principal.capabilities.includes('people.write');
     const canReadAvailability = principal.capabilities.includes('availability.read');
     const canReadEligibility = principal.capabilities.includes('eligibility.read');
     const canReadResponsibilities = principal.capabilities.includes('responsibilities.read');
@@ -162,6 +163,7 @@ const handler: ApiHandler = async (request, response) => {
       contractVersion: 'people-directory-v1',
       generatedAt: nowIso,
       capabilities: Object.freeze({
+        writePeople: canWritePeople,
         availability: canReadAvailability,
         eligibility: canReadEligibility,
         responsibilities: canReadResponsibilities,
