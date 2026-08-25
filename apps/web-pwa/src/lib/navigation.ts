@@ -10,10 +10,19 @@ export const SECTION_PATHS: Readonly<Record<AppSection, string>> = Object.freeze
   administration: '/administracao',
 });
 
+export const PREPARE_PATHS: Readonly<Record<PrepareMeetingView, string>> = Object.freeze({
+  agenda: '/preparar-reuniao',
+  assignments: '/preparar-reuniao/designacoes',
+});
+
 const PATH_SECTIONS: Readonly<Record<string, AppSection>> = Object.freeze({
   '/': 'home',
   '/preparar-reuniao': 'prepare',
+  '/preparar-reuniao/agenda': 'prepare',
+  '/preparar-reuniao/designacoes': 'prepare',
   '/prepare-meeting': 'prepare',
+  '/prepare-meeting/agenda': 'prepare',
+  '/prepare-meeting/assignments': 'prepare',
   '/agenda': 'prepare',
   '/designacoes': 'prepare',
   '/assignments': 'prepare',
@@ -46,5 +55,7 @@ export function sectionFromPath(pathname: string): AppSection {
  */
 export function prepareMeetingViewFromPath(pathname: string): PrepareMeetingView {
   const path = normalizeAppPath(pathname);
-  return path === '/designacoes' || path === '/assignments' ? 'assignments' : 'agenda';
+  return path === '/designacoes' || path === '/assignments' || path === '/preparar-reuniao/designacoes' || path === '/prepare-meeting/assignments'
+    ? 'assignments'
+    : 'agenda';
 }
