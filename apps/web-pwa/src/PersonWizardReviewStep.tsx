@@ -3,7 +3,6 @@ import Descriptions from 'antd/es/descriptions';
 import Empty from 'antd/es/empty';
 import Space from 'antd/es/space';
 import Tag from 'antd/es/tag';
-import Typography from 'antd/es/typography';
 import { assignmentTypeLabel } from './lib/assignmentTypeCatalog';
 import type { AvailabilityPeriodDto } from './lib/availabilityApi';
 import type { HouseholdDto } from './lib/householdsApi';
@@ -86,7 +85,6 @@ export function PersonWizardReviewStep({
     .filter((item): item is AvailabilityPeriodDto => Boolean(item));
 
   return <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-    <Typography.Paragraph>{labels.confirm}</Typography.Paragraph>
     <Card title={labels.identity}>
       <Descriptions column={1} size="small">
         <Descriptions.Item label={labels.name}>{changed(initial.displayName.trim(), draft.displayName.trim())}</Descriptions.Item>
