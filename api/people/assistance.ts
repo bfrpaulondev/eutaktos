@@ -1,6 +1,5 @@
 import {
   affectedAssignmentsByAvailability,
-  completedAssignmentHistoryFromScheduling,
   type ActiveAssignmentEvidence,
   type AssignmentWorkloadEvidence,
 } from '@eutaktos/application';
@@ -226,11 +225,6 @@ const handler: ApiHandler = async (request, response) => {
     let workloadImbalance: unknown = unavailable();
     let longInterval: unknown = unavailable();
     if (canReadAvailability && canReadEligibility) {
-      const history = completedAssignmentHistoryFromScheduling(context, {
-        meetings,
-        studentAssignments: students,
-        nonStudentAssignments: nonStudents,
-      });
       const targets = openStudentTargets(meetings, students, now);
       const meetingSummaries = new Map<string, { meetingId: string; meetingDate: string; openPartCount: number; partsWithCandidates: number }>();
       const workloadItems: Array<Readonly<{ meetingId: string; slotId: string; meetingDate: string; displayName: string; sameWeekAssignmentCount: number; lowerWorkloadAlternativeCount: number }>> = [];
