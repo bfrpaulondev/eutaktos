@@ -120,18 +120,11 @@ function parseCandidate(value: unknown): AssistanceCandidate {
   return Object.freeze({ rank, displayName: text(candidate.displayName) });
 }
 
-function unavailableOrReady(value: unknown): Readonly<Record<string, unknown>> | AssistanceUnavailable {
+function parseAffected(value: unknown): AffectedAssignmentAssistance | AssistanceUnavailable {
   const candidate = record(value);
   if (candidate.status === 'unavailable') return Object.freeze({ status: 'unavailable' });
-  if (candidate.status !== 'ready') throw new Error(INVALID);
-  return candidate;
-}
-
-function parseAffected(value: unknown): AffectedAssignmentAssistance | AssistanceUnavailable {
-  const candidate = unavailableOrReady(value);
-  if (candidate.status === 'unavailable') return candidate;
-  if (!Array.isArray(candidate.items)) throw new Error(INVALID);
-  const items = candidate.items.map(itemValue => {
+  if (candidate.status !== 'ready' || !Array.isArray(candidate.items)) throw new Error(INVALID);
+  const items = candidate.items.map((itemValue: unknown) => {
     const item = record(itemValue);
     if (item.suggestionStatus !== 'ready' && item.suggestionStatus !== 'unavailable') throw new Error(INVALID);
     if (!Array.isArray(item.topCandidates)) throw new Error(INVALID);
@@ -152,10 +145,10 @@ function parseAffected(value: unknown): AffectedAssignmentAssistance | Assistanc
 }
 
 function parseIncomplete(value: unknown): IncompleteMeetingAssistance | AssistanceUnavailable {
-  const candidate = unavailableOrReady(value);
-  if (candidate.status === 'unavailable') return candidate;
-  if (!Array.isArray(candidate.items)) throw new Error(INVALID);
-  const items = candidate.items.map(itemValue => {
+  const candidate = record(value);
+  if (candidate.status === 'unavailable') return Object.freeze({ status: 'unavailable' });
+  if (candidate.status !== 'ready' || !Array.isArray(candidate.items)) throw new Error(INVALID);
+  const items = candidate.items.map((itemValue: unknown) => {
     const item = record(itemValue);
     const openPartCount = nonNegativeInteger(item.openPartCount);
     const partsWithCandidates = nonNegativeInteger(item.partsWithCandidates);
@@ -179,10 +172,10 @@ function parseIncomplete(value: unknown): IncompleteMeetingAssistance | Assistan
 }
 
 function parseWorkload(value: unknown): WorkloadImbalanceAssistance | AssistanceUnavailable {
-  const candidate = unavailableOrReady(value);
-  if (candidate.status === 'unavailable') return candidate;
-  if (!Array.isArray(candidate.items)) throw new Error(INVALID);
-  const items = candidate.items.map(itemValue => {
+  const candidate = record(value);
+  if (candidate.status === 'unavailable') return Object.freeze({ status: 'unavailable' });
+  if (candidate.status !== 'ready' || !Array.isArray(candidate.items)) throw new Error(INVALID);
+  const items = candidate.items.map((itemValue: unknown) => {
     const item = record(itemValue);
     const sameWeekAssignmentCount = nonNegativeInteger(item.sameWeekAssignmentCount);
     const lowerWorkloadAlternativeCount = nonNegativeInteger(item.lowerWorkloadAlternativeCount);
@@ -202,10 +195,10 @@ function parseWorkload(value: unknown): WorkloadImbalanceAssistance | Assistance
 }
 
 function parseLongInterval(value: unknown): LongIntervalAssistance | AssistanceUnavailable {
-  const candidate = unavailableOrReady(value);
-  if (candidate.status === 'unavailable') return candidate;
-  if (!Array.isArray(candidate.items)) throw new Error(INVALID);
-  const items = candidate.items.map(itemValue => {
+  const candidate = record(value);
+  if (candidate.status === 'unavailable') return Object.freeze({ status: 'unavailable' });
+  if (candidate.status !== 'ready' || !Array.isArray(candidate.items)) throw new Error(INVALID);
+  const items = candidate.items.map((itemValue: unknown) => {
     const item = record(itemValue);
     return Object.freeze({
       meetingId: opaqueId(item.meetingId),
