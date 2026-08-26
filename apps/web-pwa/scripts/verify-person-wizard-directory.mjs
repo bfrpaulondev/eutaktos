@@ -141,12 +141,14 @@ try {
   await poll(async () => !(await visibleDialog('Editar pessoa')), 'Edit wizard did not close');
 
   await evaluate(`localStorage.setItem('eutaktos-test-readonly', '1'); true`);
-  await cdp.send('Page.reload', { ignoreCache: true });
-  await poll(async () => await evaluate(`document.readyState === 'complete' && Boolean(document.querySelector('#main')?.textContent?.includes('Runtime person')) && [...document.querySelectorAll('button')].some(node => (node.innerText || node.textContent || '').trim() === 'Ver perfil')`), 'Read-only Directory actions did not become ready');
-  const readOnlyState = await evaluate(`(() => {
+  await cdp.send('Page.navigate', { url: new URL('/pessoas?view=directory', appUrl).toString() });
+  const readOnlyState = await poll(async () => await evaluate(`(() => {
+    if (document.readyState !== 'complete') return null;
+    const main = document.querySelector('#main');
     const labels = [...document.querySelectorAll('button')].map(node => (node.innerText || node.textContent || '').trim());
+    if (!main?.textContent?.includes('Runtime person') || !labels.includes('Ver perfil')) return null;
     return { hasAdd: labels.includes('Adicionar pessoa'), hasEdit: labels.includes('Editar'), hasProfile: labels.includes('Ver perfil') };
-  })()`);
+  })()`), 'Read-only Directory actions did not become ready');
   if (readOnlyState.hasAdd || readOnlyState.hasEdit || !readOnlyState.hasProfile) throw new Error(`Write controls did not fail closed while read access remained usable: ${JSON.stringify(readOnlyState)}`);
 
   process.stdout.write('Person wizard Directory regression passed: guided Add/Edit, no legacy form, privacy-safe state and fail-closed write permissions.\n');
