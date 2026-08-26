@@ -24,13 +24,13 @@ This file is the operational checklist for the current Eutaktos People correctio
 - PX3.4 + PX3.7: integrated in `7592fb7f6ba5220b385871f812d03fd17f492bd5`.
 - PX4.11: integrated through PR `#308` at main SHA `457b21dab7e134c6ff3b2f0a29d15cd1fa0dc56d` after principal corrections and green gates.
 - PX6 guided editor foundation: corrected and integrated through PR `#309` at main SHA `6673cfcc14e89f5666a72941b3f44246a71ff5db`. This is **not full PX6 product closure**; Directory wiring and missing Contact/availability/responsibility contracts remain open.
-- Tracker: integrated through PR `#310`; main advanced to `eaba19b59d8d849b09d360060fe3fb8d3e1aa902` before later evidence updates.
+- PX7 recommendation backend/domain foundation: corrected and integrated through PR `#307` at main SHA `58964b7c0080dd89b92459241de71ccdda111f6c`. This is **not full PX7 product closure**; localized reason UI, recommendation picker and `Ver todos os elegíveis` remain C5 work.
+- Tracker: integrated through PR `#310`; later evidence updates are committed directly to `main` to avoid disposable documentation branches.
 - Superseded PX4.11 PR `#303`: CLOSED WITHOUT MERGE.
-- Active worker implementation PRs after C2:
+- Active worker implementation PRs after C3:
   - `#305` — Manus PX5 Unified Person Profile foundation.
-  - `#307` — Brunello PX7 recommendation/domain slice.
 - Repository branch inventory at tracker creation on 2026-08-26: **85 total branches** (`main` plus 84 slash-named branches).
-- Merged correction branches `principal/correction-tracker`, `principal/px4-11-final` and `grok/px6-guided-person-editor` were automatically deleted by repository merge cleanup.
+- Merged correction branches `principal/correction-tracker`, `principal/px4-11-final`, `grok/px6-guided-person-editor` and `brunello/px7-complete` were automatically deleted by repository merge cleanup.
 - `principal/px4-11-bulk-export` / closed PR `#303` still exists and remains `SUPERSEDED-DELETE`; never use it as an implementation source.
 - All other pre-existing branches remain `HISTORICAL-QUARANTINE` unless this tracker explicitly reclassifies them.
 
@@ -51,9 +51,9 @@ This file is the operational checklist for the current Eutaktos People correctio
   - Historical branches are quarantined rather than deleted blindly.
 - [x] **C0.4** Check all open PRs and close any superseded open PRs.
   - Superseded `#303` was closed without merge.
-  - After C2, current worker PRs are `#305` and `#307`; `#309` is merged.
+  - After C3, the only active worker delivery in this correction wave is `#305`; `#309` and `#307` are merged.
 - [ ] **C0.5** Remove merged/superseded branches when deletion tooling is available; until then, record them explicitly so they are never mistaken for current work.
-  - Repository automatically deleted the merged `principal/correction-tracker`, `principal/px4-11-final` and `grok/px6-guided-person-editor` branches.
+  - Repository automatically deleted the merged `principal/correction-tracker`, `principal/px4-11-final`, `grok/px6-guided-person-editor` and `brunello/px7-complete` branches.
   - `principal/px4-11-bulk-export` still exists and is quarantined as superseded.
   - Current connector has no branch-delete action. Do not fake cleanup by force-moving refs.
 
@@ -124,21 +124,37 @@ This file is the operational checklist for the current Eutaktos People correctio
 
 ### C3 — PX7 recommendation contract correction
 
-- [ ] **C3.1** Re-read current domain + transport eligibility semantics before editing PR #307.
-- [ ] **C3.2** Remove semantic divergence for eligibility decisions sharing the same `decidedAt`.
-  - Current defect: domain PR uses `decidedBy` tie-break, while transport/current decision selection uses timestamp only.
-  - Required outcome: one canonical deterministic rule used everywhere, with explicit tests. Do not silently invent business meaning from actor ID ordering.
-- [ ] **C3.3** Verify hard constraints remain hard: inactive, explicit ineligibility, away, conflict, required responsibility.
-- [ ] **C3.4** Verify completed-only recency, no-history warning and deterministic ranking.
-- [ ] **C3.5** Verify tenant/capability isolation with adversarial tests.
-- [ ] **C3.6** Rebase/reapply accepted domain/application changes on current main and rerun gates.
-- [ ] **C3.7** Integrate only the accepted PX7 backend/domain foundation and record final main SHA.
-- [ ] **C3.8** Keep PX7.13/PX7.14/PX7.15 OPEN until UI localization, picker and `Ver todos os elegíveis` are actually integrated.
+- [x] **C3.1** Re-read current domain + transport eligibility semantics before editing PR #307.
+  - Confirmed eligibility decisions are append-only in the person snapshot and their recorded sequence is preserved by current storage adapters.
+- [x] **C3.2** Remove semantic divergence for eligibility decisions sharing the same `decidedAt`.
+  - Removed actor-ID lexical precedence because `decidedBy` has no business ordering meaning.
+  - Canonical tie semantics are now: later timestamp wins; if timestamps tie, the later decision in the recorded append-only sequence wins.
+  - Domain eligibility evaluation and HTTP current/latest decision projection use the same helper/semantics, with tests proving actor identifiers do not influence precedence.
+- [x] **C3.3** Verify hard constraints remain hard: inactive, explicit ineligibility, away, conflict, required responsibility.
+  - Reviewed recommendation evidence path and regression coverage; all hard constraints filter/exclude before workload or recency ranking.
+  - Required responsibility is evaluated only when explicitly requested and fails closed without `responsibilities.read`/authorized evidence.
+- [x] **C3.4** Verify completed-only recency, no-history warning and deterministic ranking.
+  - Recency reads only completed tenant-scoped non-future history.
+  - No-history remains a neutral warning, never positive `LONGER_SINCE_LAST_ASSIGNMENT` evidence.
+  - Stable ordering uses workload, factual completed-history recency and a final `personId` tie-break.
+- [x] **C3.5** Verify tenant/capability isolation with adversarial tests.
+  - Foreign people/history/availability/assignments/workload/responsibilities cannot influence tenant recommendation output.
+  - Missing minimum read capabilities fail closed.
+- [x] **C3.6** Rebase/reapply accepted domain/application changes on current main and rerun gates.
+  - Final PR head: `e97269ff5d52f8abbc52eaa92dff52d3e665f0c0`.
+  - Recommendation target window now requires valid timezone-explicit ISO instants and `endsAt > startsAt`, including zero-candidate calls.
+  - GitHub Actions run `32957109650`: `quality` PASS + `browser-regression` PASS.
+  - Canonical `netlify/eutakes/deploy-preview`: PASS for the final head.
+- [x] **C3.7** Integrate only the accepted PX7 backend/domain foundation and record final main SHA.
+  - PR `#307` merged successfully at main SHA `58964b7c0080dd89b92459241de71ccdda111f6c` using expected head SHA.
+  - `brunello/px7-complete` was automatically deleted after merge.
+- [x] **C3.8** Keep PX7.13/PX7.14/PX7.15 OPEN until UI localization, picker and `Ver todos os elegíveis` are actually integrated.
+  - These remain C5.4-C5.6 and are deliberately not represented as complete PX7 product work.
 
 ### C4 — PX5 Person Profile correction
 
 - [ ] **C4.1** Re-read canonical responsibility interval rules and PR #305 helper before editing.
-- [ ] **C4.2** Fix active responsibility semantics to match canonical `[startsAt, endsAt)` behavior and reject/contain invalid timestamps instead of treatinging them as active.
+- [ ] **C4.2** Fix active responsibility semantics to match canonical `[startsAt, endsAt)` behavior and reject/contain invalid timestamps instead of treating them as active.
 - [ ] **C4.3** Fix upcoming assignment evaluation to use meeting `date + localTime + timezone`, including same-day past meetings and DST-safe behavior.
 - [ ] **C4.4** Verify partial/401/403/404/retry/stale-response behavior remains correct.
 - [ ] **C4.5** Verify profile sections do not infer ordinary phone/email/address where no authorized DTO exists.
@@ -184,8 +200,8 @@ Consult this table before creating or reusing any branch.
 | `principal/px4-11-final` / #308 | MERGED / AUTO-DELETED | PX4.11 source accepted; do not recreate |
 | `principal/px4-11-bulk-export` / #303 | SUPERSEDED-DELETE | PR closed without merge; never use as source; delete when tooling permits |
 | `grok/px6-guided-person-editor` / #309 | MERGED / AUTO-DELETED | Corrected PX6 foundation accepted; do not recreate |
+| `brunello/px7-complete` / #307 | MERGED / AUTO-DELETED | Corrected PX7 backend/domain foundation accepted; do not recreate |
 | `manus/px5-unified-person-profile` / #305 | ACTIVE WORKER DELIVERY | Preserve until corrected/integrated |
-| `brunello/px7-complete` / #307 | ACTIVE WORKER DELIVERY | Preserve until corrected/integrated |
 | all other pre-existing branches | HISTORICAL-QUARANTINE | Never use as source in this cycle; verify individually before deletion |
 
 Historical/quarantined branches must not be deleted solely by name. Before deletion, verify they are merged/superseded and contain no unintegrated accepted work.
@@ -196,4 +212,5 @@ Historical/quarantined branches must not be deleted solely by name. Before delet
 - `2026-08-26 — C0.2 — PR #310 — merge SHA eaba19b59d8d849b09d360060fe3fb8d3e1aa902 — quality PASS / browser-regression PASS / canonical eutakes preview PASS — merged branch auto-deleted`
 - `2026-08-26 — C1.1-C1.6 — PR #308 — integration SHA 457b21dab7e134c6ff3b2f0a29d15cd1fa0dc56d — CI run 32953527991 quality PASS + browser-regression PASS — canonical eutakes preview PASS — merged branch auto-deleted`
 - `2026-08-26 — C2.1-C2.8 — PR #309 — integration SHA 6673cfcc14e89f5666a72941b3f44246a71ff5db — final head 400afcef5fad40f27062aaf5b2488192f46d4924 — CI run 32956000440 quality PASS + browser-regression PASS — canonical eutakes preview PASS — corrected foundation only; C5.2 and missing contracts remain open — merged branch auto-deleted`
+- `2026-08-26 — C3.1-C3.8 — PR #307 — integration SHA 58964b7c0080dd89b92459241de71ccdda111f6c — final head e97269ff5d52f8abbc52eaa92dff52d3e665f0c0 — CI run 32957109650 quality PASS + browser-regression PASS — canonical eutakes preview PASS — backend/domain foundation only; PX7.13-PX7.15 remain C5 work — merged branch auto-deleted`
 - `YYYY-MM-DD — Cx.y — PR #___ — main SHA ___ — gates ___ — canonical preview/prod ___`
