@@ -18,6 +18,10 @@ export interface PersonWizardDraft {
   eligibility: Readonly<Record<string, EligibilityChoice>>;
 }
 
+export function normalizePersonWizardDisplayName(value: string): string {
+  return value.trim().replace(/\s+/g, ' ');
+}
+
 export function createPersonWizardDraft(locale: Locale, person?: PersonProfileDto): PersonWizardDraft {
   return {
     displayName: person?.displayName ?? '',
@@ -47,7 +51,7 @@ export function personWizardEligibilityChanges(initial: PersonWizardDraft, draft
 }
 
 export function personWizardHasChanges(initial: PersonWizardDraft, draft: PersonWizardDraft): boolean {
-  return initial.displayName.trim() !== draft.displayName.trim()
+  return normalizePersonWizardDisplayName(initial.displayName) !== normalizePersonWizardDisplayName(draft.displayName)
     || initial.preferredLocale !== draft.preferredLocale
     || initial.active !== draft.active
     || personWizardOrganizationChanged(initial, draft)
@@ -55,7 +59,7 @@ export function personWizardHasChanges(initial: PersonWizardDraft, draft: Person
 }
 
 export function personProfileHasChanges(person: PersonProfileDto, draft: PersonWizardDraft): boolean {
-  return person.displayName !== draft.displayName.trim()
+  return person.displayName !== normalizePersonWizardDisplayName(draft.displayName)
     || (person.preferredLocale ?? '') !== draft.preferredLocale
     || person.active !== draft.active;
 }
@@ -73,7 +77,7 @@ export function wizardErrorState(error: unknown): Exclude<PersonWizardMutationSt
   if (status === 403 || /forbidden|access denied|permission|permissão|permiso/i.test(message)) return 'permission-error';
   if (
     status === 400 || status === 409 || status === 422 ||
-    /required|\bmust\b|too long|not allowed|already exists|duplicate|conflict|unknown (?:assignment|person|household|group)|invalid (?:display|preferred|locale|assignment|person|household|group)/i.test(message)
+    /required|\bmust\b|too long|not allowed|already exists|duplicate|conflict|unknown (?:assignment|person|household|group)/i.test(message)
   ) return 'validation-error';
   return 'retryable-error';
 }
@@ -102,7 +106,8 @@ export function personWizardStep(current: number, action: 'next' | 'previous'): 
 }
 
 export function personWizardDisplayNameValid(displayName: string): boolean {
-  return displayName.trim().length > 0;
+  const normalized = normalizePersonWizardDisplayName(displayName);
+  return normalized.length >= 2 && normalized.length <= 120;
 }
 
 export function createPersonWizardMutationGuard() {
@@ -149,6 +154,7 @@ export async function savePersonWizard(input: SavePersonWizardInput): Promise<Pe
   const { mode, person, draft, initial, canReadEligibility, canWriteEligibility, apis } = input;
   const organizationChanged = personWizardOrganizationChanged(initial, draft);
   const eligibilityChanges = personWizardEligibilityChanges(initial, draft);
+  const displayName = normalizePersonWizardDisplayName(draft.displayName);
 
   // Eligibility changes require both explicit write authority and a readable
   // authoritative baseline. Fail before the core mutation so capability gaps do
@@ -158,10 +164,10 @@ export async function savePersonWizard(input: SavePersonWizardInput): Promise<Pe
   let saved = person;
   let coreMutated = false;
   if (mode === 'create' && !person) {
-    saved = await apis.people.create({ displayName: draft.displayName.trim(), ...(draft.preferredLocale ? { preferredLocale: draft.preferredLocale } : {}), active: draft.active });
+    saved = await apis.people.create({ displayName, ...(draft.preferredLocale ? { preferredLocale: draft.preferredLocale } : {}), active: draft.active });
     coreMutated = true;
   } else if (person && personProfileHasChanges(person, draft)) {
-    saved = await apis.people.update(person.id, { displayName: draft.displayName.trim(), preferredLocale: draft.preferredLocale || null, active: draft.active });
+    saved = await apis.people.update(person.id, { displayName, preferredLocale: draft.preferredLocale || null, active: draft.active });
     coreMutated = true;
   }
   if (!saved) throw new Error('Missing person for edit');
@@ -201,11 +207,11 @@ export async function savePersonWizard(input: SavePersonWizardInput): Promise<Pe
     }
   }
 
-  // The core person is always re-read before success. Optional sections are
-  // re-read only if this save actually attempted to change them.
+  // The core person is always re-read before success. Verify the exact state the
+  // server confirmed, not the unnormalized client draft.
   const peopleValue = await apis.people.list();
   const authoritative = peopleValue.find(item => item.id === personId);
-  if (!authoritative || authoritative.displayName !== draft.displayName.trim() || (authoritative.preferredLocale ?? '') !== draft.preferredLocale || authoritative.active !== draft.active) throw new Error('Authoritative People refetch mismatch');
+  if (!authoritative || authoritative.displayName !== saved.displayName || (authoritative.preferredLocale ?? '') !== (saved.preferredLocale ?? '') || authoritative.active !== saved.active) throw new Error('Authoritative People refetch mismatch');
 
   if (organizationChanged) {
     const [householdValue, groupValue] = await Promise.all([apis.households.list(), apis.serviceGroups.list()]);
