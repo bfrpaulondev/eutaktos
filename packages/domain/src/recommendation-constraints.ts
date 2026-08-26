@@ -1,6 +1,7 @@
 import type { AssignmentTypeId, PersonId, TenantId } from './people';
 
 export type AssignmentExclusionId = string;
+export type PartRecommendationConstraintId = string;
 
 /**
  * Explicit, human-authored scheduling constraint. It is deliberately separate
@@ -27,6 +28,15 @@ export interface CreateAssignmentExclusionInput {
   readonly startsAt?: string;
   readonly endsAt?: string;
   readonly createdAt: string;
+}
+
+/** Server-owned mapping from an assignment/part definition to an operational responsibility requirement. */
+export interface PartRecommendationConstraint {
+  readonly id: PartRecommendationConstraintId;
+  readonly tenantId: TenantId;
+  readonly assignmentTypeId: AssignmentTypeId;
+  readonly requiredResponsibilityKey: string;
+  readonly updatedAt: string;
 }
 
 function required(value: string, field: string, maxLength = 200): string {
@@ -96,4 +106,14 @@ export function assignmentExclusionApplies(
   const exclusionStart = exclusion.startsAt ? Date.parse(exclusion.startsAt) : Number.NEGATIVE_INFINITY;
   const exclusionEnd = exclusion.endsAt ? Date.parse(exclusion.endsAt) : Number.POSITIVE_INFINITY;
   return Date.parse(startsAt) < exclusionEnd && exclusionStart < Date.parse(endsAt);
+}
+
+export function normalizePartRecommendationConstraint(input: PartRecommendationConstraint): Readonly<PartRecommendationConstraint> {
+  return Object.freeze({
+    id: required(input.id, 'partRecommendationConstraintId'),
+    tenantId: required(input.tenantId, 'tenantId'),
+    assignmentTypeId: required(input.assignmentTypeId, 'assignmentTypeId'),
+    requiredResponsibilityKey: required(input.requiredResponsibilityKey, 'requiredResponsibilityKey', 120),
+    updatedAt: instant(input.updatedAt, 'updatedAt'),
+  });
 }
