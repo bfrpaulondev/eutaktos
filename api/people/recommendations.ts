@@ -11,6 +11,7 @@ import { BadRequestError, runEndpoint } from '../_endpoint';
 import { json, methodNotAllowed, type ApiHandler, type ApiRequest } from '../_types';
 import {
   buildAuthorizedMidweekRecommendation,
+  RecommendationTargetError,
   type MidweekRecommendationTarget,
 } from './recommendation-adapter';
 
@@ -76,14 +77,19 @@ const handler: ApiHandler = async (request, response) => {
       actorId: principal.actorId,
       capabilities: principal.capabilities,
     });
-    const recommendation = buildAuthorizedMidweekRecommendation(context, target, {
-      people: Object.freeze(peopleRows.map(row => storedEntity<CongregationPerson>(row, principal.tenantId))),
-      meetings: Object.freeze(meetingRows.map(row => storedEntity<MidweekMeeting>(row, principal.tenantId))),
-      studentAssignments: Object.freeze(studentRows.map(row => storedEntity<StudentAssignment>(row, principal.tenantId))),
-      nonStudentAssignments: Object.freeze(nonStudentRows.map(row => storedEntity<NonStudentAssignment>(row, principal.tenantId))),
-    });
 
-    json(response, 200, recommendation);
+    try {
+      const recommendation = buildAuthorizedMidweekRecommendation(context, target, {
+        people: Object.freeze(peopleRows.map(row => storedEntity<CongregationPerson>(row, principal.tenantId))),
+        meetings: Object.freeze(meetingRows.map(row => storedEntity<MidweekMeeting>(row, principal.tenantId))),
+        studentAssignments: Object.freeze(studentRows.map(row => storedEntity<StudentAssignment>(row, principal.tenantId))),
+        nonStudentAssignments: Object.freeze(nonStudentRows.map(row => storedEntity<NonStudentAssignment>(row, principal.tenantId))),
+      });
+      json(response, 200, recommendation);
+    } catch (error) {
+      if (error instanceof RecommendationTargetError) throw new BadRequestError(error.message);
+      throw error;
+    }
   });
 };
 
