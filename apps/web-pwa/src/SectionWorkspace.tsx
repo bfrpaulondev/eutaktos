@@ -32,6 +32,11 @@ const PersonProfile = lazy(async () => {
   return { default: module.PersonProfile };
 });
 
+const PersonRecommendationInsight = lazy(async () => {
+  const module = await import('./PersonRecommendationInsight');
+  return { default: module.PersonRecommendationInsight };
+});
+
 const copy = {
   'pt-PT': { organization: 'Organização', organizationTitle: 'Pessoas e organização', organizationSubtitle: 'Mantém perfis, agregados, grupos, responsabilidades, ausências e permissões no mesmo contexto.', overview: 'Visão geral', directory: 'Diretório', households: 'Agregados', groups: 'Grupos de serviço', responsibilities: 'Responsabilidades', audit: 'Histórico de auditoria', access: 'Gerir acessos', hourglass: 'Inspecionar export Hourglass', overviewLoading: 'A carregar Pessoas…', profileLoading: 'A carregar perfil…' },
   en: { organization: 'Organization', organizationTitle: 'People and organization', organizationSubtitle: 'Keep profiles, households, groups, responsibilities, away periods and permissions in the same context.', overview: 'Overview', directory: 'Directory', households: 'Households', groups: 'Service groups', responsibilities: 'Responsibilities', audit: 'Audit history', access: 'Manage access', hourglass: 'Inspect Hourglass export', overviewLoading: 'Loading People…', profileLoading: 'Loading profile…' },
@@ -117,7 +122,7 @@ function OrganizationWorkspace({ locale }: { locale: Locale }) {
       </Stack>
     </Paper>
     {view === 'directory' ? <PeopleDirectory locale={locale} createRequest={createRequest} onOpenProfile={openProfile} /> : null}
-    {view === 'profile' && profileRef ? <Suspense fallback={<Box component="section" role="status" sx={{ py: 4 }}><Typography color="text.secondary">{text.profileLoading}</Typography></Box>}><PersonProfile personId={profileRef} locale={locale} onBack={() => selectView('directory')} /></Suspense> : null}
+    {view === 'profile' && profileRef ? <Suspense fallback={<Box component="section" role="status" sx={{ py: 4 }}><Typography color="text.secondary">{text.profileLoading}</Typography></Box>}><Stack spacing={2}><PersonProfile personId={profileRef} locale={locale} onBack={() => selectView('directory')} /><PersonRecommendationInsight personId={profileRef} locale={locale} /></Stack></Suspense> : null}
     {view === 'households' ? <HouseholdsSection locale={locale} /> : null}
     {view === 'groups' ? <ServiceGroupsSection locale={locale} /> : null}
     {view === 'responsibilities' ? <ResponsibilitiesSection locale={locale} /> : null}
