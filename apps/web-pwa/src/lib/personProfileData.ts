@@ -12,6 +12,8 @@ import type { MidweekOverviewDto } from './midweekApi';
 import { midweekApi } from './midweekApi';
 import type { PersonProfileDto } from './peopleApi';
 import { peopleApi } from './peopleApi';
+import type { OrdinaryContactDto } from './ordinaryContactApi';
+import { ordinaryContactApi } from './ordinaryContactApi';
 import type { ResponsibilityDto } from './responsibilitiesApi';
 import { responsibilitiesApi } from './responsibilitiesApi';
 import type { ServiceGroupDto } from './serviceGroupsApi';
@@ -33,6 +35,7 @@ export interface PersonProfileData {
   readonly availability: PersonProfileSection<readonly AvailabilityPeriodDto[]>;
   readonly eligibility: PersonProfileSection<readonly EligibilityDecisionDto[]>;
   readonly contacts: PersonProfileSection<readonly EmergencyContactDto[]>;
+  readonly ordinaryContact: PersonProfileSection<OrdinaryContactDto>;
   readonly groups: PersonProfileSection<readonly ServiceGroupDto[]>;
   readonly households: PersonProfileSection<readonly HouseholdDto[]>;
   readonly responsibilities: PersonProfileSection<readonly ResponsibilityDto[]>;
@@ -50,6 +53,7 @@ export interface PersonProfileDataDependencies {
   readonly availability: Pick<typeof availabilityApi, 'list'>;
   readonly eligibility: Pick<typeof eligibilityApi, 'list'>;
   readonly contacts: Pick<typeof emergencyContactsApi, 'list'>;
+  readonly ordinaryContact: Pick<typeof ordinaryContactApi, 'get'>;
   readonly groups: Pick<typeof serviceGroupsApi, 'list'>;
   readonly households: Pick<typeof householdsApi, 'list'>;
   readonly responsibilities: Pick<typeof responsibilitiesApi, 'list'>;
@@ -63,6 +67,7 @@ const defaultDependencies: PersonProfileDataDependencies = Object.freeze({
   availability: availabilityApi,
   eligibility: eligibilityApi,
   contacts: emergencyContactsApi,
+  ordinaryContact: ordinaryContactApi,
   groups: serviceGroupsApi,
   households: householdsApi,
   responsibilities: responsibilitiesApi,
@@ -131,10 +136,11 @@ export function createPersonProfileDataApi(dependencies: PersonProfileDataDepend
         ? dependencies.history.list({ resourceType: 'person', resourceId: person.id, limit: 50 }, signal)
         : Promise.reject(new PersonProfileLoadError('forbidden', 'Audit history is not authorized'));
 
-      const [availability, eligibility, contacts, groups, households, responsibilities, assignments, history] = await Promise.allSettled([
+      const [availability, eligibility, contacts, ordinaryContact, groups, households, responsibilities, assignments, history] = await Promise.allSettled([
         dependencies.availability.list(person.id, signal),
         dependencies.eligibility.list(person.id, signal),
         dependencies.contacts.list(person.id, signal),
+        dependencies.ordinaryContact.get(person.id, signal),
         dependencies.groups.list(signal),
         dependencies.households.list(signal),
         dependencies.responsibilities.list(signal),
@@ -148,6 +154,7 @@ export function createPersonProfileDataApi(dependencies: PersonProfileDataDepend
         availability: sectionFromSettled(availability),
         eligibility: sectionFromSettled(eligibility),
         contacts: sectionFromSettled(contacts),
+        ordinaryContact: sectionFromSettled(ordinaryContact),
         groups: sectionFromSettled(groups),
         households: sectionFromSettled(households),
         responsibilities: sectionFromSettled(responsibilities),
@@ -288,6 +295,16 @@ export function compareAssignmentsByInstantDescending(left: PersonAssignmentEvid
   return `${right.date}T${right.localTime}`.localeCompare(`${left.date}T${left.localTime}`) || left.id.localeCompare(right.id);
 }
 
+export interface PersonAssignmentEvidenceFilter {
+  readonly state?: PersonAssignmentEvidence['state'];
+  readonly role?: string;
+}
+
+/** Filters only confirmed assignment evidence; it never infers type, eligibility or availability. */
+export function filterPersonAssignmentEvidence(values: readonly PersonAssignmentEvidence[], filter: PersonAssignmentEvidenceFilter): readonly PersonAssignmentEvidence[] {
+  return Object.freeze(values.filter(value => (filter.state === undefined || value.state === filter.state) && (filter.role === undefined || value.role === filter.role)));
+}
+
 export function assignmentEvidenceForPerson(overview: MidweekOverviewDto, personId: string): readonly PersonAssignmentEvidence[] {
   const meetings = new Map(overview.meetings.map(meeting => [meeting.id, meeting] as const));
   const values: PersonAssignmentEvidence[] = [];
@@ -309,7 +326,7 @@ export function assignmentEvidenceForPerson(overview: MidweekOverviewDto, person
 }
 
 export function sectionIsPartial(data: PersonProfileData): boolean {
-  return [data.availability, data.eligibility, data.contacts, data.groups, data.households, data.responsibilities, data.assignments, data.history]
+  return [data.availability, data.eligibility, data.contacts, data.ordinaryContact, data.groups, data.households, data.responsibilities, data.assignments, data.history]
     .some(section => section.status !== 'ready');
 }
 

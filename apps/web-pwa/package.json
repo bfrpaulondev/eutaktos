@@ -11,6 +11,7 @@
     "test:production-mount": "npm run build && node scripts/verify-production-mount.mjs",
     "test:ux-runtime": "node scripts/verify-ux-runtime.mjs",
     "test:person-profile-route": "node scripts/verify-person-profile-route.mjs",
+    "test:px5-profile-regression": "node scripts/verify-px5-profile-regression.mjs",
     "test:person-wizard-directory": "node scripts/verify-person-wizard-directory.mjs",
     "test:recommendation-picker": "node scripts/verify-recommendation-picker-runtime.mjs",
     "test:c6-responsive-overflow": "node scripts/verify-c6-responsive-overflow.mjs",

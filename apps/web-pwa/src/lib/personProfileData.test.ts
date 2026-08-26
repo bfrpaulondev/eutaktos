@@ -1,3 +1,4 @@
+import { describe, expect, it, vi } from 'vitest';
 import type { MidweekOverviewDto } from './midweekApi';
 import type { PersonProfileData } from './personProfileData';
 import {
@@ -6,6 +7,7 @@ import {
   compareAssignmentsByInstant,
   compareAssignmentsByInstantDescending,
   currentAvailability,
+  filterPersonAssignmentEvidence,
   isActiveResponsibility,
   isCurrentProfileRequest,
   meetingStartMs,
@@ -37,6 +39,7 @@ function readyData(): PersonProfileData {
     availability: ready([]),
     eligibility: ready([]),
     contacts: ready([]),
+    ordinaryContact: ready({}),
     groups: ready([]),
     households: ready([]),
     responsibilities: ready([]),
@@ -106,6 +109,14 @@ describe('person profile evidence', () => {
     expect(nextAvailability(periods, now)?.id).toBe('future');
   });
 
+  it('filters confirmed assignment evidence only by explicit state and role', () => {
+    const evidence = assignmentEvidenceForPerson(overview, 'person-1');
+    expect(filterPersonAssignmentEvidence(evidence, { state: 'completed' }).map(item => item.id)).toEqual(['completed-student']);
+    expect(filterPersonAssignmentEvidence(evidence, { role: 'assistant' }).map(item => item.id)).toEqual(['assistant-assignment']);
+    expect(filterPersonAssignmentEvidence(evidence, { state: 'cancelled', role: 'chairman' }).map(item => item.id)).toEqual(['cancelled-non-student']);
+    expect(filterPersonAssignmentEvidence(evidence, { role: 'not-present' })).toEqual([]);
+  });
+
   it('filters responsibilities using the canonical half-open active interval and rejects invalid timestamps', () => {
     const now = new Date('2032-06-10T12:00:00.000Z');
     expect(isActiveResponsibility({ id: 'active', personId: 'person-1', responsibilityKey: 'coordinator', startsAt: '2032-06-01T00:00:00.000Z' }, now)).toBe(true);
@@ -152,6 +163,7 @@ describe('person profile composition API', () => {
       availability: { list: vi.fn(async () => []) },
       eligibility: { list: vi.fn(async () => []) },
       contacts: { list: vi.fn(async () => []) },
+      ordinaryContact: { get: vi.fn(async () => ({})) },
       groups: { list: vi.fn(async () => []) },
       households: { list: vi.fn(async () => []) },
       responsibilities: { list: vi.fn(async () => []) },
@@ -171,6 +183,19 @@ describe('person profile composition API', () => {
     expect(data.contacts).toEqual({ status: 'blocked', reason: 'forbidden' });
     expect(data.availability).toEqual({ status: 'ready', value: [] });
     expect(data.history).toEqual({ status: 'ready', value: [] });
+  });
+
+  it('keeps ordinary contacts blocked on 401 or 403 without replacing them with inferred data', async () => {
+    const { createPersonProfileDataApi } = await import('./personProfileData');
+    const forbidden = createPersonProfileDataApi(dependencies({ ordinaryContact: { get: vi.fn(async () => { throw new Error('Forbidden (403)'); }) } }));
+    const unauthenticated = createPersonProfileDataApi(dependencies({ ordinaryContact: { get: vi.fn(async () => { throw new Error('Unauthorized (401)'); }) } }));
+
+    const [forbiddenData, unauthenticatedData] = await Promise.all([forbidden.load('person-1'), unauthenticated.load('person-1')]);
+
+    expect(forbiddenData.ordinaryContact).toEqual({ status: 'blocked', reason: 'forbidden' });
+    expect(unauthenticatedData.ordinaryContact).toEqual({ status: 'blocked', reason: 'unauthenticated' });
+    expect(forbiddenData.contacts).toEqual({ status: 'ready', value: [] });
+    expect(forbiddenData.assignments).toMatchObject({ status: 'ready' });
   });
 
   it('does not request history when the session lacks audit.read and reports it as blocked', async () => {

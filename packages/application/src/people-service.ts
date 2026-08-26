@@ -4,6 +4,7 @@ import {
   createAuditEvent,
   createDomainEvent,
   normalizeDisplayName,
+  normalizeOrdinaryContact,
   type AccessContext,
   type AuditEvent,
   type CongregationPerson,
@@ -15,7 +16,7 @@ export interface RequestMetadata { correlationId?: string; }
 export interface CreatePersonInput { displayName: string; preferredLocale?: string; active?: boolean; }
 export interface CreateImportedPersonInput { externalId: string; displayName: string; preferredLocale?: string; }
 export interface LinkExternalPersonReferenceInput { personId: PersonId; externalId: string; }
-export interface UpdatePersonProfileInput { personId: PersonId; displayName?: string; preferredLocale?: string | null; active?: boolean; }
+export interface UpdatePersonProfileInput { personId: PersonId; displayName?: string; preferredLocale?: string | null; active?: boolean; ordinaryContact?: { phone?: string; email?: string; address?: string } | null; }
 export interface PersonChange { person: CongregationPerson; auditEvent: Readonly<AuditEvent>; domainEvent: Readonly<DomainEvent>; }
 
 /** This boundary commits the person, audit row and outbox event atomically. */
@@ -85,13 +86,15 @@ export class PeopleDirectoryService {
     const existing = this.#unitOfWork.findById(context, input.personId);
     if (!existing) throw new Error('Person not found');
     assertResourceTenant(context, existing);
-    let displayName = existing.displayName; let preferredLocale = existing.preferredLocale; let active = existing.active;
+    let displayName = existing.displayName; let preferredLocale = existing.preferredLocale; let active = existing.active; let ordinaryContact = existing.ordinaryContact;
     const changedFields: string[] = [];
     if (input.displayName !== undefined) { const next = normalizeDisplayName(input.displayName); if (next !== displayName) { displayName = next; changedFields.push('displayName'); } }
     if (input.preferredLocale !== undefined) { const next = input.preferredLocale === null ? undefined : normalizeLocale(input.preferredLocale); if (next !== preferredLocale) { preferredLocale = next; changedFields.push('preferredLocale'); } }
     if (input.active !== undefined && input.active !== active) { active = input.active; changedFields.push('active'); }
+    if (input.ordinaryContact !== undefined) { const normalized = input.ordinaryContact === null ? undefined : normalizeOrdinaryContact(input.ordinaryContact); const next = normalized && Object.keys(normalized).length ? normalized : undefined; if (JSON.stringify(next) !== JSON.stringify(ordinaryContact)) { ordinaryContact = next; changedFields.push('ordinaryContact'); } }
     if (changedFields.length === 0) return existing;
-    const person: CongregationPerson = { ...existing, displayName, ...(preferredLocale ? { preferredLocale } : { preferredLocale: undefined }), active, availability: existing.availability, eligibility: existing.eligibility, emergencyContacts: existing.emergencyContacts };
+    const { ordinaryContact: _previousOrdinaryContact, ...personWithoutOrdinaryContact } = existing;
+    const person: CongregationPerson = { ...personWithoutOrdinaryContact, displayName, ...(preferredLocale ? { preferredLocale } : { preferredLocale: undefined }), active, ...(ordinaryContact ? { ordinaryContact } : {}), availability: existing.availability, eligibility: existing.eligibility, emergencyContacts: existing.emergencyContacts };
     const occurredAt = this.#runtime.now();
     return this.#unitOfWork.commitUpdate(context, { person, auditEvent: createAuditEvent({ id: this.#runtime.nextId('audit'), tenantId: context.tenantId, resourceType: 'person', resourceId: person.id, action: 'update', actorId: context.actorId, occurredAt, changedFields }), domainEvent: createDomainEvent({ id: this.#runtime.nextId('event'), tenantId: context.tenantId, type: 'PersonUpdated', aggregateId: person.id, actorId: context.actorId, occurredAt, schemaVersion: 1, ...eventCorrelation(metadata) }) });
   }

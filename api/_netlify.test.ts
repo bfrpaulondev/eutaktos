@@ -20,6 +20,7 @@ describe('Netlify API adapter', () => {
     expect(matchNetlifyApiRoute('/people/person-1')).toEqual({ key: 'person', params: { personId: 'person-1' } });
     expect(matchNetlifyApiRoute('/people/person-1/eligibility')).toEqual({ key: 'eligibility', params: { personId: 'person-1' } });
     expect(matchNetlifyApiRoute('/people/person-1/availability')).toEqual({ key: 'availability', params: { personId: 'person-1' } });
+    expect(matchNetlifyApiRoute('/people/person-1/contact')).toEqual({ key: 'ordinary-contact', params: { personId: 'person-1' } });
     expect(matchNetlifyApiRoute('/people/person-1/availability/away-1')).toEqual({ key: 'availability-period', params: { personId: 'person-1', availabilityPeriodId: 'away-1' } });
     expect(matchNetlifyApiRoute('/responsibilities/res-1/end')).toEqual({ key: 'end-responsibility', params: { responsibilityId: 'res-1' } });
     expect(matchNetlifyApiRoute('/access/subjects/actor-1/grants')).toEqual({ key: 'subject-grants', params: { subjectId: 'actor-1' } });

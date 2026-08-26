@@ -10,9 +10,11 @@ import Button from 'antd/es/button';
 import Card from 'antd/es/card';
 import Descriptions from 'antd/es/descriptions';
 import Empty from 'antd/es/empty';
+import Input from 'antd/es/input';
 import List from 'antd/es/list';
 import Result from 'antd/es/result';
 import Skeleton from 'antd/es/skeleton';
+import Select from 'antd/es/select';
 import Space from 'antd/es/space';
 import Tabs from 'antd/es/tabs';
 import Tag from 'antd/es/tag';
@@ -20,12 +22,16 @@ import Typography from 'antd/es/typography';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { assignmentTypeLabel } from './lib/assignmentTypeCatalog';
 import type { Locale } from './lib/preferences';
+import { ordinaryContactApi } from './lib/ordinaryContactApi';
+import { createOrdinaryContactMutationGuard } from './lib/ordinaryContactMutationGuard';
 import {
   assignmentEvidenceForPerson,
   assignmentIsUpcoming,
   compareAssignmentsByInstant,
   compareAssignmentsByInstantDescending,
   currentAvailability,
+  filterPersonAssignmentEvidence,
+  hasCapability,
   isActiveResponsibility,
   isCurrentProfileRequest,
   nextAvailability,
@@ -61,9 +67,9 @@ const copy = {
     status: 'Estado', groups: 'Grupos de serviço', household: 'Agregado', availabilityNow: 'Disponibilidade atual', nextAbsence: 'Próxima ausência', lastAssignment: 'Última designação concluída', nextAssignment: 'Próxima designação', responsibilities: 'Responsabilidades',
     available: 'Disponível', unavailable: 'Indisponível', noGroups: 'Sem grupo registado', noHousehold: 'Sem agregado registado', none: 'Não disponível', noResponsibilities: 'Sem responsabilidade ativa registada',
     noCompleted: 'Sem designação concluída registada', noUpcoming: 'Sem próxima designação registada', noPeriods: 'Sem períodos de ausência registados', noEligibility: 'Sem decisões de elegibilidade registadas',
-    emergency: 'Contactos de emergência autorizados', ordinaryContacts: 'Contactos de perfil', ordinaryBlocked: 'Telefone, e-mail e morada não são disponibilizados pelo contrato atual de perfil. Não são estimados nem inferidos.',
-    noContacts: 'Não existem contactos de emergência autorizados para mostrar.', relation: 'Relação', phone: 'Telefone', enabled: 'Elegível', disabled: 'Não elegível', decided: 'Decisão registada',
-    current: 'Atual', upcoming: 'Futuros', past: 'Passados', away: 'Ausência', unavailableReason: 'Indisponível', other: 'Outro',
+    emergency: 'Contactos de emergência autorizados', ordinaryContacts: 'Contactos de perfil', ordinaryBlocked: 'Os contactos de perfil não estão disponíveis com as permissões atuais.', ordinaryEmpty: 'Não existem contactos de perfil registados.',
+    noContacts: 'Não existem contactos de emergência autorizados para mostrar.', relation: 'Relação', phone: 'Telefone', email: 'E-mail', address: 'Morada', editContacts: 'Editar contactos', save: 'Guardar', cancel: 'Cancelar', saving: 'A guardar…', contactSaveError: 'Não foi possível guardar os contactos. Tente novamente.', enabled: 'Elegível', disabled: 'Não elegível', decided: 'Decisão registada', eligibilityExplanation: 'A elegibilidade é uma decisão explícita autorizada para este tipo de designação; não é inferida a partir de disponibilidade, histórico ou atributos pessoais, nem por si só confirma disponibilidade ou garante uma recomendação.', enabledExplanation: 'A decisão explícita atual permite esta designação.', disabledExplanation: 'A decisão explícita atual não permite esta designação.',
+    current: 'Atual', upcoming: 'Futuros', past: 'Passados', away: 'Ausência', unavailableReason: 'Indisponível', other: 'Outro', filterState: 'Estado', filterRole: 'Função', allStates: 'Todos os estados', allRoles: 'Todas as funções', noFilteredAssignments: 'Não existem designações com estes filtros.',
     assigned: 'Designada', completed: 'Concluída', cancelled: 'Cancelada', student: 'Estudante', assistant: 'Ajudante',
     noAssignments: 'Não existem designações autorizadas para mostrar.', noOrganization: 'Não existe contexto organizacional autorizado para mostrar.',
     historyBlocked: 'O histórico de atividade requer uma permissão adicional. Nenhum evento é mostrado.', historyEmpty: 'Não existem eventos de atividade autorizados para mostrar.',
@@ -80,9 +86,9 @@ const copy = {
     status: 'Status', groups: 'Service groups', household: 'Household', availabilityNow: 'Current availability', nextAbsence: 'Next absence', lastAssignment: 'Last completed assignment', nextAssignment: 'Next assignment', responsibilities: 'Responsibilities',
     available: 'Available', unavailable: 'Unavailable', noGroups: 'No recorded group', noHousehold: 'No recorded household', none: 'Unavailable', noResponsibilities: 'No active responsibility recorded',
     noCompleted: 'No completed assignment recorded', noUpcoming: 'No upcoming assignment recorded', noPeriods: 'No away periods recorded', noEligibility: 'No eligibility decisions recorded',
-    emergency: 'Authorized emergency contacts', ordinaryContacts: 'Profile contacts', ordinaryBlocked: 'Phone, email and address are not supplied by the current profile contract. They are not estimated or inferred.',
-    noContacts: 'There are no authorized emergency contacts to show.', relation: 'Relationship', phone: 'Phone', enabled: 'Eligible', disabled: 'Not eligible', decided: 'Recorded decision',
-    current: 'Current', upcoming: 'Future', past: 'Past', away: 'Away', unavailableReason: 'Unavailable', other: 'Other',
+    emergency: 'Authorized emergency contacts', ordinaryContacts: 'Profile contacts', ordinaryBlocked: 'Profile contacts are unavailable with the current permissions.', ordinaryEmpty: 'There are no recorded profile contacts.',
+    noContacts: 'There are no authorized emergency contacts to show.', relation: 'Relationship', phone: 'Phone', email: 'Email', address: 'Address', editContacts: 'Edit contacts', save: 'Save', cancel: 'Cancel', saving: 'Saving…', contactSaveError: 'Contacts could not be saved. Try again.', enabled: 'Eligible', disabled: 'Not eligible', decided: 'Recorded decision', eligibilityExplanation: 'Eligibility is an authorized explicit decision for this assignment type; it is not inferred from availability, history or personal attributes, and it does not itself establish availability or guarantee a recommendation.', enabledExplanation: 'The current explicit decision permits this assignment.', disabledExplanation: 'The current explicit decision does not permit this assignment.',
+    current: 'Current', upcoming: 'Future', past: 'Past', away: 'Away', unavailableReason: 'Unavailable', other: 'Other', filterState: 'State', filterRole: 'Role', allStates: 'All states', allRoles: 'All roles', noFilteredAssignments: 'There are no assignments matching these filters.',
     assigned: 'Assigned', completed: 'Completed', cancelled: 'Cancelled', student: 'Student', assistant: 'Assistant',
     noAssignments: 'There are no authorized assignments to show.', noOrganization: 'There is no authorized organization context to show.',
     historyBlocked: 'Activity history requires an additional permission. No events are shown.', historyEmpty: 'There are no authorized activity events to show.',
@@ -99,9 +105,9 @@ const copy = {
     status: 'Estado', groups: 'Grupos de servicio', household: 'Grupo familiar', availabilityNow: 'Disponibilidad actual', nextAbsence: 'Próxima ausencia', lastAssignment: 'Última asignación completada', nextAssignment: 'Próxima asignación', responsibilities: 'Responsabilidades',
     available: 'Disponible', unavailable: 'No disponible', noGroups: 'Sin grupo registrado', noHousehold: 'Sin grupo familiar registrado', none: 'No disponible', noResponsibilities: 'Sin responsabilidad activa registrada',
     noCompleted: 'Sin asignación completada registrada', noUpcoming: 'Sin próxima asignación registrada', noPeriods: 'Sin períodos de ausencia registrados', noEligibility: 'Sin decisiones de elegibilidad registradas',
-    emergency: 'Contactos de emergencia autorizados', ordinaryContacts: 'Contactos del perfil', ordinaryBlocked: 'Teléfono, correo electrónico y dirección no son suministrados por el contrato actual del perfil. No se estiman ni infieren.',
-    noContacts: 'No hay contactos de emergencia autorizados para mostrar.', relation: 'Relación', phone: 'Teléfono', enabled: 'Elegible', disabled: 'No elegible', decided: 'Decisión registrada',
-    current: 'Actual', upcoming: 'Futuros', past: 'Pasados', away: 'Ausencia', unavailableReason: 'No disponible', other: 'Otro',
+    emergency: 'Contactos de emergencia autorizados', ordinaryContacts: 'Contactos del perfil', ordinaryBlocked: 'Los contactos del perfil no están disponibles con los permisos actuales.', ordinaryEmpty: 'No hay contactos del perfil registrados.',
+    noContacts: 'No hay contactos de emergencia autorizados para mostrar.', relation: 'Relación', phone: 'Teléfono', email: 'Correo electrónico', address: 'Dirección', editContacts: 'Editar contactos', save: 'Guardar', cancel: 'Cancelar', saving: 'Guardando…', contactSaveError: 'No se pudieron guardar los contactos. Inténtelo de nuevo.', enabled: 'Elegible', disabled: 'No elegible', decided: 'Decisión registrada', eligibilityExplanation: 'La elegibilidad es una decisión explícita autorizada para este tipo de asignación; no se infiere de disponibilidad, historial o atributos personales, ni por sí sola establece la disponibilidad o garantiza una recomendación.', enabledExplanation: 'La decisión explícita actual permite esta asignación.', disabledExplanation: 'La decisión explícita actual no permite esta asignación.',
+    current: 'Actual', upcoming: 'Futuros', past: 'Pasados', away: 'Ausencia', unavailableReason: 'No disponible', other: 'Otro', filterState: 'Estado', filterRole: 'Función', allStates: 'Todos los estados', allRoles: 'Todas las funciones', noFilteredAssignments: 'No hay asignaciones con estos filtros.',
     assigned: 'Asignada', completed: 'Completada', cancelled: 'Cancelada', student: 'Estudiante', assistant: 'Ayudante',
     noAssignments: 'No hay asignaciones autorizadas para mostrar.', noOrganization: 'No hay contexto organizacional autorizado para mostrar.',
     historyBlocked: 'El historial de actividad requiere un permiso adicional. No se muestran eventos.', historyEmpty: 'No hay eventos de actividad autorizados para mostrar.',
@@ -206,17 +212,64 @@ function Summary({ data, locale, text, now }: { data: PersonProfileData; locale:
   </Space>;
 }
 
-function Contacts({ data, text }: { data: PersonProfileData; text: Copy }) {
-  const state = sectionState(data.contacts, text);
+function Contacts({ data, text, onReload }: { data: PersonProfileData; text: Copy; onReload: () => void }) {
+  const emergencyState = sectionState(data.contacts, text);
+  const ordinaryState = data.ordinaryContact.status === 'unavailable'
+    ? <Space direction="vertical" style={{ display: 'flex' }}>{sectionState(data.ordinaryContact, text)}<Button icon={<ReloadOutlined />} onClick={onReload}>{text.retry}</Button></Space>
+    : sectionState(data.ordinaryContact, text);
+  const editable = hasCapability(data.session, 'people.write');
+  const saved = data.ordinaryContact.value ?? {};
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(saved);
+  const [saving, setSaving] = useState(false);
+  const [failure, setFailure] = useState<string | undefined>();
+  const saveGuardRef = useRef(createOrdinaryContactMutationGuard());
+  const saveControllerRef = useRef<AbortController | null>(null);
+  useEffect(() => () => { saveControllerRef.current?.abort(); }, []);
+  const begin = () => { setDraft(saved); setFailure(undefined); setEditing(true); };
+  const cancel = () => { setDraft(saved); setFailure(undefined); setEditing(false); };
+  const save = () => {
+    void saveGuardRef.current(async () => {
+      const controller = new AbortController();
+      saveControllerRef.current?.abort();
+      saveControllerRef.current = controller;
+      setSaving(true); setFailure(undefined);
+      try {
+        await ordinaryContactApi.update(data.person.id, draft, controller.signal);
+        if (!controller.signal.aborted) {
+          setEditing(false);
+          onReload();
+        }
+      } catch {
+        if (!controller.signal.aborted) setFailure(text.contactSaveError);
+      } finally {
+        if (saveControllerRef.current === controller) {
+          saveControllerRef.current = null;
+          if (!controller.signal.aborted) setSaving(false);
+        }
+      }
+    });
+  };
+  const ordinary = ordinaryState ?? (editing ? <Space direction="vertical" style={{ display: 'flex' }}>
+    <Input aria-label={text.phone} value={draft.phone ?? ''} onChange={event => setDraft(value => ({ ...value, phone: event.target.value }))} />
+    <Input aria-label={text.email} value={draft.email ?? ''} onChange={event => setDraft(value => ({ ...value, email: event.target.value }))} />
+    <Input.TextArea aria-label={text.address} value={draft.address ?? ''} onChange={event => setDraft(value => ({ ...value, address: event.target.value }))} autoSize={{ minRows: 2, maxRows: 5 }} />
+    {failure ? <Alert type="error" showIcon message={failure} /> : null}
+    <Space><Button type="primary" onClick={save} loading={saving}>{saving ? text.saving : text.save}</Button><Button onClick={cancel} disabled={saving}>{text.cancel}</Button></Space>
+  </Space> : (saved.phone || saved.email || saved.address ? <Descriptions column={1} size="small" bordered>
+    {saved.phone ? <Descriptions.Item label={text.phone}>{saved.phone}</Descriptions.Item> : null}
+    {saved.email ? <Descriptions.Item label={text.email}>{saved.email}</Descriptions.Item> : null}
+    {saved.address ? <Descriptions.Item label={text.address}>{saved.address}</Descriptions.Item> : null}
+  </Descriptions> : <EmptySection description={text.ordinaryEmpty} />));
   return <Space direction="vertical" size="middle" style={{ display: 'flex' }}>
-    <Card title={text.emergency}>{state ?? (data.contacts.value?.length ? <List dataSource={[...data.contacts.value]} renderItem={contact => <List.Item key={contact.id}><List.Item.Meta title={<Text strong>{contact.name}</Text>} description={<Space direction="vertical" size={0}><Text>{text.phone}: {contact.phone}</Text>{contact.relationship ? <Text type="secondary">{text.relation}: {contact.relationship}</Text> : null}</Space>} /></List.Item>} /> : <EmptySection description={text.noContacts} />)}</Card>
-    <Card title={text.ordinaryContacts}><Alert type="info" showIcon message={text.ordinaryBlocked} /></Card>
+    <Card title={text.emergency}>{emergencyState ?? (data.contacts.value?.length ? <List dataSource={[...data.contacts.value]} renderItem={contact => <List.Item key={contact.id}><List.Item.Meta title={<Text strong>{contact.name}</Text>} description={<Space direction="vertical" size={0}><Text>{text.phone}: {contact.phone}</Text>{contact.relationship ? <Text type="secondary">{text.relation}: {contact.relationship}</Text> : null}</Space>} /></List.Item>} /> : <EmptySection description={text.noContacts} />)}</Card>
+    <Card title={text.ordinaryContacts} extra={editable && !editing && data.ordinaryContact.status === 'ready' ? <Button onClick={begin}>{text.editContacts}</Button> : undefined}>{ordinary}</Card>
   </Space>;
 }
 
 function Participation({ data, locale, text }: { data: PersonProfileData; locale: Locale; text: Copy }) {
   const state = sectionState(data.eligibility, text);
-  return <Card title={text.participation}>{state ?? (data.eligibility.value?.length ? <List dataSource={[...data.eligibility.value]} renderItem={decision => <List.Item key={decision.assignmentTypeId}><List.Item.Meta title={<Space wrap><Text strong>{assignmentTypeLabel(decision.assignmentTypeId, locale)}</Text><Tag color={decision.enabled ? 'success' : 'default'}>{decision.enabled ? text.enabled : text.disabled}</Tag></Space>} description={`${text.decided}: ${formatDate(decision.decidedAt, locale, true)}`} /></List.Item>} /> : <EmptySection description={text.noEligibility} />)}</Card>;
+  return <Card title={text.participation}>{state ?? <Space direction="vertical" style={{ display: 'flex' }}><Alert type="info" showIcon message={text.eligibilityExplanation} />{data.eligibility.value?.length ? <List dataSource={[...data.eligibility.value]} renderItem={decision => <List.Item key={decision.assignmentTypeId}><List.Item.Meta title={<Space wrap><Text strong>{assignmentTypeLabel(decision.assignmentTypeId, locale)}</Text><Tag color={decision.enabled ? 'success' : 'default'}>{decision.enabled ? text.enabled : text.disabled}</Tag></Space>} description={<Space direction="vertical" size={0}><Text>{text.decided}: {formatDate(decision.decidedAt, locale, true)}</Text><Text type="secondary">{decision.enabled ? text.enabledExplanation : text.disabledExplanation}</Text></Space>} /></List.Item>} /> : <EmptySection description={text.noEligibility} />}</Space>}</Card>;
 }
 
 function Availability({ data, locale, text, now }: { data: PersonProfileData; locale: Locale; text: Copy; now: Date }) {
@@ -231,16 +284,26 @@ function Availability({ data, locale, text, now }: { data: PersonProfileData; lo
 
 function Assignments({ data, text, now }: { data: PersonProfileData; text: Copy; now: Date }) {
   const state = sectionState(data.assignments, text);
+  const [stateFilter, setStateFilter] = useState<'all' | PersonAssignmentEvidence['state']>('all');
+  const [roleFilter, setRoleFilter] = useState('all');
   if (state) return <Card title={text.assignments}>{state}</Card>;
   const evidence = assignmentEvidenceForPerson(data.assignments.value!, data.person.id);
-  const upcoming = evidence.filter(item => item.state === 'assigned' && assignmentIsUpcoming(item, now)).sort(compareAssignmentsByInstant);
-  const completed = evidence.filter(item => item.state === 'completed').sort(compareAssignmentsByInstantDescending);
-  const cancelled = evidence.filter(item => item.state === 'cancelled').sort(compareAssignmentsByInstantDescending);
+  const roles = [...new Set(evidence.map(item => item.role))].sort();
+  const filtered = filterPersonAssignmentEvidence(evidence, { ...(stateFilter === 'all' ? {} : { state: stateFilter }), ...(roleFilter === 'all' ? {} : { role: roleFilter }) });
+  const upcoming = filtered.filter(item => item.state === 'assigned' && assignmentIsUpcoming(item, now)).sort(compareAssignmentsByInstant);
+  const completed = filtered.filter(item => item.state === 'completed').sort(compareAssignmentsByInstantDescending);
+  const cancelled = filtered.filter(item => item.state === 'cancelled').sort(compareAssignmentsByInstantDescending);
   if (!evidence.length) return <Card title={text.assignments}><EmptySection description={text.noAssignments} /></Card>;
+  const controls = <Space wrap><Select aria-label={text.filterState} value={stateFilter} onChange={setStateFilter} options={[{ value: 'all', label: text.allStates }, ...(['assigned', 'completed', 'cancelled'] as const).map(value => ({ value, label: assignmentStateLabel(value, text) }))]} /><Select aria-label={text.filterRole} value={roleFilter} onChange={setRoleFilter} options={[{ value: 'all', label: text.allRoles }, ...roles.map(value => ({ value, label: assignmentRoleLabel(value, text) }))]} /></Space>;
+  if (!filtered.length) return <Card title={text.assignments} extra={controls}><EmptySection description={text.noFilteredAssignments} /></Card>;
   return <Space direction="vertical" size="middle" style={{ display: 'flex' }}>
-    <Card title={text.upcoming}>{upcoming.length ? <List dataSource={upcoming} renderItem={item => assignmentCard(item, text)} /> : <EmptySection description={text.noUpcoming} />}</Card>
-    <Card title={text.lastAssignment}>{completed.length ? <List dataSource={completed} renderItem={item => assignmentCard(item, text)} /> : <EmptySection description={text.noCompleted} />}</Card>
-    {cancelled.length ? <Card title={text.cancelled}><List dataSource={cancelled} renderItem={item => assignmentCard(item, text)} /></Card> : null}
+    <Card title={text.assignments} extra={controls}>
+      <Space direction="vertical" size="middle" style={{ display: 'flex' }}>
+        <Card type="inner" title={text.upcoming}>{upcoming.length ? <List dataSource={upcoming} renderItem={item => assignmentCard(item, text)} /> : <EmptySection description={text.noUpcoming} />}</Card>
+        <Card type="inner" title={text.lastAssignment}>{completed.length ? <List dataSource={completed} renderItem={item => assignmentCard(item, text)} /> : <EmptySection description={text.noCompleted} />}</Card>
+        {cancelled.length ? <Card type="inner" title={text.cancelled}><List dataSource={cancelled} renderItem={item => assignmentCard(item, text)} /></Card> : null}
+      </Space>
+    </Card>
   </Space>;
 }
 
@@ -269,13 +332,13 @@ function History({ data, locale, text }: { data: PersonProfileData; locale: Loca
   return <Card title={text.history}>{events.length ? <List dataSource={events} renderItem={event => <List.Item key={event.id}><List.Item.Meta avatar={<ClockCircleOutlined />} title={<Text strong>{eventTitle(event.action)}</Text>} description={formatDate(event.occurredAt, locale, true)} /></List.Item>} /> : <EmptySection description={text.historyEmpty} />}</Card>;
 }
 
-function ProfileContent({ data, locale, text }: { data: PersonProfileData; locale: Locale; text: Copy }) {
+function ProfileContent({ data, locale, text, onReload }: { data: PersonProfileData; locale: Locale; text: Copy; onReload: () => void }) {
   const now = useMemo(() => new Date(), [data]);
   return <Tabs
     defaultActiveKey="summary"
     items={[
       { key: 'summary', label: text.summary, children: <Summary data={data} locale={locale} text={text} now={now} /> },
-      { key: 'contacts', label: text.contacts, children: <Contacts data={data} text={text} /> },
+      { key: 'contacts', label: text.contacts, children: <Contacts data={data} text={text} onReload={onReload} /> },
       { key: 'participation', label: text.participation, children: <Participation data={data} locale={locale} text={text} /> },
       { key: 'availability', label: text.availability, children: <Availability data={data} locale={locale} text={text} now={now} /> },
       { key: 'assignments', label: text.assignments, children: <Assignments data={data} text={text} now={now} /> },
@@ -327,7 +390,7 @@ export function PersonProfile({ personId, locale, onBack }: PersonProfileProps) 
   return <section aria-labelledby="person-profile-title">
     <Space direction="vertical" size="large" style={{ display: 'flex' }}>
       <ProfileHeader data={state.data} text={text} onBack={onBack} />
-      <ProfileContent data={state.data} locale={locale} text={text} />
+      <ProfileContent data={state.data} locale={locale} text={text} onReload={load} />
     </Space>
   </section>;
 }

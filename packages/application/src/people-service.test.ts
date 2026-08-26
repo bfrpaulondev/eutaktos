@@ -155,6 +155,21 @@ describe('PeopleDirectoryService', () => {
     expect(unitOfWork.updates[0]?.domainEvent.type).toBe('PersonUpdated');
   });
 
+  it('updates an optional ordinary contact without leaking contact values into audit or event metadata', () => {
+    const original = personFixture();
+    const unitOfWork = new FakePeopleUnitOfWork([original]);
+    const service = new PeopleDirectoryService(unitOfWork, runtime());
+
+    const updated = service.updateProfile(context(['people.read', 'people.write']), {
+      personId: 'person-1', ordinaryContact: { phone: ' +351  900 000 000 ', email: 'person@example.test', address: ' Rua  Um  ' },
+    });
+
+    expect(updated.ordinaryContact).toEqual({ phone: '+351 900 000 000', email: 'person@example.test', address: 'Rua Um' });
+    expect(updated.emergencyContacts).toBe(original.emergencyContacts);
+    expect(unitOfWork.updates[0]?.auditEvent.changedFields).toEqual(['ordinaryContact']);
+    expect(JSON.stringify({ audit: unitOfWork.updates[0]?.auditEvent, event: unitOfWork.updates[0]?.domainEvent })).not.toContain('person@example.test');
+  });
+
   it('supports explicitly clearing the preferred locale without touching protected fields', () => {
     const original = personFixture();
     const unitOfWork = new FakePeopleUnitOfWork([original]);
@@ -169,6 +184,22 @@ describe('PeopleDirectoryService', () => {
     expect(updated.availability).toBe(original.availability);
     expect(updated.eligibility).toBe(original.eligibility);
     expect(updated.emergencyContacts).toBe(original.emergencyContacts);
+  });
+
+  it('clears an ordinary contact explicitly or through an empty payload and rejects invalid values before committing', () => {
+    const original = personFixture({ ordinaryContact: { phone: '+351 900 000 000', email: 'person@example.test', address: 'Rua Um' } });
+    const unitOfWork = new FakePeopleUnitOfWork([original]);
+    const service = new PeopleDirectoryService(unitOfWork, runtime());
+
+    const emptyPayloadUpdate = service.updateProfile(context(['people.read', 'people.write']), { personId: 'person-1', ordinaryContact: { phone: '  ', email: ' ', address: '   ' } });
+    expect(emptyPayloadUpdate.ordinaryContact).toBeUndefined();
+    expect(Object.hasOwn(emptyPayloadUpdate, 'ordinaryContact')).toBe(false);
+    expect(emptyPayloadUpdate.emergencyContacts).toBe(original.emergencyContacts);
+    expect(service.updateProfile(context(['people.read', 'people.write']), { personId: 'person-1', ordinaryContact: null }).ordinaryContact).toBeUndefined();
+    expect(() => service.updateProfile(context(['people.read', 'people.write']), { personId: 'person-1', ordinaryContact: { email: 'invalid' } })).toThrow('ordinaryContactEmail is invalid');
+    expect(() => service.updateProfile(context(['people.read', 'people.write']), { personId: 'person-1', ordinaryContact: { phone: 'x'.repeat(41) } })).toThrow('ordinaryContactPhone is too long');
+    expect(() => service.updateProfile(context(['people.read', 'people.write']), { personId: 'person-1', ordinaryContact: { address: 'x'.repeat(501) } })).toThrow('ordinaryContactAddress is too long');
+    expect(unitOfWork.updates).toHaveLength(1);
   });
 
   it('does not create audit noise for a no-op profile update', () => {
