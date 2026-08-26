@@ -1,7 +1,7 @@
 import type { Locale } from './lib/preferences';
 import type { EligibilityApi } from './lib/eligibilityApi';
 import type { HouseholdDto, HouseholdsApi } from './lib/householdsApi';
-import type { PeopleApi, PersonProfileDto } from './lib/peopleApi';
+import type { PeopleApi, PersonProfileDto, UpdatePersonPayload } from './lib/peopleApi';
 import type { ServiceGroupDto, ServiceGroupsApi } from './lib/serviceGroupsApi';
 
 export type PersonWizardMode = 'create' | 'edit';
@@ -18,8 +18,20 @@ export interface PersonWizardDraft {
   eligibility: Readonly<Record<string, EligibilityChoice>>;
 }
 
+export interface PersonWizardMembershipChange {
+  id: string;
+  selected: boolean;
+}
+
 export function normalizePersonWizardDisplayName(value: string): string {
   return value.trim().replace(/\s+/g, ' ');
+}
+
+export function normalizePersonWizardLocale(value: string): string {
+  const candidate = value.trim();
+  if (!candidate) return '';
+  try { return new Intl.Locale(candidate).toString(); }
+  catch { return candidate; }
 }
 
 export function createPersonWizardDraft(locale: Locale, person?: PersonProfileDto): PersonWizardDraft {
@@ -39,8 +51,16 @@ function sameStrings(left: readonly string[], right: readonly string[]): boolean
   return leftValues.length === rightValues.length && leftValues.every((value, index) => value === rightValues[index]);
 }
 
+export function personWizardMembershipChanges(initialIds: readonly string[], draftIds: readonly string[]): readonly Readonly<PersonWizardMembershipChange>[] {
+  const ids = [...new Set([...initialIds, ...draftIds])].sort();
+  return Object.freeze(ids
+    .filter(id => initialIds.includes(id) !== draftIds.includes(id))
+    .map(id => Object.freeze({ id, selected: draftIds.includes(id) })));
+}
+
 export function personWizardOrganizationChanged(initial: PersonWizardDraft, draft: PersonWizardDraft): boolean {
-  return !sameStrings(initial.householdIds, draft.householdIds) || !sameStrings(initial.serviceGroupIds, draft.serviceGroupIds);
+  return personWizardMembershipChanges(initial.householdIds, draft.householdIds).length > 0
+    || personWizardMembershipChanges(initial.serviceGroupIds, draft.serviceGroupIds).length > 0;
 }
 
 export function personWizardEligibilityChanges(initial: PersonWizardDraft, draft: PersonWizardDraft): readonly Readonly<{ assignmentTypeId: string; choice: Exclude<EligibilityChoice, 'unchanged'> }>[] {
@@ -50,17 +70,27 @@ export function personWizardEligibilityChanges(initial: PersonWizardDraft, draft
     .map(([assignmentTypeId, choice]) => Object.freeze({ assignmentTypeId, choice: choice as Exclude<EligibilityChoice, 'unchanged'> })));
 }
 
+export function personWizardCoreChanges(initial: PersonWizardDraft, draft: PersonWizardDraft): UpdatePersonPayload {
+  const changes: UpdatePersonPayload = {};
+  const initialName = normalizePersonWizardDisplayName(initial.displayName);
+  const nextName = normalizePersonWizardDisplayName(draft.displayName);
+  const initialLocale = normalizePersonWizardLocale(initial.preferredLocale);
+  const nextLocale = normalizePersonWizardLocale(draft.preferredLocale);
+  if (initialName !== nextName) changes.displayName = nextName;
+  if (initialLocale !== nextLocale) changes.preferredLocale = nextLocale || null;
+  if (initial.active !== draft.active) changes.active = draft.active;
+  return changes;
+}
+
 export function personWizardHasChanges(initial: PersonWizardDraft, draft: PersonWizardDraft): boolean {
-  return normalizePersonWizardDisplayName(initial.displayName) !== normalizePersonWizardDisplayName(draft.displayName)
-    || initial.preferredLocale !== draft.preferredLocale
-    || initial.active !== draft.active
+  return Object.keys(personWizardCoreChanges(initial, draft)).length > 0
     || personWizardOrganizationChanged(initial, draft)
     || personWizardEligibilityChanges(initial, draft).length > 0;
 }
 
 export function personProfileHasChanges(person: PersonProfileDto, draft: PersonWizardDraft): boolean {
   return person.displayName !== normalizePersonWizardDisplayName(draft.displayName)
-    || (person.preferredLocale ?? '') !== draft.preferredLocale
+    || normalizePersonWizardLocale(person.preferredLocale ?? '') !== normalizePersonWizardLocale(draft.preferredLocale)
     || person.active !== draft.active;
 }
 
@@ -138,23 +168,36 @@ export interface SavePersonWizardInput {
   apis: Readonly<{ people: PeopleApi; households: HouseholdsApi; serviceGroups: ServiceGroupsApi; eligibility: EligibilityApi }>;
 }
 
-function selectedMembership<T extends { id: string; memberIds: readonly string[] }>(items: readonly T[], personId: string): string[] {
-  return items.filter(item => item.memberIds.includes(personId)).map(item => item.id);
-}
-
-function sameSet(left: readonly string[], right: readonly string[]): boolean {
-  return sameStrings(left, right);
-}
-
 function desiredEligibility(choice: Exclude<EligibilityChoice, 'unchanged'>): boolean {
   return choice === 'enabled';
 }
 
+function pendingCoreChanges(person: PersonProfileDto, intended: UpdatePersonPayload): UpdatePersonPayload {
+  const pending: UpdatePersonPayload = {};
+  if (intended.displayName !== undefined && person.displayName !== intended.displayName) pending.displayName = intended.displayName;
+  if (intended.preferredLocale !== undefined) {
+    const expected = intended.preferredLocale === null ? '' : normalizePersonWizardLocale(intended.preferredLocale);
+    if (normalizePersonWizardLocale(person.preferredLocale ?? '') !== expected) pending.preferredLocale = intended.preferredLocale;
+  }
+  if (intended.active !== undefined && person.active !== intended.active) pending.active = intended.active;
+  return pending;
+}
+
+function membershipMatches<T extends { id: string; memberIds: readonly string[] }>(items: readonly T[], personId: string, change: PersonWizardMembershipChange): boolean {
+  const item = items.find(candidate => candidate.id === change.id);
+  if (!item) return !change.selected;
+  return item.memberIds.includes(personId) === change.selected;
+}
+
 export async function savePersonWizard(input: SavePersonWizardInput): Promise<PersonProfileDto> {
   const { mode, person, draft, initial, canReadEligibility, canWriteEligibility, apis } = input;
-  const organizationChanged = personWizardOrganizationChanged(initial, draft);
+  const intendedCoreChanges = personWizardCoreChanges(initial, draft);
+  const householdChanges = personWizardMembershipChanges(initial.householdIds, draft.householdIds);
+  const groupChanges = personWizardMembershipChanges(initial.serviceGroupIds, draft.serviceGroupIds);
+  const organizationChanged = householdChanges.length > 0 || groupChanges.length > 0;
   const eligibilityChanges = personWizardEligibilityChanges(initial, draft);
   const displayName = normalizePersonWizardDisplayName(draft.displayName);
+  const preferredLocale = normalizePersonWizardLocale(draft.preferredLocale);
 
   // Eligibility changes require both explicit write authority and a readable
   // authoritative baseline. Fail before the core mutation so capability gaps do
@@ -164,11 +207,14 @@ export async function savePersonWizard(input: SavePersonWizardInput): Promise<Pe
   let saved = person;
   let coreMutated = false;
   if (mode === 'create' && !person) {
-    saved = await apis.people.create({ displayName, ...(draft.preferredLocale ? { preferredLocale: draft.preferredLocale } : {}), active: draft.active });
+    saved = await apis.people.create({ displayName, ...(preferredLocale ? { preferredLocale } : {}), active: draft.active });
     coreMutated = true;
-  } else if (person && personProfileHasChanges(person, draft)) {
-    saved = await apis.people.update(person.id, { displayName, preferredLocale: draft.preferredLocale || null, active: draft.active });
-    coreMutated = true;
+  } else if (person) {
+    const pending = pendingCoreChanges(person, intendedCoreChanges);
+    if (Object.keys(pending).length > 0) {
+      saved = await apis.people.update(person.id, pending);
+      coreMutated = true;
+    }
   }
   if (!saved) throw new Error('Missing person for edit');
   input.onCorePersisted?.(saved);
@@ -176,21 +222,24 @@ export async function savePersonWizard(input: SavePersonWizardInput): Promise<Pe
 
   const personId = saved.id;
 
-  // Organization is optional. Do not make an identity-only save depend on these
-  // APIs. When it did change, compare against fresh state before every write so a
-  // retry skips relations that were already persisted by a previous partial run.
+  // Organization changes are deltas, not a stale full replacement. Fresh reads
+  // protect other users' unrelated membership changes and also make known retries
+  // idempotent.
   if (organizationChanged) {
     const [freshHouseholds, freshGroups] = await Promise.all([apis.households.list(), apis.serviceGroups.list()]);
-    for (const item of freshHouseholds) {
-      const selected = draft.householdIds.includes(item.id);
-      if (item.memberIds.includes(personId) === selected) continue;
-      await apis.households.update(item.id, { memberIds: memberIdsWithPerson(item.memberIds, personId, selected) });
+    if (householdChanges.some(change => change.selected && !freshHouseholds.some(item => item.id === change.id))) throw new Error('Selected household no longer exists');
+    if (groupChanges.some(change => change.selected && !freshGroups.some(item => item.id === change.id))) throw new Error('Selected service group no longer exists');
+
+    for (const change of householdChanges) {
+      const item = freshHouseholds.find(candidate => candidate.id === change.id);
+      if (!item || item.memberIds.includes(personId) === change.selected) continue;
+      await apis.households.update(item.id, { memberIds: memberIdsWithPerson(item.memberIds, personId, change.selected) });
       input.onMutationPersisted?.();
     }
-    for (const item of freshGroups) {
-      const selected = draft.serviceGroupIds.includes(item.id);
-      if (item.memberIds.includes(personId) === selected) continue;
-      await apis.serviceGroups.update(item.id, { memberIds: memberIdsWithPerson(item.memberIds, personId, selected) });
+    for (const change of groupChanges) {
+      const item = freshGroups.find(candidate => candidate.id === change.id);
+      if (!item || item.memberIds.includes(personId) === change.selected) continue;
+      await apis.serviceGroups.update(item.id, { memberIds: memberIdsWithPerson(item.memberIds, personId, change.selected) });
       input.onMutationPersisted?.();
     }
   }
@@ -207,15 +256,22 @@ export async function savePersonWizard(input: SavePersonWizardInput): Promise<Pe
     }
   }
 
-  // The core person is always re-read before success. Verify the exact state the
-  // server confirmed, not the unnormalized client draft.
+  // Always re-read the person before success. For edits, verify only the fields
+  // the user intended to change so concurrent unrelated edits are preserved.
   const peopleValue = await apis.people.list();
   const authoritative = peopleValue.find(item => item.id === personId);
-  if (!authoritative || authoritative.displayName !== saved.displayName || (authoritative.preferredLocale ?? '') !== (saved.preferredLocale ?? '') || authoritative.active !== saved.active) throw new Error('Authoritative People refetch mismatch');
+  if (!authoritative) throw new Error('Authoritative People refetch mismatch');
+  if (mode === 'create') {
+    if (authoritative.displayName !== saved.displayName || normalizePersonWizardLocale(authoritative.preferredLocale ?? '') !== normalizePersonWizardLocale(saved.preferredLocale ?? '') || authoritative.active !== saved.active) throw new Error('Authoritative People refetch mismatch');
+  } else {
+    if (intendedCoreChanges.displayName !== undefined && authoritative.displayName !== saved.displayName) throw new Error('Authoritative People refetch mismatch');
+    if (intendedCoreChanges.preferredLocale !== undefined && normalizePersonWizardLocale(authoritative.preferredLocale ?? '') !== normalizePersonWizardLocale(saved.preferredLocale ?? '')) throw new Error('Authoritative People refetch mismatch');
+    if (intendedCoreChanges.active !== undefined && authoritative.active !== saved.active) throw new Error('Authoritative People refetch mismatch');
+  }
 
   if (organizationChanged) {
     const [householdValue, groupValue] = await Promise.all([apis.households.list(), apis.serviceGroups.list()]);
-    if (!sameSet(selectedMembership(householdValue, personId), draft.householdIds) || !sameSet(selectedMembership(groupValue, personId), draft.serviceGroupIds)) throw new Error('Authoritative organization refetch mismatch');
+    if (householdChanges.some(change => !membershipMatches(householdValue, personId, change)) || groupChanges.some(change => !membershipMatches(groupValue, personId, change))) throw new Error('Authoritative organization refetch mismatch');
   }
 
   if (eligibilityChanges.length > 0) {
