@@ -85,13 +85,18 @@ describe('principal-reviewed People/PX7 evidence', () => {
     ]);
   });
 
-  it('validates the instant window even when there are no candidates', () => {
-    expect(() => deterministicRecommendationEvidence(FULL_CONTEXT, input({ startsAt: 'not-an-instant' }))).toThrow('startsAt must be a valid ISO instant');
-    expect(() => deterministicRecommendationEvidence(FULL_CONTEXT, input({ endsAt: 'not-an-instant' }))).toThrow('endsAt must be a valid ISO instant');
+  it('validates a timezone-aware instant window even when there are no candidates', () => {
+    expect(() => deterministicRecommendationEvidence(FULL_CONTEXT, input({ startsAt: '2026-04-01' }))).toThrow('startsAt must be a timezone-aware ISO instant');
+    expect(() => deterministicRecommendationEvidence(FULL_CONTEXT, input({ startsAt: '2026-99-99T19:00:00Z' }))).toThrow('startsAt must be a valid ISO instant');
+    expect(() => deterministicRecommendationEvidence(FULL_CONTEXT, input({ endsAt: '2026-99-99T19:30:00Z' }))).toThrow('endsAt must be a valid ISO instant');
     expect(() => deterministicRecommendationEvidence(FULL_CONTEXT, input({
-      startsAt: '2026-04-01T19:30:00.000Z',
-      endsAt: '2026-04-01T19:00:00.000Z',
+      startsAt: '2026-04-01T19:30:00.000+01:00',
+      endsAt: '2026-04-01T19:00:00.000+01:00',
     }))).toThrow('recommendation window must end after it starts');
+    expect(() => deterministicRecommendationEvidence(FULL_CONTEXT, input({
+      startsAt: '2026-04-01T19:00:00.000+01:00',
+      endsAt: '2026-04-01T19:30:00.000+01:00',
+    }))).not.toThrow();
   });
 
   it('does not manufacture a long-interval reason when there is no factual peer comparison', () => {
