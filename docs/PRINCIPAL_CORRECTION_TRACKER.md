@@ -16,6 +16,7 @@ This file is the operational checklist for the current Eutaktos People correctio
 10. Keep the repository clean: close superseded PRs, avoid duplicate implementation branches, and delete merged/superseded branches when branch-deletion tooling is available. Never delete an active worker branch before its accepted work is safely integrated.
 11. Canonical production acceptance URL: `https://eutakes.netlify.app/`.
 12. After each completed correction, update this file with the final main SHA, PR, gates and short evidence note.
+13. During this correction cycle, **only branches explicitly listed as ACTIVE in this file may be used as an implementation source**. Every other pre-existing branch is historical/quarantined until individually proven safe to delete.
 
 ## Current baseline
 
@@ -27,6 +28,10 @@ This file is the operational checklist for the current Eutaktos People correctio
   - `#305` — Manus PX5 Unified Person Profile foundation.
   - `#309` — Grok PX6 Guided Add/Edit Person.
   - `#307` — Brunello PX7 recommendation/domain slice.
+- Repository branch inventory on 2026-08-26: **85 total branches** (`main` plus 84 slash-named branches).
+- Current correction-cycle active set: **6 branches total** — `main`, `principal/correction-tracker`, `principal/px4-11-final`, `manus/px5-unified-person-profile`, `grok/px6-guided-person-editor`, `brunello/px7-complete`.
+- The remaining **79 branches are HISTORICAL-QUARANTINE** for this cycle. They are not implementation sources. They may be deleted only after individual merge/supersession verification.
+- Open PR inventory at the same checkpoint: only `#310`, `#308`, `#305`, `#309`, `#307`; all are current/active. No other open PR needs immediate closure.
 
 ## Correction order
 
@@ -36,9 +41,15 @@ This file is the operational checklist for the current Eutaktos People correctio
   - Branch: `principal/correction-tracker`
   - Created from main: `7592fb7f6ba5220b385871f812d03fd17f492bd5`
 - [ ] **C0.2** Integrate this tracker into `main` after its PR/gates are acceptable.
-- [ ] **C0.3** Inventory active principal/worker branches and classify each as ACTIVE / MERGED-DELETE / SUPERSEDED-DELETE / HISTORICAL-KEEP.
-- [ ] **C0.4** Close any superseded open PRs. Do not close #305/#307/#309/#308 until their work is either corrected/integrated or deliberately superseded.
+- [x] **C0.3** Inventory active principal/worker branches and classify the correction-cycle source set.
+  - 85 total branches.
+  - 6 ACTIVE source branches for this cycle.
+  - 79 HISTORICAL-QUARANTINE branches; never use them as a base without explicit reclassification.
+- [x] **C0.4** Check all open PRs and close any superseded open PRs.
+  - Open PRs are only #310/#308/#305/#309/#307 and all are active.
+  - Superseded #303 was already closed without merge.
 - [ ] **C0.5** Remove merged/superseded branches when deletion tooling is available; until then, record them explicitly so they are never mistaken for current work.
+  - Current connector exposes branch create/update/search but no branch-delete action. Do not fake cleanup by moving refs or force-updating them.
 
 ### C1 — PX4.11 final Directory export/bulk integration
 
@@ -119,17 +130,19 @@ Use this table before creating any new branch.
 | Branch / PR | State | Action |
 |---|---|---|
 | `main` | ACTIVE SOURCE OF TRUTH | Never rewrite/force-push |
-| `principal/correction-tracker` | ACTIVE until tracker integrated | Merge once, then delete branch when tooling permits |
+| `principal/correction-tracker` / #310 | ACTIVE until tracker integrated | Merge once, then delete branch when tooling permits |
 | `principal/px4-11-final` / #308 | ACTIVE | Correct and integrate; then delete branch |
-| `principal/px4-11-bulk-export` / #303 | SUPERSEDED | PR already closed; branch should be deleted when tooling permits |
+| `principal/px4-11-bulk-export` / #303 | SUPERSEDED-DELETE | PR already closed; branch is not a source; delete when tooling permits |
 | `manus/px5-unified-person-profile` / #305 | ACTIVE WORKER DELIVERY | Preserve until corrected/integrated |
 | `grok/px6-guided-person-editor` / #309 | ACTIVE WORKER DELIVERY | Preserve until corrected/integrated |
 | `brunello/px7-complete` / #307 | ACTIVE WORKER DELIVERY | Preserve until corrected/integrated |
+| all other 79 pre-existing branches | HISTORICAL-QUARANTINE | Never use as source in this cycle; verify individually before deletion |
 
-Historical branches must not be deleted solely by name. Before deletion, verify they are merged/superseded and contain no unintegrated accepted work.
+Historical/quarantined branches must not be deleted solely by name. Before deletion, verify they are merged/superseded and contain no unintegrated accepted work.
 
 ## Completion record
 
 Append one short entry after each integrated correction:
 
+- `2026-08-26 — C0.1/C0.3/C0.4 — PR #310 — branch inventory 85 total / active source set 6 / open PR set 5 — branch deletion pending connector support`
 - `YYYY-MM-DD — Cx.y — PR #___ — main SHA ___ — gates ___ — canonical preview/prod ___`
