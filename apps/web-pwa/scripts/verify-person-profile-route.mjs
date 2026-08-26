@@ -102,7 +102,7 @@ try {
     const recommendation = {
       contractVersion: 'people-recommendation-v1', evidenceContractVersion: 'px7-evidence-v1', inputContractVersion: 'px7-recommendation-input-v1',
       target: { meetingId: meeting.id, slotId: 'slot-profile', assignmentTypeId: 'builtin:apply-yourself-to-the-ministry', meetingDate: meeting.date, startsAt: '2032-06-10T18:30:00.000Z', endsAt: '2032-06-10T18:35:00.000Z' },
-      candidates: [{ personId: 'person-runtime', displayName: 'Runtime person', status: 'candidate', rank: 2, reasons: [{ code: 'ELIGIBLE' }, { code: 'AVAILABLE' }, { code: 'NO_MEETING_CONFLICT' }], warnings: [{ code: 'NO_COMPLETED_ASSIGNMENT_HISTORY' }], history: { kind: 'no-completed-history' }, sameWeekAssignmentCount: 0 }],
+      candidates: [{ personId: 'person-runtime', displayName: 'Runtime person', status: 'candidate', rank: 1, reasons: [{ code: 'ELIGIBLE' }, { code: 'AVAILABLE' }, { code: 'NO_MEETING_CONFLICT' }], warnings: [{ code: 'NO_COMPLETED_ASSIGNMENT_HISTORY' }], history: { kind: 'no-completed-history' }, sameWeekAssignmentCount: 0 }],
       excluded: [],
     };
     window.fetch = async (input, init) => {
@@ -143,7 +143,7 @@ try {
       && state.main.includes('Resumo')
       && state.main.includes('Contactos')
       && state.main.includes('Insight de candidato')
-      && state.main.includes('Recomendação #2')
+      && state.main.includes('Recomendação #1')
       && state.main.includes('Elegível para este tipo de designação.');
   }, 'Profile and contextual PX7 insight did not open from Directory');
 
@@ -156,7 +156,7 @@ try {
   await cdp.send('Page.reload', { ignoreCache: true });
   await poll(async () => {
     const current = await locationState();
-    return current.search.includes('view=profile') && current.search.includes('person=person-runtime') && current.main.includes('Runtime person') && current.main.includes('Resumo') && current.main.includes('Insight de candidato') && current.main.includes('Recomendação #2');
+    return current.search.includes('view=profile') && current.search.includes('person=person-runtime') && current.main.includes('Runtime person') && current.main.includes('Resumo') && current.main.includes('Insight de candidato') && current.main.includes('Recomendação #1');
   }, 'Profile deep link and contextual insight did not survive refresh');
   state = await locationState();
   assertRecommendationRequests(state.recommendationRequests);
