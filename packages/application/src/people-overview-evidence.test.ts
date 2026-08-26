@@ -205,7 +205,14 @@ describe('People Overview and PX7 deterministic evidence', () => {
 
   it('does not allow foreign people, availability, assignments, workload or history to influence tenant A', () => {
     const result = deterministicRecommendationEvidence(FULL_CONTEXT, input({
-      people: [person({ id: 'tenant-a-person' }), person({ id: 'tenant-b-person', tenantId: 'tenant-b' })],
+      people: [
+        person({ id: 'tenant-a-person' }),
+        person({
+          id: 'tenant-b-person',
+          tenantId: 'tenant-b',
+          availability: [{ id: 'foreign-away', startsAt: '2026-04-01T19:00:00.000Z', endsAt: '2026-04-01T19:30:00.000Z', reasonCode: 'away' }],
+        }),
+      ],
       history: [completedHistory({ tenantId: 'tenant-b', personId: 'tenant-a-person', meetingDate: '2020-01-01' })],
       activeAssignments: [activeAssignment({ tenantId: 'tenant-b', personId: 'tenant-a-person' })],
       workloadAssignments: [workload({ tenantId: 'tenant-b', personId: 'tenant-a-person' })],
