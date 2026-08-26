@@ -24,16 +24,17 @@ Operational source of truth for the current Eutaktos People correction/integrati
 - PX5 unified profile foundation / PR #305: `891369306414003dbea49371a02cff6c02c1c324`.
 - C5.1 Directory -> Profile / PR #311: `fcdf51f7317d893721dff79c3f4fc17f3e4a850d`.
 - C5.2 Directory Add/Edit -> PX6 PersonWizard / PR #312: `495d21cc970ee2d5379d88fe2d99882a5e5ffe66`.
-- C5.3 authenticated PX7 recommendation adapter / PR #313: `0c1fdb45c1bfbb4f4a26b9c671df845c9d592a6c`.
-- C5.4 PX7 localized reason/warning copy / PR #314: `a9710362a672664d754ad615967038b08d98be6a`.
+- C5.3 authenticated PX7 adapter / PR #313: `0c1fdb45c1bfbb4f4a26b9c671df845c9d592a6c`.
+- C5.4 localized reason/warning copy / PR #314: `a9710362a672664d754ad615967038b08d98be6a`.
 - C5.5 explainable recommendation picker / PR #315: `46665eab2218f4b806497b281732d4f8b56c69ec`.
 - C5.6 all-eligible escape hatch / PR #316: `79407fd54230dc9f9b05edadc3cd767575d592b2`.
+- C5.7 profile candidate insight / PR #317: `57f509e870c240e0d187d7eadd4aa1efbf93423b`.
 
-Foundation merge is not equivalent to full PX5/PX6/PX7 product closure.
+Foundation merge is not equivalent to full PX5/PX6/PX7 product closure; unresolved contract gaps stay open for C7.
 
 ## C0 — Repository hygiene and source of truth
 
-- [x] C0.1–C0.4 tracker/source-of-truth/inventory/superseded PR handling complete.
+- [x] **C0.1–C0.4** Tracker/source-of-truth/inventory/superseded PR handling complete.
 - [ ] **C0.5** Delete confirmed superseded historical branches when a real branch-delete action is available.
   - `principal/px4-11-bulk-export` / #303 remains `SUPERSEDED-DELETE`; never use it.
   - Initial branch inventory: 85 total; unreviewed old branches remain `HISTORICAL-QUARANTINE`.
@@ -41,80 +42,61 @@ Foundation merge is not equivalent to full PX5/PX6/PX7 product closure.
 
 ## C1 — PX4.11 Directory export/bulk correction
 
-- [x] C1.1–C1.6 complete.
+- [x] **C1.1–C1.6** Complete.
 - PR #308; final head `3b6a7e92ff642d4157967fb39fccc9f8066e6b15`; merge `457b21dab7e134c6ff3b2f0a29d15cd1fa0dc56d`.
-- CI `32953527991`: quality PASS + browser-regression PASS; canonical preview PASS.
-- Capability-aware export/bulk and filter-reference stability regression fixed; branch auto-deleted.
+- CI `32953527991`: quality PASS + browser-regression PASS; canonical preview PASS; branch auto-deleted.
 
 ## C2 — PX6 guided editor foundation correction
 
-- [x] C2.1–C2.8 complete.
+- [x] **C2.1–C2.8** Complete.
 - PR #309; final head `400afcef5fad40f27062aaf5b2488192f46d4924`; merge `6673cfcc14e89f5666a72941b3f44246a71ff5db`.
 - CI `32956000440`: PASS/PASS; canonical preview PASS; branch auto-deleted.
-- Corrected optional-resource coupling, partial-save retries, ambiguous-create handling, 401/403, baseline ownership, domain name normalization, minimal PATCH behavior and concurrent lost-update risks.
+- Fixed optional-resource coupling, partial-save retries, ambiguous-create handling, 401/403, baseline ownership, name normalization, minimal PATCH semantics and concurrent lost-update risks.
 - Still open for full PX6: ordinary Contact contract and broader approved availability/responsibility coverage.
 
 ## C3 — PX7 recommendation backend/domain correction
 
-- [x] C3.1–C3.8 complete.
+- [x] **C3.1–C3.8** Complete.
 - PR #307; final head `e97269ff5d52f8abbc52eaa92dff52d3e665f0c0`; merge `58964b7c0080dd89b92459241de71ccdda111f6c`.
 - CI `32957109650`: PASS/PASS; canonical preview PASS; branch auto-deleted.
 - Eligibility precedence, tenant/capability isolation, hard constraints, completed-only history and timezone-explicit recommendation window verified.
-- PX7 backend + localized explainability + picker + all-eligible human-control surface are now integrated; master checkbox synchronization remains C7.
 
 ## C4 — PX5 unified person profile foundation correction
 
-- [x] C4.1–C4.8 complete.
+- [x] **C4.1–C4.8** Complete.
 - PR #305; final head `91b03a9e1a1b8086869c5a11384d3bcb9472ccd0`; merge `891369306414003dbea49371a02cff6c02c1c324`.
 - CI `32958989117`: PASS/PASS; canonical preview PASS; branch auto-deleted.
-- Corrected canonical responsibility intervals, invalid timestamps, real date+time+timezone assignment ordering, DST behavior and authorization/stale-response handling.
-- Still open for full PX5: ordinary contacts/editing; explain eligibility-setting impact; useful assignment filters; PX5.9 via C5.7.
+- Fixed canonical responsibility intervals, invalid timestamps, real date+time+timezone ordering, DST behavior and authorization/stale-response handling.
+- Still open for full PX5: ordinary contacts/editing, eligibility-setting explanation and useful assignment filters.
 
 ## C5 — Principal People integration
 
 - [x] **C5.1** Directory -> Person Profile navigation/deep link without PII in URL.
-  - PR #311; final head `88ec2c337e1bca7d880f9e253ae2eddf94e31f40`; merge `fcdf51f7317d893721dff79c3f4fc17f3e4a850d`.
-  - CI `32960668620`: PASS/PASS; dedicated route regression PASS; canonical preview PASS.
+  - PR #311; final head `88ec2c337e1bca7d880f9e253ae2eddf94e31f40`; merge `fcdf51f7317d893721dff79c3f4fc17f3e4a850d`; CI `32960668620` PASS/PASS; canonical preview PASS.
 - [x] **C5.2** Add/Edit -> PX6 Wizard; legacy basic form retired after replacement proof.
-  - PR #312; final head `278a10c0e29e34a1dfbbe91883fbbc4fa1c4640f`; merge `495d21cc970ee2d5379d88fe2d99882a5e5ffe66`.
-  - CI `32962712469`: PASS/PASS; dedicated guided Add/Edit/read-only capability regression PASS; canonical preview PASS.
-  - Write controls require server Directory `writePeople` plus authenticated session `people.read + people.write`; branch auto-deleted.
+  - PR #312; final head `278a10c0e29e34a1dfbbe91883fbbc4fa1c4640f`; merge `495d21cc970ee2d5379d88fe2d99882a5e5ffe66`; CI `32962712469` PASS/PASS; canonical preview PASS.
 - [x] **C5.3** Server-side PX7 adapter built solely from authenticated/authorized facts.
-  - PR #313; final head `9e6b67741120c3191ae6f4d4a98141d92f2d70cb`; squash merge `0c1fdb45c1bfbb4f4a26b9c671df845c9d592a6c`.
-  - CI `32966364434`: quality PASS + browser-regression PASS; canonical `netlify/eutakes/deploy-preview` PASS.
-  - New read-only contract: `GET /api/people/recommendations?meetingId=<opaque>&slotId=<opaque>`.
-  - Browser supplies only opaque target identity. Unknown/authority-bearing fields, GET bodies, duplicate values and malformed refs are rejected.
-  - Server resolves principal and requires `people.read`, `eligibility.read`, `availability.read`, `schedule.read` before loading tenant evidence.
-  - Assignment type comes from stored slot `partDefinitionId`; window comes from stored meeting date/localTime/IANA timezone; people, explicit eligibility, availability, active assignments, completed history and workload are tenant-scoped server facts.
-  - Reuses accepted `deterministicRecommendationEvidence`; no second ranking engine and no assignment write/automatic decision.
-  - Response is minimized to target + structured PX7 evidence + authorized display name; tests prove no tenant/actor/capabilities/contact fields in public JSON.
-  - 11 focused adapter/request-contract tests PASS; invalid user-selected target maps to 400 while stored-evidence corruption remains fail-loud internal error.
-  - `principal/people-recommendation-integration` confirmed auto-deleted after merge.
+  - PR #313; final head `9e6b67741120c3191ae6f4d4a98141d92f2d70cb`; merge `0c1fdb45c1bfbb4f4a26b9c671df845c9d592a6c`; CI `32966364434` PASS/PASS; 11 focused adapter/contract tests PASS; canonical preview PASS.
+  - Public contract is read-only `GET /api/people/recommendations?meetingId=<opaque>&slotId=<opaque>`; server resolves principal, capabilities, tenant evidence, assignment type and meeting window.
 - [x] **C5.4** Add pt-PT/en/es localized PX7 reason/warning text.
-  - PR #314; final head `2c7b7fe2a56751662d3858692cf29c22ddfc97f8`; squash merge `a9710362a672664d754ad615967038b08d98be6a`.
-  - CI `32967568203`: quality PASS + browser-regression PASS; canonical `netlify/eutakes/deploy-preview` PASS.
-  - Presentation-only catalog covers all 11 current `RecommendationReasonCode` values and both `RecommendationWarningCode` values in `pt-PT`, `en`, `es`.
-  - Type-only application imports plus exhaustive `Record<...>` typing make future engine codes fail typecheck until copy exists for all supported locales; no recommendation/ranking logic changed.
-  - `LONGER_SINCE_LAST_ASSIGNMENT` preserves comparable completed-history semantics; `NO_COMPLETED_ASSIGNMENT_HISTORY` remains a neutral warning rather than positive evidence.
-  - 9 focused localization tests PASS; `principal/c5-4-recommendation-i18n` confirmed auto-deleted after merge.
+  - PR #314; final head `2c7b7fe2a56751662d3858692cf29c22ddfc97f8`; merge `a9710362a672664d754ad615967038b08d98be6a`; CI `32967568203` PASS/PASS; 9 focused localization tests PASS; canonical preview PASS.
 - [x] **C5.5** Build recommendation picker for assignment workflows.
-  - PR #315; final head `b65a83d3932fd3784b39fe5dbb039bc7efa8f3eb`; squash merge `46665eab2218f4b806497b281732d4f8b56c69ec`.
-  - CI `32970183672`: quality PASS + browser-regression PASS; canonical `netlify/eutakes/deploy-preview` PASS.
-  - Ant Design 6 picker is integrated into new-student and student-replacement flows, using only the authenticated C5.3 target identity contract.
-  - Displays the server-ranked top three with localized C5.4 reasons/warnings; browser does not calculate or repair ranking evidence.
-  - Client rejects non-sequential ranks, duplicate identities and candidate/excluded identity overlap instead of reinterpreting malformed server evidence.
-  - Browser regression proves recommendation selection binds to the actual assignment state, replacement reuses the picker, request inputs remain `meetingId + slotId` only under React StrictMode, person data does not enter URL/storage, and arbitrary role assignment does not call the unsupported student recommendation target.
-  - Manual selector remains visible intentionally until C5.6 provides the explicit all-eligible escape hatch; `principal/c5-5-recommendation-picker` confirmed auto-deleted after merge.
+  - PR #315; final head `b65a83d3932fd3784b39fe5dbb039bc7efa8f3eb`; merge `46665eab2218f4b806497b281732d4f8b56c69ec`; CI `32970183672` PASS/PASS; canonical preview PASS.
+  - Ant Design picker uses only the C5.3 target-identity contract, preserves server rank and exposes localized reasons/warnings without browser-side scoring.
 - [x] **C5.6** Add `Ver todos os elegíveis` escape hatch.
-  - PR #316; final head `942b63076a8ddcd106e84e03193d463d62c0bd03`; squash merge `79407fd54230dc9f9b05edadc3cd767575d592b2`.
-  - CI `32971748866`: quality PASS + browser-regression PASS; canonical `netlify/eutakes/deploy-preview` PASS at `https://deploy-preview-316--eutakes.netlify.app`.
-  - Default assignment/replacement surface stays on the server-ranked top three; `Ver todos os elegíveis` reveals only additional PX7 candidates in canonical server order.
-  - Rank-4 selection is proven to bind to the real assignment state; browser never recalculates eligibility or rank.
-  - Raw active-person selector is hidden by default and remains available only through explicit `Selecionar manualmente`, with disclosure that active status does not assert eligibility, availability or absence of conflict.
-  - Recommendation requests remain identity-only `meetingId + slotId`; no person evidence is added to URL/storage; arbitrary role flow remains outside unsupported student targeting.
-  - `principal/c5-6-all-eligible` confirmed auto-deleted after merge.
-- [ ] **C5.7** Connect PX5.9 contextual candidate insight only to approved PX7 evidence.
-- [ ] **C5.8** Run integrated quality/browser/security/privacy gates and canonical preview.
+  - PR #316; final head `942b63076a8ddcd106e84e03193d463d62c0bd03`; merge `79407fd54230dc9f9b05edadc3cd767575d592b2`; CI `32971748866` PASS/PASS; canonical preview PASS.
+  - Default surface stays on top-three server-ranked candidates; additional PX7 candidates remain available in canonical order; manual active-person override is explicit and does not claim eligibility.
+- [x] **C5.7** Connect PX5.9 contextual candidate insight only to approved PX7 evidence.
+  - PR #317; final head `088b231a96d478c285538ba83b21461e8249ec61`; squash merge `57f509e870c240e0d187d7eadd4aa1efbf93423b`.
+  - PR CI `32974585573`: quality PASS + browser-regression PASS; canonical `netlify/eutakes/deploy-preview` PASS.
+  - Profile checks at most four chronological future, student-capable, unassigned targets and only shows positive candidate evidence returned by C5.3; missing capabilities prevent calls, and partial failure is never converted into a negative recommendation.
+  - Browser runtime proves Directory -> Profile insight, localized evidence, identity-only `meetingId + slotId` requests, refresh, Back/Forward and privacy-safe URL behavior.
+  - `principal/c5-7-profile-candidate-insight` confirmed auto-deleted after merge.
+- [x] **C5.8** Run integrated quality/browser/security/privacy gates and canonical preview.
+  - Integrated product SHA: `57f509e870c240e0d187d7eadd4aa1efbf93423b`.
+  - Main push CI `32974975422`: quality PASS + browser-regression PASS on the integrated `main` composition.
+  - Browser regression includes typecheck, 354 unit tests, bundle budget, PWA privacy, production mount, UX runtime, Person Profile route + C5.7 insight, PersonWizard Directory, recommendation picker + all-eligible behavior, Directory export, System theme, lazy recovery, sanitized visual regression and Hourglass inspector.
+  - Canonical `netlify/eutakes` PR preview for the final product slice (#317) PASS; final-head privacy/identity-only request invariants are covered by the same accepted browser suite.
 
 ## C6 — Independent acceptance
 
@@ -137,6 +119,7 @@ Foundation merge is not equivalent to full PX5/PX6/PX7 product closure.
 | Branch / PR | State | Action |
 |---|---|---|
 | `main` | ACTIVE SOURCE OF TRUTH | Never rewrite/force-push |
+| `principal/c5-7-profile-candidate-insight` / #317 | MERGED / AUTO-DELETED | Do not recreate solely for docs |
 | `principal/c5-6-all-eligible` / #316 | MERGED / AUTO-DELETED | Do not recreate solely for docs |
 | `principal/c5-5-recommendation-picker` / #315 | MERGED / AUTO-DELETED | Do not recreate solely for docs |
 | `principal/people-integration` / #312 | MERGED / AUTO-DELETED | Do not reuse stale history |
@@ -161,7 +144,9 @@ No Wave 1 worker implementation branch is active.
 - `2026-08-26 — C4 PX5 profile foundation — PR #305 — merge 891369306414003dbea49371a02cff6c02c1c324 — CI 32958989117 PASS/PASS — canonical preview PASS`
 - `2026-08-26 — C5.1 Directory -> Profile — PR #311 — merge fcdf51f7317d893721dff79c3f4fc17f3e4a850d — CI 32960668620 PASS/PASS — canonical preview PASS`
 - `2026-08-26 — C5.2 Directory Add/Edit -> PersonWizard — PR #312 — merge 495d21cc970ee2d5379d88fe2d99882a5e5ffe66 — CI 32962712469 PASS/PASS — canonical preview PASS`
-- `2026-08-26 — C5.3 authenticated PX7 adapter — PR #313 — merge 0c1fdb45c1bfbb4f4a26b9c671df845c9d592a6c — final head 9e6b67741120c3191ae6f4d4a98141d92f2d70cb — CI 32966364434 PASS/PASS — 11 focused tests PASS — canonical preview PASS — branch auto-deleted`
-- `2026-08-26 — C5.4 PX7 reason localization — PR #314 — merge a9710362a672664d754ad615967038b08d98be6a — final head 2c7b7fe2a56751662d3858692cf29c22ddfc97f8 — CI 32967568203 PASS/PASS — 9 focused localization tests PASS — canonical preview PASS — branch auto-deleted`
-- `2026-08-26 — C5.5 recommendation picker — PR #315 — merge 46665eab2218f4b806497b281732d4f8b56c69ec — final head b65a83d3932fd3784b39fe5dbb039bc7efa8f3eb — CI 32970183672 PASS/PASS — canonical preview PASS — branch auto-deleted`
-- `2026-08-26 — C5.6 all-eligible escape hatch — PR #316 — merge 79407fd54230dc9f9b05edadc3cd767575d592b2 — final head 942b63076a8ddcd106e84e03193d463d62c0bd03 — CI 32971748866 PASS/PASS — canonical preview PASS — branch auto-deleted`
+- `2026-08-26 — C5.3 authenticated PX7 adapter — PR #313 — merge 0c1fdb45c1bfbb4f4a26b9c671df845c9d592a6c — CI 32966364434 PASS/PASS — canonical preview PASS — branch auto-deleted`
+- `2026-08-26 — C5.4 PX7 reason localization — PR #314 — merge a9710362a672664d754ad615967038b08d98be6a — CI 32967568203 PASS/PASS — canonical preview PASS — branch auto-deleted`
+- `2026-08-26 — C5.5 recommendation picker — PR #315 — merge 46665eab2218f4b806497b281732d4f8b56c69ec — CI 32970183672 PASS/PASS — canonical preview PASS — branch auto-deleted`
+- `2026-08-26 — C5.6 all-eligible escape hatch — PR #316 — merge 79407fd54230dc9f9b05edadc3cd767575d592b2 — CI 32971748866 PASS/PASS — canonical preview PASS — branch auto-deleted`
+- `2026-08-26 — C5.7 profile contextual PX7 insight — PR #317 — merge 57f509e870c240e0d187d7eadd4aa1efbf93423b — CI 32974585573 PASS/PASS — canonical preview PASS — branch auto-deleted`
+- `2026-08-26 — C5.8 integrated People gates — main product SHA 57f509e870c240e0d187d7eadd4aa1efbf93423b — main CI 32974975422 PASS/PASS — canonical final-slice preview PASS`
