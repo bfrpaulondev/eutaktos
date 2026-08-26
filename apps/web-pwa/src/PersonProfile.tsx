@@ -22,8 +22,9 @@ import { assignmentTypeLabel } from './lib/assignmentTypeCatalog';
 import type { Locale } from './lib/preferences';
 import {
   assignmentEvidenceForPerson,
+  assignmentIsUpcoming,
+  compareAssignmentsByInstant,
   currentAvailability,
-  dateIsOnOrAfterToday,
   isActiveResponsibility,
   isCurrentProfileRequest,
   nextAvailability,
@@ -104,7 +105,7 @@ const copy = {
     noAssignments: 'No hay asignaciones autorizadas para mostrar.', noOrganization: 'No hay contexto organizacional autorizado para mostrar.',
     historyBlocked: 'El historial de actividad requiere un permiso adicional. No se muestran eventos.', historyEmpty: 'No hay eventos de actividad autorizados para mostrar.',
     created: 'Perfil creado', updated: 'Perfil actualizado', deleted: 'Perfil eliminado', activity: 'Actividad registrada',
-    unavailableSection: 'Esta sección no está disponible ahora.', unauthenticatedSection: 'Es necesario iniciar sesión para consultar esta sección.', forbiddenSection: 'No tiene permiso para consultar esta sección.',
+    unavailableSection: 'Esta sección no está disponible ahora.', unauthenticatedSection: 'Es necesario iniciar sesión para consultar esta sección.', forbiddenSection: 'No tiene permiso para consultar esta secção.',
     timezone: 'Zona horaria', date: 'Fecha', profileIncomplete: 'Datos parciales', operationalContext: 'Contexto operativo', noCandidateInsight: 'Las recomendaciones de candidatos permanecen no disponibles hasta que PX7 proporcione evidencia aprobada.',
   },
 } as const;
@@ -185,8 +186,8 @@ function Summary({ data, locale, text, now }: { data: PersonProfileData; locale:
   const nextAway = data.availability.status === 'ready' && data.availability.value ? nextAvailability(data.availability.value, now) : undefined;
   const activeResponsibilities = data.responsibilities.status === 'ready' && data.responsibilities.value ? data.responsibilities.value.filter(value => value.personId === data.person.id && isActiveResponsibility(value, now)) : undefined;
   const assignments = data.assignments.status === 'ready' && data.assignments.value ? assignmentEvidenceForPerson(data.assignments.value, data.person.id) : undefined;
-  const completed = assignments?.filter(item => item.state === 'completed').sort((left, right) => `${right.date}T${right.localTime}`.localeCompare(`${left.date}T${left.localTime}`))[0];
-  const upcoming = assignments?.filter(item => item.state === 'assigned' && dateIsOnOrAfterToday(item.date, item.timezone, now))[0];
+  const completed = assignments?.filter(item => item.state === 'completed').sort((left, right) => compareAssignmentsByInstant(right, left))[0];
+  const upcoming = assignments?.filter(item => item.state === 'assigned' && assignmentIsUpcoming(item, now)).sort(compareAssignmentsByInstant)[0];
 
   return <Space direction="vertical" size="middle" style={{ display: 'flex' }}>
     <Card title={text.summary}>
@@ -231,9 +232,9 @@ function Assignments({ data, text, now }: { data: PersonProfileData; text: Copy;
   const state = sectionState(data.assignments, text);
   if (state) return <Card title={text.assignments}>{state}</Card>;
   const evidence = assignmentEvidenceForPerson(data.assignments.value!, data.person.id);
-  const upcoming = evidence.filter(item => item.state === 'assigned' && dateIsOnOrAfterToday(item.date, item.timezone, now));
-  const completed = evidence.filter(item => item.state === 'completed').sort((left, right) => `${right.date}T${right.localTime}`.localeCompare(`${left.date}T${left.localTime}`));
-  const cancelled = evidence.filter(item => item.state === 'cancelled').sort((left, right) => `${right.date}T${right.localTime}`.localeCompare(`${left.date}T${left.localTime}`));
+  const upcoming = evidence.filter(item => item.state === 'assigned' && assignmentIsUpcoming(item, now)).sort(compareAssignmentsByInstant);
+  const completed = evidence.filter(item => item.state === 'completed').sort((left, right) => compareAssignmentsByInstant(right, left));
+  const cancelled = evidence.filter(item => item.state === 'cancelled').sort((left, right) => compareAssignmentsByInstant(right, left));
   if (!evidence.length) return <Card title={text.assignments}><EmptySection description={text.noAssignments} /></Card>;
   return <Space direction="vertical" size="middle" style={{ display: 'flex' }}>
     <Card title={text.upcoming}>{upcoming.length ? <List dataSource={upcoming} renderItem={item => assignmentCard(item, text)} /> : <EmptySection description={text.noUpcoming} />}</Card>
