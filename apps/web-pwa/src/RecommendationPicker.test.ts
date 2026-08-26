@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { topRecommendationCandidates } from './RecommendationPicker';
+import { additionalEligibleCandidates, eligibleRecommendationCandidates, topRecommendationCandidates } from './RecommendationPicker';
 import type { RecommendationPersonDto } from './lib/peopleRecommendationApi';
 
 function candidate(personId: string, rank: number): RecommendationPersonDto {
@@ -15,24 +15,36 @@ function candidate(personId: string, rank: number): RecommendationPersonDto {
   });
 }
 
-describe('C5.5 recommendation picker projection', () => {
+describe('C5.6 recommendation picker projection', () => {
+  const candidates = [
+    candidate('a', 1),
+    candidate('b', 2),
+    candidate('c', 3),
+    candidate('d', 4),
+    candidate('e', 5),
+  ];
+
   it('shows the first three candidates in the exact canonical server order', () => {
-    const result = topRecommendationCandidates([
-      candidate('a', 1),
-      candidate('b', 2),
-      candidate('c', 3),
-      candidate('d', 4),
-    ]);
+    const result = topRecommendationCandidates(candidates);
     expect(result.map(item => [item.personId, item.rank])).toEqual([['a', 1], ['b', 2], ['c', 3]]);
   });
 
+  it('exposes every additional eligible candidate without recalculating rank', () => {
+    const result = additionalEligibleCandidates(candidates);
+    expect(result.map(item => [item.personId, item.rank])).toEqual([['d', 4], ['e', 5]]);
+    expect(eligibleRecommendationCandidates(candidates).map(item => item.personId)).toEqual(['a', 'b', 'c', 'd', 'e']);
+  });
+
   it('never repairs or reorders evidence in the presentation projection', () => {
-    const deliberatelyMalformedForPureHelper = [candidate('z', 2), candidate('m', 1), candidate('a', 3)];
+    const deliberatelyMalformedForPureHelper = [candidate('z', 2), candidate('m', 1), candidate('a', 3), candidate('x', 4)];
     expect(topRecommendationCandidates(deliberatelyMalformedForPureHelper, 3).map(item => item.personId)).toEqual(['z', 'm', 'a']);
+    expect(additionalEligibleCandidates(deliberatelyMalformedForPureHelper, 3).map(item => item.personId)).toEqual(['x']);
   });
 
   it('fails closed for an invalid display limit', () => {
     expect(topRecommendationCandidates([candidate('a', 1)], 0)).toEqual([]);
     expect(topRecommendationCandidates([candidate('a', 1)], 1.5)).toEqual([]);
+    expect(additionalEligibleCandidates([candidate('a', 1)], 0)).toEqual([]);
+    expect(additionalEligibleCandidates([candidate('a', 1)], 1.5)).toEqual([]);
   });
 });
