@@ -30,6 +30,7 @@ export * from './co-visit';
 export * from './midweek-meeting';
 export * from './duty-assignment';
 export * from './midweek-parts';
+export * from './recommendation-constraints';
 export {
   type StudentAssignmentId,
   type MeetingId as StudentAssignmentMeetingId,
