@@ -22,7 +22,7 @@ const noEligibility: EligibilityApi = {
 };
 
 function draft(displayName: string): PersonWizardDraft {
-  return { displayName, preferredLocale: 'pt-PT', active: true, householdIds: [], serviceGroupIds: [], eligibility: {} };
+  return { displayName, preferredLocale: 'pt-PT', active: true, householdIds: [], serviceGroupIds: [], eligibility: {}, responsibilities: [], availabilityPeriods: [] };
 }
 
 describe('Principal PX6 identity corrections', () => {

@@ -9,6 +9,7 @@ import {
   createPersonWizardDraft,
   createPersonWizardMutationGuard,
   isAmbiguousCreateOutcome,
+  isPersonWizardTemporalRangeValid,
   personWizardDisplayNameValid,
   personWizardHasChanges,
   personWizardStep,
@@ -19,8 +20,10 @@ import {
   type PersonWizardDraft,
 } from './PersonWizardModel';
 import type { EligibilityApi, EligibilityDecisionDto } from './lib/eligibilityApi';
+import type { AvailabilityApi, AvailabilityPeriodDto } from './lib/availabilityApi';
 import type { HouseholdDto, HouseholdsApi } from './lib/householdsApi';
 import type { PeopleApi, PersonProfileDto } from './lib/peopleApi';
+import type { ResponsibilitiesApi, ResponsibilityDto } from './lib/responsibilitiesApi';
 import type { ServiceGroupDto, ServiceGroupsApi } from './lib/serviceGroupsApi';
 
 function fixture() {
@@ -28,7 +31,9 @@ function fixture() {
   let households: HouseholdDto[] = [{ id: 'house-1', name: 'Casa Norte', memberIds: [] }];
   let groups: ServiceGroupDto[] = [{ id: 'group-1', name: 'Grupo 1', memberIds: [] }];
   let decisions: EligibilityDecisionDto[] = [];
-  const calls = { create: 0, update: 0, peopleList: 0, householdUpdate: 0, groupUpdate: 0, eligibilitySet: 0 };
+  let responsibilities: ResponsibilityDto[] = [];
+  let availability: AvailabilityPeriodDto[] = [];
+  const calls = { create: 0, update: 0, peopleList: 0, householdUpdate: 0, groupUpdate: 0, eligibilitySet: 0, responsibilityAssign: 0, availabilityAdd: 0 };
   const peopleApi: PeopleApi = {
     list: vi.fn(async () => { calls.peopleList += 1; return people.map(item => ({ ...item })); }),
     create: vi.fn(async input => { calls.create += 1; const value = { id: 'person-1', displayName: input.displayName, ...(input.preferredLocale ? { preferredLocale: input.preferredLocale } : {}), active: input.active ?? true }; people = [value]; return value; }),
@@ -46,20 +51,30 @@ function fixture() {
     list: vi.fn(async () => decisions.map(item => ({ ...item }))),
     set: vi.fn(async (_id, input) => { calls.eligibilitySet += 1; const value = { ...input, decidedAt: '2026-08-26T10:00:00.000Z' }; decisions = [...decisions.filter(item => item.assignmentTypeId !== input.assignmentTypeId), value]; return value; }),
   };
+  const responsibilitiesApi: ResponsibilitiesApi = {
+    list: vi.fn(async () => responsibilities.map(item => ({ ...item }))), get: vi.fn(), end: vi.fn(),
+    assign: vi.fn(async input => { calls.responsibilityAssign += 1; const value = { id: `responsibility-${calls.responsibilityAssign}`, ...input }; responsibilities = [...responsibilities, value]; return value; }),
+  };
+  const availabilityApi: AvailabilityApi = {
+    list: vi.fn(async () => availability.map(item => ({ ...item }))), remove: vi.fn(),
+    add: vi.fn(async (_personId, input) => { calls.availabilityAdd += 1; const value = { id: `availability-${calls.availabilityAdd}`, ...input }; availability = [...availability, value]; return value; }),
+  };
   return {
     calls,
-    apis: { people: peopleApi, households: householdsApi, serviceGroups: serviceGroupsApi, eligibility: eligibilityApi },
+    apis: { people: peopleApi, households: householdsApi, serviceGroups: serviceGroupsApi, eligibility: eligibilityApi, responsibilities: responsibilitiesApi, availability: availabilityApi },
     seedPeople(value: PersonProfileDto[]) { people = value; },
     seedHouseholds(value: HouseholdDto[]) { households = value; },
     seedGroups(value: ServiceGroupDto[]) { groups = value; },
     seedEligibility(value: EligibilityDecisionDto[]) { decisions = value; },
+    seedResponsibilities(value: ResponsibilityDto[]) { responsibilities = value; },
+    seedAvailability(value: AvailabilityPeriodDto[]) { availability = value; },
   };
 }
 
 function draft(change: Partial<PersonWizardDraft> = {}): PersonWizardDraft { return { ...createPersonWizardDraft('en'), ...change }; }
 
 describe('PersonWizard required scenarios', () => {
-  it('1. starts create with contract defaults', () => { expect(createPersonWizardDraft('pt-PT')).toEqual({ displayName: '', preferredLocale: 'pt-PT', active: true, householdIds: [], serviceGroupIds: [], eligibility: {} }); });
+  it('1. starts create with contract defaults', () => { expect(createPersonWizardDraft('pt-PT')).toEqual({ displayName: '', preferredLocale: 'pt-PT', active: true, householdIds: [], serviceGroupIds: [], eligibility: {}, responsibilities: [], availabilityPeriods: [] }); });
   it('2. advances to the next step', () => { expect(personWizardStep(0, 'next')).toBe(1); });
   it('3. returns to the previous step', () => { expect(personWizardStep(3, 'previous')).toBe(2); });
   it('4. rejects whitespace during validation', () => { expect(personWizardDisplayNameValid('   ')).toBe(false); });
@@ -158,5 +173,48 @@ describe('PersonWizard required scenarios', () => {
     expect(f.calls.eligibilitySet).toBe(1);
     await expect(savePersonWizard(input)).resolves.toMatchObject({ id: 'person-1' });
     expect(f.calls.eligibilitySet).toBe(1);
+  });
+
+  it('33. assigns an approved responsibility through the canonical contract and verifies it', async () => {
+    const f = fixture(); const person: PersonProfileDto = { id: 'person-1', displayName: 'Ana', preferredLocale: 'en', active: true }; f.seedPeople([person]);
+    const initial = createPersonWizardDraft('en', person); const value: PersonWizardDraft = { ...initial, responsibilities: [{ responsibilityKey: 'sound', startsAt: '2026-09-01T00:00:00.000Z', endsAt: '2026-09-15T00:00:00.000Z' }] };
+    await expect(savePersonWizard({ mode: 'edit', person, draft: value, initial, households: [], groups: [], canReadEligibility: true, canWriteEligibility: true, canReadResponsibilities: true, canWriteResponsibilities: true, canReadAvailability: true, canWriteAvailability: true, apis: f.apis })).resolves.toMatchObject({ id: 'person-1' });
+    expect(f.apis.responsibilities.assign).toHaveBeenCalledWith({ personId: 'person-1', responsibilityKey: 'sound', startsAt: '2026-09-01T00:00:00.000Z', endsAt: '2026-09-15T00:00:00.000Z' });
+    expect(f.calls.responsibilityAssign).toBe(1);
+  });
+
+  it('34. treats [startsAt, endsAt) boundaries as fail-closed when the end is equal to or before the start', () => {
+    expect(isPersonWizardTemporalRangeValid('2026-09-01T00:00:00.000Z', '2026-09-01T00:00:00.000Z', true)).toBe(false);
+    expect(isPersonWizardTemporalRangeValid('2026-09-02T00:00:00.000Z', '2026-09-01T00:00:00.000Z', true)).toBe(false);
+    expect(isPersonWizardTemporalRangeValid('2026-09-01T00:00:00.000Z', '2026-09-02T00:00:00.000Z', true)).toBe(true);
+  });
+
+  it('35. fails closed before a core write for an invalid responsibility interval or missing capability', async () => {
+    const f = fixture(); const invalid = draft({ displayName: 'Ana', responsibilities: [{ responsibilityKey: 'sound', startsAt: '2026-09-01T00:00:00.000Z', endsAt: '2026-09-01T00:00:00.000Z' }] });
+    await expect(savePersonWizard({ mode: 'create', draft: invalid, initial: draft(), households: [], groups: [], canReadEligibility: true, canWriteEligibility: true, canReadResponsibilities: true, canWriteResponsibilities: true, apis: f.apis })).rejects.toThrow('Invalid temporal values');
+    await expect(savePersonWizard({ mode: 'create', draft: draft({ displayName: 'Ana', responsibilities: [{ responsibilityKey: 'sound', startsAt: '2026-09-01T00:00:00.000Z' }] }), initial: draft(), households: [], groups: [], canReadEligibility: true, canWriteEligibility: true, canReadResponsibilities: true, canWriteResponsibilities: false, apis: f.apis })).rejects.toThrow('Forbidden');
+    expect(f.calls.create).toBe(0);
+  });
+
+  it('36. persists a dated absence with its canonical reason and never infers a boolean availability', async () => {
+    const f = fixture(); const person: PersonProfileDto = { id: 'person-1', displayName: 'Ana', preferredLocale: 'en', active: true }; f.seedPeople([person]); const initial = createPersonWizardDraft('en', person); const value: PersonWizardDraft = { ...initial, availabilityPeriods: [{ startsAt: '2026-09-04T00:00:00.000Z', endsAt: '2026-09-06T00:00:00.000Z', reasonCode: 'other' }] };
+    await savePersonWizard({ mode: 'edit', person, draft: value, initial, households: [], groups: [], canReadEligibility: true, canWriteEligibility: true, canReadResponsibilities: true, canWriteResponsibilities: true, canReadAvailability: true, canWriteAvailability: true, apis: f.apis });
+    expect(f.apis.availability.add).toHaveBeenCalledWith('person-1', { startsAt: '2026-09-04T00:00:00.000Z', endsAt: '2026-09-06T00:00:00.000Z', reasonCode: 'other' });
+    expect(f.calls.availabilityAdd).toBe(1);
+  });
+
+  it('37. resumes a dated absence after a failed refetch without duplicating the period', async () => {
+    const f = fixture(); const person: PersonProfileDto = { id: 'person-1', displayName: 'Ana', preferredLocale: 'en', active: true }; f.seedPeople([person]); const initial = createPersonWizardDraft('en', person); const value: PersonWizardDraft = { ...initial, availabilityPeriods: [{ startsAt: '2026-09-04T00:00:00.000Z', endsAt: '2026-09-06T00:00:00.000Z', reasonCode: 'away' }] };
+    const realPeopleList = f.apis.people.list; f.apis.people.list = vi.fn().mockRejectedValueOnce(new Error('Temporary refetch failure (503)')).mockImplementation(realPeopleList) as PeopleApi['list']; const input = { mode: 'edit' as const, person, draft: value, initial, households: [], groups: [], canReadEligibility: true, canWriteEligibility: true, canReadResponsibilities: true, canWriteResponsibilities: true, canReadAvailability: true, canWriteAvailability: true, apis: f.apis };
+    await expect(savePersonWizard(input)).rejects.toThrow('Temporary refetch failure'); expect(f.calls.availabilityAdd).toBe(1); await expect(savePersonWizard(input)).resolves.toMatchObject({ id: 'person-1' }); expect(f.calls.availabilityAdd).toBe(1);
+  });
+
+  it('38. fails closed before core creation when availability capability is absent', async () => {
+    const f = fixture(); await expect(savePersonWizard({ mode: 'create', draft: draft({ displayName: 'Ana', availabilityPeriods: [{ startsAt: '2026-09-04T00:00:00.000Z', endsAt: '2026-09-06T00:00:00.000Z', reasonCode: 'unavailable' }] }), initial: draft(), households: [], groups: [], canReadEligibility: true, canWriteEligibility: true, canReadAvailability: true, canWriteAvailability: false, apis: f.apis })).rejects.toThrow('Forbidden'); expect(f.calls.create).toBe(0);
+  });
+
+  it('39. reviews only pending responsibility and absence details without technical identifiers', () => {
+    const initial = draft({ displayName: 'Ana' }); const value: PersonWizardDraft = { ...initial, responsibilities: [{ responsibilityKey: 'sound', startsAt: '2026-09-01T00:00:00.000Z' }], availabilityPeriods: [{ startsAt: '2026-09-04T00:00:00.000Z', endsAt: '2026-09-06T00:00:00.000Z', reasonCode: 'other' }] };
+    const markup = renderToStaticMarkup(<PersonWizardReviewStep mode="edit" locale="en" draft={value} initial={initial} households={[]} groups={[]} labels={personWizardCopy.en.review} />); expect(markup).toContain('sound'); expect(markup).toContain('2026-09-04'); expect(markup).not.toContain('person-1'); expect(markup).not.toContain('tenant');
   });
 });
