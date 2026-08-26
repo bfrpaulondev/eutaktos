@@ -172,9 +172,9 @@ try {
   if (afterRoleRequests !== beforeRoleRequests) throw new Error('Role flow called the student-slot recommendation contract without a canonical role target');
   if (!await clickDialogButton('Designar função', 'Cancelar')) throw new Error('Role dialog cancel action was not found');
 
-  const beforeReplacementRequests = await evaluate(`window.__recommendationRequests.length`);
   await cdp.send('Page.navigate', { url: new URL('/designacoes', appUrl).toString() });
   await poll(async () => await evaluate(`Boolean(document.querySelector('#main')?.textContent?.includes('Diana Lopes')) && [...document.querySelectorAll('button')].some(node => (node.innerText || node.textContent || '').trim() === 'Substituir')`), 'Assignments workspace did not become ready');
+  const beforeReplacementRequests = await evaluate(`window.__recommendationRequests.length`);
   if (!await clickExactButton('Substituir')) throw new Error('Replace student action was not found');
   await poll(async () => await visibleDialog('Substituir'), 'Replace student dialog did not open');
   const replaceState = await poll(async () => await evaluate(`(() => {
