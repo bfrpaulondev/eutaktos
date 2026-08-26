@@ -70,6 +70,6 @@ describe('Netlify API adapter', () => {
       body: '{',
     });
     expect(malformed.statusCode).toBe(400);
-    expect(JSON.parse(result.body)).toEqual({ error: 'Invalid JSON body' });
+    expect(JSON.parse(malformed.body)).toEqual({ error: 'Invalid JSON body' });
   });
 });
