@@ -114,6 +114,15 @@ export function parsePeopleRecommendationResponse(value: unknown): PeopleRecomme
   if (root.contractVersion !== 'people-recommendation-v1' || root.evidenceContractVersion !== 'px7-evidence-v1' || root.inputContractVersion !== 'px7-recommendation-input-v1') throw new Error('Invalid recommendation response');
   if (!Array.isArray(root.candidates) || !Array.isArray(root.excluded)) throw new Error('Invalid recommendation response');
   const target = record(root.target);
+  const candidates = root.candidates.map(item => person(item, 'candidate'));
+  const excluded = root.excluded.map(item => person(item, 'excluded'));
+
+  // The server PX7 contract is authoritative for both rank and order. The browser
+  // rejects ambiguous evidence instead of sorting, repairing or recalculating it.
+  if (candidates.some((candidate, index) => candidate.rank !== index + 1)) throw new Error('Invalid recommendation response');
+  const personIds = [...candidates, ...excluded].map(item => item.personId);
+  if (new Set(personIds).size !== personIds.length) throw new Error('Invalid recommendation response');
+
   return Object.freeze({
     contractVersion: 'people-recommendation-v1',
     evidenceContractVersion: 'px7-evidence-v1',
@@ -126,8 +135,8 @@ export function parsePeopleRecommendationResponse(value: unknown): PeopleRecomme
       startsAt: nonEmptyString(target.startsAt),
       endsAt: nonEmptyString(target.endsAt),
     }),
-    candidates: Object.freeze(root.candidates.map(item => person(item, 'candidate'))),
-    excluded: Object.freeze(root.excluded.map(item => person(item, 'excluded'))),
+    candidates: Object.freeze(candidates),
+    excluded: Object.freeze(excluded),
   });
 }
 
