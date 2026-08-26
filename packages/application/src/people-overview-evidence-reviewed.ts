@@ -53,6 +53,14 @@ function reason(code: RecommendationReasonCode): RecommendationReason {
   return Object.freeze({ code });
 }
 
+function validateRecommendationWindow(input: DeterministicRecommendationInput): void {
+  const startsAt = Date.parse(input.startsAt);
+  const endsAt = Date.parse(input.endsAt);
+  if (!Number.isFinite(startsAt)) throw new Error('startsAt must be a valid ISO instant');
+  if (!Number.isFinite(endsAt)) throw new Error('endsAt must be a valid ISO instant');
+  if (endsAt <= startsAt) throw new Error('recommendation window must end after it starts');
+}
+
 function normalizeLongIntervalReasons(result: DeterministicRecommendation): DeterministicRecommendation {
   const factualDays = result.candidates
     .map(candidate => candidate.history.daysSinceLastCompletedAssignment)
@@ -82,11 +90,14 @@ function normalizeLongIntervalReasons(result: DeterministicRecommendation): Dete
  * proves that a valid candidate has the longest factual interval among at least
  * two candidates with completed history. Missing history is never converted into
  * positive long-interval evidence and excluded candidates never receive it.
+ * The target instant window is validated before reading candidates so malformed
+ * input cannot become conditionally valid merely because the candidate list is empty.
  */
 export function deterministicRecommendationEvidence(
   context: AccessContext,
   input: DeterministicRecommendationInput,
 ): DeterministicRecommendation {
+  validateRecommendationWindow(input);
   return normalizeLongIntervalReasons(buildRawRecommendationEvidence(context, input));
 }
 
