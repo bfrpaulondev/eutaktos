@@ -11,6 +11,57 @@ body,
   min-height: 100dvh;
 }
 
+/*
+ * The task shell gives desktop Content an explicit width plus horizontal
+ * padding. Keep that padding inside the declared width and allow nested Ant
+ * flex/layout surfaces to shrink instead of increasing document.scrollWidth.
+ */
+#root,
+.ant-layout,
+.ant-layout-content,
+#main {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/*
+ * Recommendation cards can contain long localized evidence. Ant Card headers
+ * normally keep title and extra on one flex row, which can create a minimum
+ * width wider than a phone viewport. Scope wrapping to the PX7 picker only;
+ * do not hide overflow or truncate evidence.
+ */
+section[aria-labelledby^='recommendation-picker-'],
+section[aria-labelledby^='recommendation-picker-'] .ant-space,
+section[aria-labelledby^='recommendation-picker-'] .ant-card,
+section[aria-labelledby^='recommendation-picker-'] .ant-card-head,
+section[aria-labelledby^='recommendation-picker-'] .ant-card-head-wrapper,
+section[aria-labelledby^='recommendation-picker-'] .ant-card-head-title,
+section[aria-labelledby^='recommendation-picker-'] .ant-card-extra,
+section[aria-labelledby^='recommendation-picker-'] .ant-card-body {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+
+section[aria-labelledby^='recommendation-picker-'] .ant-card-head-wrapper {
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+section[aria-labelledby^='recommendation-picker-'] .ant-card-head-title,
+section[aria-labelledby^='recommendation-picker-'] .ant-card-extra,
+section[aria-labelledby^='recommendation-picker-'] .ant-typography,
+section[aria-labelledby^='recommendation-picker-'] .ant-tag {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+section[aria-labelledby^='recommendation-picker-'] .ant-card-extra {
+  margin-inline-start: 0;
+}
+
 .skip-link {
   position: fixed !important;
   top: -80px;

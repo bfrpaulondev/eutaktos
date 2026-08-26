@@ -113,9 +113,9 @@ function OrganizationWorkspace({ locale }: { locale: Locale }) {
   return <Stack spacing={2}>
     <Paper component="section" aria-labelledby="organization-title" sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3 }}>
       <Stack spacing={2.25}>
-        <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" gap={2} alignItems={{ md: 'flex-end' }}>
-          <Box sx={{ maxWidth: 760 }}><Typography variant="overline" color="primary.main">{text.organization}</Typography><Typography variant="h2" id="organization-title" sx={{ fontSize: { xs: '2rem', sm: '2.6rem' } }}>{text.organizationTitle}</Typography><Typography color="text.secondary" sx={{ mt: 1 }}>{text.organizationSubtitle}</Typography></Box>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ flexShrink: 0 }}><Button variant="outlined" onClick={() => setHourglassOpen(true)}>{text.hourglass}</Button><Button ref={auditButtonRef} variant="outlined" onClick={() => setAuditOpen(true)}>{text.audit}</Button><Button ref={accessButtonRef} variant="outlined" onClick={() => setAccessOpen(true)}>{text.access}</Button></Stack>
+        <Stack direction={{ xs: 'column', lg: 'row' }} justifyContent="space-between" gap={2} alignItems={{ lg: 'flex-end' }}>
+          <Box sx={{ maxWidth: 760, minWidth: 0 }}><Typography variant="overline" color="primary.main">{text.organization}</Typography><Typography variant="h2" id="organization-title" sx={{ fontSize: { xs: '2rem', sm: '2.6rem' } }}>{text.organizationTitle}</Typography><Typography color="text.secondary" sx={{ mt: 1 }}>{text.organizationSubtitle}</Typography></Box>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} useFlexGap flexWrap="wrap" sx={{ flexShrink: 0 }}><Button variant="outlined" onClick={() => setHourglassOpen(true)}>{text.hourglass}</Button><Button ref={auditButtonRef} variant="outlined" onClick={() => setAuditOpen(true)}>{text.audit}</Button><Button ref={accessButtonRef} variant="outlined" onClick={() => setAccessOpen(true)}>{text.access}</Button></Stack>
         </Stack>
         <Divider />
         <Stack component="nav" aria-label={text.organizationTitle} direction="row" gap={0.75} flexWrap="wrap" useFlexGap>{views.map(item => <Button key={item} variant={navView === item ? 'contained' : 'text'} aria-current={navView === item ? 'page' : undefined} onClick={() => selectView(item)}>{labels[item]}</Button>)}</Stack>
