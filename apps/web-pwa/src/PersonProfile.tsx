@@ -24,6 +24,7 @@ import {
   assignmentEvidenceForPerson,
   assignmentIsUpcoming,
   compareAssignmentsByInstant,
+  compareAssignmentsByInstantDescending,
   currentAvailability,
   isActiveResponsibility,
   isCurrentProfileRequest,
@@ -186,7 +187,7 @@ function Summary({ data, locale, text, now }: { data: PersonProfileData; locale:
   const nextAway = data.availability.status === 'ready' && data.availability.value ? nextAvailability(data.availability.value, now) : undefined;
   const activeResponsibilities = data.responsibilities.status === 'ready' && data.responsibilities.value ? data.responsibilities.value.filter(value => value.personId === data.person.id && isActiveResponsibility(value, now)) : undefined;
   const assignments = data.assignments.status === 'ready' && data.assignments.value ? assignmentEvidenceForPerson(data.assignments.value, data.person.id) : undefined;
-  const completed = assignments?.filter(item => item.state === 'completed').sort((left, right) => compareAssignmentsByInstant(right, left))[0];
+  const completed = assignments?.filter(item => item.state === 'completed').sort(compareAssignmentsByInstantDescending)[0];
   const upcoming = assignments?.filter(item => item.state === 'assigned' && assignmentIsUpcoming(item, now)).sort(compareAssignmentsByInstant)[0];
 
   return <Space direction="vertical" size="middle" style={{ display: 'flex' }}>
@@ -233,8 +234,8 @@ function Assignments({ data, text, now }: { data: PersonProfileData; text: Copy;
   if (state) return <Card title={text.assignments}>{state}</Card>;
   const evidence = assignmentEvidenceForPerson(data.assignments.value!, data.person.id);
   const upcoming = evidence.filter(item => item.state === 'assigned' && assignmentIsUpcoming(item, now)).sort(compareAssignmentsByInstant);
-  const completed = evidence.filter(item => item.state === 'completed').sort((left, right) => compareAssignmentsByInstant(right, left));
-  const cancelled = evidence.filter(item => item.state === 'cancelled').sort((left, right) => compareAssignmentsByInstant(right, left));
+  const completed = evidence.filter(item => item.state === 'completed').sort(compareAssignmentsByInstantDescending);
+  const cancelled = evidence.filter(item => item.state === 'cancelled').sort(compareAssignmentsByInstantDescending);
   if (!evidence.length) return <Card title={text.assignments}><EmptySection description={text.noAssignments} /></Card>;
   return <Space direction="vertical" size="middle" style={{ display: 'flex' }}>
     <Card title={text.upcoming}>{upcoming.length ? <List dataSource={upcoming} renderItem={item => assignmentCard(item, text)} /> : <EmptySection description={text.noUpcoming} />}</Card>
