@@ -27,6 +27,7 @@ Operational source of truth for the current Eutaktos People correction/integrati
 - C5.3 authenticated PX7 recommendation adapter / PR #313: `0c1fdb45c1bfbb4f4a26b9c671df845c9d592a6c`.
 - C5.4 PX7 localized reason/warning copy / PR #314: `a9710362a672664d754ad615967038b08d98be6a`.
 - C5.5 explainable recommendation picker / PR #315: `46665eab2218f4b806497b281732d4f8b56c69ec`.
+- C5.6 all-eligible escape hatch / PR #316: `79407fd54230dc9f9b05edadc3cd767575d592b2`.
 
 Foundation merge is not equivalent to full PX5/PX6/PX7 product closure.
 
@@ -59,7 +60,7 @@ Foundation merge is not equivalent to full PX5/PX6/PX7 product closure.
 - PR #307; final head `e97269ff5d52f8abbc52eaa92dff52d3e665f0c0`; merge `58964b7c0080dd89b92459241de71ccdda111f6c`.
 - CI `32957109650`: PASS/PASS; canonical preview PASS; branch auto-deleted.
 - Eligibility precedence, tenant/capability isolation, hard constraints, completed-only history and timezone-explicit recommendation window verified.
-- Still open for full PX7: C5.6 `Ver todos os elegíveis`.
+- PX7 backend + localized explainability + picker + all-eligible human-control surface are now integrated; master checkbox synchronization remains C7.
 
 ## C4 — PX5 unified person profile foundation correction
 
@@ -104,7 +105,14 @@ Foundation merge is not equivalent to full PX5/PX6/PX7 product closure.
   - Client rejects non-sequential ranks, duplicate identities and candidate/excluded identity overlap instead of reinterpreting malformed server evidence.
   - Browser regression proves recommendation selection binds to the actual assignment state, replacement reuses the picker, request inputs remain `meetingId + slotId` only under React StrictMode, person data does not enter URL/storage, and arbitrary role assignment does not call the unsupported student recommendation target.
   - Manual selector remains visible intentionally until C5.6 provides the explicit all-eligible escape hatch; `principal/c5-5-recommendation-picker` confirmed auto-deleted after merge.
-- [ ] **C5.6** Add `Ver todos os elegíveis` escape hatch.
+- [x] **C5.6** Add `Ver todos os elegíveis` escape hatch.
+  - PR #316; final head `942b63076a8ddcd106e84e03193d463d62c0bd03`; squash merge `79407fd54230dc9f9b05edadc3cd767575d592b2`.
+  - CI `32971748866`: quality PASS + browser-regression PASS; canonical `netlify/eutakes/deploy-preview` PASS at `https://deploy-preview-316--eutakes.netlify.app`.
+  - Default assignment/replacement surface stays on the server-ranked top three; `Ver todos os elegíveis` reveals only additional PX7 candidates in canonical server order.
+  - Rank-4 selection is proven to bind to the real assignment state; browser never recalculates eligibility or rank.
+  - Raw active-person selector is hidden by default and remains available only through explicit `Selecionar manualmente`, with disclosure that active status does not assert eligibility, availability or absence of conflict.
+  - Recommendation requests remain identity-only `meetingId + slotId`; no person evidence is added to URL/storage; arbitrary role flow remains outside unsupported student targeting.
+  - `principal/c5-6-all-eligible` confirmed auto-deleted after merge.
 - [ ] **C5.7** Connect PX5.9 contextual candidate insight only to approved PX7 evidence.
 - [ ] **C5.8** Run integrated quality/browser/security/privacy gates and canonical preview.
 
@@ -129,6 +137,7 @@ Foundation merge is not equivalent to full PX5/PX6/PX7 product closure.
 | Branch / PR | State | Action |
 |---|---|---|
 | `main` | ACTIVE SOURCE OF TRUTH | Never rewrite/force-push |
+| `principal/c5-6-all-eligible` / #316 | MERGED / AUTO-DELETED | Do not recreate solely for docs |
 | `principal/c5-5-recommendation-picker` / #315 | MERGED / AUTO-DELETED | Do not recreate solely for docs |
 | `principal/people-integration` / #312 | MERGED / AUTO-DELETED | Do not reuse stale history |
 | `principal/people-recommendation-integration` / #313 | MERGED / AUTO-DELETED | Do not recreate solely for docs |
@@ -155,3 +164,4 @@ No Wave 1 worker implementation branch is active.
 - `2026-08-26 — C5.3 authenticated PX7 adapter — PR #313 — merge 0c1fdb45c1bfbb4f4a26b9c671df845c9d592a6c — final head 9e6b67741120c3191ae6f4d4a98141d92f2d70cb — CI 32966364434 PASS/PASS — 11 focused tests PASS — canonical preview PASS — branch auto-deleted`
 - `2026-08-26 — C5.4 PX7 reason localization — PR #314 — merge a9710362a672664d754ad615967038b08d98be6a — final head 2c7b7fe2a56751662d3858692cf29c22ddfc97f8 — CI 32967568203 PASS/PASS — 9 focused localization tests PASS — canonical preview PASS — branch auto-deleted`
 - `2026-08-26 — C5.5 recommendation picker — PR #315 — merge 46665eab2218f4b806497b281732d4f8b56c69ec — final head b65a83d3932fd3784b39fe5dbb039bc7efa8f3eb — CI 32970183672 PASS/PASS — canonical preview PASS — branch auto-deleted`
+- `2026-08-26 — C5.6 all-eligible escape hatch — PR #316 — merge 79407fd54230dc9f9b05edadc3cd767575d592b2 — final head 942b63076a8ddcd106e84e03193d463d62c0bd03 — CI 32971748866 PASS/PASS — canonical preview PASS — branch auto-deleted`
