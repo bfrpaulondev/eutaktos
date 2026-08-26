@@ -28,4 +28,10 @@ describe('People Directory filters', () => {
     const limited: PeopleDirectoryDto = { ...directory, capabilities: { writePeople: false, availability: false, eligibility: false, responsibilities: false, schedule: false }, filters: { groups: directory.filters.groups, responsibilityKeys: [], assignmentTypeIds: [] } };
     expect(sanitizePeopleDirectoryFilters({ status: 'active', availability: 'unavailable', groupId: 'unknown', eligibilityTypeId: 'unknown', responsibilityKey: 'unknown' }, limited)).toEqual({ status: 'active', availability: 'all' });
   });
+
+  it('preserves the stable frozen filter reference when sanitization makes no change', () => {
+    const filters = peopleDirectoryFiltersFromSearch('?pf_status=active&pf_availability=available&pf_group=group-1&pf_eligibility=builtin%3Areading&pf_responsibility=secretary');
+    expect(Object.isFrozen(filters)).toBe(true);
+    expect(sanitizePeopleDirectoryFilters(filters, directory)).toBe(filters);
+  });
 });
