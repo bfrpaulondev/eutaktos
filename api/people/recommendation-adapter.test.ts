@@ -49,7 +49,7 @@ function meeting(state: MidweekMeeting['state'] = 'published'): MidweekMeeting {
 }
 
 describe('C5.3 authorized PX7 adapter', () => {
-  it('derives assignment facts on the server and excludes foreign-tenant people', () => {
+  it('derives assignment facts on the server, minimizes output and excludes foreign-tenant people', () => {
     const context = createAccessContext({ tenantId: 'tenant-a', actorId: 'actor-a', capabilities: FULL_READ });
     const result = buildAuthorizedMidweekRecommendation(
       context,
@@ -76,6 +76,12 @@ describe('C5.3 authorized PX7 adapter', () => {
     expect(result.excluded.find(item => item.personId === 'not-eligible')?.reasons.map(item => item.code)).toContain('NOT_ELIGIBLE');
     expect(result.excluded.find(item => item.personId === 'away')?.reasons.map(item => item.code)).toContain('AWAY_DURING_MEETING');
     expect([...result.candidates, ...result.excluded].some(item => item.personId === 'foreign')).toBe(false);
+
+    const publicJson = JSON.stringify(result);
+    expect(publicJson).toContain('Person eligible');
+    for (const forbidden of ['tenantId', 'actorId', 'capabilities', 'phone', 'emergencyContacts']) {
+      expect(publicJson).not.toContain(forbidden);
+    }
   });
 
   it('fails closed when an evidence capability is missing', () => {
