@@ -202,6 +202,30 @@ describe('PeopleDirectoryService', () => {
     expect(unitOfWork.updates).toHaveLength(1);
   });
 
+  it('treats ordinary contact updates as full replacement rather than a merge with prior fields', () => {
+    const original = personFixture({ ordinaryContact: { phone: '+351 900 000 000', email: 'prior@example.test', address: 'Rua Anterior' } });
+    const unitOfWork = new FakePeopleUnitOfWork([original]);
+    const service = new PeopleDirectoryService(unitOfWork, runtime());
+
+    const updated = service.updateProfile(context(['people.read', 'people.write']), { personId: 'person-1', ordinaryContact: { email: 'next@example.test' } });
+
+    expect(updated.ordinaryContact).toEqual({ email: 'next@example.test' });
+    expect(unitOfWork.updates[0]?.auditEvent.changedFields).toEqual(['ordinaryContact']);
+  });
+
+  it('does not create audit or event noise when a normalized contact is semantically unchanged despite key order', () => {
+    const original = personFixture({ ordinaryContact: { email: 'person@example.test', address: 'Rua Um', phone: '+351 900 000 000' } });
+    const unitOfWork = new FakePeopleUnitOfWork([original]);
+    const service = new PeopleDirectoryService(unitOfWork, runtime());
+
+    const result = service.updateProfile(context(['people.read', 'people.write']), {
+      personId: 'person-1', ordinaryContact: { phone: ' +351  900 000 000 ', email: ' person@example.test ', address: ' Rua  Um ' },
+    });
+
+    expect(result).toBe(original);
+    expect(unitOfWork.updates).toHaveLength(0);
+  });
+
   it('does not create audit noise for a no-op profile update', () => {
     const original = personFixture();
     const unitOfWork = new FakePeopleUnitOfWork([original]);

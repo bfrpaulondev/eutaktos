@@ -197,8 +197,20 @@ try {
 
   if (!await clickText('Editar contactos')) throw new Error('Contacts edit action was not found');
   if (!await setInput('Telefone', '+351 900 000 002')) throw new Error('Phone input was not found');
-  if (!await setInput('E-mail', 'contact@example.test')) throw new Error('Email input was not found');
-  if (!await setInput('Morada', 'Rua de teste')) throw new Error('Address input was not found');
+  if (!await setInput('E-mail', 'invalid')) throw new Error('Email input was not found for local validation');
+  if (!await evaluate(`(() => { const save = [...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === 'Guardar'); save?.click(); return Boolean(save); })()`)) throw new Error('Contacts save action was not found for invalid-email validation');
+  await poll(async () => {
+    const state = await pageState();
+    return state.main.includes('Introduza um e-mail válido.') && state.requests.filter(request => request.method === 'PUT').length === 0;
+  }, 'Invalid email did not render a field error or incorrectly sent a PUT');
+  if (!await setInput('E-mail', 'contact@example.test')) throw new Error('Email input was not found for address validation');
+  if (!await setInput('Morada', 'x'.repeat(501))) throw new Error('Address input was not found for local validation');
+  if (!await evaluate(`(() => { const save = [...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === 'Guardar'); save?.click(); return Boolean(save); })()`)) throw new Error('Contacts save action was not found for oversized-address validation');
+  await poll(async () => {
+    const state = await pageState();
+    return state.main.includes('A morada não pode exceder 500 caracteres.') && state.requests.filter(request => request.method === 'PUT').length === 0;
+  }, 'Oversized address did not render a field error or incorrectly sent a PUT');
+  if (!await setInput('Morada', 'Rua de teste')) throw new Error('Address input was not found for valid save');
   await evaluate(`(() => {
     const save = [...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === 'Guardar');
     save?.click(); save?.click();
@@ -254,7 +266,7 @@ try {
     return state.href.includes('view=profile') && state.href.includes('person=person-px5') && state.main.includes('Resumo');
   }, 'Forward did not restore the profile');
 
-  process.stdout.write('PX5 browser regression passed: sanitized Directory → Profile → Contacts retry/empty/edit/save/refetch/403, duplicate-save guard, PII boundary, Back/Forward, localized assignment evidence and state filter.\n');
+  process.stdout.write('PX5 browser regression passed: sanitized Directory → Profile → Contacts retry/empty/local-validation/edit/save/refetch/403, duplicate-save guard, PII boundary, Back/Forward, localized assignment evidence and state filter.\n');
 } finally {
   try { cdp?.close(); } catch {}
   browser?.kill('SIGTERM');

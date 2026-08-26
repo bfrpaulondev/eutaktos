@@ -22,7 +22,7 @@ import Typography from 'antd/es/typography';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { assignmentTypeLabel } from './lib/assignmentTypeCatalog';
 import type { Locale } from './lib/preferences';
-import { ordinaryContactApi } from './lib/ordinaryContactApi';
+import { ordinaryContactApi, type OrdinaryContactDto } from './lib/ordinaryContactApi';
 import { createOrdinaryContactMutationGuard } from './lib/ordinaryContactMutationGuard';
 import {
   assignmentEvidenceForPerson,
@@ -68,7 +68,7 @@ const copy = {
     available: 'Disponível', unavailable: 'Indisponível', noGroups: 'Sem grupo registado', noHousehold: 'Sem agregado registado', none: 'Não disponível', noResponsibilities: 'Sem responsabilidade ativa registada',
     noCompleted: 'Sem designação concluída registada', noUpcoming: 'Sem próxima designação registada', noPeriods: 'Sem períodos de ausência registados', noEligibility: 'Sem decisões de elegibilidade registadas',
     emergency: 'Contactos de emergência autorizados', ordinaryContacts: 'Contactos de perfil', ordinaryBlocked: 'Os contactos de perfil não estão disponíveis com as permissões atuais.', ordinaryEmpty: 'Não existem contactos de perfil registados.',
-    noContacts: 'Não existem contactos de emergência autorizados para mostrar.', relation: 'Relação', phone: 'Telefone', email: 'E-mail', address: 'Morada', editContacts: 'Editar contactos', save: 'Guardar', cancel: 'Cancelar', saving: 'A guardar…', contactSaveError: 'Não foi possível guardar os contactos. Tente novamente.', enabled: 'Elegível', disabled: 'Não elegível', decided: 'Decisão registada', eligibilityExplanation: 'A elegibilidade é uma decisão explícita autorizada para este tipo de designação; não é inferida a partir de disponibilidade, histórico ou atributos pessoais, nem por si só confirma disponibilidade ou garante uma recomendação.', enabledExplanation: 'A decisão explícita atual permite esta designação.', disabledExplanation: 'A decisão explícita atual não permite esta designação.',
+    noContacts: 'Não existem contactos de emergência autorizados para mostrar.', relation: 'Relação', phone: 'Telefone', email: 'E-mail', address: 'Morada', editContacts: 'Editar contactos', save: 'Guardar', cancel: 'Cancelar', saving: 'A guardar…', contactSaveError: 'Não foi possível guardar os contactos. Tente novamente.', contactPhoneTooLong: 'O telefone não pode exceder 40 caracteres.', contactEmailInvalid: 'Introduza um e-mail válido.', contactEmailTooLong: 'O e-mail não pode exceder 254 caracteres.', contactAddressTooLong: 'A morada não pode exceder 500 caracteres.', contactPhoneHint: 'Máximo de 40 caracteres.', contactEmailHint: 'Máximo de 254 caracteres.', contactAddressHint: 'Máximo de 500 caracteres.', enabled: 'Elegível', disabled: 'Não elegível', decided: 'Decisão registada', eligibilityExplanation: 'A elegibilidade é uma decisão explícita autorizada para este tipo de designação; não é inferida a partir de disponibilidade, histórico ou atributos pessoais, nem por si só confirma disponibilidade ou garante uma recomendação.', enabledExplanation: 'A decisão explícita atual permite esta designação.', disabledExplanation: 'A decisão explícita atual não permite esta designação.',
     current: 'Atual', upcoming: 'Futuros', past: 'Passados', away: 'Ausência', unavailableReason: 'Indisponível', other: 'Outro', filterState: 'Estado', filterRole: 'Função', allStates: 'Todos os estados', allRoles: 'Todas as funções', noFilteredAssignments: 'Não existem designações com estes filtros.',
     assigned: 'Designada', completed: 'Concluída', cancelled: 'Cancelada', student: 'Estudante', assistant: 'Ajudante',
     noAssignments: 'Não existem designações autorizadas para mostrar.', noOrganization: 'Não existe contexto organizacional autorizado para mostrar.',
@@ -87,7 +87,7 @@ const copy = {
     available: 'Available', unavailable: 'Unavailable', noGroups: 'No recorded group', noHousehold: 'No recorded household', none: 'Unavailable', noResponsibilities: 'No active responsibility recorded',
     noCompleted: 'No completed assignment recorded', noUpcoming: 'No upcoming assignment recorded', noPeriods: 'No away periods recorded', noEligibility: 'No eligibility decisions recorded',
     emergency: 'Authorized emergency contacts', ordinaryContacts: 'Profile contacts', ordinaryBlocked: 'Profile contacts are unavailable with the current permissions.', ordinaryEmpty: 'There are no recorded profile contacts.',
-    noContacts: 'There are no authorized emergency contacts to show.', relation: 'Relationship', phone: 'Phone', email: 'Email', address: 'Address', editContacts: 'Edit contacts', save: 'Save', cancel: 'Cancel', saving: 'Saving…', contactSaveError: 'Contacts could not be saved. Try again.', enabled: 'Eligible', disabled: 'Not eligible', decided: 'Recorded decision', eligibilityExplanation: 'Eligibility is an authorized explicit decision for this assignment type; it is not inferred from availability, history or personal attributes, and it does not itself establish availability or guarantee a recommendation.', enabledExplanation: 'The current explicit decision permits this assignment.', disabledExplanation: 'The current explicit decision does not permit this assignment.',
+    noContacts: 'There are no authorized emergency contacts to show.', relation: 'Relationship', phone: 'Phone', email: 'Email', address: 'Address', editContacts: 'Edit contacts', save: 'Save', cancel: 'Cancel', saving: 'Saving…', contactSaveError: 'Contacts could not be saved. Try again.', contactPhoneTooLong: 'Phone cannot exceed 40 characters.', contactEmailInvalid: 'Enter a valid email address.', contactEmailTooLong: 'Email cannot exceed 254 characters.', contactAddressTooLong: 'Address cannot exceed 500 characters.', contactPhoneHint: 'Maximum 40 characters.', contactEmailHint: 'Maximum 254 characters.', contactAddressHint: 'Maximum 500 characters.', enabled: 'Eligible', disabled: 'Not eligible', decided: 'Recorded decision', eligibilityExplanation: 'Eligibility is an authorized explicit decision for this assignment type; it is not inferred from availability, history or personal attributes, and it does not itself establish availability or guarantee a recommendation.', enabledExplanation: 'The current explicit decision permits this assignment.', disabledExplanation: 'The current explicit decision does not permit this assignment.',
     current: 'Current', upcoming: 'Future', past: 'Past', away: 'Away', unavailableReason: 'Unavailable', other: 'Other', filterState: 'State', filterRole: 'Role', allStates: 'All states', allRoles: 'All roles', noFilteredAssignments: 'There are no assignments matching these filters.',
     assigned: 'Assigned', completed: 'Completed', cancelled: 'Cancelled', student: 'Student', assistant: 'Assistant',
     noAssignments: 'There are no authorized assignments to show.', noOrganization: 'There is no authorized organization context to show.',
@@ -106,7 +106,7 @@ const copy = {
     available: 'Disponible', unavailable: 'No disponible', noGroups: 'Sin grupo registrado', noHousehold: 'Sin grupo familiar registrado', none: 'No disponible', noResponsibilities: 'Sin responsabilidad activa registrada',
     noCompleted: 'Sin asignación completada registrada', noUpcoming: 'Sin próxima asignación registrada', noPeriods: 'Sin períodos de ausencia registrados', noEligibility: 'Sin decisiones de elegibilidad registradas',
     emergency: 'Contactos de emergencia autorizados', ordinaryContacts: 'Contactos del perfil', ordinaryBlocked: 'Los contactos del perfil no están disponibles con los permisos actuales.', ordinaryEmpty: 'No hay contactos del perfil registrados.',
-    noContacts: 'No hay contactos de emergencia autorizados para mostrar.', relation: 'Relación', phone: 'Teléfono', email: 'Correo electrónico', address: 'Dirección', editContacts: 'Editar contactos', save: 'Guardar', cancel: 'Cancelar', saving: 'Guardando…', contactSaveError: 'No se pudieron guardar los contactos. Inténtelo de nuevo.', enabled: 'Elegible', disabled: 'No elegible', decided: 'Decisión registrada', eligibilityExplanation: 'La elegibilidad es una decisión explícita autorizada para este tipo de asignación; no se infiere de disponibilidad, historial o atributos personales, ni por sí sola establece la disponibilidad o garantiza una recomendación.', enabledExplanation: 'La decisión explícita actual permite esta asignación.', disabledExplanation: 'La decisión explícita actual no permite esta asignación.',
+    noContacts: 'No hay contactos de emergencia autorizados para mostrar.', relation: 'Relación', phone: 'Teléfono', email: 'Correo electrónico', address: 'Dirección', editContacts: 'Editar contactos', save: 'Guardar', cancel: 'Cancelar', saving: 'Guardando…', contactSaveError: 'No se pudieron guardar los contactos. Inténtelo de nuevo.', contactPhoneTooLong: 'El teléfono no puede superar 40 caracteres.', contactEmailInvalid: 'Introduzca un correo electrónico válido.', contactEmailTooLong: 'El correo electrónico no puede superar 254 caracteres.', contactAddressTooLong: 'La dirección no puede superar 500 caracteres.', contactPhoneHint: 'Máximo 40 caracteres.', contactEmailHint: 'Máximo 254 caracteres.', contactAddressHint: 'Máximo 500 caracteres.', enabled: 'Elegible', disabled: 'No elegible', decided: 'Decisión registrada', eligibilityExplanation: 'La elegibilidad es una decisión explícita autorizada para este tipo de asignación; no se infiere de disponibilidad, historial o atributos personales, ni por sí sola establece la disponibilidad o garantiza una recomendación.', enabledExplanation: 'La decisión explícita actual permite esta asignación.', disabledExplanation: 'La decisión explícita actual no permite esta asignación.',
     current: 'Actual', upcoming: 'Futuros', past: 'Pasados', away: 'Ausencia', unavailableReason: 'No disponible', other: 'Otro', filterState: 'Estado', filterRole: 'Función', allStates: 'Todos los estados', allRoles: 'Todas las funciones', noFilteredAssignments: 'No hay asignaciones con estos filtros.',
     assigned: 'Asignada', completed: 'Completada', cancelled: 'Cancelada', student: 'Estudiante', assistant: 'Ayudante',
     noAssignments: 'No hay asignaciones autorizadas para mostrar.', noOrganization: 'No hay contexto organizacional autorizado para mostrar.',
@@ -118,6 +118,35 @@ const copy = {
 } as const;
 
 type Copy = (typeof copy)[Locale];
+type OrdinaryContactField = keyof OrdinaryContactDto;
+type OrdinaryContactFieldErrors = Readonly<Partial<Record<OrdinaryContactField, string>>>;
+
+function normalizedContactDraft(value: OrdinaryContactDto): OrdinaryContactDto {
+  const phone = value.phone?.trim().replace(/\s+/g, ' ');
+  const email = value.email?.trim();
+  const address = value.address?.trim().replace(/\s+/g, ' ');
+  return { ...(phone ? { phone } : {}), ...(email ? { email } : {}), ...(address ? { address } : {}) };
+}
+
+export function validateOrdinaryContactDraft(value: OrdinaryContactDto, text: Pick<Copy, 'contactPhoneTooLong' | 'contactEmailInvalid' | 'contactEmailTooLong' | 'contactAddressTooLong'>): OrdinaryContactFieldErrors {
+  const draft = normalizedContactDraft(value);
+  const errors: Partial<Record<OrdinaryContactField, string>> = {};
+  if (draft.phone && draft.phone.length > 40) errors.phone = text.contactPhoneTooLong;
+  if (draft.email && draft.email.length > 254) errors.email = text.contactEmailTooLong;
+  else if (draft.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email)) errors.email = text.contactEmailInvalid;
+  if (draft.address && draft.address.length > 500) errors.address = text.contactAddressTooLong;
+  return errors;
+}
+
+export function ordinaryContactFieldErrorsFor(error: unknown, text: Pick<Copy, 'contactPhoneTooLong' | 'contactEmailInvalid' | 'contactEmailTooLong' | 'contactAddressTooLong'>): OrdinaryContactFieldErrors {
+  const message = error instanceof Error ? error.message : '';
+  if (!message.endsWith('(400)')) return {};
+  if (message.startsWith('ordinaryContactPhone is too long')) return { phone: text.contactPhoneTooLong };
+  if (message.startsWith('ordinaryContactEmail is too long')) return { email: text.contactEmailTooLong };
+  if (message.startsWith('ordinaryContactEmail is invalid')) return { email: text.contactEmailInvalid };
+  if (message.startsWith('ordinaryContactAddress is too long')) return { address: text.contactAddressTooLong };
+  return {};
+}
 
 function formatDate(value: string, locale: Locale, withTime = false): string {
   const date = new Date(value);
@@ -223,25 +252,37 @@ function Contacts({ data, text, onReload }: { data: PersonProfileData; text: Cop
   const [draft, setDraft] = useState(saved);
   const [saving, setSaving] = useState(false);
   const [failure, setFailure] = useState<string | undefined>();
+  const [fieldErrors, setFieldErrors] = useState<OrdinaryContactFieldErrors>({});
   const saveGuardRef = useRef(createOrdinaryContactMutationGuard());
   const saveControllerRef = useRef<AbortController | null>(null);
   useEffect(() => () => { saveControllerRef.current?.abort(); }, []);
-  const begin = () => { setDraft(saved); setFailure(undefined); setEditing(true); };
-  const cancel = () => { setDraft(saved); setFailure(undefined); setEditing(false); };
+  const begin = () => { setDraft(saved); setFailure(undefined); setFieldErrors({}); setEditing(true); };
+  const cancel = () => { setDraft(saved); setFailure(undefined); setFieldErrors({}); setEditing(false); };
+  const updateDraft = (field: OrdinaryContactField, value: string) => {
+    setDraft(current => ({ ...current, [field]: value }));
+    setFailure(undefined);
+    setFieldErrors(current => { const { [field]: _cleared, ...remaining } = current; return remaining; });
+  };
   const save = () => {
+    const localErrors = validateOrdinaryContactDraft(draft, text);
+    if (Object.keys(localErrors).length) { setFieldErrors(localErrors); return; }
     void saveGuardRef.current(async () => {
       const controller = new AbortController();
       saveControllerRef.current?.abort();
       saveControllerRef.current = controller;
-      setSaving(true); setFailure(undefined);
+      setSaving(true); setFailure(undefined); setFieldErrors({});
       try {
         await ordinaryContactApi.update(data.person.id, draft, controller.signal);
         if (!controller.signal.aborted) {
           setEditing(false);
           onReload();
         }
-      } catch {
-        if (!controller.signal.aborted) setFailure(text.contactSaveError);
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          const serverErrors = ordinaryContactFieldErrorsFor(error, text);
+          if (Object.keys(serverErrors).length) setFieldErrors(serverErrors);
+          else setFailure(text.contactSaveError);
+        }
       } finally {
         if (saveControllerRef.current === controller) {
           saveControllerRef.current = null;
@@ -251,9 +292,9 @@ function Contacts({ data, text, onReload }: { data: PersonProfileData; text: Cop
     });
   };
   const ordinary = ordinaryState ?? (editing ? <Space direction="vertical" style={{ display: 'flex' }}>
-    <Input aria-label={text.phone} value={draft.phone ?? ''} onChange={event => setDraft(value => ({ ...value, phone: event.target.value }))} />
-    <Input aria-label={text.email} value={draft.email ?? ''} onChange={event => setDraft(value => ({ ...value, email: event.target.value }))} />
-    <Input.TextArea aria-label={text.address} value={draft.address ?? ''} onChange={event => setDraft(value => ({ ...value, address: event.target.value }))} autoSize={{ minRows: 2, maxRows: 5 }} />
+    <Space direction="vertical" size={2} style={{ display: 'flex' }}><Input aria-label={text.phone} type="tel" inputMode="tel" maxLength={40} status={fieldErrors.phone ? 'error' : undefined} value={draft.phone ?? ''} onChange={event => updateDraft('phone', event.target.value)} />{fieldErrors.phone ? <Text type="danger" role="alert">{fieldErrors.phone}</Text> : <Text type="secondary">{text.contactPhoneHint}</Text>}</Space>
+    <Space direction="vertical" size={2} style={{ display: 'flex' }}><Input aria-label={text.email} type="email" inputMode="email" maxLength={254} status={fieldErrors.email ? 'error' : undefined} value={draft.email ?? ''} onChange={event => updateDraft('email', event.target.value)} />{fieldErrors.email ? <Text type="danger" role="alert">{fieldErrors.email}</Text> : <Text type="secondary">{text.contactEmailHint}</Text>}</Space>
+    <Space direction="vertical" size={2} style={{ display: 'flex' }}><Input.TextArea aria-label={text.address} maxLength={500} showCount status={fieldErrors.address ? 'error' : undefined} value={draft.address ?? ''} onChange={event => updateDraft('address', event.target.value)} autoSize={{ minRows: 2, maxRows: 5 }} />{fieldErrors.address ? <Text type="danger" role="alert">{fieldErrors.address}</Text> : <Text type="secondary">{text.contactAddressHint}</Text>}</Space>
     {failure ? <Alert type="error" showIcon message={failure} /> : null}
     <Space><Button type="primary" onClick={save} loading={saving}>{saving ? text.saving : text.save}</Button><Button onClick={cancel} disabled={saving}>{text.cancel}</Button></Space>
   </Space> : (saved.phone || saved.email || saved.address ? <Descriptions column={1} size="small" bordered>

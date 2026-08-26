@@ -9,6 +9,7 @@ const checks = [
   { label: 'production mount', args: ['run', 'test:production-mount'] },
   { label: 'browser UX runtime', args: ['run', 'test:ux-runtime'] },
   { label: 'Person profile route runtime', args: ['run', 'test:person-profile-route'] },
+  { label: 'PX5 profile contacts runtime', args: ['run', 'test:px5-profile-regression'] },
   { label: 'Person wizard Directory runtime', args: ['run', 'test:person-wizard-directory'] },
   { label: 'Recommendation picker runtime', args: ['run', 'test:recommendation-picker'] },
   { label: 'C6 responsive overflow runtime', args: ['run', 'test:c6-responsive-overflow'] },

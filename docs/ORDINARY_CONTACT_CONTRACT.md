@@ -6,7 +6,7 @@ This document defines the minimal, canonical contract for **ordinary profile con
 | --- | --- |
 | Resource | Ordinary profile contact for one authorized person. |
 | Endpoint | `GET /api/people/:personId/contact` and `PUT /api/people/:personId/contact`. |
-| Response and request DTO | `{ "phone"?: string, "email"?: string, "address"?: string }`. Each property is optional; an empty object represents no ordinary contact. PUT also accepts `null` for an individual field to remove it. |
+| Response and request DTO | `{ "phone"?: string, "email"?: string, "address"?: string }`. Each property is optional; an empty object represents no ordinary contact. **PUT is full replacement of the ordinary-contact resource**: callers send the complete desired contact. Omitted, `null` or blank fields are absent from the resulting resource; fields from a prior value are not merged. |
 | Read authorization | The server-derived principal must have `people.read`. |
 | Write authorization | The server-derived principal must have both `people.read` and `people.write`; the mutation also requires the existing trusted same-origin request check. |
 | Authority | Tenant, actor identity and capabilities are resolved on the server from the verified session. They are never accepted from browser payload, URL parameters beyond the opaque person identifier, or client state. |
@@ -21,4 +21,4 @@ Ordinary contacts are deliberately excluded from the general People directory DT
 
 ## Reuse guidance for PX6
 
-PX6 or another authorized consumer must reuse this dedicated endpoint and DTO rather than widening the People directory contract or reading the aggregate directly. A caller must preserve the capability model, no-PII URL/storage boundary, server-derived authority and explicit empty/error/blocked states defined above.
+PX6 or another authorized consumer must reuse this dedicated endpoint and DTO rather than widening the People directory contract or reading the aggregate directly. A caller must send the complete desired resource on PUT and preserve the capability model, no-PII URL/storage boundary, server-derived authority and explicit empty/error/blocked states defined above.

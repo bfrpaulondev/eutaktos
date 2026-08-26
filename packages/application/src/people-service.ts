@@ -9,6 +9,7 @@ import {
   type AuditEvent,
   type CongregationPerson,
   type DomainEvent,
+  type OrdinaryContact,
   type PersonId,
 } from '@eutaktos/domain';
 
@@ -44,6 +45,9 @@ function normalizeExternalId(value: string): string {
   return normalized;
 }
 function externalIdsOf(person: CongregationPerson): readonly string[] { return person.externalIds ?? []; }
+function ordinaryContactsEqual(left: OrdinaryContact | undefined, right: OrdinaryContact | undefined): boolean {
+  return left?.phone === right?.phone && left?.email === right?.email && left?.address === right?.address;
+}
 export function eventCorrelation(metadata: RequestMetadata): Pick<DomainEvent, 'correlationId'> | Record<string, never> { return metadata.correlationId ? { correlationId: metadata.correlationId } : {}; }
 
 export class PeopleDirectoryService {
@@ -91,7 +95,7 @@ export class PeopleDirectoryService {
     if (input.displayName !== undefined) { const next = normalizeDisplayName(input.displayName); if (next !== displayName) { displayName = next; changedFields.push('displayName'); } }
     if (input.preferredLocale !== undefined) { const next = input.preferredLocale === null ? undefined : normalizeLocale(input.preferredLocale); if (next !== preferredLocale) { preferredLocale = next; changedFields.push('preferredLocale'); } }
     if (input.active !== undefined && input.active !== active) { active = input.active; changedFields.push('active'); }
-    if (input.ordinaryContact !== undefined) { const normalized = input.ordinaryContact === null ? undefined : normalizeOrdinaryContact(input.ordinaryContact); const next = normalized && Object.keys(normalized).length ? normalized : undefined; if (JSON.stringify(next) !== JSON.stringify(ordinaryContact)) { ordinaryContact = next; changedFields.push('ordinaryContact'); } }
+    if (input.ordinaryContact !== undefined) { const normalized = input.ordinaryContact === null ? undefined : normalizeOrdinaryContact(input.ordinaryContact); const next = normalized && Object.keys(normalized).length ? normalized : undefined; if (!ordinaryContactsEqual(next, ordinaryContact)) { ordinaryContact = next; changedFields.push('ordinaryContact'); } }
     if (changedFields.length === 0) return existing;
     const { ordinaryContact: _previousOrdinaryContact, ...personWithoutOrdinaryContact } = existing;
     const person: CongregationPerson = { ...personWithoutOrdinaryContact, displayName, ...(preferredLocale ? { preferredLocale } : { preferredLocale: undefined }), active, ...(ordinaryContact ? { ordinaryContact } : {}), availability: existing.availability, eligibility: existing.eligibility, emergencyContacts: existing.emergencyContacts };
