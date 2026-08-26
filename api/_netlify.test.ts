@@ -47,6 +47,17 @@ describe('Netlify API adapter', () => {
     expect(JSON.parse(result.body)).toEqual({ status: 'ok', service: 'eutaktos-api' });
   });
 
+  it('dispatches People recommendations to the real handler instead of returning router 404', async () => {
+    const result = await handleNetlifyApiEvent({
+      httpMethod: 'GET',
+      path: '/api/people/recommendations',
+      headers: {},
+      queryStringParameters: {},
+    });
+    expect(result.statusCode).toBe(400);
+    expect(JSON.parse(result.body)).toEqual({ error: 'meetingId is required' });
+  });
+
   it('returns safe errors for unknown routes and malformed JSON', async () => {
     const missing = await handleNetlifyApiEvent({ httpMethod: 'GET', path: '/api/not-a-route', headers: {} });
     expect(missing.statusCode).toBe(404);
@@ -59,6 +70,6 @@ describe('Netlify API adapter', () => {
       body: '{',
     });
     expect(malformed.statusCode).toBe(400);
-    expect(JSON.parse(malformed.body)).toEqual({ error: 'Invalid JSON body' });
+    expect(JSON.parse(result.body)).toEqual({ error: 'Invalid JSON body' });
   });
 });
