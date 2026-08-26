@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { canSubmitPerson, filterPeople, hasPersonProfileChanges, hasUnsavedPersonDraft } from './PeopleDirectory';
+import { canOpenPersonWizard, directoryPersonForWizard, filterPeople } from './PeopleDirectory';
 import type { PersonProfileDto } from './lib/peopleApi';
+import type { PeopleDirectoryPersonDto } from './lib/peopleDirectoryApi';
 
 const people: readonly PersonProfileDto[] = [
   { id: 'person-1', displayName: 'Ana Martins', preferredLocale: 'pt-PT', active: true },
@@ -22,31 +23,31 @@ describe('PeopleDirectory filters', () => {
   });
 });
 
-describe('PeopleDirectory submission guard', () => {
-  it('requires a non-empty name and rejects a second submission while saving', () => {
-    expect(canSubmitPerson('  ', false)).toBe(false);
-    expect(canSubmitPerson('Ana Martins', true)).toBe(false);
-    expect(canSubmitPerson('Ana Martins', false)).toBe(true);
+describe('PeopleDirectory guided editor integration', () => {
+  it('fails closed unless both the Directory projection and authenticated session allow People writes', () => {
+    expect(canOpenPersonWizard(true, ['people.read', 'people.write'])).toBe(true);
+    expect(canOpenPersonWizard(false, ['people.read', 'people.write'])).toBe(false);
+    expect(canOpenPersonWizard(true, ['people.read'])).toBe(false);
+    expect(canOpenPersonWizard(true, ['people.write'])).toBe(false);
+    expect(canOpenPersonWizard(true, undefined)).toBe(false);
   });
-});
 
-describe('PeopleDirectory unsaved create draft guard', () => {
-  it('only permits silent close when the create form still has its initial values', () => {
-    expect(hasUnsavedPersonDraft('', 'pt-PT', true, 'pt-PT')).toBe(false);
-    expect(hasUnsavedPersonDraft('   ', 'pt-PT', true, 'pt-PT')).toBe(false);
-    expect(hasUnsavedPersonDraft('Ana Martins', 'pt-PT', true, 'pt-PT')).toBe(true);
-    expect(hasUnsavedPersonDraft('', 'en', true, 'pt-PT')).toBe(true);
-    expect(hasUnsavedPersonDraft('', 'pt-PT', false, 'pt-PT')).toBe(true);
-  });
-});
+  it('projects only the approved core person DTO into edit mode', () => {
+    const directoryPerson: PeopleDirectoryPersonDto = {
+      id: 'person-1', displayName: 'Ana Martins', preferredLocale: 'pt-PT', active: true,
+      groups: [{ id: 'group-1', name: 'Group 1' }],
+      availability: { status: 'ready', current: 'available', currentReasonCodes: [] },
+      eligibility: { status: 'ready', enabledAssignmentTypeIds: ['reading'] },
+      responsibilities: { status: 'ready', keys: ['coordinator'] },
+      assignmentHistory: { status: 'ready', lastCompletedMeetingDate: '2032-06-01' },
+    };
 
-describe('PeopleDirectory edit guard', () => {
-  it('detects name, locale and active-state changes without inventing profile fields', () => {
-    const person = people[0]!;
-    expect(hasPersonProfileChanges(person, 'Ana Martins', 'pt-PT', true)).toBe(false);
-    expect(hasPersonProfileChanges(person, ' Ana Martins ', 'pt-PT', true)).toBe(false);
-    expect(hasPersonProfileChanges(person, 'Ana M.', 'pt-PT', true)).toBe(true);
-    expect(hasPersonProfileChanges(person, 'Ana Martins', 'en', true)).toBe(true);
-    expect(hasPersonProfileChanges(person, 'Ana Martins', 'pt-PT', false)).toBe(true);
+    expect(directoryPersonForWizard(directoryPerson)).toEqual({
+      id: 'person-1', displayName: 'Ana Martins', preferredLocale: 'pt-PT', active: true,
+    });
+    expect(directoryPersonForWizard(directoryPerson)).not.toHaveProperty('groups');
+    expect(directoryPersonForWizard(directoryPerson)).not.toHaveProperty('availability');
+    expect(directoryPersonForWizard(directoryPerson)).not.toHaveProperty('eligibility');
+    expect(directoryPersonForWizard(directoryPerson)).not.toHaveProperty('responsibilities');
   });
 });
