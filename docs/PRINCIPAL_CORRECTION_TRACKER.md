@@ -13,11 +13,11 @@ Operational source of truth for the current Eutaktos People correction/integrati
 7. Do not create duplicate branches. Merged branches should disappear through repository cleanup.
 8. Every branch not explicitly ACTIVE below is historical/quarantined and must not be used without individual verification.
 9. Canonical acceptance URL: `https://eutakes.netlify.app/`.
-10. `PRODUCT_EXPERIENCE_MASTER_PLAN.md` is synchronized only in C7 from integrated evidence, never from worker claims.
+10. `PRODUCT_EXPERIENCE_MASTER_PLAN.md` is synchronized only from integrated/accepted evidence, never from worker claims.
 
 ## Current integrated baseline
 
-- PX3.4 + PX3.7: `7592fb7f6ba5220b385871f812d03fd17f492bd5`.
+- PX3.4 + PX3.7 authoritative attention contracts: `7592fb7f6ba5220b385871f812d03fd17f492bd5`.
 - PX4.11 / PR #308: `457b21dab7e134c6ff3b2f0a29d15cd1fa0dc56d`.
 - PX6 guided editor foundation / PR #309: `6673cfcc14e89f5666a72941b3f44246a71ff5db`.
 - PX7 backend/domain foundation / PR #307: `58964b7c0080dd89b92459241de71ccdda111f6c`.
@@ -29,8 +29,11 @@ Operational source of truth for the current Eutaktos People correction/integrati
 - C5.5 explainable recommendation picker / PR #315: `46665eab2218f4b806497b281732d4f8b56c69ec`.
 - C5.6 all-eligible escape hatch / PR #316: `79407fd54230dc9f9b05edadc3cd767575d592b2`.
 - C5.7 profile candidate insight / PR #317: `57f509e870c240e0d187d7eadd4aa1efbf93423b`.
+- C6 recommendation production-route correction: `401c64675a6e299299d796d48989d63474f9ddd0`.
+- C6 responsive closure / PR #321: `f013f72722c18a6df06ad7c6390be668ed239dbf`.
+- **Accepted People-core product/runtime SHA: `f013f72722c18a6df06ad7c6390be668ed239dbf`.** Independent issue #319 verdict: `ACCEPT / C6 READY TO CLOSE`; issue closed completed.
 
-Foundation merge is not equivalent to full PX5/PX6/PX7 product closure; unresolved contract gaps stay open for C7.
+Foundation/core acceptance is not equivalent to every People master-plan capability being complete. The explicit PX5/PX6/PX7/PX10 gaps retained in the master remain real after C7; PX8/PX9/PX11 remain future product work.
 
 ## C0 — Repository hygiene and source of truth
 
@@ -52,7 +55,7 @@ Foundation merge is not equivalent to full PX5/PX6/PX7 product closure; unresolv
 - PR #309; final head `400afcef5fad40f27062aaf5b2488192f46d4924`; merge `6673cfcc14e89f5666a72941b3f44246a71ff5db`.
 - CI `32956000440`: PASS/PASS; canonical preview PASS; branch auto-deleted.
 - Fixed optional-resource coupling, partial-save retries, ambiguous-create handling, 401/403, baseline ownership, name normalization, minimal PATCH semantics and concurrent lost-update risks.
-- Still open for full PX6: ordinary Contact contract and broader approved availability/responsibility coverage.
+- Still open in the master for full PX6: ordinary Contact contract and broader approved responsibility/availability coverage.
 
 ## C3 — PX7 recommendation backend/domain correction
 
@@ -67,7 +70,7 @@ Foundation merge is not equivalent to full PX5/PX6/PX7 product closure; unresolv
 - PR #305; final head `91b03a9e1a1b8086869c5a11384d3bcb9472ccd0`; merge `891369306414003dbea49371a02cff6c02c1c324`.
 - CI `32958989117`: PASS/PASS; canonical preview PASS; branch auto-deleted.
 - Fixed canonical responsibility intervals, invalid timestamps, real date+time+timezone ordering, DST behavior and authorization/stale-response handling.
-- Still open for full PX5: ordinary contacts/editing, eligibility-setting explanation and useful assignment filters.
+- Still open in the master for full PX5: ordinary contacts/editing, full eligibility-setting explanation and useful assignment filters.
 
 ## C5 — Principal People integration
 
@@ -93,32 +96,58 @@ Foundation merge is not equivalent to full PX5/PX6/PX7 product closure; unresolv
   - Browser runtime proves Directory -> Profile insight, localized evidence, identity-only `meetingId + slotId` requests, refresh, Back/Forward and privacy-safe URL behavior.
   - `principal/c5-7-profile-candidate-insight` confirmed auto-deleted after merge.
 - [x] **C5.8** Run integrated quality/browser/security/privacy gates and canonical preview.
-  - Integrated product SHA: `57f509e870c240e0d187d7eadd4aa1efbf93423b`.
+  - Integrated C5 product SHA: `57f509e870c240e0d187d7eadd4aa1efbf93423b`.
   - Main push CI `32974975422`: quality PASS + browser-regression PASS on the integrated `main` composition.
   - Browser regression includes typecheck, 354 unit tests, bundle budget, PWA privacy, production mount, UX runtime, Person Profile route + C5.7 insight, PersonWizard Directory, recommendation picker + all-eligible behavior, Directory export, System theme, lazy recovery, sanitized visual regression and Hourglass inspector.
-  - Canonical `netlify/eutakes` PR preview for the final product slice (#317) PASS; final-head privacy/identity-only request invariants are covered by the same accepted browser suite.
+  - Canonical `netlify/eutakes` PR preview for the final C5 product slice (#317) PASS.
 
 ## C6 — Independent acceptance
 
-- [ ] **C6.1** Give Manus 1.6 one integrated SHA/preview, not isolated worker branches.
-- [ ] **C6.2** Validate 320/375/390/430/768/1024/1280/1440 where tooling permits.
-- [ ] **C6.3** Validate Light/Dark/System, pt-PT/en/es, keyboard/focus, loading/error/empty/retry and horizontal overflow.
-- [ ] **C6.4** Validate 401/403, stale-response ownership, double submit and PWA privacy.
-- [ ] **C6.5** Resolve every P0/P1 before final People acceptance.
+- [x] **C6.1** Give Manus 1.6 one integrated SHA/production composition, not isolated worker branches.
+  - Final closure validated canonical production aligned exactly to accepted product/runtime SHA `f013f72722c18a6df06ad7c6390be668ed239dbf`; alignment was proven by independent build/production asset equality, not inferred from CI or a PR preview.
+- [x] **C6.2** Validate 320/375/390/430/768/1024/1280/1440 where tooling permits.
+  - Production retest passed People Directory/Profile/Wizard and relevant Picker surfaces. C6-DEFECT-002 horizontal overflow is FIXED; no clipped primary action/dialog remained.
+- [x] **C6.3** Validate Light/Dark/System, pt-PT/en/es, keyboard/focus, loading/error/empty/retry and horizontal overflow.
+  - Production plus independent exact-SHA sanitized runtime evidence passed. System dense cases were complemented by exact-SHA runtime rather than falsely claimed from DevTools emulation.
+- [x] **C6.4** Validate 401/403, stale-response ownership, double submit and PWA privacy.
+  - Production verified 401, authority tampering rejection, identity-only recommendation query, browser storage/cache privacy and no candidate PII leakage. Exact-SHA API/application boundary tests separately covered 403/capability/tenant/idempotency; exact-SHA runtime covered stale ownership/double-submit/retry.
+- [x] **C6.5** Resolve every P0/P1 before final People acceptance.
+  - Independent final disposition: C6-DEFECT-001 FIXED; C6-DEFECT-002 FIXED; `P0 OPEN: 0`, `P1 OPEN: 0`, `P2 OPEN: 0`, `P3 OPEN: 0`.
+
+C6 final evidence:
+- PR #321 responsive correction final head `93f2da162ef75e41f3535766a0a20938a4fb9379`; squash merge/product SHA `f013f72722c18a6df06ad7c6390be668ed239dbf`.
+- PR #321 quality PASS + browser-regression PASS + canonical `netlify/eutakes` preview PASS.
+- Main push CI `33008055369` on exact `f013f727...`: SUCCESS.
+- Independent Manus final closure report: `FINAL VERDICT: ACCEPT / C6 READY TO CLOSE`; canonical production assets matched the independent detached build of exact `f013f727...`.
+- Issue #319 Principal-reviewed and closed as `completed` on 2026-08-26.
+- C6 accepts the integrated People core only; explicit unchecked master items remain open.
 
 ## C7 — Source-of-truth synchronization
 
-- [ ] **C7.1** Update `docs/PRODUCT_EXPERIENCE_MASTER_PLAN.md` only from integrated evidence.
-- [ ] **C7.2** Record already Principal-accepted PX1 closure if still stale.
-- [ ] **C7.3** Record PX3/PX4 completion from current evidence.
-- [ ] **C7.4** Mark only genuinely completed PX5/PX6/PX7 items; leave contract/UI gaps unchecked.
-- [ ] **C7.5** Record final main SHA and canonical production evidence.
+- [x] **C7.1** Update `docs/PRODUCT_EXPERIENCE_MASTER_PLAN.md` only from integrated evidence.
+  - Master synchronized from accepted C1–C6 evidence; initial C7 sync commit `5641b1dea7e626297e0e25d9fd398a594b710ba1`; wording-only correction commit `e2313bf73d7e2697936708461ab8e08a5fec34b9` restored the pre-existing capability-check requirement without changing product status.
+- [x] **C7.2** Record already Principal-accepted PX1 closure if still stale.
+  - PX1.1–PX1.14 now checked from PR #283/#304, issue #270 and C6 evidence.
+- [x] **C7.3** Record PX3/PX4 completion from current evidence.
+  - PX3.1–PX3.9 checked, including authoritative PX3.4/PX3.7 from `7592fb7...`; PX4.1–PX4.12 checked from Directory integration plus C6 responsive/privacy evidence.
+- [x] **C7.4** Mark only genuinely completed PX5/PX6/PX7 items; leave contract/UI gaps unchecked.
+  - PX5 gaps preserved: PX5.3, PX5.4, PX5.6.
+  - PX6 gaps preserved: PX6.2, PX6.3, PX6.4.
+  - PX7 gap preserved: PX7.8 only.
+  - PX10 was also synchronized conservatively: real screen-reader, 200%/400% zoom, full write-capable walkthrough and final reference-quality decision remain unchecked.
+- [x] **C7.5** Record final main SHA and canonical production evidence.
+  - **Accepted product/runtime SHA remains `f013f72722c18a6df06ad7c6390be668ed239dbf`.** Independent production alignment was proven by exact production-asset equality against a detached build of that SHA.
+  - Later commits `5641b1...`, `100fab8ba643a432d4e324b10e5f195d1c51a0f0`, `e2313bf...` and this tracker synchronization are documentation-only and do not replace the accepted runtime SHA.
+  - `docs/AI_HANDOFF.md` synchronized post-C6 at docs commit `100fab8ba643a432d4e324b10e5f195d1c51a0f0`.
+
+**C7 status: COMPLETE.** The Product Experience master, AI handoff and Principal tracker now agree on what is accepted, what remains open, and which SHA is the accepted production/runtime composition.
 
 ## Branch hygiene register
 
 | Branch / PR | State | Action |
 |---|---|---|
 | `main` | ACTIVE SOURCE OF TRUTH | Never rewrite/force-push |
+| `principal/c6-responsive-overflow` / #321 | MERGED / AUTO-DELETED | Do not recreate solely for docs |
 | `principal/c5-7-profile-candidate-insight` / #317 | MERGED / AUTO-DELETED | Do not recreate solely for docs |
 | `principal/c5-6-all-eligible` / #316 | MERGED / AUTO-DELETED | Do not recreate solely for docs |
 | `principal/c5-5-recommendation-picker` / #315 | MERGED / AUTO-DELETED | Do not recreate solely for docs |
@@ -133,7 +162,7 @@ Foundation merge is not equivalent to full PX5/PX6/PX7 product closure; unresolv
 | `manus/px5-unified-person-profile` / #305 | MERGED / AUTO-DELETED | Do not recreate |
 | all other pre-existing branches | HISTORICAL-QUARANTINE | Never use in this cycle without individual verification |
 
-No Wave 1 worker implementation branch is active.
+No Wave 1/C5/C6 implementation branch is active.
 
 ## Completion record
 
@@ -150,3 +179,7 @@ No Wave 1 worker implementation branch is active.
 - `2026-08-26 — C5.6 all-eligible escape hatch — PR #316 — merge 79407fd54230dc9f9b05edadc3cd767575d592b2 — CI 32971748866 PASS/PASS — canonical preview PASS — branch auto-deleted`
 - `2026-08-26 — C5.7 profile contextual PX7 insight — PR #317 — merge 57f509e870c240e0d187d7eadd4aa1efbf93423b — CI 32974585573 PASS/PASS — canonical preview PASS — branch auto-deleted`
 - `2026-08-26 — C5.8 integrated People gates — main product SHA 57f509e870c240e0d187d7eadd4aa1efbf93423b — main CI 32974975422 PASS/PASS — canonical final-slice preview PASS`
+- `2026-08-26 — C6-DEFECT-001 production recommendation route — main 401c64675a6e299299d796d48989d63474f9ddd0 — independent production retest FIXED`
+- `2026-08-26 — C6-DEFECT-002 responsive overflow — PR #321 — final head 93f2da162ef75e41f3535766a0a20938a4fb9379 — squash merge f013f72722c18a6df06ad7c6390be668ed239dbf — quality/browser PASS — canonical preview PASS — independent production retest FIXED — branch auto-deleted`
+- `2026-08-26 — C6 independent acceptance — accepted product/runtime SHA f013f72722c18a6df06ad7c6390be668ed239dbf — issue #319 CLOSED/ACCEPT — C6.2/C6.3/C6.4/C6.5 PASS — P0/P1/P2/P3 OPEN 0`
+- `2026-08-26 — C7 source-of-truth synchronization — master docs commits 5641b1dea7e626297e0e25d9fd398a594b710ba1 + e2313bf73d7e2697936708461ab8e08a5fec34b9 — AI_HANDOFF 100fab8ba643a432d4e324b10e5f195d1c51a0f0 — PX1/PX3/PX4 synchronized; PX5/PX6/PX7/PX10 gaps preserved`
