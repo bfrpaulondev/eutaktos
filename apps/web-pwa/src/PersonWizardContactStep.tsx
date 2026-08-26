@@ -27,6 +27,17 @@ export interface PersonWizardContactLabels {
   addressTooLong: string;
 }
 
+type ContactField = 'phone' | 'email' | 'address';
+
+function errorId(field: ContactField): string {
+  return `person-wizard-contact-${field}-error`;
+}
+
+function ContactError({ field, message }: { field: ContactField; message: string | undefined }) {
+  if (!message) return null;
+  return <Typography.Text id={errorId(field)} type="danger" role="alert">{message}</Typography.Text>;
+}
+
 export function PersonWizardContactStep({
   contact,
   state,
@@ -40,7 +51,7 @@ export function PersonWizardContactStep({
   state: PersonWizardResourceState;
   canWrite: boolean;
   labels: PersonWizardContactLabels;
-  errors: Readonly<Partial<Record<'phone' | 'email' | 'address', string>>>;
+  errors: Readonly<Partial<Record<ContactField, string>>>;
   onChange: (contact: OrdinaryContactDto) => void;
   onRetry: () => void;
 }) {
@@ -57,14 +68,17 @@ export function PersonWizardContactStep({
     <Alert type="info" showIcon title={labels.explanation} />
     {!canWrite ? <Alert type="info" showIcon title={labels.noWrite} /> : null}
     <Card>
-      <Form.Item label={`${labels.phone} · ${labels.optional}`} validateStatus={errors.phone ? 'error' : undefined} help={errors.phone}>
-        <Input aria-label={labels.phone} autoComplete="tel" value={contact.phone ?? ''} disabled={!canWrite} onChange={event => change('phone', event.target.value)} />
+      <Form.Item label={`${labels.phone} · ${labels.optional}`} validateStatus={errors.phone ? 'error' : undefined}>
+        <Input aria-label={labels.phone} aria-invalid={Boolean(errors.phone)} aria-describedby={errors.phone ? errorId('phone') : undefined} autoComplete="tel" value={contact.phone ?? ''} disabled={!canWrite} onChange={event => change('phone', event.target.value)} />
+        <ContactError field="phone" message={errors.phone} />
       </Form.Item>
-      <Form.Item label={`${labels.email} · ${labels.optional}`} validateStatus={errors.email ? 'error' : undefined} help={errors.email}>
-        <Input aria-label={labels.email} type="email" autoComplete="email" value={contact.email ?? ''} disabled={!canWrite} onChange={event => change('email', event.target.value)} />
+      <Form.Item label={`${labels.email} · ${labels.optional}`} validateStatus={errors.email ? 'error' : undefined}>
+        <Input aria-label={labels.email} aria-invalid={Boolean(errors.email)} aria-describedby={errors.email ? errorId('email') : undefined} type="email" autoComplete="email" value={contact.email ?? ''} disabled={!canWrite} onChange={event => change('email', event.target.value)} />
+        <ContactError field="email" message={errors.email} />
       </Form.Item>
-      <Form.Item label={`${labels.address} · ${labels.optional}`} validateStatus={errors.address ? 'error' : undefined} help={errors.address}>
-        <Input.TextArea aria-label={labels.address} autoComplete="street-address" rows={3} value={contact.address ?? ''} disabled={!canWrite} onChange={event => change('address', event.target.value)} />
+      <Form.Item label={`${labels.address} · ${labels.optional}`} validateStatus={errors.address ? 'error' : undefined}>
+        <Input.TextArea aria-label={labels.address} aria-invalid={Boolean(errors.address)} aria-describedby={errors.address ? errorId('address') : undefined} autoComplete="street-address" rows={3} value={contact.address ?? ''} disabled={!canWrite} onChange={event => change('address', event.target.value)} />
+        <ContactError field="address" message={errors.address} />
       </Form.Item>
     </Card>
   </Space>;
