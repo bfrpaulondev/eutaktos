@@ -143,24 +143,50 @@ try {
   const recommendationState = await poll(async () => await evaluate(`(() => {
     const dialog = [...document.querySelectorAll('[role="dialog"]')].find(node => node.textContent?.includes('Designar estudante'));
     if (!dialog?.textContent?.includes('Ana Martins')) return null;
-    return { text: dialog.textContent ?? '', comboboxes: dialog.querySelectorAll('[role="combobox"]').length, saveDisabled: [...dialog.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === 'Guardar')?.disabled ?? true, requests: window.__recommendationRequests, url: location.href };
+    return {
+      text: dialog.textContent ?? '',
+      comboboxes: dialog.querySelectorAll('[role="combobox"]').length,
+      saveDisabled: [...dialog.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === 'Guardar')?.disabled ?? true,
+      buttons: [...dialog.querySelectorAll('button')].map(node => (node.innerText || node.textContent || '').trim()),
+      requests: window.__recommendationRequests,
+      url: location.href,
+    };
   })()`), 'Recommendations did not load in assign flow');
   for (const expected of ['Recomendados', 'Ana Martins', 'Bruno Costa', 'Carla Dias', 'Elegível para este tipo de designação.', 'Disponível no horário desta designação.']) if (!recommendationState.text.includes(expected)) throw new Error(`Assign picker is missing ${expected}`);
-  if (recommendationState.text.includes('Diana Lopes') && recommendationState.text.indexOf('Diana Lopes') > recommendationState.text.indexOf('Recomendados')) throw new Error('Rank 4 candidate leaked into the top-three recommendation surface');
+  if (recommendationState.text.includes('Diana Lopes') && recommendationState.text.indexOf('Diana Lopes') > recommendationState.text.indexOf('Recomendados')) throw new Error('Rank 4 candidate leaked into the top-three recommendation surface before C5.6 reveal');
+  if (!recommendationState.buttons.includes('Ver todos os elegíveis (4)')) throw new Error('C5.6 all-eligible escape hatch is missing');
+  if (!recommendationState.buttons.includes('Selecionar manualmente')) throw new Error('Explicit manual override is missing');
   for (const rawCode of ['ELIGIBLE', 'AVAILABLE', 'NO_MEETING_CONFLICT', 'LONGER_SINCE_LAST_ASSIGNMENT']) if (recommendationState.text.includes(rawCode)) throw new Error(`Raw PX7 code leaked into UI: ${rawCode}`);
-  if (recommendationState.comboboxes < 2) throw new Error('Manual student/assistant fallback disappeared before C5.6');
+  if (recommendationState.comboboxes !== 1) throw new Error(`Manual student selector should be hidden by default; expected only assistant combobox, got ${recommendationState.comboboxes}`);
   if (!recommendationState.saveDisabled) throw new Error('Save should remain disabled before a person is selected');
   assertIdentityOnlyRequests(recommendationState.requests, 'Assign recommendation request');
   if (recommendationState.url.includes('person-') || recommendationState.url.includes('Ana%20Martins') || recommendationState.url.includes('Ana Martins')) throw new Error('Person recommendation data leaked into browser URL');
 
-  if (!await clickDialogButton('Designar estudante', 'Selecionar')) throw new Error('Recommendation select action was not found');
+  if (!await clickDialogButton('Designar estudante', 'Ver todos os elegíveis (4)')) throw new Error('All-eligible reveal action was not found');
+  const allEligibleState = await poll(async () => await evaluate(`(() => {
+    const dialog = [...document.querySelectorAll('[role="dialog"]')].find(node => node.textContent?.includes('Designar estudante'));
+    if (!dialog?.textContent?.includes('Diana Lopes')) return null;
+    return { text: dialog.textContent ?? '', buttons: [...dialog.querySelectorAll('button')].map(node => (node.innerText || node.textContent || '').trim()) };
+  })()`), 'All-eligible list did not reveal rank 4 candidate');
+  if (!allEligibleState.text.includes('Outros elegíveis') || !allEligibleState.buttons.includes('Ocultar lista completa')) throw new Error('Expanded all-eligible state is incomplete');
+  if (!await clickDialogButton('Designar estudante', 'Selecionar', 3)) throw new Error('Rank 4 eligible candidate could not be selected');
   const selectedState = await poll(async () => await evaluate(`(() => {
     const dialog = [...document.querySelectorAll('[role="dialog"]')].find(node => node.textContent?.includes('Designar estudante'));
     const selected = [...(dialog?.querySelectorAll('button') ?? [])].find(node => node.getAttribute('aria-pressed') === 'true');
     const save = [...(dialog?.querySelectorAll('button') ?? [])].find(node => (node.innerText || node.textContent || '').trim() === 'Guardar');
-    return selected ? { selected: (selected.innerText || selected.textContent || '').trim(), saveDisabled: save?.disabled ?? true } : null;
-  })()`), 'Recommendation selection did not bind to assignment state');
-  if (selectedState.selected !== 'Selecionado' || selectedState.saveDisabled) throw new Error(`Recommendation did not populate the assignment form: ${JSON.stringify(selectedState)}`);
+    return selected ? { selected: (selected.innerText || selected.textContent || '').trim(), selectedContext: selected.closest('.ant-card')?.textContent ?? '', saveDisabled: save?.disabled ?? true } : null;
+  })()`), 'All-eligible selection did not bind to assignment state');
+  if (selectedState.selected !== 'Selecionado' || !selectedState.selectedContext.includes('Diana Lopes') || selectedState.saveDisabled) throw new Error(`Rank 4 eligible selection did not populate the assignment form: ${JSON.stringify(selectedState)}`);
+
+  if (!await clickDialogButton('Designar estudante', 'Selecionar manualmente')) throw new Error('Manual override reveal action was not found');
+  const manualState = await poll(async () => await evaluate(`(() => {
+    const dialog = [...document.querySelectorAll('[role="dialog"]')].find(node => node.textContent?.includes('Designar estudante'));
+    if (!dialog?.textContent?.includes('A seleção manual mostra pessoas ativas.')) return null;
+    return { text: dialog.textContent ?? '', comboboxes: dialog.querySelectorAll('[role="combobox"]').length, buttons: [...dialog.querySelectorAll('button')].map(node => (node.innerText || node.textContent || '').trim()) };
+  })()`), 'Manual override did not reveal');
+  if (manualState.comboboxes !== 2 || !manualState.buttons.includes('Ocultar seleção manual')) throw new Error(`Manual override did not stay explicitly disclosed: ${JSON.stringify(manualState)}`);
+  if (!manualState.text.includes('Não afirma que estejam elegíveis, disponíveis ou sem conflitos')) throw new Error('Manual override incorrectly implies PX7 eligibility evidence');
+
   if (!await clickDialogButton('Designar estudante', 'Cancelar')) throw new Error('Assign dialog cancel action was not found');
   await poll(async () => !(await visibleDialog('Designar estudante')), 'Assign dialog did not close');
 
@@ -180,12 +206,26 @@ try {
   const replaceState = await poll(async () => await evaluate(`(() => {
     const dialog = [...document.querySelectorAll('[role="dialog"]')].find(node => node.textContent?.includes('Substituir'));
     if (!dialog?.textContent?.includes('Ana Martins')) return null;
-    return { text: dialog.textContent ?? '', newRequests: window.__recommendationRequests.slice(${beforeReplacementRequests}) };
+    return {
+      text: dialog.textContent ?? '',
+      comboboxes: dialog.querySelectorAll('[role="combobox"]').length,
+      buttons: [...dialog.querySelectorAll('button')].map(node => (node.innerText || node.textContent || '').trim()),
+      newRequests: window.__recommendationRequests.slice(${beforeReplacementRequests}),
+    };
   })()`), 'Recommendations did not load in replacement flow');
-  if (!replaceState.text.includes('Recomendados')) throw new Error('Replacement flow did not render the recommendation picker');
+  if (!replaceState.text.includes('Recomendados') || !replaceState.buttons.includes('Ver todos os elegíveis (4)') || !replaceState.buttons.includes('Selecionar manualmente')) throw new Error('Replacement flow did not reuse both C5.6 escape hatches');
+  if (replaceState.comboboxes !== 1) throw new Error('Replacement manual student selector should be hidden by default');
   assertIdentityOnlyRequests(replaceState.newRequests, 'Replacement recommendation request');
+  if (!await clickDialogButton('Substituir', 'Ver todos os elegíveis (4)')) throw new Error('Replacement all-eligible reveal action was not found');
+  const replacementAllState = await poll(async () => await evaluate(`(() => {
+    const dialog = [...document.querySelectorAll('[role="dialog"]')].find(node => node.textContent?.includes('Substituir'));
+    if (!dialog?.textContent?.includes('Diana Lopes')) return null;
+    const selected = [...dialog.querySelectorAll('button')].find(node => node.getAttribute('aria-pressed') === 'true');
+    return { selectedContext: selected?.closest('.ant-card')?.textContent ?? '' };
+  })()`), 'Replacement all-eligible list did not reveal current rank 4 person');
+  if (!replacementAllState.selectedContext.includes('Diana Lopes')) throw new Error('Replacement all-eligible list did not preserve current human selection');
 
-  process.stdout.write('Recommendation picker regression passed: top-three explainable student recommendations, selection binding, replacement reuse, identity-only requests under StrictMode, manual fallback retained and role flow kept outside unsupported PX7 targeting.\n');
+  process.stdout.write('C5.6 recommendation picker regression passed: top-three default, explicit all-eligible reveal, rank-4 selection, disclosed manual override, replacement reuse, identity-only requests and role boundary.\n');
 } finally {
   try { cdp?.close(); } catch {}
   browser?.kill('SIGTERM');
