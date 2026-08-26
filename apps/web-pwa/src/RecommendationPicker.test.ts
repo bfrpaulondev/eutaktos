@@ -16,19 +16,19 @@ function candidate(personId: string, rank: number): RecommendationPersonDto {
 }
 
 describe('C5.5 recommendation picker projection', () => {
-  it('shows the first three candidates by server rank without inventing a client score', () => {
+  it('shows the first three candidates in the exact canonical server order', () => {
     const result = topRecommendationCandidates([
-      candidate('c', 3),
       candidate('a', 1),
-      candidate('d', 4),
       candidate('b', 2),
+      candidate('c', 3),
+      candidate('d', 4),
     ]);
     expect(result.map(item => [item.personId, item.rank])).toEqual([['a', 1], ['b', 2], ['c', 3]]);
   });
 
-  it('uses personId only as a deterministic display tie-break and never recalculates rank evidence', () => {
-    const result = topRecommendationCandidates([candidate('z', 2), candidate('a', 2), candidate('m', 1)], 3);
-    expect(result.map(item => item.personId)).toEqual(['m', 'a', 'z']);
+  it('never repairs or reorders evidence in the presentation projection', () => {
+    const deliberatelyMalformedForPureHelper = [candidate('z', 2), candidate('m', 1), candidate('a', 3)];
+    expect(topRecommendationCandidates(deliberatelyMalformedForPureHelper, 3).map(item => item.personId)).toEqual(['z', 'm', 'a']);
   });
 
   it('fails closed for an invalid display limit', () => {
