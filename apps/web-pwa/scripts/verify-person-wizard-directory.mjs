@@ -142,7 +142,7 @@ try {
 
   await evaluate(`localStorage.setItem('eutaktos-test-readonly', '1'); true`);
   await cdp.send('Page.reload', { ignoreCache: true });
-  await poll(async () => await evaluate(`Boolean(document.querySelector('#main')?.textContent?.includes('Runtime person'))`), 'Read-only Directory did not reload');
+  await poll(async () => await evaluate(`document.readyState === 'complete' && Boolean(document.querySelector('#main')?.textContent?.includes('Runtime person')) && [...document.querySelectorAll('button')].some(node => (node.innerText || node.textContent || '').trim() === 'Ver perfil')`), 'Read-only Directory actions did not become ready');
   const readOnlyState = await evaluate(`(() => {
     const labels = [...document.querySelectorAll('button')].map(node => (node.innerText || node.textContent || '').trim());
     return { hasAdd: labels.includes('Adicionar pessoa'), hasEdit: labels.includes('Editar'), hasProfile: labels.includes('Ver perfil') };
