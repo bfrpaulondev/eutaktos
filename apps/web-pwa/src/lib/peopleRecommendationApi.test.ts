@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createPeopleRecommendationApi, parsePeopleRecommendationResponse, PeopleRecommendationApiError } from './peopleRecommendationApi';
+import { createPeopleRecommendationApi, parsePeopleRecommendationResponse } from './peopleRecommendationApi';
 
 const valid = {
   contractVersion: 'people-recommendation-v1',
@@ -73,6 +73,6 @@ describe('C5.5 People recommendation API client', () => {
 
   it('exposes status without trusting server error copy', async () => {
     const api = createPeopleRecommendationApi(async () => new Response(JSON.stringify({ error: 'sensitive server detail' }), { status: 403, headers: { 'Content-Type': 'application/json' } }));
-    await expect(api.get('meeting-1', 'slot-1')).rejects.toMatchObject<Partial<PeopleRecommendationApiError>>({ status: 403, message: 'People recommendation request failed (403)' });
+    await expect(api.get('meeting-1', 'slot-1')).rejects.toMatchObject({ status: 403, message: 'People recommendation request failed (403)' });
   });
 });
