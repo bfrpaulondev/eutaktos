@@ -37,7 +37,7 @@ import {
   PersonProfileLoadError,
 } from './lib/personProfileData';
 
-const { Paragraph, Text, Title } = Typography;
+const { Text, Title } = Typography;
 
 type ProfileState =
   | Readonly<{ status: 'loading' }>
@@ -68,7 +68,7 @@ const copy = {
     historyBlocked: 'O histórico de atividade requer uma permissão adicional. Nenhum evento é mostrado.', historyEmpty: 'Não existem eventos de atividade autorizados para mostrar.',
     created: 'Perfil criado', updated: 'Perfil atualizado', deleted: 'Perfil removido', activity: 'Atividade registada',
     unavailableSection: 'Esta secção não está disponível neste momento.', unauthenticatedSection: 'É necessário iniciar sessão para consultar esta secção.', forbiddenSection: 'Não tem permissão para consultar esta secção.',
-    timezone: 'Fuso horário', date: 'Data', profileIncomplete: 'Dados parciais', operationalContext: 'Contexto operacional', noCandidateInsight: 'As recomendações de candidatos permanecem indisponíveis até PX7 fornecer evidência aprovada.',
+    timezone: 'Fuso horário', date: 'Data', profileIncomplete: 'Dados parciais', operationalContext: 'Contexto operacional', noCandidateInsight: 'As recomendações de candidatos serão mostradas quando a integração PX7 estiver disponível neste perfil.',
   },
   en: {
     back: 'Back', eyebrow: 'People', profile: 'Person profile', active: 'Active', inactive: 'Inactive',
@@ -87,7 +87,7 @@ const copy = {
     historyBlocked: 'Activity history requires an additional permission. No events are shown.', historyEmpty: 'There are no authorized activity events to show.',
     created: 'Profile created', updated: 'Profile updated', deleted: 'Profile deleted', activity: 'Recorded activity',
     unavailableSection: 'This section is unavailable right now.', unauthenticatedSection: 'Sign-in is required to view this section.', forbiddenSection: 'You do not have permission to view this section.',
-    timezone: 'Time zone', date: 'Date', profileIncomplete: 'Partial data', operationalContext: 'Operational context', noCandidateInsight: 'Candidate recommendations remain unavailable until PX7 provides approved evidence.',
+    timezone: 'Time zone', date: 'Date', profileIncomplete: 'Partial data', operationalContext: 'Operational context', noCandidateInsight: 'Candidate recommendations will appear when the PX7 integration is available in this profile.',
   },
   es: {
     back: 'Volver', eyebrow: 'Personas', profile: 'Perfil de la persona', active: 'Activo', inactive: 'Inactivo',
@@ -105,8 +105,8 @@ const copy = {
     noAssignments: 'No hay asignaciones autorizadas para mostrar.', noOrganization: 'No hay contexto organizacional autorizado para mostrar.',
     historyBlocked: 'El historial de actividad requiere un permiso adicional. No se muestran eventos.', historyEmpty: 'No hay eventos de actividad autorizados para mostrar.',
     created: 'Perfil creado', updated: 'Perfil actualizado', deleted: 'Perfil eliminado', activity: 'Actividad registrada',
-    unavailableSection: 'Esta sección no está disponible ahora.', unauthenticatedSection: 'Es necesario iniciar sesión para consultar esta sección.', forbiddenSection: 'No tiene permiso para consultar esta secção.',
-    timezone: 'Zona horaria', date: 'Fecha', profileIncomplete: 'Datos parciales', operationalContext: 'Contexto operativo', noCandidateInsight: 'Las recomendaciones de candidatos permanecen no disponibles hasta que PX7 proporcione evidencia aprobada.',
+    unavailableSection: 'Esta sección no está disponible ahora.', unauthenticatedSection: 'Es necesario iniciar sesión para consultar esta sección.', forbiddenSection: 'No tiene permiso para consultar esta sección.',
+    timezone: 'Zona horaria', date: 'Fecha', profileIncomplete: 'Datos parciales', operationalContext: 'Contexto operativo', noCandidateInsight: 'Las recomendaciones de candidatos aparecerán cuando la integración PX7 esté disponible en este perfil.',
   },
 } as const;
 
