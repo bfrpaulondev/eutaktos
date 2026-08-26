@@ -14,6 +14,7 @@ import peopleRecommendationsHandler from './people/recommendations';
 import personHandler from './people/[personId]';
 import eligibilityHandler from './people/[personId]/eligibility';
 import availabilityHandler from './people/[personId]/availability';
+import ordinaryContactHandler from './people/[personId]/contact';
 import availabilityPeriodHandler from './people/[personId]/availability/[availabilityPeriodId]';
 import householdsHandler from './households';
 import householdHandler from './households/[householdId]';
@@ -53,7 +54,7 @@ export interface NetlifyApiResult {
 
 type RouteKey =
   | 'health' | 'ready' | 'session' | 'logout' | 'logout-all' | 'rotate-session' | 'auth-otp' | 'auth-verify'
-  | 'people' | 'people-directory' | 'people-overview-evidence' | 'people-recommendations' | 'person' | 'eligibility' | 'availability' | 'availability-period'
+  | 'people' | 'people-directory' | 'people-overview-evidence' | 'people-recommendations' | 'person' | 'eligibility' | 'availability' | 'ordinary-contact' | 'availability-period'
   | 'households' | 'household' | 'service-groups' | 'service-group'
   | 'responsibilities' | 'responsibility' | 'end-responsibility' | 'congregation-settings' | 'audit-history'
   | 'access-grants' | 'subject-grants' | 'revoke-grant' | 'midweek' | 'midweek-route' | 'outbox-worker' | 'agent-respond';
@@ -79,6 +80,7 @@ const handlers: Readonly<Record<RouteKey, ApiHandler>> = Object.freeze({
   person: personHandler,
   eligibility: eligibilityHandler,
   availability: availabilityHandler,
+  'ordinary-contact': ordinaryContactHandler,
   'availability-period': availabilityPeriodHandler,
   households: householdsHandler,
   household: householdHandler,
@@ -168,6 +170,7 @@ export function matchNetlifyApiRoute(path: string): RouteMatch | undefined {
   const patterns: readonly [RegExp, RouteKey, string][] = [
     [/^\/people\/([^/]+)\/eligibility$/, 'eligibility', 'personId'],
     [/^\/people\/([^/]+)\/availability$/, 'availability', 'personId'],
+    [/^\/people\/([^/]+)\/contact$/, 'ordinary-contact', 'personId'],
     [/^\/people\/([^/]+)$/, 'person', 'personId'],
     [/^\/households\/([^/]+)$/, 'household', 'householdId'],
     [/^\/service-groups\/([^/]+)$/, 'service-group', 'serviceGroupId'],

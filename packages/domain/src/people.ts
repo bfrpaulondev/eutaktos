@@ -29,6 +29,12 @@ export interface EmergencyContact {
   relationship?: string;
 }
 
+export interface OrdinaryContact {
+  phone?: string;
+  email?: string;
+  address?: string;
+}
+
 export interface CongregationPerson {
   id: PersonId;
   tenantId: TenantId;
@@ -40,6 +46,8 @@ export interface CongregationPerson {
   availability: readonly AvailabilityPeriod[];
   /** Append-only decision sequence. For equal decidedAt values, the later recorded entry wins. */
   eligibility: readonly EligibilityGrant[];
+  /** Optional ordinary profile contact; separate from emergency contacts. */
+  ordinaryContact?: OrdinaryContact;
   /** Legacy/imported records may omit this until normalized by an application write. */
   emergencyContacts?: readonly EmergencyContact[];
 }
@@ -145,6 +153,20 @@ export function normalizeEmergencyContact(contact: EmergencyContact): EmergencyC
     phone,
     ...(relationship ? { relationship } : {}),
   };
+}
+
+export function normalizeOrdinaryContact(contact: OrdinaryContact): OrdinaryContact {
+  const phone = contact.phone?.trim().replace(/\s+/g, ' ');
+  const email = contact.email?.trim();
+  const address = contact.address?.trim().replace(/\s+/g, ' ');
+  if (phone !== undefined && phone.length > 40) throw new Error('ordinaryContactPhone is too long');
+  if (email && (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) throw new Error('ordinaryContactEmail is invalid');
+  if (address !== undefined && address.length > 500) throw new Error('ordinaryContactAddress is too long');
+  return Object.freeze({ ...(phone ? { phone } : {}), ...(email ? { email } : {}), ...(address ? { address } : {}) });
+}
+
+export function ordinaryContactOf(person: CongregationPerson): OrdinaryContact {
+  return Object.freeze({ ...(person.ordinaryContact?.phone ? { phone: person.ordinaryContact.phone } : {}), ...(person.ordinaryContact?.email ? { email: person.ordinaryContact.email } : {}), ...(person.ordinaryContact?.address ? { address: person.ordinaryContact.address } : {}) });
 }
 
 export function emergencyContactsOf(person: CongregationPerson): readonly EmergencyContact[] {
