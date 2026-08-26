@@ -1,6 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createPeopleRecommendationApi, parsePeopleRecommendationResponse } from './peopleRecommendationApi';
 
+const validCandidate = {
+  personId: 'person-1',
+  displayName: 'Ana Martins',
+  status: 'candidate',
+  rank: 1,
+  reasons: [{ code: 'ELIGIBLE' }, { code: 'AVAILABLE' }, { code: 'NO_MEETING_CONFLICT' }, { code: 'LONGER_SINCE_LAST_ASSIGNMENT' }],
+  warnings: [{ code: 'HAS_WEEKLY_ASSIGNMENT' }],
+  history: { kind: 'completed-history', lastCompletedMeetingDate: '2032-05-01', daysSinceLastCompletedAssignment: 40 },
+  sameWeekAssignmentCount: 1,
+} as const;
+
 const valid = {
   contractVersion: 'people-recommendation-v1',
   evidenceContractVersion: 'px7-evidence-v1',
@@ -13,16 +24,7 @@ const valid = {
     startsAt: '2032-06-10T18:30:00.000Z',
     endsAt: '2032-06-10T18:35:00.000Z',
   },
-  candidates: [{
-    personId: 'person-1',
-    displayName: 'Ana Martins',
-    status: 'candidate',
-    rank: 1,
-    reasons: [{ code: 'ELIGIBLE' }, { code: 'AVAILABLE' }, { code: 'NO_MEETING_CONFLICT' }, { code: 'LONGER_SINCE_LAST_ASSIGNMENT' }],
-    warnings: [{ code: 'HAS_WEEKLY_ASSIGNMENT' }],
-    history: { kind: 'completed-history', lastCompletedMeetingDate: '2032-05-01', daysSinceLastCompletedAssignment: 40 },
-    sameWeekAssignmentCount: 1,
-  }],
+  candidates: [validCandidate],
   excluded: [{
     personId: 'person-2',
     displayName: 'Beatriz Costa',
@@ -35,7 +37,7 @@ const valid = {
 } as const;
 
 describe('C5.5 People recommendation API client', () => {
-  it('parses the reviewed PX7 response without changing reason or warning codes', () => {
+  it('parses the reviewed PX7 response without changing reason, warning or rank order', () => {
     const parsed = parsePeopleRecommendationResponse(valid);
     expect(parsed.target.assignmentTypeId).toBe('builtin:apply-yourself-to-the-ministry');
     expect(parsed.candidates[0]).toMatchObject({ personId: 'person-1', displayName: 'Ana Martins', rank: 1, sameWeekAssignmentCount: 1 });
@@ -44,14 +46,33 @@ describe('C5.5 People recommendation API client', () => {
   });
 
   it.each([
-    ['unknown reason code', { ...valid, candidates: [{ ...valid.candidates[0], reasons: [{ code: 'MADE_UP_REASON' }] }] }],
-    ['unknown warning code', { ...valid, candidates: [{ ...valid.candidates[0], warnings: [{ code: 'MADE_UP_WARNING' }] }] }],
-    ['candidate without rank', { ...valid, candidates: [{ ...valid.candidates[0], rank: undefined }] }],
+    ['unknown reason code', { ...valid, candidates: [{ ...validCandidate, reasons: [{ code: 'MADE_UP_REASON' }] }] }],
+    ['unknown warning code', { ...valid, candidates: [{ ...validCandidate, warnings: [{ code: 'MADE_UP_WARNING' }] }] }],
+    ['candidate without rank', { ...valid, candidates: [{ ...validCandidate, rank: undefined }] }],
     ['excluded candidate with rank', { ...valid, excluded: [{ ...valid.excluded[0], rank: 9 }] }],
-    ['negative workload', { ...valid, candidates: [{ ...valid.candidates[0], sameWeekAssignmentCount: -1 }] }],
-    ['fabricated completed history', { ...valid, candidates: [{ ...valid.candidates[0], history: { kind: 'completed-history', lastCompletedMeetingDate: '2032-05-01' } }] }],
+    ['negative workload', { ...valid, candidates: [{ ...validCandidate, sameWeekAssignmentCount: -1 }] }],
+    ['fabricated completed history', { ...valid, candidates: [{ ...validCandidate, history: { kind: 'completed-history', lastCompletedMeetingDate: '2032-05-01' } }] }],
+    ['non-sequential rank order', { ...valid, candidates: [{ ...validCandidate, rank: 2 }] }],
+    ['duplicate candidate identity', { ...valid, candidates: [validCandidate, { ...validCandidate, rank: 2 }] }],
+    ['identity repeated across candidate and excluded', { ...valid, excluded: [{ ...valid.excluded[0], personId: 'person-1' }] }],
   ])('fails closed for %s', (_label, body) => {
     expect(() => parsePeopleRecommendationResponse(body)).toThrow('Invalid recommendation response');
+  });
+
+  it('preserves a canonical multi-candidate sequence exactly as returned by the server', () => {
+    const body = {
+      ...valid,
+      candidates: [
+        validCandidate,
+        { ...validCandidate, personId: 'person-3', displayName: 'Carla Dias', rank: 2 },
+        { ...validCandidate, personId: 'person-4', displayName: 'Diana Lopes', rank: 3 },
+      ],
+    };
+    expect(parsePeopleRecommendationResponse(body).candidates.map(item => [item.personId, item.rank])).toEqual([
+      ['person-1', 1],
+      ['person-3', 2],
+      ['person-4', 3],
+    ]);
   });
 
   it('sends only target identity, same-origin credentials and no request body', async () => {
