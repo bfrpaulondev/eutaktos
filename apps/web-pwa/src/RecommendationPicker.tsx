@@ -71,9 +71,10 @@ export function topRecommendationCandidates(
   limit = DEFAULT_RECOMMENDATION_LIMIT,
 ): readonly RecommendationPersonDto[] {
   if (!Number.isInteger(limit) || limit < 1) return Object.freeze([]);
-  return Object.freeze([...candidates]
+  // The strict API parser already proves server order and sequential ranks.
+  // Never calculate, repair or reorder recommendation evidence in the browser.
+  return Object.freeze(candidates
     .filter(candidate => candidate.status === 'candidate' && candidate.rank !== undefined)
-    .sort((left, right) => (left.rank ?? Number.MAX_SAFE_INTEGER) - (right.rank ?? Number.MAX_SAFE_INTEGER) || left.personId.localeCompare(right.personId))
     .slice(0, limit));
 }
 
