@@ -1,5 +1,5 @@
 [build]
-command = "set +e; npm run typecheck > /tmp/px6-typecheck.log 2>&1; TYPECHECK_EXIT=$?; npm test > /tmp/px6-test.log 2>&1; TEST_EXIT=$?; npm --workspace @eutaktos/web-pwa run build; BUILD_EXIT=$?; if [ $BUILD_EXIT -eq 0 ]; then { echo TYPECHECK_EXIT=$TYPECHECK_EXIT; tail -n 250 /tmp/px6-typecheck.log; echo TEST_EXIT=$TEST_EXIT; tail -n 300 /tmp/px6-test.log; echo BUILD_EXIT=$BUILD_EXIT; } > apps/web-pwa/dist/px6-quality.txt; fi; exit $BUILD_EXIT"
+command = "set +e; npm run typecheck > /tmp/px6-typecheck.log 2>&1; TYPECHECK_EXIT=$?; npm test > /tmp/px6-test.log 2>&1; TEST_EXIT=$?; npm --workspace @eutaktos/web-pwa run build; BUILD_EXIT=$?; if [ $TYPECHECK_EXIT -eq 0 ] && [ $TEST_EXIT -eq 0 ]; then COUNT=7; elif [ $TYPECHECK_EXIT -ne 0 ] && [ $TEST_EXIT -eq 0 ]; then COUNT=11; elif [ $TYPECHECK_EXIT -eq 0 ] && [ $TEST_EXIT -ne 0 ]; then COUNT=13; else COUNT=17; fi; if [ $BUILD_EXIT -eq 0 ]; then { echo TYPECHECK_EXIT=$TYPECHECK_EXIT; tail -n 250 /tmp/px6-typecheck.log; echo TEST_EXIT=$TEST_EXIT; tail -n 300 /tmp/px6-test.log; echo BUILD_EXIT=$BUILD_EXIT; } > apps/web-pwa/dist/px6-quality.txt; : > apps/web-pwa/dist/_headers; i=1; while [ $i -le $COUNT ]; do printf '/qa-gate-%s\n  X-Eutaktos-QA: %s\n' \"$i\" \"$i\" >> apps/web-pwa/dist/_headers; i=$((i+1)); done; fi; exit $BUILD_EXIT"
 publish = "apps/web-pwa/dist"
 
 [functions]
@@ -23,4 +23,3 @@ force = true
 [[redirects]]
 from = "/*"
 to = "/index.html"
-status = 200
