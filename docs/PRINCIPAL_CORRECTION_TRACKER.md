@@ -25,6 +25,7 @@ Operational source of truth for the current Eutaktos People correction/integrati
 - C5.1 Directory -> Profile / PR #311: `fcdf51f7317d893721dff79c3f4fc17f3e4a850d`.
 - C5.2 Directory Add/Edit -> PX6 PersonWizard / PR #312: `495d21cc970ee2d5379d88fe2d99882a5e5ffe66`.
 - C5.3 authenticated PX7 recommendation adapter / PR #313: `0c1fdb45c1bfbb4f4a26b9c671df845c9d592a6c`.
+- C5.4 PX7 localized reason/warning copy / PR #314: `a9710362a672664d754ad615967038b08d98be6a`.
 
 Foundation merge is not equivalent to full PX5/PX6/PX7 product closure.
 
@@ -57,7 +58,7 @@ Foundation merge is not equivalent to full PX5/PX6/PX7 product closure.
 - PR #307; final head `e97269ff5d52f8abbc52eaa92dff52d3e665f0c0`; merge `58964b7c0080dd89b92459241de71ccdda111f6c`.
 - CI `32957109650`: PASS/PASS; canonical preview PASS; branch auto-deleted.
 - Eligibility precedence, tenant/capability isolation, hard constraints, completed-only history and timezone-explicit recommendation window verified.
-- Still open for full PX7: C5.4 localization, C5.5 picker, C5.6 `Ver todos os elegíveis`.
+- Still open for full PX7: C5.5 picker and C5.6 `Ver todos os elegíveis`.
 
 ## C4 — PX5 unified person profile foundation correction
 
@@ -87,7 +88,13 @@ Foundation merge is not equivalent to full PX5/PX6/PX7 product closure.
   - Response is minimized to target + structured PX7 evidence + authorized display name; tests prove no tenant/actor/capabilities/contact fields in public JSON.
   - 11 focused adapter/request-contract tests PASS; invalid user-selected target maps to 400 while stored-evidence corruption remains fail-loud internal error.
   - `principal/people-recommendation-integration` confirmed auto-deleted after merge.
-- [ ] **C5.4** Add pt-PT/en/es localized PX7 reason/warning text.
+- [x] **C5.4** Add pt-PT/en/es localized PX7 reason/warning text.
+  - PR #314; final head `2c7b7fe2a56751662d3858692cf29c22ddfc97f8`; squash merge `a9710362a672664d754ad615967038b08d98be6a`.
+  - CI `32967568203`: quality PASS + browser-regression PASS; canonical `netlify/eutakes/deploy-preview` PASS.
+  - Presentation-only catalog covers all 11 current `RecommendationReasonCode` values and both `RecommendationWarningCode` values in `pt-PT`, `en`, `es`.
+  - Type-only application imports plus exhaustive `Record<...>` typing make future engine codes fail typecheck until copy exists for all supported locales; no recommendation/ranking logic changed.
+  - `LONGER_SINCE_LAST_ASSIGNMENT` preserves comparable completed-history semantics; `NO_COMPLETED_ASSIGNMENT_HISTORY` remains a neutral warning rather than positive evidence.
+  - 9 focused localization tests PASS; `principal/c5-4-recommendation-i18n` confirmed auto-deleted after merge.
 - [ ] **C5.5** Build recommendation picker for assignment workflows.
 - [ ] **C5.6** Add `Ver todos os elegíveis` escape hatch.
 - [ ] **C5.7** Connect PX5.9 contextual candidate insight only to approved PX7 evidence.
@@ -116,6 +123,7 @@ Foundation merge is not equivalent to full PX5/PX6/PX7 product closure.
 | `main` | ACTIVE SOURCE OF TRUTH | Never rewrite/force-push |
 | `principal/people-integration` / #312 | MERGED / AUTO-DELETED | Do not reuse stale history |
 | `principal/people-recommendation-integration` / #313 | MERGED / AUTO-DELETED | Do not recreate solely for docs |
+| `principal/c5-4-recommendation-i18n` / #314 | MERGED / AUTO-DELETED | Do not recreate solely for docs |
 | `principal/correction-tracker` / #310 | MERGED / AUTO-DELETED | Do not recreate solely for docs |
 | `principal/px4-11-final` / #308 | MERGED / AUTO-DELETED | Do not recreate |
 | `principal/px4-11-bulk-export` / #303 | SUPERSEDED-DELETE | Never use; delete only with real delete tooling |
@@ -136,3 +144,4 @@ No Wave 1 worker implementation branch is active.
 - `2026-08-26 — C5.1 Directory -> Profile — PR #311 — merge fcdf51f7317d893721dff79c3f4fc17f3e4a850d — CI 32960668620 PASS/PASS — canonical preview PASS`
 - `2026-08-26 — C5.2 Directory Add/Edit -> PersonWizard — PR #312 — merge 495d21cc970ee2d5379d88fe2d99882a5e5ffe66 — CI 32962712469 PASS/PASS — canonical preview PASS`
 - `2026-08-26 — C5.3 authenticated PX7 adapter — PR #313 — merge 0c1fdb45c1bfbb4f4a26b9c671df845c9d592a6c — final head 9e6b67741120c3191ae6f4d4a98141d92f2d70cb — CI 32966364434 PASS/PASS — 11 focused tests PASS — canonical preview PASS — branch auto-deleted`
+- `2026-08-26 — C5.4 PX7 reason localization — PR #314 — merge a9710362a672664d754ad615967038b08d98be6a — final head 2c7b7fe2a56751662d3858692cf29c22ddfc97f8 — CI 32967568203 PASS/PASS — 9 focused localization tests PASS — canonical preview PASS — branch auto-deleted`
