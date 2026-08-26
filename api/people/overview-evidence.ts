@@ -1,6 +1,4 @@
 import {
-  PROFILE_COMPLETENESS,
-  RECENT_AVAILABILITY_CHANGES,
   affectedAssignmentsByAvailability,
   completedAssignmentHistoryFromScheduling,
   deterministicRecommendationEvidence,
@@ -15,10 +13,17 @@ import {
 } from '@eutaktos/domain';
 import { requireCapability, resolvePrincipal } from '../_auth';
 import type { EntityRow } from '../_db';
+import { DomainEventReader, type DomainEventProjectionRow } from '../_domain-event-reader';
 import { runEndpoint } from '../_endpoint';
 import { meetingStartInstant } from '../_midweek-uow';
 import { PeopleSnapshotUnitOfWork } from '../_uow';
 import { json, methodNotAllowed, type ApiHandler } from '../_types';
+import {
+  RECENT_AVAILABILITY_WINDOW_DAYS,
+  profileCompletenessEvidence,
+  recentAvailabilityChangesEvidence,
+  type ReadyRecentAvailabilityChangesEvidence,
+} from './overview-attention';
 
 type TenantEntity = { readonly id: string; readonly tenantId: string };
 
@@ -121,6 +126,22 @@ function unavailable(): UnavailableEvidence {
   return Object.freeze({ status: 'unavailable' });
 }
 
+async function recentAvailabilityEvents(
+  reader: DomainEventReader,
+  tenantId: string,
+  now: Date,
+): Promise<readonly DomainEventProjectionRow[]> {
+  const from = new Date(now.getTime() - RECENT_AVAILABILITY_WINDOW_DAYS * 86_400_000).toISOString();
+  const pageSize = 500;
+  const events: DomainEventProjectionRow[] = [];
+  for (let offset = 0; ; offset += pageSize) {
+    const page = await reader.list({ tenantId, eventType: 'AvailabilityChanged', from, limit: pageSize, offset });
+    events.push(...page);
+    if (page.length < pageSize) break;
+  }
+  return Object.freeze(events);
+}
+
 const handler: ApiHandler = async (request, response) => {
   if (request.method !== 'GET') { methodNotAllowed(response, ['GET']); return; }
   await runEndpoint(request, response, async database => {
@@ -137,9 +158,16 @@ const handler: ApiHandler = async (request, response) => {
     const canReadSchedule = principal.capabilities.includes('schedule.read');
     const canReadAvailability = principal.capabilities.includes('availability.read');
     const canReadEligibility = principal.capabilities.includes('eligibility.read');
+    const now = new Date();
 
     let affectedAssignments: ReadyAffectedAssignments | UnavailableEvidence = unavailable();
     let longInterval: ReadyLongInterval | UnavailableEvidence = unavailable();
+    let recentAvailabilityChanges: ReadyRecentAvailabilityChangesEvidence | UnavailableEvidence = unavailable();
+
+    if (canReadAvailability) {
+      const events = await recentAvailabilityEvents(new DomainEventReader(), principal.tenantId, now);
+      recentAvailabilityChanges = recentAvailabilityChangesEvidence(principal.tenantId, people, events, now);
+    }
 
     if (canReadSchedule) {
       const [meetingRows, studentRows, nonStudentRows] = await Promise.all([
@@ -170,7 +198,7 @@ const handler: ApiHandler = async (request, response) => {
           studentAssignments: students,
           nonStudentAssignments: nonStudents,
         });
-        const targets = upcomingOpenStudentTargets(meetings, students, new Date());
+        const targets = upcomingOpenStudentTargets(meetings, students, now);
         const longIntervalPeople = new Set<string>();
         let openAssignmentCount = 0;
 
@@ -205,11 +233,11 @@ const handler: ApiHandler = async (request, response) => {
     }
 
     json(response, 200, Object.freeze({
-      contractVersion: 'people-overview-evidence-v1',
+      contractVersion: 'people-overview-evidence-v2',
       affectedAssignments,
       longInterval,
-      profileCompleteness: PROFILE_COMPLETENESS,
-      recentAvailabilityChanges: RECENT_AVAILABILITY_CHANGES,
+      profileCompleteness: profileCompletenessEvidence(people),
+      recentAvailabilityChanges,
     }));
   });
 };
