@@ -23,6 +23,7 @@ Operational source of truth for the current Eutaktos People correction/integrati
 - PX7 recommendation backend/domain **foundation**: PR #307 corrected/integrated at `58964b7c0080dd89b92459241de71ccdda111f6c`.
 - PX5 unified person profile **foundation**: PR #305 corrected/integrated at `891369306414003dbea49371a02cff6c02c1c324`.
 - C5.1 Directory -> Person Profile integration: PR #311 integrated at `fcdf51f7317d893721dff79c3f4fc17f3e4a850d`.
+- C5.2 Directory Add/Edit -> PX6 PersonWizard integration: PR #312 integrated at `495d21cc970ee2d5379d88fe2d99882a5e5ffe66`.
 - The first implementation wave has no remaining active worker branch. C5 is now Principal integration work.
 
 Important: foundation merge is not equivalent to full PX5/PX6/PX7 product closure.
@@ -57,7 +58,7 @@ Important: foundation merge is not equivalent to full PX5/PX6/PX7 product closur
 - Corrected optional-resource coupling, partial-save retries, ambiguous-create handling, 401/403 states, baseline ownership, domain name normalization, minimal PATCH behavior and concurrent membership/core lost-update risks.
 - Known partial-create limitation remains: an ambiguous lost create response cannot be safely auto-retried until a server idempotency contract exists.
 - `grok/px6-guided-person-editor` auto-deleted.
-- **Still open for full PX6:** C5.2 real Directory wiring; ordinary Contact contract; general availability/responsibilities coverage where approved contracts exist.
+- **Still open for full PX6:** ordinary Contact contract; general availability/responsibilities coverage where approved contracts exist.
 
 ## C3 — PX7 recommendation backend/domain correction
 
@@ -102,7 +103,14 @@ Use one coherent Principal integration branch only; do not create a branch per c
   - Canonical `netlify/eutakes/deploy-preview`: PASS.
   - Added dedicated browser regression proving Directory -> Profile, refresh, Back/Forward and return while preserving filters.
   - Route state accepts only a bounded opaque internal person reference; human-readable names/contact data are rejected and never written to the URL.
-- [ ] **C5.2** Add/Edit -> PX6 Wizard; retire old basic form only after replacement is proven.
+- [x] **C5.2** Add/Edit -> PX6 Wizard; old basic form retired after replacement proof.
+  - PR #312 final head `278a10c0e29e34a1dfbbe91883fbbc4fa1c4640f`; merge `495d21cc970ee2d5379d88fe2d99882a5e5ffe66`.
+  - CI run `32962712469`: `quality` PASS + `browser-regression` PASS.
+  - Canonical `netlify/eutakes/deploy-preview`: PASS.
+  - Directory create/edit now use the shared five-step `PersonWizard`; legacy basic Add/Edit form path removed.
+  - Write controls require both server Directory `writePeople` and authenticated `/api/session` `people.read + people.write`; read-only profile access remains usable.
+  - Dedicated browser regression proves guided Add/Edit, minimal edit projection, no legacy form, no person PII in URL/localStorage and fail-closed write permissions.
+  - `principal/people-integration` auto-deleted after merge.
 - [ ] **C5.3** Add server-side PX7 adapter built solely from authenticated/authorized facts; browser must not supply tenant/actor/capabilities as authority.
 - [ ] **C5.4** Add pt-PT/en/es localized PX7 reason/warning text.
 - [ ] **C5.5** Build recommendation picker for assignment workflows.
@@ -131,7 +139,7 @@ Use one coherent Principal integration branch only; do not create a branch per c
 | Branch / PR | State | Action |
 |---|---|---|
 | `main` | ACTIVE SOURCE OF TRUTH | Never rewrite/force-push |
-| `principal/people-integration` / #311 | C5 ACTIVE INTEGRATION LINE | Reuse for the next C5 slice if branch cleanup has not removed it; otherwise recreate only from current main |
+| `principal/people-integration` / #312 | MERGED / AUTO-DELETED | Recreate only from current `main` for C5.3 |
 | `principal/correction-tracker` / #310 | MERGED / AUTO-DELETED | Do not recreate solely for docs |
 | `principal/px4-11-final` / #308 | MERGED / AUTO-DELETED | Do not recreate |
 | `principal/px4-11-bulk-export` / #303 | SUPERSEDED-DELETE | Never use; delete only with real delete tooling |
@@ -150,3 +158,4 @@ No worker implementation branch from Wave 1 is active after C4.
 - `2026-08-26 — C3 PX7 backend/domain foundation — PR #307 — merge 58964b7c0080dd89b92459241de71ccdda111f6c — CI 32957109650 PASS/PASS — canonical preview PASS — branch auto-deleted`
 - `2026-08-26 — C4 PX5 profile foundation — PR #305 — merge 891369306414003dbea49371a02cff6c02c1c324 — final head 91b03a9e1a1b8086869c5a11384d3bcb9472ccd0 — CI 32958989117 PASS/PASS — canonical preview PASS — branch auto-deleted`
 - `2026-08-26 — C5.1 Directory -> Profile — PR #311 — merge fcdf51f7317d893721dff79c3f4fc17f3e4a850d — final head 88ec2c337e1bca7d880f9e253ae2eddf94e31f40 — CI 32960668620 PASS/PASS — dedicated profile route browser regression PASS — canonical preview PASS`
+- `2026-08-26 — C5.2 Directory Add/Edit -> PersonWizard — PR #312 — merge 495d21cc970ee2d5379d88fe2d99882a5e5ffe66 — final head 278a10c0e29e34a1dfbbe91883fbbc4fa1c4640f — CI 32962712469 PASS/PASS — dedicated guided Add/Edit + read-only capability browser regression PASS — canonical preview PASS`
