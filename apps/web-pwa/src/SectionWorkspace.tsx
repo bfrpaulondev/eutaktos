@@ -9,43 +9,60 @@ import { PeopleDirectory } from './PeopleDirectory';
 import { ResponsibilitiesSection } from './ResponsibilitiesSection';
 import { ServiceGroupsSection } from './ServiceGroupsSection';
 import type { Locale } from './lib/preferences';
-import { peopleWorkspaceSearchForView, peopleWorkspaceViewFromSearch, type PeopleWorkspaceView } from './lib/peopleWorkspaceRoute';
+import {
+  peopleWorkspaceProfileRefFromSearch,
+  peopleWorkspaceSearchForProfile,
+  peopleWorkspaceSearchForView,
+  peopleWorkspaceViewFromSearch,
+  type PeopleWorkspaceView,
+} from './lib/peopleWorkspaceRoute';
 import { getWorkspaceCopy, type WorkspaceSection } from './lib/sectionData';
 import { Stack, Typography } from './ui/MuiCompat';
 
 interface SectionWorkspaceProps { locale: Locale; section: WorkspaceSection }
+type NavigablePeopleView = Exclude<PeopleWorkspaceView, 'profile'>;
 
 const PeopleOverview = lazy(async () => {
   const module = await import('./PeopleOverview');
   return { default: module.PeopleOverview };
 });
 
+const PersonProfile = lazy(async () => {
+  const module = await import('./PersonProfile');
+  return { default: module.PersonProfile };
+});
+
 const copy = {
-  'pt-PT': { organization: 'Organização', organizationTitle: 'Pessoas e organização', organizationSubtitle: 'Mantém perfis, agregados, grupos, responsabilidades, ausências e permissões no mesmo contexto.', overview: 'Visão geral', directory: 'Diretório', households: 'Agregados', groups: 'Grupos de serviço', responsibilities: 'Responsabilidades', audit: 'Histórico de auditoria', access: 'Gerir acessos', hourglass: 'Inspecionar export Hourglass', overviewLoading: 'A carregar Pessoas…' },
-  en: { organization: 'Organization', organizationTitle: 'People and organization', organizationSubtitle: 'Keep profiles, households, groups, responsibilities, away periods and permissions in the same context.', overview: 'Overview', directory: 'Directory', households: 'Households', groups: 'Service groups', responsibilities: 'Responsibilities', audit: 'Audit history', access: 'Manage access', hourglass: 'Inspect Hourglass export', overviewLoading: 'Loading People…' },
-  es: { organization: 'Organización', organizationTitle: 'Personas y organización', organizationSubtitle: 'Mantén perfiles, grupos familiares, grupos, responsabilidades, ausencias y permisos en el mismo contexto.', overview: 'Vista general', directory: 'Directorio', households: 'Grupos familiares', groups: 'Grupos de servicio', responsibilities: 'Responsabilidades', audit: 'Historial de auditoría', access: 'Gestionar accesos', hourglass: 'Inspeccionar exportación Hourglass', overviewLoading: 'Cargando Personas…' },
+  'pt-PT': { organization: 'Organização', organizationTitle: 'Pessoas e organização', organizationSubtitle: 'Mantém perfis, agregados, grupos, responsabilidades, ausências e permissões no mesmo contexto.', overview: 'Visão geral', directory: 'Diretório', households: 'Agregados', groups: 'Grupos de serviço', responsibilities: 'Responsabilidades', audit: 'Histórico de auditoria', access: 'Gerir acessos', hourglass: 'Inspecionar export Hourglass', overviewLoading: 'A carregar Pessoas…', profileLoading: 'A carregar perfil…' },
+  en: { organization: 'Organization', organizationTitle: 'People and organization', organizationSubtitle: 'Keep profiles, households, groups, responsibilities, away periods and permissions in the same context.', overview: 'Overview', directory: 'Directory', households: 'Households', groups: 'Service groups', responsibilities: 'Responsibilities', audit: 'Audit history', access: 'Manage access', hourglass: 'Inspect Hourglass export', overviewLoading: 'Loading People…', profileLoading: 'Loading profile…' },
+  es: { organization: 'Organización', organizationTitle: 'Personas y organización', organizationSubtitle: 'Mantén perfiles, grupos familiares, grupos, responsabilidades, ausencias y permisos en el mismo contexto.', overview: 'Vista general', directory: 'Directorio', households: 'Grupos familiares', groups: 'Grupos de servicio', responsibilities: 'Responsabilidades', audit: 'Historial de auditoría', access: 'Gestionar accesos', hourglass: 'Inspeccionar exportación Hourglass', overviewLoading: 'Cargando Personas…', profileLoading: 'Cargando perfil…' },
 } as const;
 
 function peopleViewFromLocation(): PeopleWorkspaceView {
   return peopleWorkspaceViewFromSearch(window.location.search);
 }
 
-function pushPeopleView(next: PeopleWorkspaceView): void {
-  const search = peopleWorkspaceSearchForView(window.location.search, next);
+function profileRefFromLocation(): string | undefined {
+  return peopleWorkspaceProfileRefFromSearch(window.location.search);
+}
+
+function pushPeopleSearch(search: string, state: Readonly<Record<string, unknown>>): void {
   const target = `${window.location.pathname}${search}${window.location.hash}`;
   const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-  if (target !== current) {
-    // This is a view transition inside the same People route. Update browser
-    // history without synthesizing popstate: the local owner updates immediately,
-    // while real Back/Forward navigation will emit popstate and restore the view.
-    // Avoiding a synthetic event also prevents the application shell from
-    // remounting this workspace and dropping an in-flight Add Person handoff.
-    window.history.pushState({ peopleView: next }, '', target);
-  }
+  if (target !== current) window.history.pushState(state, '', target);
+}
+
+function pushPeopleView(next: NavigablePeopleView): void {
+  pushPeopleSearch(peopleWorkspaceSearchForView(window.location.search, next), { peopleView: next });
+}
+
+function pushPersonProfile(personRef: string): void {
+  pushPeopleSearch(peopleWorkspaceSearchForProfile(window.location.search, personRef), { peopleView: 'profile' });
 }
 
 function OrganizationWorkspace({ locale }: { locale: Locale }) {
   const [view, setView] = useState<PeopleWorkspaceView>(peopleViewFromLocation);
+  const [profileRef, setProfileRef] = useState<string | undefined>(profileRefFromLocation);
   const [createRequest, setCreateRequest] = useState(0);
   const [auditOpen, setAuditOpen] = useState(false);
   const [accessOpen, setAccessOpen] = useState(false);
@@ -53,27 +70,40 @@ function OrganizationWorkspace({ locale }: { locale: Locale }) {
   const auditButtonRef = useRef<HTMLButtonElement | null>(null);
   const accessButtonRef = useRef<HTMLButtonElement | null>(null);
   const text = copy[locale];
-  const views: readonly PeopleWorkspaceView[] = ['overview', 'directory', 'households', 'groups', 'responsibilities'];
-  const labels: Record<PeopleWorkspaceView, string> = { overview: text.overview, directory: text.directory, households: text.households, groups: text.groups, responsibilities: text.responsibilities };
+  const views = ['overview', 'directory', 'households', 'groups', 'responsibilities'] as const satisfies readonly NavigablePeopleView[];
+  const labels: Record<NavigablePeopleView, string> = { overview: text.overview, directory: text.directory, households: text.households, groups: text.groups, responsibilities: text.responsibilities };
 
   useEffect(() => {
-    const onPopState = () => setView(peopleViewFromLocation());
+    const onPopState = () => {
+      setView(peopleViewFromLocation());
+      setProfileRef(profileRefFromLocation());
+    };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
-  const selectView = (next: PeopleWorkspaceView) => {
+  const selectView = (next: NavigablePeopleView) => {
     pushPeopleView(next);
+    setProfileRef(undefined);
     setView(next);
+  };
+
+  const openProfile = (personRef: string) => {
+    pushPersonProfile(personRef);
+    setProfileRef(personRef);
+    setView('profile');
   };
 
   const openCreate = () => {
     pushPeopleView('directory');
+    setProfileRef(undefined);
     setView('directory');
     window.requestAnimationFrame(() => setCreateRequest(current => current + 1));
   };
 
   if (view === 'overview') return <Suspense fallback={<Box component="section" role="status" sx={{ py: 4 }}><Typography color="text.secondary">{text.overviewLoading}</Typography></Box>}><PeopleOverview locale={locale} onOpenDirectory={() => selectView('directory')} onAddPerson={openCreate} /></Suspense>;
+
+  const navView: NavigablePeopleView = view === 'profile' ? 'directory' : view;
 
   return <Stack spacing={2}>
     <Paper component="section" aria-labelledby="organization-title" sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3 }}>
@@ -83,10 +113,11 @@ function OrganizationWorkspace({ locale }: { locale: Locale }) {
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ flexShrink: 0 }}><Button variant="outlined" onClick={() => setHourglassOpen(true)}>{text.hourglass}</Button><Button ref={auditButtonRef} variant="outlined" onClick={() => setAuditOpen(true)}>{text.audit}</Button><Button ref={accessButtonRef} variant="outlined" onClick={() => setAccessOpen(true)}>{text.access}</Button></Stack>
         </Stack>
         <Divider />
-        <Stack component="nav" aria-label={text.organizationTitle} direction="row" gap={0.75} flexWrap="wrap" useFlexGap>{views.map(item => <Button key={item} variant={view === item ? 'contained' : 'text'} aria-current={view === item ? 'page' : undefined} onClick={() => selectView(item)}>{labels[item]}</Button>)}</Stack>
+        <Stack component="nav" aria-label={text.organizationTitle} direction="row" gap={0.75} flexWrap="wrap" useFlexGap>{views.map(item => <Button key={item} variant={navView === item ? 'contained' : 'text'} aria-current={navView === item ? 'page' : undefined} onClick={() => selectView(item)}>{labels[item]}</Button>)}</Stack>
       </Stack>
     </Paper>
-    {view === 'directory' ? <PeopleDirectory locale={locale} createRequest={createRequest} /> : null}
+    {view === 'directory' ? <PeopleDirectory locale={locale} createRequest={createRequest} onOpenProfile={openProfile} /> : null}
+    {view === 'profile' && profileRef ? <Suspense fallback={<Box component="section" role="status" sx={{ py: 4 }}><Typography color="text.secondary">{text.profileLoading}</Typography></Box>}><PersonProfile personId={profileRef} locale={locale} onBack={() => selectView('directory')} /></Suspense> : null}
     {view === 'households' ? <HouseholdsSection locale={locale} /> : null}
     {view === 'groups' ? <ServiceGroupsSection locale={locale} /> : null}
     {view === 'responsibilities' ? <ResponsibilitiesSection locale={locale} /> : null}

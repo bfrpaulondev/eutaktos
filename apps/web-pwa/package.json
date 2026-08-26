@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:production-mount": "npm run build && node scripts/verify-production-mount.mjs",
     "test:ux-runtime": "node scripts/verify-ux-runtime.mjs",
+    "test:person-profile-route": "node scripts/verify-person-profile-route.mjs",
     "test:system-theme-runtime": "node scripts/verify-system-theme-runtime.mjs",
     "test:lazy-recovery": "node scripts/verify-lazy-recovery.mjs",
     "test:hourglass-inspector": "node scripts/verify-hourglass-inspector.mjs",
