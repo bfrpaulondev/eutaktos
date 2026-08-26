@@ -3,6 +3,7 @@ import {
   assertTenantScope,
   isExplicitlyEligible,
   isPersonAvailableAt,
+  latestEligibilityDecision,
   normalizeDisplayName,
   recordEligibilityDecision,
   validateAvailability,
@@ -44,13 +45,17 @@ describe('people domain', () => {
     expect(isExplicitlyEligible(revoked, 'bible-reading')).toBe(false);
   });
 
-  it('uses a stable actor-id tie-breaker when eligibility decisions share the same timestamp', () => {
+  it('uses recorded sequence, never actor-id ordering, when eligibility timestamps are equal', () => {
     const atSameInstant = '2026-08-15T10:00:00Z';
-    const enabled = { assignmentTypeId: 'bible-reading', enabled: true, decidedBy: 'elder-a', decidedAt: atSameInstant };
-    const revoked = { assignmentTypeId: 'bible-reading', enabled: false, decidedBy: 'elder-z', decidedAt: atSameInstant };
+    const enabled = { assignmentTypeId: 'bible-reading', enabled: true, decidedBy: 'elder-z', decidedAt: atSameInstant };
+    const revoked = { assignmentTypeId: 'bible-reading', enabled: false, decidedBy: 'elder-a', decidedAt: atSameInstant };
 
-    expect(isExplicitlyEligible({ ...basePerson, eligibility: [enabled, revoked] }, 'bible-reading')).toBe(false);
-    expect(isExplicitlyEligible({ ...basePerson, eligibility: [revoked, enabled] }, 'bible-reading')).toBe(false);
+    const revokedLast = { ...basePerson, eligibility: [enabled, revoked] };
+    const enabledLast = { ...basePerson, eligibility: [revoked, enabled] };
+    expect(latestEligibilityDecision(revokedLast.eligibility, 'bible-reading')).toBe(revoked);
+    expect(latestEligibilityDecision(enabledLast.eligibility, 'bible-reading')).toBe(enabled);
+    expect(isExplicitlyEligible(revokedLast, 'bible-reading')).toBe(false);
+    expect(isExplicitlyEligible(enabledLast, 'bible-reading')).toBe(true);
   });
 
   it('normalizes assignment type identifiers when recording an explicit decision', () => {
