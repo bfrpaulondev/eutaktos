@@ -109,7 +109,9 @@ async function activateBulkSelection() {
   for (let attempt = 0; attempt < 8; attempt += 1) {
     if (await selectionModeReady()) return;
 
-    if (!await clickButton('Exportar')) {
+    // Use a real pointer event rather than HTMLElement.click(). Ant's popup/trigger
+    // stack is intentionally exercised the same way a user opens the menu.
+    if (!await clickVisibleButton('Exportar')) {
       const diagnostic = await evaluate(`({
         lang: document.documentElement.lang,
         route: location.pathname + location.search + location.hash,
