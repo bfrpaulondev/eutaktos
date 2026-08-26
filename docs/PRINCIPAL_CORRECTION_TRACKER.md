@@ -5,113 +5,88 @@ Operational source of truth for the current Eutaktos People correction/integrati
 ## Non-negotiable rules
 
 1. Before every slice: refresh `main`; read this file, `docs/AI_HANDOFF.md`, and the relevant `docs/PRODUCT_EXPERIENCE_MASTER_PLAN.md` section.
-2. One correction/integration slice at a time. Never start from a worker report or stale branch without checking the actual SHA/diff.
-3. Mark `[x]` only after: review/correction -> relevant gates green -> merge to current `main` -> canonical `netlify/eutakes` preview/production evidence where applicable.
+2. One correction/integration slice at a time. Never accept worker reports without checking actual SHA/diff.
+3. Mark `[x]` only after review/correction -> relevant gates green -> merge to current `main` -> canonical `netlify/eutakes` evidence where applicable.
 4. Browser never supplies authoritative tenant/actor/capabilities. Preserve tenant isolation, least privilege, audit/domain boundaries and minimum PII.
 5. No new Product Experience screen may introduce MUI.
 6. No PII in URL/search, browser storage, logs, analytics, cache or unapproved export fields.
-7. Do not create duplicate branches. Reuse the active branch when safe; close superseded PRs; merged branches should disappear through repository cleanup.
-8. Every branch not explicitly ACTIVE below is historical/quarantined and must not be used as implementation source without individual verification.
+7. Do not create duplicate branches. Merged branches should disappear through repository cleanup.
+8. Every branch not explicitly ACTIVE below is historical/quarantined and must not be used without individual verification.
 9. Canonical acceptance URL: `https://eutakes.netlify.app/`.
 10. `PRODUCT_EXPERIENCE_MASTER_PLAN.md` is synchronized only in C7 from integrated evidence, never from worker claims.
 
 ## Current integrated baseline
 
-- PX3.4 + PX3.7: integrated at `7592fb7f6ba5220b385871f812d03fd17f492bd5`.
-- PX4.11: PR #308 corrected/integrated at `457b21dab7e134c6ff3b2f0a29d15cd1fa0dc56d`.
-- PX6 guided editor **foundation**: PR #309 corrected/integrated at `6673cfcc14e89f5666a72941b3f44246a71ff5db`.
-- PX7 recommendation backend/domain **foundation**: PR #307 corrected/integrated at `58964b7c0080dd89b92459241de71ccdda111f6c`.
-- PX5 unified person profile **foundation**: PR #305 corrected/integrated at `891369306414003dbea49371a02cff6c02c1c324`.
-- C5.1 Directory -> Person Profile integration: PR #311 integrated at `fcdf51f7317d893721dff79c3f4fc17f3e4a850d`.
-- C5.2 Directory Add/Edit -> PX6 PersonWizard integration: PR #312 integrated at `495d21cc970ee2d5379d88fe2d99882a5e5ffe66`.
-- The first implementation wave has no remaining active worker branch. C5 is now Principal integration work.
+- PX3.4 + PX3.7: `7592fb7f6ba5220b385871f812d03fd17f492bd5`.
+- PX4.11 / PR #308: `457b21dab7e134c6ff3b2f0a29d15cd1fa0dc56d`.
+- PX6 guided editor foundation / PR #309: `6673cfcc14e89f5666a72941b3f44246a71ff5db`.
+- PX7 backend/domain foundation / PR #307: `58964b7c0080dd89b92459241de71ccdda111f6c`.
+- PX5 unified profile foundation / PR #305: `891369306414003dbea49371a02cff6c02c1c324`.
+- C5.1 Directory -> Profile / PR #311: `fcdf51f7317d893721dff79c3f4fc17f3e4a850d`.
+- C5.2 Directory Add/Edit -> PX6 PersonWizard / PR #312: `495d21cc970ee2d5379d88fe2d99882a5e5ffe66`.
+- C5.3 authenticated PX7 recommendation adapter / PR #313: `0c1fdb45c1bfbb4f4a26b9c671df845c9d592a6c`.
 
-Important: foundation merge is not equivalent to full PX5/PX6/PX7 product closure.
+Foundation merge is not equivalent to full PX5/PX6/PX7 product closure.
 
 ## C0 — Repository hygiene and source of truth
 
-- [x] **C0.1** Create Principal tracker.
-- [x] **C0.2** Integrate tracker through PR #310.
-- [x] **C0.3** Inventory branches: initial inventory was 85 total; unreviewed old branches classified `HISTORICAL-QUARANTINE`.
-- [x] **C0.4** Close superseded open PRs: #303 closed without merge.
+- [x] C0.1–C0.4 tracker/source-of-truth/inventory/superseded PR handling complete.
 - [ ] **C0.5** Delete confirmed superseded historical branches when a real branch-delete action is available.
   - `principal/px4-11-bulk-export` / #303 remains `SUPERSEDED-DELETE`; never use it.
+  - Initial branch inventory: 85 total; unreviewed old branches remain `HISTORICAL-QUARANTINE`.
   - Never simulate deletion by force-moving refs.
 
 ## C1 — PX4.11 Directory export/bulk correction
 
 - [x] C1.1–C1.6 complete.
-- Final head: `3b6a7e92ff642d4157967fb39fccc9f8066e6b15`.
-- CI run `32953527991`: `quality` PASS + `browser-regression` PASS.
-- Canonical `netlify/eutakes/deploy-preview`: PASS.
-- Merge SHA: `457b21dab7e134c6ff3b2f0a29d15cd1fa0dc56d`.
-- Principal corrections included real capability-aware UX harness data and a React filter-reference stability fix preventing bulk-selection render/update churn.
-- Merged branch auto-deleted.
+- PR #308; final head `3b6a7e92ff642d4157967fb39fccc9f8066e6b15`; merge `457b21dab7e134c6ff3b2f0a29d15cd1fa0dc56d`.
+- CI `32953527991`: quality PASS + browser-regression PASS; canonical preview PASS.
+- Capability-aware export/bulk and filter-reference stability regression fixed; branch auto-deleted.
 
 ## C2 — PX6 guided editor foundation correction
 
 - [x] C2.1–C2.8 complete.
-- Final head: `400afcef5fad40f27062aaf5b2488192f46d4924`.
-- CI run `32956000440`: `quality` PASS + `browser-regression` PASS.
-- Canonical `netlify/eutakes/deploy-preview`: PASS.
-- Merge SHA: `6673cfcc14e89f5666a72941b3f44246a71ff5db`.
-- Corrected optional-resource coupling, partial-save retries, ambiguous-create handling, 401/403 states, baseline ownership, domain name normalization, minimal PATCH behavior and concurrent membership/core lost-update risks.
-- Known partial-create limitation remains: an ambiguous lost create response cannot be safely auto-retried until a server idempotency contract exists.
-- `grok/px6-guided-person-editor` auto-deleted.
-- **Still open for full PX6:** ordinary Contact contract; general availability/responsibilities coverage where approved contracts exist.
+- PR #309; final head `400afcef5fad40f27062aaf5b2488192f46d4924`; merge `6673cfcc14e89f5666a72941b3f44246a71ff5db`.
+- CI `32956000440`: PASS/PASS; canonical preview PASS; branch auto-deleted.
+- Corrected optional-resource coupling, partial-save retries, ambiguous-create handling, 401/403, baseline ownership, domain name normalization, minimal PATCH behavior and concurrent lost-update risks.
+- Still open for full PX6: ordinary Contact contract and broader approved availability/responsibility coverage.
 
 ## C3 — PX7 recommendation backend/domain correction
 
 - [x] C3.1–C3.8 complete.
-- Final head: `e97269ff5d52f8abbc52eaa92dff52d3e665f0c0`.
-- CI run `32957109650`: `quality` PASS + `browser-regression` PASS.
-- Canonical `netlify/eutakes/deploy-preview`: PASS.
-- Merge SHA: `58964b7c0080dd89b92459241de71ccdda111f6c`.
-- Canonical eligibility precedence: later `decidedAt` wins; on equal timestamp, later append-record wins. `decidedBy` has no business ordering meaning.
-- Hard constraints verified before workload/recency; completed-only history; no-history remains neutral; tenant/capability isolation verified.
-- Recommendation window now requires valid timezone-explicit ISO instants and `endsAt > startsAt`.
-- `brunello/px7-complete` auto-deleted.
-- **Still open for full PX7:** C5.4 localized reasons, C5.5 recommendation picker, C5.6 `Ver todos os elegíveis`.
+- PR #307; final head `e97269ff5d52f8abbc52eaa92dff52d3e665f0c0`; merge `58964b7c0080dd89b92459241de71ccdda111f6c`.
+- CI `32957109650`: PASS/PASS; canonical preview PASS; branch auto-deleted.
+- Eligibility precedence, tenant/capability isolation, hard constraints, completed-only history and timezone-explicit recommendation window verified.
+- Still open for full PX7: C5.4 localization, C5.5 picker, C5.6 `Ver todos os elegíveis`.
 
 ## C4 — PX5 unified person profile foundation correction
 
-- [x] **C4.1** Re-read canonical responsibility interval rules and PR #305 before editing.
-- [x] **C4.2** Align active responsibilities to canonical `[startsAt, endsAt)` and fail closed on invalid timestamps.
-- [x] **C4.3** Evaluate assignments using real `date + localTime + timezone`; same-day past meetings are not upcoming; Lisbon DST ambiguous/nonexistent times follow scheduling semantics/fail closed.
-- [x] **C4.4** Preserve partial/401/403/404/retry/stale-response ownership behavior.
-- [x] **C4.5** Preserve minimum PII: ordinary phone/email/address are not inferred without an approved DTO; audit is not requested without `audit.read`.
-- [x] **C4.6** Reassess literal master requirements. PX5.3/PX5.4/PX5.6 remain PARTIAL; PX5.9 remains OPEN.
-- [x] **C4.7** Validate against current main and rerun gates.
-  - Final head: `91b03a9e1a1b8086869c5a11384d3bcb9472ccd0`.
-  - Merge-ref tested against current main including C3/tracker updates.
-  - CI run `32958989117`: `quality` PASS + `browser-regression` PASS.
-  - Focused profile tests include responsibility boundaries, invalid timestamps, same-day meeting time, cross-timezone ordering, Lisbon DST ambiguity/nonexistent time, authorization and stale response ownership.
-  - Canonical `netlify/eutakes/deploy-preview`: PASS.
-  - An earlier generic Directory UX failure (`Add person` not found) passed on job rerun without Directory changes and the final head full browser suite also passed; treated as harness timing/flake, not hidden as a product fix.
-- [x] **C4.8** Integrate corrected PX5 foundation.
-  - PR #305 merged at `891369306414003dbea49371a02cff6c02c1c324` using expected head SHA.
-  - `manus/px5-unified-person-profile` confirmed auto-deleted after merge.
-- **Still open for full PX5:** PX5.3 ordinary contacts/editing; PX5.4 explain what eligibility settings affect; PX5.6 useful assignment filters; PX5.9 contextual recommendation insight via C5.7.
+- [x] C4.1–C4.8 complete.
+- PR #305; final head `91b03a9e1a1b8086869c5a11384d3bcb9472ccd0`; merge `891369306414003dbea49371a02cff6c02c1c324`.
+- CI `32958989117`: PASS/PASS; canonical preview PASS; branch auto-deleted.
+- Corrected canonical responsibility intervals, invalid timestamps, real date+time+timezone assignment ordering, DST behavior and authorization/stale-response handling.
+- Still open for full PX5: ordinary contacts/editing; explain eligibility-setting impact; useful assignment filters; PX5.9 via C5.7.
 
 ## C5 — Principal People integration
 
-Use one coherent Principal integration branch only; do not create a branch per checkbox.
-
 - [x] **C5.1** Directory -> Person Profile navigation/deep link without PII in URL.
-  - PR #311 final head `88ec2c337e1bca7d880f9e253ae2eddf94e31f40`; merge `fcdf51f7317d893721dff79c3f4fc17f3e4a850d`.
-  - CI run `32960668620`: `quality` PASS + `browser-regression` PASS.
-  - Canonical `netlify/eutakes/deploy-preview`: PASS.
-  - Added dedicated browser regression proving Directory -> Profile, refresh, Back/Forward and return while preserving filters.
-  - Route state accepts only a bounded opaque internal person reference; human-readable names/contact data are rejected and never written to the URL.
-- [x] **C5.2** Add/Edit -> PX6 Wizard; old basic form retired after replacement proof.
-  - PR #312 final head `278a10c0e29e34a1dfbbe91883fbbc4fa1c4640f`; merge `495d21cc970ee2d5379d88fe2d99882a5e5ffe66`.
-  - CI run `32962712469`: `quality` PASS + `browser-regression` PASS.
-  - Canonical `netlify/eutakes/deploy-preview`: PASS.
-  - Directory create/edit now use the shared five-step `PersonWizard`; legacy basic Add/Edit form path removed.
-  - Write controls require both server Directory `writePeople` and authenticated `/api/session` `people.read + people.write`; read-only profile access remains usable.
-  - Dedicated browser regression proves guided Add/Edit, minimal edit projection, no legacy form, no person PII in URL/localStorage and fail-closed write permissions.
-  - `principal/people-integration` auto-deleted after merge.
-- [ ] **C5.3** Add server-side PX7 adapter built solely from authenticated/authorized facts; browser must not supply tenant/actor/capabilities as authority.
+  - PR #311; final head `88ec2c337e1bca7d880f9e253ae2eddf94e31f40`; merge `fcdf51f7317d893721dff79c3f4fc17f3e4a850d`.
+  - CI `32960668620`: PASS/PASS; dedicated route regression PASS; canonical preview PASS.
+- [x] **C5.2** Add/Edit -> PX6 Wizard; legacy basic form retired after replacement proof.
+  - PR #312; final head `278a10c0e29e34a1dfbbe91883fbbc4fa1c4640f`; merge `495d21cc970ee2d5379d88fe2d99882a5e5ffe66`.
+  - CI `32962712469`: PASS/PASS; dedicated guided Add/Edit/read-only capability regression PASS; canonical preview PASS.
+  - Write controls require server Directory `writePeople` plus authenticated session `people.read + people.write`; branch auto-deleted.
+- [x] **C5.3** Server-side PX7 adapter built solely from authenticated/authorized facts.
+  - PR #313; final head `9e6b67741120c3191ae6f4d4a98141d92f2d70cb`; squash merge `0c1fdb45c1bfbb4f4a26b9c671df845c9d592a6c`.
+  - CI `32966364434`: quality PASS + browser-regression PASS; canonical `netlify/eutakes/deploy-preview` PASS.
+  - New read-only contract: `GET /api/people/recommendations?meetingId=<opaque>&slotId=<opaque>`.
+  - Browser supplies only opaque target identity. Unknown/authority-bearing fields, GET bodies, duplicate values and malformed refs are rejected.
+  - Server resolves principal and requires `people.read`, `eligibility.read`, `availability.read`, `schedule.read` before loading tenant evidence.
+  - Assignment type comes from stored slot `partDefinitionId`; window comes from stored meeting date/localTime/IANA timezone; people, explicit eligibility, availability, active assignments, completed history and workload are tenant-scoped server facts.
+  - Reuses accepted `deterministicRecommendationEvidence`; no second ranking engine and no assignment write/automatic decision.
+  - Response is minimized to target + structured PX7 evidence + authorized display name; tests prove no tenant/actor/capabilities/contact fields in public JSON.
+  - 11 focused adapter/request-contract tests PASS; invalid user-selected target maps to 400 while stored-evidence corruption remains fail-loud internal error.
+  - `principal/people-recommendation-integration` confirmed auto-deleted after merge.
 - [ ] **C5.4** Add pt-PT/en/es localized PX7 reason/warning text.
 - [ ] **C5.5** Build recommendation picker for assignment workflows.
 - [ ] **C5.6** Add `Ver todos os elegíveis` escape hatch.
@@ -139,7 +114,8 @@ Use one coherent Principal integration branch only; do not create a branch per c
 | Branch / PR | State | Action |
 |---|---|---|
 | `main` | ACTIVE SOURCE OF TRUTH | Never rewrite/force-push |
-| `principal/people-integration` / #312 | MERGED / AUTO-DELETED | Recreate only from current `main` for C5.3 |
+| `principal/people-integration` / #312 | MERGED / AUTO-DELETED | Do not reuse stale history |
+| `principal/people-recommendation-integration` / #313 | MERGED / AUTO-DELETED | Do not recreate solely for docs |
 | `principal/correction-tracker` / #310 | MERGED / AUTO-DELETED | Do not recreate solely for docs |
 | `principal/px4-11-final` / #308 | MERGED / AUTO-DELETED | Do not recreate |
 | `principal/px4-11-bulk-export` / #303 | SUPERSEDED-DELETE | Never use; delete only with real delete tooling |
@@ -148,14 +124,15 @@ Use one coherent Principal integration branch only; do not create a branch per c
 | `manus/px5-unified-person-profile` / #305 | MERGED / AUTO-DELETED | Do not recreate |
 | all other pre-existing branches | HISTORICAL-QUARANTINE | Never use in this cycle without individual verification |
 
-No worker implementation branch from Wave 1 is active after C4.
+No Wave 1 worker implementation branch is active.
 
 ## Completion record
 
 - `2026-08-26 — C0 tracker/hygiene — PR #310 — initial branch inventory 85 — historical quarantine established`
 - `2026-08-26 — C1 PX4.11 — PR #308 — merge 457b21dab7e134c6ff3b2f0a29d15cd1fa0dc56d — CI 32953527991 PASS/PASS — canonical preview PASS`
-- `2026-08-26 — C2 PX6 foundation — PR #309 — merge 6673cfcc14e89f5666a72941b3f44246a71ff5db — CI 32956000440 PASS/PASS — canonical preview PASS — branch auto-deleted`
-- `2026-08-26 — C3 PX7 backend/domain foundation — PR #307 — merge 58964b7c0080dd89b92459241de71ccdda111f6c — CI 32957109650 PASS/PASS — canonical preview PASS — branch auto-deleted`
-- `2026-08-26 — C4 PX5 profile foundation — PR #305 — merge 891369306414003dbea49371a02cff6c02c1c324 — final head 91b03a9e1a1b8086869c5a11384d3bcb9472ccd0 — CI 32958989117 PASS/PASS — canonical preview PASS — branch auto-deleted`
-- `2026-08-26 — C5.1 Directory -> Profile — PR #311 — merge fcdf51f7317d893721dff79c3f4fc17f3e4a850d — final head 88ec2c337e1bca7d880f9e253ae2eddf94e31f40 — CI 32960668620 PASS/PASS — dedicated profile route browser regression PASS — canonical preview PASS`
-- `2026-08-26 — C5.2 Directory Add/Edit -> PersonWizard — PR #312 — merge 495d21cc970ee2d5379d88fe2d99882a5e5ffe66 — final head 278a10c0e29e34a1dfbbe91883fbbc4fa1c4640f — CI 32962712469 PASS/PASS — dedicated guided Add/Edit + read-only capability browser regression PASS — canonical preview PASS`
+- `2026-08-26 — C2 PX6 foundation — PR #309 — merge 6673cfcc14e89f5666a72941b3f44246a71ff5db — CI 32956000440 PASS/PASS — canonical preview PASS`
+- `2026-08-26 — C3 PX7 backend/domain foundation — PR #307 — merge 58964b7c0080dd89b92459241de71ccdda111f6c — CI 32957109650 PASS/PASS — canonical preview PASS`
+- `2026-08-26 — C4 PX5 profile foundation — PR #305 — merge 891369306414003dbea49371a02cff6c02c1c324 — CI 32958989117 PASS/PASS — canonical preview PASS`
+- `2026-08-26 — C5.1 Directory -> Profile — PR #311 — merge fcdf51f7317d893721dff79c3f4fc17f3e4a850d — CI 32960668620 PASS/PASS — canonical preview PASS`
+- `2026-08-26 — C5.2 Directory Add/Edit -> PersonWizard — PR #312 — merge 495d21cc970ee2d5379d88fe2d99882a5e5ffe66 — CI 32962712469 PASS/PASS — canonical preview PASS`
+- `2026-08-26 — C5.3 authenticated PX7 adapter — PR #313 — merge 0c1fdb45c1bfbb4f4a26b9c671df845c9d592a6c — final head 9e6b67741120c3191ae6f4d4a98141d92f2d70cb — CI 32966364434 PASS/PASS — 11 focused tests PASS — canonical preview PASS — branch auto-deleted`
