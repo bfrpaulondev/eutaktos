@@ -41,9 +41,7 @@ function connectCdp(url) {
       send(method, params = {}) {
         const id = nextId++;
         socket.send(JSON.stringify({ id, method, params }));
-        return new Promise((done, fail) => {
-          pending.set(id, response => response.error ? fail(new Error(response.error.message)) : done(response.result));
-        });
+        return new Promise((done, fail) => pending.set(id, response => response.error ? fail(new Error(response.error.message)) : done(response.result)));
       },
       close() { socket.close(); },
     }));
@@ -90,48 +88,15 @@ async function selectionModeReady() {
 }
 
 async function activateBulkSelection() {
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    if (await selectionModeReady()) return;
-    if (!await activateVisibleButton('Exportar')) {
-      const diagnostic = await evaluate(`({
-        lang: document.documentElement.lang,
-        route: location.pathname + location.search + location.hash,
-        buttons: [...document.querySelectorAll('button')].map(node => ({ text: (node.innerText || node.textContent || '').trim(), disabled: node.disabled, rect: node.getBoundingClientRect().toJSON(), display: getComputedStyle(node).display, visibility: getComputedStyle(node).visibility })),
-        title: document.querySelector('#people-directory-title')?.textContent ?? null,
-        main: document.querySelector('#main')?.textContent?.slice(0, 1200) ?? ''
-      })`);
-      throw new Error(`Export button is missing; observed=${JSON.stringify(diagnostic)}`);
-    }
-
-    await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('[role="menuitem"]')].find(node => {
-      const rect = node.getBoundingClientRect();
-      const style = getComputedStyle(node);
-      return (node.innerText || node.textContent || '').trim() === 'Selecionar pessoas para exportar' && rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none' && node.getAttribute('aria-disabled') !== 'true';
-    }))`), 'Export menu did not become keyboard-ready', 20);
-
-    const focused = await evaluate(`(() => {
-      const item = [...document.querySelectorAll('[role="menuitem"]')].find(node => {
-        const rect = node.getBoundingClientRect();
-        const style = getComputedStyle(node);
-        return (node.innerText || node.textContent || '').trim() === 'Selecionar pessoas para exportar' && rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none' && node.getAttribute('aria-disabled') !== 'true';
-      });
-      if (!item) return false;
-      item.focus();
-      return document.activeElement === item;
-    })()`);
-    if (!focused) throw new Error('Export selection menu item could not receive keyboard focus');
-    await pressKey('Enter', 'Enter', 13);
-    await wait(250);
-    if (await selectionModeReady()) return;
+  if (!await activateVisibleButton('Selecionar pessoas para exportar')) {
+    const diagnostic = await evaluate(`({
+      route: location.pathname + location.search + location.hash,
+      buttons: [...document.querySelectorAll('button')].map(node => ({ text: (node.innerText || node.textContent || '').trim(), disabled: node.disabled })),
+      main: document.querySelector('#main')?.textContent?.slice(0, 1200) ?? ''
+    })`);
+    throw new Error(`Bulk selection entry point is missing; observed=${JSON.stringify(diagnostic)}`);
   }
-
-  const diagnostic = await evaluate(`({
-    route: location.pathname + location.search + location.hash,
-    active: document.activeElement ? { role: document.activeElement.getAttribute('role'), text: (document.activeElement.innerText || document.activeElement.textContent || '').trim() } : null,
-    main: document.querySelector('#main')?.textContent?.slice(0, 1200) ?? '',
-    menus: [...document.querySelectorAll('[role="menu"]')].map(node => ({ text: (node.innerText || node.textContent || '').trim(), display: getComputedStyle(node).display, visibility: getComputedStyle(node).visibility })),
-  })`);
-  throw new Error(`Bulk selection mode could not be activated; observed=${JSON.stringify(diagnostic)}`);
+  await poll(selectionModeReady, 'Bulk selection mode did not open from keyboard');
 }
 
 try {
@@ -180,13 +145,14 @@ try {
   const initial = await evaluate(`({
     path: location.pathname + location.search,
     visibleCheckboxes: [...document.querySelectorAll('input[type="checkbox"]')].filter(node => { const rect = node.getBoundingClientRect(); return rect.width > 0 && rect.height > 0; }).length,
-    hasExport: [...document.querySelectorAll('button')].some(node => (node.innerText || node.textContent || '').trim() === 'Exportar')
+    hasExport: [...document.querySelectorAll('button')].some(node => (node.innerText || node.textContent || '').trim() === 'Exportar'),
+    hasSelectionEntry: [...document.querySelectorAll('button')].some(node => (node.innerText || node.textContent || '').trim() === 'Selecionar pessoas para exportar')
   })`);
-  if (!initial.hasExport) throw new Error('PX4.11 export entry point is missing');
+  if (!initial.hasExport || !initial.hasSelectionEntry) throw new Error('PX4.11 explicit export/bulk actions are missing');
   if (initial.visibleCheckboxes !== 0) throw new Error(`Default directory browsing exposed ${initial.visibleCheckboxes} selection checkboxes`);
 
   await activateBulkSelection();
-  await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === 'Concluir')) && Boolean(document.querySelector('#main')?.textContent?.includes('A exportação em lote inclui apenas os campos autorizados pelas suas permissões atuais.'))`), 'Bulk selection mode did not open');
+  await poll(async () => await evaluate(`Boolean(document.querySelector('#main')?.textContent?.includes('A exportação em lote inclui apenas os campos autorizados pelas suas permissões atuais.'))`), 'Bulk selection help did not render');
 
   const bulkState = await evaluate(`({
     url: location.pathname + location.search + location.hash,
@@ -213,7 +179,7 @@ try {
   if (finalState.visibleCheckboxes !== 0) throw new Error('Selection controls remained visible after leaving bulk mode');
   if (finalState.url !== initial.path) throw new Error(`Bulk selection changed the route: ${initial.path} -> ${finalState.url}`);
 
-  process.stdout.write('PX4.11 runtime passed: keyboard-operated export menu, safe bulk selection, select/clear/done state and URL privacy.\n');
+  process.stdout.write('PX4.11 runtime passed: explicit keyboard-accessible export/bulk actions, safe default browsing, select/clear/done state and URL privacy.\n');
 } finally {
   cdp?.close();
   if (browser && !browser.killed) browser.kill('SIGTERM');
