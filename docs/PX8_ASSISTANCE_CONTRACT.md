@@ -37,6 +37,10 @@ The endpoint is same-origin and authenticated. Person display names may appear o
 
 PX7.8 manual exclusions/preferences remain blocked until there is an approved canonical persistence/domain contract. PX8 must not invent such constraints in browser state and must not claim that they influenced recommendations.
 
+## Acceptance gates
+
+PX8 is not accepted from UI appearance alone. The exact review head must pass root typecheck, root unit/adversarial tests, production build, runtime dependency audit, full browser regression, and the canonical `netlify/eutakes/deploy-preview` check. Parser tests must reject malformed/contradictory evidence, and UI tests must preserve explicit loading/unavailable states and neutral human-controlled wording.
+
 ## Production acceptance
 
 Automated quality, browser regression, and canonical Netlify preview validation may be used for this feature. Real-user production scenarios that require write-capable or destructive data remain deferred to `docs/PEOPLE_REAL_USER_PRODUCTION_E2E_PENDING.md` / PX10.17 and must not be fabricated.
