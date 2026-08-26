@@ -12,6 +12,7 @@
     "test:ux-runtime": "node scripts/verify-ux-runtime.mjs",
     "test:person-profile-route": "node scripts/verify-person-profile-route.mjs",
     "test:person-wizard-directory": "node scripts/verify-person-wizard-directory.mjs",
+    "test:recommendation-picker": "node scripts/verify-recommendation-picker-runtime.mjs",
     "test:system-theme-runtime": "node scripts/verify-system-theme-runtime.mjs",
     "test:lazy-recovery": "node scripts/verify-lazy-recovery.mjs",
     "test:hourglass-inspector": "node scripts/verify-hourglass-inspector.mjs",
