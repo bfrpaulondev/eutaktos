@@ -61,44 +61,28 @@ async function evaluate(expression) {
   return response.result.value;
 }
 
-async function visibleCenter(selector, label) {
-  return await evaluate(`(() => {
-    const node = [...document.querySelectorAll(${JSON.stringify(selector)})].find(item => {
-      const rect = item.getBoundingClientRect();
-      const style = getComputedStyle(item);
-      return (item.innerText || item.textContent || '').trim() === ${JSON.stringify(label)} && rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
-    });
-    if (!node) return null;
-    const rect = node.getBoundingClientRect();
-    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-  })()`);
-}
-
-async function mouseClick(point) {
-  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: point.x, y: point.y });
-  await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: point.x, y: point.y, button: 'left', buttons: 1, clickCount: 1 });
-  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: point.x, y: point.y, button: 'left', buttons: 0, clickCount: 1 });
-}
-
 async function pressKey(key, code, virtualKeyCode) {
   await cdp.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key, code, windowsVirtualKeyCode: virtualKeyCode, nativeVirtualKeyCode: virtualKeyCode });
   await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, windowsVirtualKeyCode: virtualKeyCode, nativeVirtualKeyCode: virtualKeyCode });
 }
 
-async function clickVisibleButton(label) {
-  const point = await visibleCenter('button', label);
-  if (!point) return false;
-  await mouseClick(point);
-  return true;
+async function focusVisibleButton(label) {
+  return await evaluate(`(() => {
+    const button = [...document.querySelectorAll('button')].find(node => {
+      const rect = node.getBoundingClientRect();
+      const style = getComputedStyle(node);
+      return (node.innerText || node.textContent || '').trim() === ${JSON.stringify(label)} && rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none' && !node.disabled;
+    });
+    if (!button) return false;
+    button.focus();
+    return document.activeElement === button;
+  })()`);
 }
 
-async function clickButton(label) {
-  return await evaluate(`(() => {
-    const button = [...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(label)});
-    if (!button) return false;
-    button.click();
-    return true;
-  })()`);
+async function activateVisibleButton(label) {
+  if (!await focusVisibleButton(label)) return false;
+  await pressKey('Enter', 'Enter', 13);
+  return true;
 }
 
 async function selectionModeReady() {
@@ -106,12 +90,9 @@ async function selectionModeReady() {
 }
 
 async function activateBulkSelection() {
-  for (let attempt = 0; attempt < 8; attempt += 1) {
+  for (let attempt = 0; attempt < 4; attempt += 1) {
     if (await selectionModeReady()) return;
-
-    // Use a real pointer event rather than HTMLElement.click(). Ant's popup/trigger
-    // stack is intentionally exercised the same way a user opens the menu.
-    if (!await clickVisibleButton('Exportar')) {
+    if (!await activateVisibleButton('Exportar')) {
       const diagnostic = await evaluate(`({
         lang: document.documentElement.lang,
         route: location.pathname + location.search + location.hash,
@@ -122,57 +103,33 @@ async function activateBulkSelection() {
       throw new Error(`Export button is missing; observed=${JSON.stringify(diagnostic)}`);
     }
 
-    try {
-      await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('[role="menuitem"]')].find(node => {
-        const rect = node.getBoundingClientRect();
-        const style = getComputedStyle(node);
-        return (node.innerText || node.textContent || '').trim() === 'Selecionar pessoas para exportar' && rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none' && node.getAttribute('aria-disabled') !== 'true';
-      }))`), 'Export menu did not become keyboard-ready', 20);
-    } catch {
-      continue;
-    }
+    await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('[role="menuitem"]')].find(node => {
+      const rect = node.getBoundingClientRect();
+      const style = getComputedStyle(node);
+      return (node.innerText || node.textContent || '').trim() === 'Selecionar pessoas para exportar' && rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none' && node.getAttribute('aria-disabled') !== 'true';
+    }))`), 'Export menu did not become keyboard-ready', 20);
 
     const focused = await evaluate(`(() => {
-      const menu = [...document.querySelectorAll('[role="menu"]')].find(node => {
-        const rect = node.getBoundingClientRect();
-        const style = getComputedStyle(node);
-        return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
-      });
-      if (!menu) return false;
-      menu.focus();
-      return document.activeElement === menu || menu.contains(document.activeElement);
-    })()`);
-
-    if (focused) {
-      await pressKey('ArrowDown', 'ArrowDown', 40);
-      await pressKey('ArrowDown', 'ArrowDown', 40);
-      await pressKey('Enter', 'Enter', 13);
-      await wait(350);
-      if (await selectionModeReady()) return;
-    }
-
-    const targetFocused = await evaluate(`(() => {
       const item = [...document.querySelectorAll('[role="menuitem"]')].find(node => {
         const rect = node.getBoundingClientRect();
         const style = getComputedStyle(node);
         return (node.innerText || node.textContent || '').trim() === 'Selecionar pessoas para exportar' && rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none' && node.getAttribute('aria-disabled') !== 'true';
       });
       if (!item) return false;
-      item.setAttribute('tabindex', '0');
       item.focus();
       return document.activeElement === item;
     })()`);
-    if (targetFocused) {
-      await pressKey('Enter', 'Enter', 13);
-      await wait(350);
-      if (await selectionModeReady()) return;
-    }
+    if (!focused) throw new Error('Export selection menu item could not receive keyboard focus');
+    await pressKey('Enter', 'Enter', 13);
+    await wait(250);
+    if (await selectionModeReady()) return;
   }
 
   const diagnostic = await evaluate(`({
+    route: location.pathname + location.search + location.hash,
     active: document.activeElement ? { role: document.activeElement.getAttribute('role'), text: (document.activeElement.innerText || document.activeElement.textContent || '').trim() } : null,
-    menus: [...document.querySelectorAll('[role="menu"]')].map(node => ({ text: (node.innerText || node.textContent || '').trim(), display: getComputedStyle(node).display, visibility: getComputedStyle(node).visibility, rect: node.getBoundingClientRect().toJSON() })),
-    items: [...document.querySelectorAll('[role="menuitem"]')].map(node => ({ text: (node.innerText || node.textContent || '').trim(), disabled: node.getAttribute('aria-disabled'), display: getComputedStyle(node).display, visibility: getComputedStyle(node).visibility, rect: node.getBoundingClientRect().toJSON() }))
+    main: document.querySelector('#main')?.textContent?.slice(0, 1200) ?? '',
+    menus: [...document.querySelectorAll('[role="menu"]')].map(node => ({ text: (node.innerText || node.textContent || '').trim(), display: getComputedStyle(node).display, visibility: getComputedStyle(node).visibility })),
   })`);
   throw new Error(`Bulk selection mode could not be activated; observed=${JSON.stringify(diagnostic)}`);
 }
@@ -240,13 +197,13 @@ try {
   if (bulkState.exportSelectedDisabled !== true) throw new Error('Export selected must start disabled with no selected people');
   if (bulkState.url.includes('person-runtime')) throw new Error('Selection identifiers leaked into the URL');
 
-  if (!await clickVisibleButton('Selecionar resultados')) throw new Error('Select current results action is missing');
+  if (!await activateVisibleButton('Selecionar resultados')) throw new Error('Select current results action is missing');
   await poll(async () => await evaluate(`Boolean(document.querySelector('#main')?.textContent?.includes('1 pessoa selecionada')) && [...document.querySelectorAll('button')].some(node => (node.innerText || node.textContent || '').trim() === 'Exportar selecionadas' && !node.disabled)`), 'Selecting current results did not update the bulk state');
 
-  if (!await clickVisibleButton('Limpar seleção')) throw new Error('Clear selection action is missing');
+  if (!await activateVisibleButton('Limpar seleção')) throw new Error('Clear selection action is missing');
   await poll(async () => await evaluate(`Boolean(document.querySelector('#main')?.textContent?.includes('0 pessoas selecionadas')) && [...document.querySelectorAll('button')].some(node => (node.innerText || node.textContent || '').trim() === 'Exportar selecionadas' && node.disabled)`), 'Clearing selection did not restore the safe state');
 
-  if (!await clickVisibleButton('Concluir')) throw new Error('Done action is missing');
+  if (!await activateVisibleButton('Concluir')) throw new Error('Done action is missing');
   await poll(async () => await evaluate(`![...document.querySelectorAll('button')].some(node => (node.innerText || node.textContent || '').trim() === 'Concluir') && !document.querySelector('#main')?.textContent?.includes('A exportação em lote inclui apenas os campos autorizados pelas suas permissões atuais.')`), 'Bulk selection mode did not close cleanly');
 
   const finalState = await evaluate(`({
@@ -256,7 +213,7 @@ try {
   if (finalState.visibleCheckboxes !== 0) throw new Error('Selection controls remained visible after leaving bulk mode');
   if (finalState.url !== initial.path) throw new Error(`Bulk selection changed the route: ${initial.path} -> ${finalState.url}`);
 
-  process.stdout.write('PX4.11 runtime passed: export menu, keyboard-activatable bulk selection, safe default browsing, select/clear/done state and URL privacy.\n');
+  process.stdout.write('PX4.11 runtime passed: keyboard-operated export menu, safe bulk selection, select/clear/done state and URL privacy.\n');
 } finally {
   cdp?.close();
   if (browser && !browser.killed) browser.kill('SIGTERM');
