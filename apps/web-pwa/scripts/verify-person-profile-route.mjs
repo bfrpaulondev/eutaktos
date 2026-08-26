@@ -86,7 +86,6 @@ try {
 
   await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => {
     localStorage.setItem('eutaktos.preferences.v4', JSON.stringify({ paletteId: 'classic', colorMode: 'light', density: 'comfortable', locale: 'pt-PT', textSize: 'default', reducedMotion: false, reducedTransparency: false, highContrast: false }));
-    const originalFetch = window.fetch.bind(window);
     const json = value => new Response(JSON.stringify(value), { status: 200, headers: { 'Content-Type': 'application/json' } });
     window.fetch = async (input, init) => {
       const rawUrl = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
@@ -114,7 +113,7 @@ try {
   if (!await clickExactButton('Ver perfil')) throw new Error('View profile action was not found');
   await poll(async () => {
     const state = await locationState();
-    return state.search.includes('view=profile') && state.search.includes('status=active') && state.search.includes('person=person-runtime') && state.main.includes('Perfil da pessoa') && state.main.includes('Runtime person');
+    return state.search.includes('view=profile') && state.search.includes('status=active') && state.search.includes('person=person-runtime') && state.main.includes('Runtime person') && state.main.includes('Resumo') && state.main.includes('Contactos');
   }, 'Profile did not open from Directory');
 
   let state = await locationState();
@@ -123,7 +122,7 @@ try {
   await cdp.send('Page.reload', { ignoreCache: true });
   await poll(async () => {
     const current = await locationState();
-    return current.search.includes('view=profile') && current.search.includes('person=person-runtime') && current.main.includes('Runtime person');
+    return current.search.includes('view=profile') && current.search.includes('person=person-runtime') && current.main.includes('Runtime person') && current.main.includes('Resumo');
   }, 'Profile deep link did not survive refresh');
 
   await evaluate('history.back(); true');
