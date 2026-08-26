@@ -14,15 +14,32 @@ export type ReadyLongIntervalEvidence = Readonly<{
   evaluatedOpenStudentAssignments: number;
 }>;
 
+export type ReadyProfileCompletenessEvidence = Readonly<{
+  status: 'ready';
+  contractVersion: 'operational-profile-requirements-v1';
+  scope: 'active-people';
+  requirementCodes: readonly ['PREFERRED_LOCALE'];
+  evaluatedPersonCount: number;
+  incompletePersonCount: number;
+}>;
+
+export type ReadyRecentAvailabilityChangesEvidence = Readonly<{
+  status: 'ready';
+  contractVersion: 'recent-availability-changes-v1';
+  scope: 'active-people';
+  windowDays: 14;
+  changedPersonCount: number;
+  latestChangedAt?: string;
+}>;
+
 export type UnavailableEvidence = Readonly<{ status: 'unavailable' }>;
-export type BlockedEvidence = Readonly<{ status: 'blocked'; requiredBoundary: string }>;
 
 export interface PeopleOverviewEvidenceDto {
-  readonly contractVersion: 'people-overview-evidence-v1';
+  readonly contractVersion: 'people-overview-evidence-v2';
   readonly affectedAssignments: ReadyAffectedAssignmentsEvidence | UnavailableEvidence;
   readonly longInterval: ReadyLongIntervalEvidence | UnavailableEvidence;
-  readonly profileCompleteness: BlockedEvidence;
-  readonly recentAvailabilityChanges: BlockedEvidence;
+  readonly profileCompleteness: ReadyProfileCompletenessEvidence;
+  readonly recentAvailabilityChanges: ReadyRecentAvailabilityChangesEvidence | UnavailableEvidence;
 }
 
 export interface PeopleOverviewEvidenceApi {
@@ -62,21 +79,45 @@ function parseUnavailableOrReadyLong(value: unknown): ReadyLongIntervalEvidence 
   });
 }
 
-function parseBlocked(value: unknown): BlockedEvidence {
+function parseProfileCompleteness(value: unknown): ReadyProfileCompletenessEvidence {
   const candidate = record(value);
-  if (candidate.status !== 'blocked' || typeof candidate.requiredBoundary !== 'string' || !candidate.requiredBoundary.trim()) throw new Error(INVALID);
-  return Object.freeze({ status: 'blocked', requiredBoundary: candidate.requiredBoundary });
+  if (candidate.status !== 'ready' || candidate.contractVersion !== 'operational-profile-requirements-v1' || candidate.scope !== 'active-people') throw new Error(INVALID);
+  if (!Array.isArray(candidate.requirementCodes) || candidate.requirementCodes.length !== 1 || candidate.requirementCodes[0] !== 'PREFERRED_LOCALE') throw new Error(INVALID);
+  return Object.freeze({
+    status: 'ready',
+    contractVersion: 'operational-profile-requirements-v1',
+    scope: 'active-people',
+    requirementCodes: Object.freeze(['PREFERRED_LOCALE'] as const),
+    evaluatedPersonCount: nonNegativeInteger(candidate.evaluatedPersonCount),
+    incompletePersonCount: nonNegativeInteger(candidate.incompletePersonCount),
+  });
+}
+
+function parseRecentAvailability(value: unknown): ReadyRecentAvailabilityChangesEvidence | UnavailableEvidence {
+  const candidate = record(value);
+  if (candidate.status === 'unavailable') return Object.freeze({ status: 'unavailable' });
+  if (candidate.status !== 'ready' || candidate.contractVersion !== 'recent-availability-changes-v1' || candidate.scope !== 'active-people' || candidate.windowDays !== 14) throw new Error(INVALID);
+  const latestChangedAt = candidate.latestChangedAt;
+  if (latestChangedAt !== undefined && (typeof latestChangedAt !== 'string' || !Number.isFinite(Date.parse(latestChangedAt)))) throw new Error(INVALID);
+  return Object.freeze({
+    status: 'ready',
+    contractVersion: 'recent-availability-changes-v1',
+    scope: 'active-people',
+    windowDays: 14,
+    changedPersonCount: nonNegativeInteger(candidate.changedPersonCount),
+    ...(latestChangedAt === undefined ? {} : { latestChangedAt }),
+  });
 }
 
 export function parsePeopleOverviewEvidence(value: unknown): PeopleOverviewEvidenceDto {
   const candidate = record(value);
-  if (candidate.contractVersion !== 'people-overview-evidence-v1') throw new Error(INVALID);
+  if (candidate.contractVersion !== 'people-overview-evidence-v2') throw new Error(INVALID);
   return Object.freeze({
-    contractVersion: 'people-overview-evidence-v1',
+    contractVersion: 'people-overview-evidence-v2',
     affectedAssignments: parseUnavailableOrReadyAffected(candidate.affectedAssignments),
     longInterval: parseUnavailableOrReadyLong(candidate.longInterval),
-    profileCompleteness: parseBlocked(candidate.profileCompleteness),
-    recentAvailabilityChanges: parseBlocked(candidate.recentAvailabilityChanges),
+    profileCompleteness: parseProfileCompleteness(candidate.profileCompleteness),
+    recentAvailabilityChanges: parseRecentAvailability(candidate.recentAvailabilityChanges),
   });
 }
 
