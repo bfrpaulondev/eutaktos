@@ -22,6 +22,7 @@ Operational source of truth for the current Eutaktos People correction/integrati
 - PX6 guided editor **foundation**: PR #309 corrected/integrated at `6673cfcc14e89f5666a72941b3f44246a71ff5db`.
 - PX7 recommendation backend/domain **foundation**: PR #307 corrected/integrated at `58964b7c0080dd89b92459241de71ccdda111f6c`.
 - PX5 unified person profile **foundation**: PR #305 corrected/integrated at `891369306414003dbea49371a02cff6c02c1c324`.
+- C5.1 Directory -> Person Profile integration: PR #311 integrated at `fcdf51f7317d893721dff79c3f4fc17f3e4a850d`.
 - The first implementation wave has no remaining active worker branch. C5 is now Principal integration work.
 
 Important: foundation merge is not equivalent to full PX5/PX6/PX7 product closure.
@@ -89,13 +90,18 @@ Important: foundation merge is not equivalent to full PX5/PX6/PX7 product closur
 - [x] **C4.8** Integrate corrected PX5 foundation.
   - PR #305 merged at `891369306414003dbea49371a02cff6c02c1c324` using expected head SHA.
   - `manus/px5-unified-person-profile` confirmed auto-deleted after merge.
-- **Still open for full PX5:** C5.1 route/runtime integration; PX5.3 ordinary contacts/editing; PX5.4 explain what eligibility settings affect; PX5.6 useful assignment filters; PX5.9 contextual recommendation insight via C5.7.
+- **Still open for full PX5:** PX5.3 ordinary contacts/editing; PX5.4 explain what eligibility settings affect; PX5.6 useful assignment filters; PX5.9 contextual recommendation insight via C5.7.
 
 ## C5 — Principal People integration
 
 Use one coherent Principal integration branch only; do not create a branch per checkbox.
 
-- [ ] **C5.1** Directory -> Person Profile navigation/deep link without PII in URL. A stable opaque person ID is acceptable only after current routing/privacy contracts are reviewed.
+- [x] **C5.1** Directory -> Person Profile navigation/deep link without PII in URL.
+  - PR #311 final head `88ec2c337e1bca7d880f9e253ae2eddf94e31f40`; merge `fcdf51f7317d893721dff79c3f4fc17f3e4a850d`.
+  - CI run `32960668620`: `quality` PASS + `browser-regression` PASS.
+  - Canonical `netlify/eutakes/deploy-preview`: PASS.
+  - Added dedicated browser regression proving Directory -> Profile, refresh, Back/Forward and return while preserving filters.
+  - Route state accepts only a bounded opaque internal person reference; human-readable names/contact data are rejected and never written to the URL.
 - [ ] **C5.2** Add/Edit -> PX6 Wizard; retire old basic form only after replacement is proven.
 - [ ] **C5.3** Add server-side PX7 adapter built solely from authenticated/authorized facts; browser must not supply tenant/actor/capabilities as authority.
 - [ ] **C5.4** Add pt-PT/en/es localized PX7 reason/warning text.
@@ -125,6 +131,7 @@ Use one coherent Principal integration branch only; do not create a branch per c
 | Branch / PR | State | Action |
 |---|---|---|
 | `main` | ACTIVE SOURCE OF TRUTH | Never rewrite/force-push |
+| `principal/people-integration` / #311 | C5 ACTIVE INTEGRATION LINE | Reuse for the next C5 slice if branch cleanup has not removed it; otherwise recreate only from current main |
 | `principal/correction-tracker` / #310 | MERGED / AUTO-DELETED | Do not recreate solely for docs |
 | `principal/px4-11-final` / #308 | MERGED / AUTO-DELETED | Do not recreate |
 | `principal/px4-11-bulk-export` / #303 | SUPERSEDED-DELETE | Never use; delete only with real delete tooling |
@@ -142,3 +149,4 @@ No worker implementation branch from Wave 1 is active after C4.
 - `2026-08-26 — C2 PX6 foundation — PR #309 — merge 6673cfcc14e89f5666a72941b3f44246a71ff5db — CI 32956000440 PASS/PASS — canonical preview PASS — branch auto-deleted`
 - `2026-08-26 — C3 PX7 backend/domain foundation — PR #307 — merge 58964b7c0080dd89b92459241de71ccdda111f6c — CI 32957109650 PASS/PASS — canonical preview PASS — branch auto-deleted`
 - `2026-08-26 — C4 PX5 profile foundation — PR #305 — merge 891369306414003dbea49371a02cff6c02c1c324 — final head 91b03a9e1a1b8086869c5a11384d3bcb9472ccd0 — CI 32958989117 PASS/PASS — canonical preview PASS — branch auto-deleted`
+- `2026-08-26 — C5.1 Directory -> Profile — PR #311 — merge fcdf51f7317d893721dff79c3f4fc17f3e4a850d — final head 88ec2c337e1bca7d880f9e253ae2eddf94e31f40 — CI 32960668620 PASS/PASS — dedicated profile route browser regression PASS — canonical preview PASS`
