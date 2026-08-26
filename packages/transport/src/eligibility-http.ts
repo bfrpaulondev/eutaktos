@@ -1,5 +1,6 @@
 import {
   createAccessContext,
+  latestEligibilityDecision,
   type AccessContext,
   type AssignmentTypeId,
   type CongregationPerson,
@@ -71,21 +72,17 @@ function toDecisionDto(decision: EligibilityGrant): EligibilityDecisionDto {
 }
 
 function currentDecisions(decisions: readonly EligibilityGrant[]): readonly EligibilityDecisionDto[] {
-  const latest = new Map<AssignmentTypeId, EligibilityGrant>();
-  for (const decision of decisions) {
-    const current = latest.get(decision.assignmentTypeId);
-    if (!current || Date.parse(decision.decidedAt) > Date.parse(current.decidedAt)) latest.set(decision.assignmentTypeId, decision);
-  }
-  return [...latest.values()]
-    .sort((a, b) => a.assignmentTypeId.localeCompare(b.assignmentTypeId))
-    .map(toDecisionDto);
+  const assignmentTypeIds = [...new Set(decisions.map(decision => decision.assignmentTypeId))]
+    .sort((a, b) => a.localeCompare(b));
+  return assignmentTypeIds.map(assignmentTypeId => {
+    const decision = latestEligibilityDecision(decisions, assignmentTypeId);
+    if (!decision) throw new Error('Eligibility decision was not recorded');
+    return toDecisionDto(decision);
+  });
 }
 
 function latestDecision(person: CongregationPerson, assignmentTypeId: AssignmentTypeId): EligibilityDecisionDto {
-  const normalized = assignmentTypeId.trim();
-  const decision = [...person.eligibility]
-    .filter(item => item.assignmentTypeId === normalized)
-    .sort((a, b) => Date.parse(b.decidedAt) - Date.parse(a.decidedAt))[0];
+  const decision = latestEligibilityDecision(person.eligibility, assignmentTypeId);
   if (!decision) throw new Error('Eligibility decision was not recorded');
   return toDecisionDto(decision);
 }
