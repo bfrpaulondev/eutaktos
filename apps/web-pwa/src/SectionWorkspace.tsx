@@ -27,6 +27,11 @@ const PeopleOverview = lazy(async () => {
   return { default: module.PeopleOverview };
 });
 
+const PeopleAssistancePanel = lazy(async () => {
+  const module = await import('./PeopleAssistancePanel');
+  return { default: module.PeopleAssistancePanel };
+});
+
 const PersonProfile = lazy(async () => {
   const module = await import('./PersonProfile');
   return { default: module.PersonProfile };
@@ -106,7 +111,14 @@ function OrganizationWorkspace({ locale }: { locale: Locale }) {
     window.requestAnimationFrame(() => setCreateRequest(current => current + 1));
   };
 
-  if (view === 'overview') return <Suspense fallback={<Box component="section" role="status" sx={{ py: 4 }}><Typography color="text.secondary">{text.overviewLoading}</Typography></Box>}><PeopleOverview locale={locale} onOpenDirectory={() => selectView('directory')} onAddPerson={openCreate} /></Suspense>;
+  if (view === 'overview') return <Stack spacing={2}>
+    <Suspense fallback={<Box component="section" role="status" sx={{ py: 4 }}><Typography color="text.secondary">{text.overviewLoading}</Typography></Box>}>
+      <PeopleOverview locale={locale} onOpenDirectory={() => selectView('directory')} onAddPerson={openCreate} />
+    </Suspense>
+    <Suspense fallback={<Box component="section" role="status" sx={{ py: 2 }}><Typography color="text.secondary">{text.overviewLoading}</Typography></Box>}>
+      <PeopleAssistancePanel locale={locale} />
+    </Suspense>
+  </Stack>;
 
   const navView: NavigablePeopleView = view === 'profile' ? 'directory' : view;
 
