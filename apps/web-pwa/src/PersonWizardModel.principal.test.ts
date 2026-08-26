@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  createPersonWizardDraft,
   normalizePersonWizardDisplayName,
   personProfileHasChanges,
   personWizardDisplayNameValid,
@@ -22,7 +23,7 @@ const noEligibility: EligibilityApi = {
 };
 
 function draft(displayName: string): PersonWizardDraft {
-  return { displayName, preferredLocale: 'pt-PT', active: true, householdIds: [], serviceGroupIds: [], eligibility: {}, responsibilities: [], availabilityPeriods: [] };
+  return { ...createPersonWizardDraft('pt-PT'), displayName };
 }
 
 describe('Principal PX6 identity corrections', () => {
