@@ -1,21 +1,51 @@
-import type { Locale } from './lib/preferences';
+import type { AvailabilityApi, AvailabilityPeriodDto, AvailabilityReasonCode } from './lib/availabilityApi';
 import type { EligibilityApi } from './lib/eligibilityApi';
 import type { HouseholdDto, HouseholdsApi } from './lib/householdsApi';
+import type { OrdinaryContactApi, OrdinaryContactDto } from './lib/ordinaryContactApi';
 import type { PeopleApi, PersonProfileDto, UpdatePersonPayload } from './lib/peopleApi';
+import type { Locale } from './lib/preferences';
+import type { ResponsibilitiesApi, ResponsibilityDto } from './lib/responsibilitiesApi';
 import type { ServiceGroupDto, ServiceGroupsApi } from './lib/serviceGroupsApi';
 
 export type PersonWizardMode = 'create' | 'edit';
 export type PersonWizardMutationState = 'idle' | 'validating' | 'submitting' | 'success' | 'validation-error' | 'unauthenticated' | 'permission-error' | 'retryable-error';
 export type PersonWizardResourceState = 'loading' | 'ready' | 'error' | 'forbidden' | 'unauthenticated';
 export type EligibilityChoice = 'unchanged' | 'enabled' | 'disabled';
+export type PersonWizardResponsibilityStatus = 'scheduled' | 'active' | 'ended' | 'invalid';
+
+export interface PersonWizardResponsibilityDraft {
+  readonly responsibilityKey: string;
+  readonly startsAt: string;
+  readonly endsAt?: string;
+}
+
+export interface PersonWizardResponsibilityEndDraft {
+  readonly id: string;
+  readonly endsAt: string;
+}
+
+export interface PersonWizardAvailabilityDraft {
+  readonly startsAt: string;
+  readonly endsAt: string;
+  readonly reasonCode?: AvailabilityReasonCode;
+}
+
+export interface PersonWizardAvailabilityRemovalDraft {
+  readonly id: string;
+}
 
 export interface PersonWizardDraft {
   displayName: string;
   preferredLocale: string;
   active: boolean;
+  contact: OrdinaryContactDto;
   householdIds: readonly string[];
   serviceGroupIds: readonly string[];
   eligibility: Readonly<Record<string, EligibilityChoice>>;
+  responsibilities: readonly PersonWizardResponsibilityDraft[];
+  responsibilityEnds: readonly PersonWizardResponsibilityEndDraft[];
+  availabilityPeriods: readonly PersonWizardAvailabilityDraft[];
+  availabilityRemovals: readonly PersonWizardAvailabilityRemovalDraft[];
 }
 
 export interface PersonWizardMembershipChange {
@@ -30,8 +60,37 @@ export function normalizePersonWizardDisplayName(value: string): string {
 export function normalizePersonWizardLocale(value: string): string {
   const candidate = value.trim();
   if (!candidate) return '';
-  try { return new Intl.Locale(candidate).toString(); }
-  catch { return candidate; }
+  try {
+    return new Intl.Locale(candidate).toString();
+  } catch {
+    return candidate;
+  }
+}
+
+export function normalizePersonWizardContact(value: OrdinaryContactDto): OrdinaryContactDto {
+  const phone = value.phone?.trim().replace(/\s+/g, ' ');
+  const email = value.email?.trim();
+  const address = value.address?.trim().replace(/\s+/g, ' ');
+  return {
+    ...(phone ? { phone } : {}),
+    ...(email ? { email } : {}),
+    ...(address ? { address } : {}),
+  };
+}
+
+export function personWizardContactValidation(value: OrdinaryContactDto): readonly ('phone' | 'email' | 'address')[] {
+  const contact = normalizePersonWizardContact(value);
+  const errors: ('phone' | 'email' | 'address')[] = [];
+  if (contact.phone && contact.phone.length > 40) errors.push('phone');
+  if (contact.email && (contact.email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email))) errors.push('email');
+  if (contact.address && contact.address.length > 500) errors.push('address');
+  return errors;
+}
+
+function sameContact(left: OrdinaryContactDto, right: OrdinaryContactDto): boolean {
+  const a = normalizePersonWizardContact(left);
+  const b = normalizePersonWizardContact(right);
+  return a.phone === b.phone && a.email === b.email && a.address === b.address;
 }
 
 export function createPersonWizardDraft(locale: Locale, person?: PersonProfileDto): PersonWizardDraft {
@@ -39,16 +98,21 @@ export function createPersonWizardDraft(locale: Locale, person?: PersonProfileDt
     displayName: person?.displayName ?? '',
     preferredLocale: person?.preferredLocale ?? locale,
     active: person?.active ?? true,
+    contact: {},
     householdIds: [],
     serviceGroupIds: [],
     eligibility: {},
+    responsibilities: [],
+    responsibilityEnds: [],
+    availabilityPeriods: [],
+    availabilityRemovals: [],
   };
 }
 
 function sameStrings(left: readonly string[], right: readonly string[]): boolean {
-  const leftValues = [...left].sort();
-  const rightValues = [...right].sort();
-  return leftValues.length === rightValues.length && leftValues.every((value, index) => value === rightValues[index]);
+  const a = [...left].sort();
+  const b = [...right].sort();
+  return a.length === b.length && a.every((value, index) => value === b[index]);
 }
 
 export function personWizardMembershipChanges(initialIds: readonly string[], draftIds: readonly string[]): readonly Readonly<PersonWizardMembershipChange>[] {
@@ -58,9 +122,15 @@ export function personWizardMembershipChanges(initialIds: readonly string[], dra
     .map(id => Object.freeze({ id, selected: draftIds.includes(id) })));
 }
 
+export function personWizardContactChanged(initial: PersonWizardDraft, draft: PersonWizardDraft): boolean {
+  return !sameContact(initial.contact, draft.contact);
+}
+
 export function personWizardOrganizationChanged(initial: PersonWizardDraft, draft: PersonWizardDraft): boolean {
   return personWizardMembershipChanges(initial.householdIds, draft.householdIds).length > 0
-    || personWizardMembershipChanges(initial.serviceGroupIds, draft.serviceGroupIds).length > 0;
+    || personWizardMembershipChanges(initial.serviceGroupIds, draft.serviceGroupIds).length > 0
+    || draft.responsibilities.length > 0
+    || draft.responsibilityEnds.length > 0;
 }
 
 export function personWizardEligibilityChanges(initial: PersonWizardDraft, draft: PersonWizardDraft): readonly Readonly<{ assignmentTypeId: string; choice: Exclude<EligibilityChoice, 'unchanged'> }>[] {
@@ -68,6 +138,32 @@ export function personWizardEligibilityChanges(initial: PersonWizardDraft, draft
     .filter(([, choice]) => choice !== 'unchanged')
     .filter(([id, choice]) => choice !== (initial.eligibility[id] ?? 'unchanged'))
     .map(([assignmentTypeId, choice]) => Object.freeze({ assignmentTypeId, choice: choice as Exclude<EligibilityChoice, 'unchanged'> })));
+}
+
+export function isPersonWizardTemporalRangeValid(startsAt: string, endsAt: string | undefined, endRequired = false): boolean {
+  const start = Date.parse(startsAt);
+  if (!startsAt || !Number.isFinite(start)) return false;
+  if (!endsAt) return !endRequired;
+  const end = Date.parse(endsAt);
+  return Number.isFinite(end) && end > start;
+}
+
+export function personWizardResponsibilityStatus(item: Pick<ResponsibilityDto, 'startsAt' | 'endsAt'>, now = new Date()): PersonWizardResponsibilityStatus {
+  const current = now.getTime();
+  const start = Date.parse(item.startsAt);
+  const end = item.endsAt === undefined ? undefined : Date.parse(item.endsAt);
+  if (!Number.isFinite(current) || !Number.isFinite(start) || (end !== undefined && !Number.isFinite(end))) return 'invalid';
+  if (end !== undefined && end <= start) return 'invalid';
+  if (current < start) return 'scheduled';
+  if (end !== undefined && current >= end) return 'ended';
+  return 'active';
+}
+
+export function personWizardAvailabilityChanges(initial: PersonWizardDraft, draft: PersonWizardDraft): readonly PersonWizardAvailabilityDraft[] {
+  return Object.freeze(draft.availabilityPeriods.filter(period => !initial.availabilityPeriods.some(previous =>
+    previous.startsAt === period.startsAt
+    && previous.endsAt === period.endsAt
+    && previous.reasonCode === period.reasonCode)));
 }
 
 export function personWizardCoreChanges(initial: PersonWizardDraft, draft: PersonWizardDraft): UpdatePersonPayload {
@@ -84,8 +180,11 @@ export function personWizardCoreChanges(initial: PersonWizardDraft, draft: Perso
 
 export function personWizardHasChanges(initial: PersonWizardDraft, draft: PersonWizardDraft): boolean {
   return Object.keys(personWizardCoreChanges(initial, draft)).length > 0
+    || personWizardContactChanged(initial, draft)
     || personWizardOrganizationChanged(initial, draft)
-    || personWizardEligibilityChanges(initial, draft).length > 0;
+    || personWizardEligibilityChanges(initial, draft).length > 0
+    || personWizardAvailabilityChanges(initial, draft).length > 0
+    || draft.availabilityRemovals.length > 0;
 }
 
 export function personProfileHasChanges(person: PersonProfileDto, draft: PersonWizardDraft): boolean {
@@ -106,8 +205,8 @@ export function wizardErrorState(error: unknown): Exclude<PersonWizardMutationSt
   if (status === 401 || /unauthorized|sign-in|sessão|sesión/i.test(message)) return 'unauthenticated';
   if (status === 403 || /forbidden|access denied|permission|permissão|permiso/i.test(message)) return 'permission-error';
   if (
-    status === 400 || status === 409 || status === 422 ||
-    /required|\bmust\b|too long|not allowed|already exists|duplicate|conflict|unknown (?:assignment|person|household|group)/i.test(message)
+    status === 400 || status === 409 || status === 422
+    || /required|\bmust\b|too long|not allowed|already exists|duplicate|conflict|unknown (?:assignment|person|household|group)|invalid (?:availability|responsibility|date|contact)|end after/i.test(message)
   ) return 'validation-error';
   return 'retryable-error';
 }
@@ -145,8 +244,11 @@ export function createPersonWizardMutationGuard() {
   return async <T>(mutation: () => Promise<T>): Promise<T | undefined> => {
     if (active) return undefined;
     active = true;
-    try { return await mutation(); }
-    finally { active = false; }
+    try {
+      return await mutation();
+    } finally {
+      active = false;
+    }
   };
 }
 
@@ -155,17 +257,29 @@ export interface SavePersonWizardInput {
   person?: PersonProfileDto;
   draft: PersonWizardDraft;
   initial: PersonWizardDraft;
-  /** Retained for worker-call compatibility; fresh organization reads remain authoritative. */
+  /** Retained for call compatibility; fresh organization reads remain authoritative. */
   households: readonly HouseholdDto[];
-  /** Retained for worker-call compatibility; fresh organization reads remain authoritative. */
+  /** Retained for call compatibility; fresh organization reads remain authoritative. */
   groups: readonly ServiceGroupDto[];
+  canReadContact?: boolean;
+  canWriteContact?: boolean;
   canReadEligibility: boolean;
   canWriteEligibility: boolean;
-  /** Receives the authoritative core person so a retry never needs another create/update for an already-confirmed core write. */
+  canReadResponsibilities?: boolean;
+  canWriteResponsibilities?: boolean;
+  canReadAvailability?: boolean;
+  canWriteAvailability?: boolean;
   onCorePersisted?: (person: PersonProfileDto) => void;
-  /** Called after each successful mutation so the UI can disclose possible partial persistence if a later step fails. */
   onMutationPersisted?: () => void;
-  apis: Readonly<{ people: PeopleApi; households: HouseholdsApi; serviceGroups: ServiceGroupsApi; eligibility: EligibilityApi }>;
+  apis: Readonly<{
+    people: PeopleApi;
+    households: HouseholdsApi;
+    serviceGroups: ServiceGroupsApi;
+    eligibility: EligibilityApi;
+    contact?: OrdinaryContactApi;
+    responsibilities?: ResponsibilitiesApi;
+    availability?: AvailabilityApi;
+  }>;
 }
 
 function desiredEligibility(choice: Exclude<EligibilityChoice, 'unchanged'>): boolean {
@@ -189,20 +303,42 @@ function membershipMatches<T extends { id: string; memberIds: readonly string[] 
   return item.memberIds.includes(personId) === change.selected;
 }
 
+function responsibilityMatches(item: ResponsibilityDto, personId: string, draft: PersonWizardResponsibilityDraft): boolean {
+  return item.personId === personId
+    && item.responsibilityKey === draft.responsibilityKey.trim()
+    && item.startsAt === draft.startsAt
+    && (item.endsAt ?? '') === (draft.endsAt ?? '');
+}
+
+function availabilityMatches(item: AvailabilityPeriodDto, draft: PersonWizardAvailabilityDraft): boolean {
+  return item.startsAt === draft.startsAt
+    && item.endsAt === draft.endsAt
+    && item.reasonCode === draft.reasonCode;
+}
+
 export async function savePersonWizard(input: SavePersonWizardInput): Promise<PersonProfileDto> {
   const { mode, person, draft, initial, canReadEligibility, canWriteEligibility, apis } = input;
   const intendedCoreChanges = personWizardCoreChanges(initial, draft);
+  const contactChanged = personWizardContactChanged(initial, draft);
   const householdChanges = personWizardMembershipChanges(initial.householdIds, draft.householdIds);
   const groupChanges = personWizardMembershipChanges(initial.serviceGroupIds, draft.serviceGroupIds);
-  const organizationChanged = householdChanges.length > 0 || groupChanges.length > 0;
+  const membershipChanged = householdChanges.length > 0 || groupChanges.length > 0;
   const eligibilityChanges = personWizardEligibilityChanges(initial, draft);
+  const responsibilityAdds = draft.responsibilities;
+  const responsibilityEnds = draft.responsibilityEnds;
+  const availabilityAdds = personWizardAvailabilityChanges(initial, draft);
+  const availabilityRemovals = draft.availabilityRemovals;
   const displayName = normalizePersonWizardDisplayName(draft.displayName);
   const preferredLocale = normalizePersonWizardLocale(draft.preferredLocale);
 
-  // Eligibility changes require both explicit write authority and a readable
-  // authoritative baseline. Fail before the core mutation so capability gaps do
-  // not create avoidable partial saves.
+  if (personWizardContactValidation(draft.contact).length > 0) throw new Error('Invalid contact values (422)');
+  if (contactChanged && (!input.canReadContact || !input.canWriteContact || !apis.contact)) throw new Error('Forbidden (403)');
   if (eligibilityChanges.length > 0 && (!canReadEligibility || !canWriteEligibility)) throw new Error('Forbidden (403)');
+  if ((responsibilityAdds.length > 0 || responsibilityEnds.length > 0) && (!input.canReadResponsibilities || !input.canWriteResponsibilities || !apis.responsibilities)) throw new Error('Forbidden (403)');
+  if ((availabilityAdds.length > 0 || availabilityRemovals.length > 0) && (!input.canReadAvailability || !input.canWriteAvailability || !apis.availability)) throw new Error('Forbidden (403)');
+  if (responsibilityAdds.some(item => !item.responsibilityKey.trim() || !isPersonWizardTemporalRangeValid(item.startsAt, item.endsAt))) throw new Error('Invalid responsibility values (422)');
+  if (responsibilityEnds.some(item => !item.id || !Number.isFinite(Date.parse(item.endsAt)))) throw new Error('Invalid responsibility values (422)');
+  if (availabilityAdds.some(item => !isPersonWizardTemporalRangeValid(item.startsAt, item.endsAt, true))) throw new Error('Invalid availability values (422)');
 
   let saved = person;
   let coreMutated = false;
@@ -219,13 +355,18 @@ export async function savePersonWizard(input: SavePersonWizardInput): Promise<Pe
   if (!saved) throw new Error('Missing person for edit');
   input.onCorePersisted?.(saved);
   if (coreMutated) input.onMutationPersisted?.();
-
   const personId = saved.id;
 
-  // Organization changes are deltas, not a stale full replacement. Fresh reads
-  // protect other users' unrelated membership changes and also make known retries
-  // idempotent.
-  if (organizationChanged) {
+  if (contactChanged) {
+    const desiredContact = normalizePersonWizardContact(draft.contact);
+    const currentContact = await apis.contact!.get(personId);
+    if (!sameContact(currentContact, desiredContact)) {
+      await apis.contact!.update(personId, desiredContact);
+      input.onMutationPersisted?.();
+    }
+  }
+
+  if (membershipChanged) {
     const [freshHouseholds, freshGroups] = await Promise.all([apis.households.list(), apis.serviceGroups.list()]);
     if (householdChanges.some(change => change.selected && !freshHouseholds.some(item => item.id === change.id))) throw new Error('Selected household no longer exists');
     if (groupChanges.some(change => change.selected && !freshGroups.some(item => item.id === change.id))) throw new Error('Selected service group no longer exists');
@@ -244,8 +385,29 @@ export async function savePersonWizard(input: SavePersonWizardInput): Promise<Pe
     }
   }
 
-  // The eligibility service is already idempotent, but skip an already-applied
-  // decision here as well so retries do not generate unnecessary network work.
+  for (const ending of responsibilityEnds) {
+    const current = await apis.responsibilities!.list();
+    const item = current.find(candidate => candidate.id === ending.id);
+    if (!item || item.personId !== personId) throw new Error('Responsibility no longer exists (409)');
+    if (item.endsAt === ending.endsAt) continue;
+    if (item.endsAt !== undefined) throw new Error('Responsibility changed concurrently (409)');
+    if (Date.parse(ending.endsAt) <= Date.parse(item.startsAt)) throw new Error('Invalid responsibility values (422)');
+    await apis.responsibilities!.end(item.id, { endsAt: ending.endsAt });
+    input.onMutationPersisted?.();
+  }
+
+  for (const addition of responsibilityAdds) {
+    const current = await apis.responsibilities!.list();
+    if (current.some(item => responsibilityMatches(item, personId, addition))) continue;
+    await apis.responsibilities!.assign({
+      personId,
+      responsibilityKey: addition.responsibilityKey.trim(),
+      startsAt: addition.startsAt,
+      ...(addition.endsAt ? { endsAt: addition.endsAt } : {}),
+    });
+    input.onMutationPersisted?.();
+  }
+
   if (eligibilityChanges.length > 0) {
     const current = await apis.eligibility.list(personId);
     for (const change of eligibilityChanges) {
@@ -256,29 +418,72 @@ export async function savePersonWizard(input: SavePersonWizardInput): Promise<Pe
     }
   }
 
-  // Always re-read the person before success. For edits, verify only the fields
-  // the user intended to change so concurrent unrelated edits are preserved.
+  for (const removal of availabilityRemovals) {
+    const current = await apis.availability!.list(personId);
+    if (!current.some(item => item.id === removal.id)) continue;
+    await apis.availability!.remove(personId, removal.id);
+    input.onMutationPersisted?.();
+  }
+
+  for (const addition of availabilityAdds) {
+    const current = await apis.availability!.list(personId);
+    if (current.some(item => availabilityMatches(item, addition))) continue;
+    await apis.availability!.add(personId, {
+      startsAt: addition.startsAt,
+      endsAt: addition.endsAt,
+      ...(addition.reasonCode ? { reasonCode: addition.reasonCode } : {}),
+    });
+    input.onMutationPersisted?.();
+  }
+
   const peopleValue = await apis.people.list();
   const authoritative = peopleValue.find(item => item.id === personId);
   if (!authoritative) throw new Error('Authoritative People refetch mismatch');
   if (mode === 'create') {
-    if (authoritative.displayName !== saved.displayName || normalizePersonWizardLocale(authoritative.preferredLocale ?? '') !== normalizePersonWizardLocale(saved.preferredLocale ?? '') || authoritative.active !== saved.active) throw new Error('Authoritative People refetch mismatch');
+    if (
+      authoritative.displayName !== saved.displayName
+      || normalizePersonWizardLocale(authoritative.preferredLocale ?? '') !== normalizePersonWizardLocale(saved.preferredLocale ?? '')
+      || authoritative.active !== saved.active
+    ) throw new Error('Authoritative People refetch mismatch');
   } else {
     if (intendedCoreChanges.displayName !== undefined && authoritative.displayName !== saved.displayName) throw new Error('Authoritative People refetch mismatch');
     if (intendedCoreChanges.preferredLocale !== undefined && normalizePersonWizardLocale(authoritative.preferredLocale ?? '') !== normalizePersonWizardLocale(saved.preferredLocale ?? '')) throw new Error('Authoritative People refetch mismatch');
     if (intendedCoreChanges.active !== undefined && authoritative.active !== saved.active) throw new Error('Authoritative People refetch mismatch');
   }
 
-  if (organizationChanged) {
+  if (contactChanged) {
+    const value = await apis.contact!.get(personId);
+    if (!sameContact(value, draft.contact)) throw new Error('Authoritative contact refetch mismatch');
+  }
+
+  if (membershipChanged) {
     const [householdValue, groupValue] = await Promise.all([apis.households.list(), apis.serviceGroups.list()]);
-    if (householdChanges.some(change => !membershipMatches(householdValue, personId, change)) || groupChanges.some(change => !membershipMatches(groupValue, personId, change))) throw new Error('Authoritative organization refetch mismatch');
+    if (
+      householdChanges.some(change => !membershipMatches(householdValue, personId, change))
+      || groupChanges.some(change => !membershipMatches(groupValue, personId, change))
+    ) throw new Error('Authoritative organization refetch mismatch');
+  }
+
+  if (responsibilityAdds.length > 0 || responsibilityEnds.length > 0) {
+    const values = await apis.responsibilities!.list();
+    if (responsibilityAdds.some(change => !values.some(item => responsibilityMatches(item, personId, change)))) throw new Error('Authoritative responsibility refetch mismatch');
+    for (const ending of responsibilityEnds) {
+      const item = values.find(candidate => candidate.id === ending.id);
+      if (!item || item.personId !== personId || item.endsAt !== ending.endsAt) throw new Error('Authoritative responsibility refetch mismatch');
+    }
   }
 
   if (eligibilityChanges.length > 0) {
-    const eligibilityValue = await apis.eligibility.list(personId);
+    const values = await apis.eligibility.list(personId);
     for (const change of eligibilityChanges) {
-      if (eligibilityValue.find(item => item.assignmentTypeId === change.assignmentTypeId)?.enabled !== desiredEligibility(change.choice)) throw new Error('Authoritative eligibility refetch mismatch');
+      if (values.find(item => item.assignmentTypeId === change.assignmentTypeId)?.enabled !== desiredEligibility(change.choice)) throw new Error('Authoritative eligibility refetch mismatch');
     }
+  }
+
+  if (availabilityAdds.length > 0 || availabilityRemovals.length > 0) {
+    const values = await apis.availability!.list(personId);
+    if (availabilityAdds.some(change => !values.some(item => availabilityMatches(item, change)))) throw new Error('Authoritative availability refetch mismatch');
+    if (availabilityRemovals.some(change => values.some(item => item.id === change.id))) throw new Error('Authoritative availability refetch mismatch');
   }
 
   return authoritative;
