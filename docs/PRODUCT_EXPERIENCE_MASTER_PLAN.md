@@ -459,7 +459,7 @@ The supplied Hourglass screens demonstrate useful People capabilities. We need f
 | Transfer people | Guided send/receive workflow, state/history and explicit privacy explanation |
 | Labels | Tags/labels with filters and useful grouping, without becoming navigation clutter |
 | Send reminders | Attention/reminder workflow that explains who is missing what and when the last reminder occurred |
-| Record cards | Controlled record/report generation with year/period selection and preview |
+| Record cards | Controlled record/report generation with preview and capability checks |
 | Do not publish / archive | Explicit archive state, reason, history and safe restore |
 | Import | Import wizard with preview, validation, duplicate detection, dry-run and rollback where supported |
 | Map | Useful group/people geography view with privacy and capability controls |
