@@ -7,6 +7,9 @@
 > Baseline main when this plan was created: `be68797922b2a9f96b5fe47e906a95cdfbcf77cb`
 > Canonical production: `https://eutakes.netlify.app/`
 > First reference module: **Pessoas / People**
+> Accepted People core product/runtime SHA: `f013f72722c18a6df06ad7c6390be668ed239dbf` — C6 independent acceptance `ACCEPT`, 2026-08-26.
+>
+> C6 acceptance closes the currently integrated People core composition. It does **not** fabricate completion for the explicit unchecked contract/product gaps retained below, nor for PX8/PX9/PX11.
 
 ---
 
@@ -456,7 +459,7 @@ The supplied Hourglass screens demonstrate useful People capabilities. We need f
 | Transfer people | Guided send/receive workflow, state/history and explicit privacy explanation |
 | Labels | Tags/labels with filters and useful grouping, without becoming navigation clutter |
 | Send reminders | Attention/reminder workflow that explains who is missing what and when the last reminder occurred |
-| Record cards | Controlled record/report generation with preview and capability checks |
+| Record cards | Controlled record/report generation with year/period selection and preview |
 | Do not publish / archive | Explicit archive state, reason, history and safe restore |
 | Import | Import wizard with preview, validation, duplicate detection, dry-run and rollback where supported |
 | Map | Useful group/people geography view with privacy and capability controls |
@@ -507,22 +510,24 @@ Required:
 
 ### PX1 — Ant Design foundation and functioning themes
 
-> Technical Ant foundation work is integrated in PR #283, but PX1 items remain unchecked until the independent Light/Dark/System real-user/visual acceptance assigned in #270 is complete. Integrated code alone is not final theme acceptance.
+> **Principal accepted.** Technical foundation PR #283 plus lazy-recovery/visual hardening PR #304, independent #270 production acceptance, and final C6 exact-SHA/production evidence close PX1.1–PX1.14. C6 re-confirmed Light/Dark/System, pt-PT/en/es, browser privacy, bundle/runtime gates and responsive behavior at accepted product SHA `f013f72722c18a6df06ad7c6390be668ed239dbf`.
 
-- [ ] **PX1.1** Add Ant Design 6 and compatible Ant Design icons to `apps/web-pwa` using versions compatible with React 19.
-- [ ] **PX1.2** Create Eutaktos `ConfigProvider` foundation with semantic design tokens.
-- [ ] **PX1.3** Implement one excellent Light theme.
-- [ ] **PX1.4** Implement one excellent Dark theme.
-- [ ] **PX1.5** Implement System mode that reacts to OS theme changes.
-- [ ] **PX1.6** Persist color-mode preference safely.
-- [ ] **PX1.7** Implement semantic status tokens: success/warning/danger/info/muted/selected.
-- [ ] **PX1.8** Implement comfortable default density and optional compact density.
-- [ ] **PX1.9** Preserve locale/direction integration through the Ant foundation.
-- [ ] **PX1.10** Preserve reduced motion/high contrast/reduced transparency preferences or replace them with equally functional Ant/token implementations.
-- [ ] **PX1.11** Add automated theme tests covering light/dark/system and persistence.
-- [ ] **PX1.12** Add browser visual checks for core Ant primitives in both themes.
-- [ ] **PX1.13** Confirm bundle budget after Ant introduction; prevent accidental whole-library/bloat patterns.
-- [ ] **PX1.14** Establish migration rule preventing new MUI product screens after foundation integration.
+- [x] **PX1.1** Add Ant Design 6 and compatible Ant Design icons to `apps/web-pwa` using versions compatible with React 19.
+- [x] **PX1.2** Create Eutaktos `ConfigProvider` foundation with semantic design tokens.
+- [x] **PX1.3** Implement one excellent Light theme.
+- [x] **PX1.4** Implement one excellent Dark theme.
+- [x] **PX1.5** Implement System mode that reacts to OS theme changes.
+- [x] **PX1.6** Persist color-mode preference safely.
+- [x] **PX1.7** Implement semantic status tokens: success/warning/danger/info/muted/selected.
+- [x] **PX1.8** Implement comfortable default density and optional compact density.
+- [x] **PX1.9** Preserve locale/direction integration through the Ant foundation.
+- [x] **PX1.10** Preserve reduced motion/high contrast/reduced transparency preferences or replace them with equally functional Ant/token implementations.
+- [x] **PX1.11** Add automated theme tests covering light/dark/system and persistence.
+- [x] **PX1.12** Add browser visual checks for core Ant primitives in both themes.
+- [x] **PX1.13** Confirm bundle budget after Ant introduction; prevent accidental whole-library/bloat patterns.
+- [x] **PX1.14** Establish migration rule preventing new MUI product screens after foundation integration.
+
+Evidence PX1.1–PX1.14: PR #283 + PR #304 / main ancestry through accepted product SHA `f013f72722c18a6df06ad7c6390be668ed239dbf` / independent issue #270 + C6 final acceptance + quality/browser/PWA/bundle gates PASS.
 
 ### PX2 — New application shell and task-oriented navigation
 
@@ -541,76 +546,93 @@ Required:
 
 ### PX3 — People Overview
 
-> The first People Overview slice was integrated in PR #289 after principal correction, but PX3 remains a partial product slice: required-field completeness, long-interval recommendation evidence and recent-availability history are not yet all supported by authoritative contracts. Keep these tasks unchecked until their full acceptance evidence exists.
+> **Principal accepted for PX3.1–PX3.9.** Earlier #270 production acceptance covered the authoritative Overview/absence/long-interval slice. Principal SHA `7592fb7f6ba5220b385871f812d03fd17f492bd5` subsequently added the explicit non-PII v1 profile-completeness contract and canonical 14-day `AvailabilityChanged` history projection. Final C6 accepted the integrated composition and preserved fail-closed/partial behavior.
 
-- [ ] **PX3.1** Build `/pessoas` People Overview as the default People entry.
-- [ ] **PX3.2** Add meaningful summary counts derived from real APIs.
-- [ ] **PX3.3** Build “Precisa da sua atenção” using real actionable conditions.
-- [ ] **PX3.4** Add profile-incomplete attention condition only if the required-field contract is explicit.
-- [ ] **PX3.5** Add absence-affects-assignment attention condition.
-- [ ] **PX3.6** Add eligible-with-long-interval attention condition using explainable operational logic.
-- [ ] **PX3.7** Add recent-availability-change attention condition if event/history data supports it reliably.
-- [ ] **PX3.8** Every attention card must link directly to the relevant resolution flow.
-- [ ] **PX3.9** Implement loading, empty, retryable error and partial-degraded states.
+- [x] **PX3.1** Build `/pessoas` People Overview as the default People entry.
+- [x] **PX3.2** Add meaningful summary counts derived from real APIs.
+- [x] **PX3.3** Build “Precisa da sua atenção” using real actionable conditions.
+- [x] **PX3.4** Add profile-incomplete attention condition only if the required-field contract is explicit.
+- [x] **PX3.5** Add absence-affects-assignment attention condition.
+- [x] **PX3.6** Add eligible-with-long-interval attention condition using explainable operational logic.
+- [x] **PX3.7** Add recent-availability-change attention condition if event/history data supports it reliably.
+- [x] **PX3.8** Every attention card must link directly to the relevant resolution flow.
+- [x] **PX3.9** Implement loading, empty, retryable error and partial-degraded states.
+
+Evidence PX3.1–PX3.9: PR #289/#300/#301 + principal SHA `7592fb7f6ba5220b385871f812d03fd17f492bd5` / issue #270 production evidence + integrated C5/C6 gates / accepted product SHA `f013f72722c18a6df06ad7c6390be668ed239dbf`.
 
 ### PX4 — Directory 2.0
 
-- [ ] **PX4.1** Build responsive People Directory with desktop table and mobile-friendly list/card composition.
-- [ ] **PX4.2** Implement fast search.
-- [ ] **PX4.3** Implement Group filter.
-- [ ] **PX4.4** Implement Availability filter.
-- [ ] **PX4.5** Implement Eligibility filter.
-- [ ] **PX4.6** Implement Responsibility filter.
-- [ ] **PX4.7** Implement State filter.
-- [ ] **PX4.8** Keep advanced filters under “Mais” rather than always visible.
-- [ ] **PX4.9** Make filter state URL/shareable where safe and useful; never put sensitive data in query strings.
-- [ ] **PX4.10** Add clear empty/no-results state with filter-reset action.
-- [ ] **PX4.11** Add capability-aware bulk/export actions without cluttering default browsing.
-- [ ] **PX4.12** Verify 320/375/390/430/tablet/desktop layouts.
+- [x] **PX4.1** Build responsive People Directory with desktop table and mobile-friendly list/card composition.
+- [x] **PX4.2** Implement fast search.
+- [x] **PX4.3** Implement Group filter.
+- [x] **PX4.4** Implement Availability filter.
+- [x] **PX4.5** Implement Eligibility filter.
+- [x] **PX4.6** Implement Responsibility filter.
+- [x] **PX4.7** Implement State filter.
+- [x] **PX4.8** Keep advanced filters under “Mais” rather than always visible.
+- [x] **PX4.9** Make filter state URL/shareable where safe and useful; never put sensitive data in query strings.
+- [x] **PX4.10** Add clear empty/no-results state with filter-reset action.
+- [x] **PX4.11** Add capability-aware bulk/export actions without cluttering default browsing.
+- [x] **PX4.12** Verify 320/375/390/430/tablet/desktop layouts.
+
+Evidence PX4.1–PX4.12: PR #308 (Directory/export hardening) + PR #311 (privacy-safe Directory→Profile route) / quality + browser-regression + canonical Netlify evidence / C6 production responsive/privacy acceptance at `f013f72722c18a6df06ad7c6390be668ed239dbf`.
 
 ### PX5 — Unified Person Profile
 
-- [ ] **PX5.1** Build profile shell with Summary / Contacts / Participation-Eligibility / Availability / Assignments / Organization / History.
-- [ ] **PX5.2** Summary shows current status, group, relevant upcoming absence, recent/next assignments and responsibilities without exposing unnecessary PII.
-- [ ] **PX5.3** Contacts section supports authorized phone/email/address data with clear editing flow.
-- [ ] **PX5.4** Participation/Eligibility section uses explicit settings and explains what each setting affects.
-- [ ] **PX5.5** Availability section integrates away periods into one understandable timeline/list.
-- [ ] **PX5.6** Assignments section shows history and upcoming assignments with useful filters.
-- [ ] **PX5.7** Organization section integrates household/service group/responsibilities context without making the user visit separate CRUD pages for normal tasks.
-- [ ] **PX5.8** History section exposes appropriate audit/history information with least privilege.
-- [ ] **PX5.9** Add contextual “candidate for upcoming assignment” insight only after recommendation service is ready.
+- [x] **PX5.1** Build profile shell with Summary / Contacts / Participation-Eligibility / Availability / Assignments / Organization / History.
+- [x] **PX5.2** Summary shows current status, group, relevant upcoming absence, recent/next assignments and responsibilities without exposing unnecessary PII.
+- [ ] **PX5.3** Contacts section supports authorized phone/email/address data with clear editing flow.  
+  Remaining gap: the current canonical profile contract does not expose ordinary phone/email/address. The UI deliberately says so and does not fabricate PII; emergency contacts are separate and capability-controlled.
+- [ ] **PX5.4** Participation/Eligibility section uses explicit settings and explains what each setting affects.  
+  Remaining gap: explicit eligibility decisions are shown safely, but the full product-level explanation of the operational effect of every setting is not yet complete.
+- [x] **PX5.5** Availability section integrates away periods into one understandable timeline/list.
+- [ ] **PX5.6** Assignments section shows history and upcoming assignments with useful filters.  
+  Remaining gap: history/upcoming evidence is present and correctly ordered by resolved instants, but the full set of useful product filters is not complete.
+- [x] **PX5.7** Organization section integrates household/service group/responsibilities context without making the user visit separate CRUD pages for normal tasks.
+- [x] **PX5.8** History section exposes appropriate audit/history information with least privilege.
+- [x] **PX5.9** Add contextual “candidate for upcoming assignment” insight only after recommendation service is ready.
+
+Evidence for completed PX5 items: PR #305 profile foundation + PR #317 C5.7 profile candidate insight / principal temporal/DST corrections / quality + browser-regression + canonical Netlify / C6 exact-SHA acceptance. Unchecked items above remain real contract/UI gaps.
 
 ### PX6 — Guided Add/Edit Person
 
-- [ ] **PX6.1** Build step 1 Identity.
-- [ ] **PX6.2** Build step 2 Contact.
-- [ ] **PX6.3** Build step 3 Organization.
-- [ ] **PX6.4** Build step 4 Participation/Eligibility.
-- [ ] **PX6.5** Build step 5 Review and confirm.
-- [ ] **PX6.6** Distinguish required and optional data.
-- [ ] **PX6.7** Add safe unsaved-change protection.
-- [ ] **PX6.8** Guard against double submit.
-- [ ] **PX6.9** Preserve server-side validation and authoritative tenant/actor/capabilities.
-- [ ] **PX6.10** Verify persistence after refresh.
-- [ ] **PX6.11** Add edit flow that reuses the same mental model without forcing unnecessary steps.
+- [x] **PX6.1** Build step 1 Identity.
+- [ ] **PX6.2** Build step 2 Contact.  
+  Remaining gap: the step exists as an explicit unavailable-contract state, but ordinary phone/email/address cannot be edited until an authorized canonical DTO/API exists.
+- [ ] **PX6.3** Build step 3 Organization.  
+  Remaining gap: household/service-group organization is implemented, but the target step also requires broader responsibilities coverage not yet present in the canonical wizard contract.
+- [ ] **PX6.4** Build step 4 Participation/Eligibility.  
+  Remaining gap: explicit eligibility is implemented; dated availability/absence configuration is intentionally not invented and still needs an approved contract/flow.
+- [x] **PX6.5** Build step 5 Review and confirm.
+- [x] **PX6.6** Distinguish required and optional data.
+- [x] **PX6.7** Add safe unsaved-change protection.
+- [x] **PX6.8** Guard against double submit.
+- [x] **PX6.9** Preserve server-side validation and authoritative tenant/actor/capabilities.
+- [x] **PX6.10** Verify persistence after refresh.
+- [x] **PX6.11** Add edit flow that reuses the same mental model without forcing unnecessary steps.
+
+Evidence for completed PX6 items: PR #309 corrected guided-editor foundation + PR #312 Directory Add/Edit integration / ambiguous-create, partial-persistence, authoritative refetch, concurrency and double-submit regressions / quality + browser-regression + C6 exact-SHA evidence. PX6.2–PX6.4 remain partial by contract rather than being faked.
 
 ### PX7 — Explainable Recommendation Engine
 
-- [ ] **PX7.1** Define versioned recommendation input contract in application/domain layer.
-- [ ] **PX7.2** Define structured recommendation reason codes.
-- [ ] **PX7.3** Filter explicit ineligible candidates.
-- [ ] **PX7.4** Filter people away during the relevant meeting.
-- [ ] **PX7.5** Detect assignment conflicts.
-- [ ] **PX7.6** Detect existing assignment in the same week/meeting where relevant.
-- [ ] **PX7.7** Calculate recency/rotation signal without turning it into an opaque score.
-- [ ] **PX7.8** Preserve explicit responsibility/manual constraints.
-- [ ] **PX7.9** Return ranked candidates plus reasons and warnings.
-- [ ] **PX7.10** Add “why recommended” and “why not recommended” API/application tests.
-- [ ] **PX7.11** Add deterministic tie-breaking so repeated calls do not shuffle unexpectedly.
-- [ ] **PX7.12** Add tenant/capability/security tests for recommendations.
-- [ ] **PX7.13** Add pt-PT/en/es localized reason text in UI.
-- [ ] **PX7.14** Build recommendation picker used by assignment workflows.
-- [ ] **PX7.15** Include “Ver todos os elegíveis” escape hatch so the user remains in control.
+- [x] **PX7.1** Define versioned recommendation input contract in application/domain layer.
+- [x] **PX7.2** Define structured recommendation reason codes.
+- [x] **PX7.3** Filter explicit ineligible candidates.
+- [x] **PX7.4** Filter people away during the relevant meeting.
+- [x] **PX7.5** Detect assignment conflicts.
+- [x] **PX7.6** Detect existing assignment in the same week/meeting where relevant.
+- [x] **PX7.7** Calculate recency/rotation signal without turning it into an opaque score.
+- [ ] **PX7.8** Preserve explicit responsibility/manual constraints.  
+  Remaining gap: canonical responsibility evidence is honored where available, but the product does not yet have a complete approved manual-exclusion/preference contract; the browser must not invent one.
+- [x] **PX7.9** Return ranked candidates plus reasons and warnings.
+- [x] **PX7.10** Add “why recommended” and “why not recommended” API/application tests.
+- [x] **PX7.11** Add deterministic tie-breaking so repeated calls do not shuffle unexpectedly.
+- [x] **PX7.12** Add tenant/capability/security tests for recommendations.
+- [x] **PX7.13** Add pt-PT/en/es localized reason text in UI.
+- [x] **PX7.14** Build recommendation picker used by assignment workflows.
+- [x] **PX7.15** Include “Ver todos os elegíveis” escape hatch so the user remains in control.
+
+Evidence for completed PX7 items: PR #307 backend/domain correction + PR #313 server-side authenticated adapter + PR #314 localized reasons + PR #315 picker + PR #316 all-eligible + PR #317 profile insight integration / deterministic, tenant/capability, hard-constraint and privacy tests / C6 final acceptance at `f013f72722c18a6df06ad7c6390be668ed239dbf`. PX7.8 remains explicitly partial.
 
 ### PX8 — Responsible-person assistance
 
@@ -644,24 +666,31 @@ Required:
 
 ### PX10 — UX quality, accessibility and production acceptance
 
-- [ ] **PX10.1** No primary People screen begins with unexplained dense data.
-- [ ] **PX10.2** Light theme visual acceptance complete.
-- [ ] **PX10.3** Dark theme visual acceptance complete.
-- [ ] **PX10.4** System theme behavior verified.
-- [ ] **PX10.5** Keyboard-only People workflow verified.
-- [ ] **PX10.6** Screen-reader labels/structure verified for primary flows.
+> C6 independent acceptance provides final evidence for the checked quality items below on the currently integrated People core. It does not claim physical-device testing, a real screen-reader run, zoom evidence, or a write-capable real-user walkthrough that was not executed.
+
+- [x] **PX10.1** No primary People screen begins with unexplained dense data.
+- [x] **PX10.2** Light theme visual acceptance complete.
+- [x] **PX10.3** Dark theme visual acceptance complete.
+- [x] **PX10.4** System theme behavior verified.
+- [x] **PX10.5** Keyboard-only People workflow verified.
+- [ ] **PX10.6** Screen-reader labels/structure verified for primary flows.  
+  Remaining evidence gap: automated semantics/accessibility checks exist, but no real screen-reader acceptance run has been claimed.
 - [ ] **PX10.7** 200% zoom verified.
 - [ ] **PX10.8** 400% zoom/reflow checked where applicable.
-- [ ] **PX10.9** 320/375/390/430/tablet/desktop responsive matrix PASS.
-- [ ] **PX10.10** No horizontal overflow on supported primary screens.
-- [ ] **PX10.11** Error/loading/empty/retry states exist for every async People surface.
-- [ ] **PX10.12** Double-click/retry/stale-response ownership tests remain PASS.
-- [ ] **PX10.13** PWA privacy regression remains PASS.
-- [ ] **PX10.14** Bundle budget remains within agreed limit after Ant migration.
-- [ ] **PX10.15** pt-PT/en/es People flows verified for layout and copy.
-- [ ] **PX10.16** Zero unresolved P0/P1 defects in the rebuilt People experience.
-- [ ] **PX10.17** Real-user walkthrough: user can find a person, understand their status, update availability and reach an assignment suggestion without training.
-- [ ] **PX10.18** Principal final review confirms People is a reference-quality module before the same patterns are rolled out to the rest of Eutaktos.
+- [x] **PX10.9** 320/375/390/430/tablet/desktop responsive matrix PASS.
+- [x] **PX10.10** No horizontal overflow on supported primary screens.
+- [x] **PX10.11** Error/loading/empty/retry states exist for every async People surface.
+- [x] **PX10.12** Double-click/retry/stale-response ownership tests remain PASS.
+- [x] **PX10.13** PWA privacy regression remains PASS.
+- [x] **PX10.14** Bundle budget remains within agreed limit after Ant migration.
+- [x] **PX10.15** pt-PT/en/es People flows verified for layout and copy.
+- [x] **PX10.16** Zero unresolved P0/P1 defects in the rebuilt People experience.
+- [ ] **PX10.17** Real-user walkthrough: user can find a person, understand their status, update availability and reach an assignment suggestion without training.  
+  Remaining evidence gap: C6 intentionally avoided production writes, so the complete update-availability walkthrough has not been independently executed end to end.
+- [ ] **PX10.18** Principal final review confirms People is a reference-quality module before the same patterns are rolled out to the rest of Eutaktos.  
+  Remaining product gap: explicit PX5/PX6/PX7.8 gaps plus PX8/PX9 still remain; C6 accepted the integrated People core, not every master-plan capability.
+
+Evidence for checked PX10 items: independent C6 final closure on canonical production plus exact detached SHA `f013f72722c18a6df06ad7c6390be668ed239dbf`; responsive matrix, Light/Dark/System, pt-PT/en/es, keyboard/focus, error/retry, stale/double-submit, PWA/privacy, security boundary and zero-open-defect disposition PASS.
 
 ### PX11 — MUI retirement after People reference is proven
 
@@ -693,7 +722,7 @@ PX9
 **Wave E — hardening and expansion**  
 PX10 → PX11
 
-The principal may parallelize isolated tasks, but no agent should invent a separate UX direction.
+Current post-C6 priority: preserve the accepted People core, close only approved canonical-contract gaps, then proceed through PX8/PX9 and the remaining explicit PX10/PX11 evidence/tasks. The principal may parallelize isolated tasks, but no agent should invent a separate UX direction.
 
 ---
 
