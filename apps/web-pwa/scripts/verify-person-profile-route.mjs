@@ -9,6 +9,7 @@ const debugUrl = `http://127.0.0.1:${debugPort}`;
 const viteCli = resolve(dirname(fileURLToPath(import.meta.url)), '../../../node_modules/vite/bin/vite.js');
 const chromium = process.env.CHROMIUM_BIN ?? 'chromium';
 const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
+const expectedRecommendationSearch = '?meetingId=meeting-profile&slotId=slot-profile';
 
 async function poll(operation, label, attempts = 80) {
   let lastError;
@@ -70,7 +71,13 @@ async function clickExactButton(label) {
 }
 
 async function locationState() {
-  return await evaluate(`({ path: location.pathname, search: location.search, href: location.href, main: document.querySelector('#main')?.textContent ?? '' })`);
+  return await evaluate(`({ path: location.pathname, search: location.search, href: location.href, main: document.querySelector('#main')?.textContent ?? '', recommendationRequests: window.__profileRecommendationRequests ?? [] })`);
+}
+
+function assertRecommendationRequests(requests) {
+  if (!requests.length || requests.some(request => request.search !== expectedRecommendationSearch || request.method !== 'GET' || request.body !== null)) {
+    throw new Error(`Profile insight did not preserve the C5.3 identity-only contract: ${JSON.stringify(requests)}`);
+  }
 }
 
 try {
@@ -86,7 +93,18 @@ try {
 
   await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => {
     localStorage.setItem('eutaktos.preferences.v4', JSON.stringify({ paletteId: 'classic', colorMode: 'light', density: 'comfortable', locale: 'pt-PT', textSize: 'default', reducedMotion: false, reducedTransparency: false, highContrast: false }));
+    window.__profileRecommendationRequests = [];
     const json = value => new Response(JSON.stringify(value), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    const meeting = {
+      id: 'meeting-profile', date: '2032-06-10', localTime: '19:30', timezone: 'Europe/Lisbon', state: 'draft',
+      slots: [{ id: 'slot-profile', position: 0, durationMinutes: 5, titleKey: 'midweek.parts.applyYourselfToTheMinistry', partDefinitionId: 'builtin:apply-yourself-to-the-ministry' }],
+    };
+    const recommendation = {
+      contractVersion: 'people-recommendation-v1', evidenceContractVersion: 'px7-evidence-v1', inputContractVersion: 'px7-recommendation-input-v1',
+      target: { meetingId: meeting.id, slotId: 'slot-profile', assignmentTypeId: 'builtin:apply-yourself-to-the-ministry', meetingDate: meeting.date, startsAt: '2032-06-10T18:30:00.000Z', endsAt: '2032-06-10T18:35:00.000Z' },
+      candidates: [{ personId: 'person-runtime', displayName: 'Runtime person', status: 'candidate', rank: 1, reasons: [{ code: 'ELIGIBLE' }, { code: 'AVAILABLE' }, { code: 'NO_MEETING_CONFLICT' }], warnings: [{ code: 'NO_COMPLETED_ASSIGNMENT_HISTORY' }], history: { kind: 'no-completed-history' }, sameWeekAssignmentCount: 0 }],
+      excluded: [],
+    };
     window.fetch = async (input, init) => {
       const rawUrl = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
       const url = new URL(rawUrl, window.location.origin);
@@ -98,7 +116,12 @@ try {
         filters: { groups: [], responsibilityKeys: [], assignmentTypeIds: [] },
         people: [{ id: 'person-runtime', displayName: 'Runtime person', preferredLocale: 'pt-PT', active: true, groups: [], availability: { status: 'unavailable' }, eligibility: { status: 'unavailable' }, responsibilities: { status: 'unavailable' }, assignmentHistory: { status: 'unavailable' } }],
       });
-      if (url.pathname === '/api/session' && method === 'GET') return json({ actorId: 'actor-runtime', capabilities: ['people.read'] });
+      if (url.pathname === '/api/session' && method === 'GET') return json({ actorId: 'actor-runtime', capabilities: ['people.read', 'eligibility.read', 'availability.read', 'schedule.read'] });
+      if (url.pathname === '/api/midweek' && method === 'GET') return json({ meetings: [meeting], studentAssignments: [], nonStudentAssignments: [] });
+      if (url.pathname === '/api/people/recommendations' && method === 'GET') {
+        window.__profileRecommendationRequests.push({ search: url.search, method, body: init?.body ?? null });
+        return json(recommendation);
+      }
       return new Response(JSON.stringify({ error: 'Not available in route harness' }), { status: 503, headers: { 'Content-Type': 'application/json' } });
     };
   })();` });
@@ -113,17 +136,30 @@ try {
   if (!await clickExactButton('Ver perfil')) throw new Error('View profile action was not found');
   await poll(async () => {
     const state = await locationState();
-    return state.search.includes('view=profile') && state.search.includes('status=active') && state.search.includes('person=person-runtime') && state.main.includes('Runtime person') && state.main.includes('Resumo') && state.main.includes('Contactos');
-  }, 'Profile did not open from Directory');
+    return state.search.includes('view=profile')
+      && state.search.includes('status=active')
+      && state.search.includes('person=person-runtime')
+      && state.main.includes('Runtime person')
+      && state.main.includes('Resumo')
+      && state.main.includes('Contactos')
+      && state.main.includes('Insight de candidato')
+      && state.main.includes('Recomendação #1')
+      && state.main.includes('Elegível para este tipo de designação.');
+  }, 'Profile and contextual PX7 insight did not open from Directory');
 
   let state = await locationState();
+  assertRecommendationRequests(state.recommendationRequests);
+  for (const rawCode of ['ELIGIBLE', 'AVAILABLE', 'NO_MEETING_CONFLICT']) if (state.main.includes(rawCode)) throw new Error(`Raw PX7 reason code leaked into profile insight: ${rawCode}`);
   if (state.href.includes('Runtime%20person') || state.href.includes('Runtime person') || state.href.includes('@')) throw new Error(`Human-readable PII leaked into profile URL: ${state.href}`);
+  if (!state.main.includes('Empenhe-se na leitura e no ensino') || !state.main.includes('Sem histórico de designações concluídas')) throw new Error('Profile insight did not localize approved PX7 evidence');
 
   await cdp.send('Page.reload', { ignoreCache: true });
   await poll(async () => {
     const current = await locationState();
-    return current.search.includes('view=profile') && current.search.includes('person=person-runtime') && current.main.includes('Runtime person') && current.main.includes('Resumo');
-  }, 'Profile deep link did not survive refresh');
+    return current.search.includes('view=profile') && current.search.includes('person=person-runtime') && current.main.includes('Runtime person') && current.main.includes('Resumo') && current.main.includes('Insight de candidato') && current.main.includes('Recomendação #1');
+  }, 'Profile deep link and contextual insight did not survive refresh');
+  state = await locationState();
+  assertRecommendationRequests(state.recommendationRequests);
 
   await evaluate('history.back(); true');
   await poll(async () => {
@@ -134,8 +170,8 @@ try {
   await evaluate('history.forward(); true');
   await poll(async () => {
     const current = await locationState();
-    return current.search.includes('view=profile') && current.search.includes('person=person-runtime') && current.main.includes('Runtime person');
-  }, 'Forward did not restore profile');
+    return current.search.includes('view=profile') && current.search.includes('person=person-runtime') && current.main.includes('Runtime person') && current.main.includes('Insight de candidato');
+  }, 'Forward did not restore profile and contextual insight');
 
   if (!await clickExactButton('Voltar')) throw new Error('Profile back action was not found');
   await poll(async () => {
@@ -146,7 +182,7 @@ try {
   state = await locationState();
   if (state.href.includes('Runtime%20person') || state.href.includes('Runtime person')) throw new Error(`PII remained in URL after returning to Directory: ${state.href}`);
 
-  process.stdout.write('Person profile route regression passed: Directory → Profile, refresh, Back/Forward and privacy-safe return.\n');
+  process.stdout.write('Person profile route regression passed: Directory → Profile, contextual PX7 candidate insight, identity-only evidence requests, refresh, Back/Forward and privacy-safe return.\n');
 } finally {
   try { cdp?.close(); } catch {}
   browser?.kill('SIGTERM');
