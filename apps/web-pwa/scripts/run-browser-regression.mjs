@@ -11,6 +11,7 @@ const checks = [
   { label: 'Person profile route runtime', args: ['run', 'test:person-profile-route'] },
   { label: 'Person wizard Directory runtime', args: ['run', 'test:person-wizard-directory'] },
   { label: 'Recommendation picker runtime', args: ['run', 'test:recommendation-picker'] },
+  { label: 'C6 responsive overflow runtime', args: ['run', 'test:c6-responsive-overflow'] },
   { label: 'People Directory export runtime', args: ['run', 'test:people-directory-export-runtime'] },
   { label: 'System theme runtime', args: ['run', 'test:system-theme-runtime'] },
   { label: 'lazy-route recovery', args: ['run', 'test:lazy-recovery'] },
