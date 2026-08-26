@@ -33,8 +33,8 @@ function errorId(field: ContactField): string {
   return `person-wizard-contact-${field}-error`;
 }
 
-function ContactError({ field, message }: { field: ContactField; message: string | undefined }) {
-  if (!message) return null;
+function contactHelp(field: ContactField, message: string | undefined) {
+  if (!message) return undefined;
   return <Typography.Text id={errorId(field)} type="danger" role="alert">{message}</Typography.Text>;
 }
 
@@ -68,17 +68,26 @@ export function PersonWizardContactStep({
     <Alert type="info" showIcon title={labels.explanation} />
     {!canWrite ? <Alert type="info" showIcon title={labels.noWrite} /> : null}
     <Card>
-      <Form.Item label={`${labels.phone} · ${labels.optional}`} validateStatus={errors.phone ? 'error' : undefined}>
+      <Form.Item
+        label={`${labels.phone} · ${labels.optional}`}
+        validateStatus={errors.phone ? 'error' : undefined}
+        help={contactHelp('phone', errors.phone)}
+      >
         <Input aria-label={labels.phone} aria-invalid={Boolean(errors.phone)} aria-describedby={errors.phone ? errorId('phone') : undefined} autoComplete="tel" value={contact.phone ?? ''} disabled={!canWrite} onChange={event => change('phone', event.target.value)} />
-        <ContactError field="phone" message={errors.phone} />
       </Form.Item>
-      <Form.Item label={`${labels.email} · ${labels.optional}`} validateStatus={errors.email ? 'error' : undefined}>
+      <Form.Item
+        label={`${labels.email} · ${labels.optional}`}
+        validateStatus={errors.email ? 'error' : undefined}
+        help={contactHelp('email', errors.email)}
+      >
         <Input aria-label={labels.email} aria-invalid={Boolean(errors.email)} aria-describedby={errors.email ? errorId('email') : undefined} type="email" autoComplete="email" value={contact.email ?? ''} disabled={!canWrite} onChange={event => change('email', event.target.value)} />
-        <ContactError field="email" message={errors.email} />
       </Form.Item>
-      <Form.Item label={`${labels.address} · ${labels.optional}`} validateStatus={errors.address ? 'error' : undefined}>
+      <Form.Item
+        label={`${labels.address} · ${labels.optional}`}
+        validateStatus={errors.address ? 'error' : undefined}
+        help={contactHelp('address', errors.address)}
+      >
         <Input.TextArea aria-label={labels.address} aria-invalid={Boolean(errors.address)} aria-describedby={errors.address ? errorId('address') : undefined} autoComplete="street-address" rows={3} value={contact.address ?? ''} disabled={!canWrite} onChange={event => change('address', event.target.value)} />
-        <ContactError field="address" message={errors.address} />
       </Form.Item>
     </Card>
   </Space>;
