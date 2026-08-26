@@ -5,6 +5,7 @@ describe('Netlify API adapter', () => {
   it('normalizes both public and rewritten Netlify paths', () => {
     expect(normalizeNetlifyApiPath({ path: '/api/people' })).toBe('/people');
     expect(normalizeNetlifyApiPath({ path: '/api/people/recommendations' })).toBe('/people/recommendations');
+    expect(normalizeNetlifyApiPath({ path: '/api/people/assistance' })).toBe('/people/assistance');
     expect(normalizeNetlifyApiPath({ path: '/.netlify/functions/api/people/recommendations' })).toBe('/people/recommendations');
     expect(normalizeNetlifyApiPath({ path: '/.netlify/functions/api/people/person-1' })).toBe('/people/person-1');
     expect(normalizeNetlifyApiPath({ rawUrl: 'https://example.netlify.app/api/health?x=1' })).toBe('/health');
@@ -16,6 +17,7 @@ describe('Netlify API adapter', () => {
   it('matches People projections and dynamic identifiers from the path', () => {
     expect(matchNetlifyApiRoute('/people/directory')).toEqual({ key: 'people-directory', params: {} });
     expect(matchNetlifyApiRoute('/people/overview-evidence')).toEqual({ key: 'people-overview-evidence', params: {} });
+    expect(matchNetlifyApiRoute('/people/assistance')).toEqual({ key: 'people-assistance', params: {} });
     expect(matchNetlifyApiRoute('/people/recommendations')).toEqual({ key: 'people-recommendations', params: {} });
     expect(matchNetlifyApiRoute('/people/person-1')).toEqual({ key: 'person', params: { personId: 'person-1' } });
     expect(matchNetlifyApiRoute('/people/person-1/eligibility')).toEqual({ key: 'eligibility', params: { personId: 'person-1' } });
@@ -57,6 +59,16 @@ describe('Netlify API adapter', () => {
     });
     expect(result.statusCode).toBe(400);
     expect(JSON.parse(result.body)).toEqual({ error: 'meetingId is required' });
+  });
+
+  it('dispatches People assistance to the real authenticated handler instead of returning router 404', async () => {
+    const result = await handleNetlifyApiEvent({
+      httpMethod: 'GET',
+      path: '/api/people/assistance',
+      headers: {},
+    });
+    expect(result.statusCode).toBe(401);
+    expect(JSON.parse(result.body)).toEqual({ error: 'Unauthorized' });
   });
 
   it('returns safe errors for unknown routes and malformed JSON', async () => {
