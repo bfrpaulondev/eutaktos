@@ -53,11 +53,18 @@ function reason(code: RecommendationReasonCode): RecommendationReason {
   return Object.freeze({ code });
 }
 
+function recommendationInstant(value: string, field: 'startsAt' | 'endsAt'): number {
+  if (typeof value !== 'string' || !/T/.test(value) || !/(?:Z|[+-]\d{2}:\d{2})$/i.test(value)) {
+    throw new Error(`${field} must be a timezone-aware ISO instant`);
+  }
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) throw new Error(`${field} must be a valid ISO instant`);
+  return timestamp;
+}
+
 function validateRecommendationWindow(input: DeterministicRecommendationInput): void {
-  const startsAt = Date.parse(input.startsAt);
-  const endsAt = Date.parse(input.endsAt);
-  if (!Number.isFinite(startsAt)) throw new Error('startsAt must be a valid ISO instant');
-  if (!Number.isFinite(endsAt)) throw new Error('endsAt must be a valid ISO instant');
+  const startsAt = recommendationInstant(input.startsAt, 'startsAt');
+  const endsAt = recommendationInstant(input.endsAt, 'endsAt');
   if (endsAt <= startsAt) throw new Error('recommendation window must end after it starts');
 }
 
