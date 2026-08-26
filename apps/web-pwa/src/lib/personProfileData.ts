@@ -278,6 +278,16 @@ export function compareAssignmentsByInstant(left: PersonAssignmentEvidence, righ
   return `${left.date}T${left.localTime}`.localeCompare(`${right.date}T${right.localTime}`) || left.id.localeCompare(right.id);
 }
 
+/** Descending temporal order while still keeping invalid evidence after every valid resolved instant. */
+export function compareAssignmentsByInstantDescending(left: PersonAssignmentEvidence, right: PersonAssignmentEvidence): number {
+  const leftMs = assignmentStartMs(left);
+  const rightMs = assignmentStartMs(right);
+  if (leftMs !== undefined && rightMs !== undefined) return rightMs - leftMs || left.id.localeCompare(right.id);
+  if (leftMs !== undefined) return -1;
+  if (rightMs !== undefined) return 1;
+  return `${right.date}T${right.localTime}`.localeCompare(`${left.date}T${left.localTime}`) || left.id.localeCompare(right.id);
+}
+
 export function assignmentEvidenceForPerson(overview: MidweekOverviewDto, personId: string): readonly PersonAssignmentEvidence[] {
   const meetings = new Map(overview.meetings.map(meeting => [meeting.id, meeting] as const));
   const values: PersonAssignmentEvidence[] = [];
