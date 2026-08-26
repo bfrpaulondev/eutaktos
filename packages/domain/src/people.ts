@@ -38,6 +38,7 @@ export interface CongregationPerson {
   /** Stable identifiers from an explicitly linked external source; never contact data. */
   externalIds?: readonly string[];
   availability: readonly AvailabilityPeriod[];
+  /** Append-only decision sequence. For equal decidedAt values, the later recorded entry wins. */
   eligibility: readonly EligibilityGrant[];
   /** Legacy/imported records may omit this until normalized by an application write. */
   emergencyContacts?: readonly EmergencyContact[];
@@ -82,16 +83,37 @@ export function isPersonAvailableAt(person: CongregationPerson, instant: string)
 }
 
 /**
+ * Returns the current explicit decision from the persisted append-only sequence.
+ * `decidedAt` remains the primary ordering fact. If two decisions share the same
+ * timestamp, the later recorded array entry wins. Actor identifiers are audit
+ * facts only and never carry business precedence.
+ */
+export function latestEligibilityDecision(
+  decisions: readonly EligibilityGrant[],
+  assignmentTypeId: AssignmentTypeId,
+): EligibilityGrant | undefined {
+  const normalized = assignmentTypeId.trim();
+  if (!normalized) return undefined;
+  let latest: EligibilityGrant | undefined;
+  let latestAt = Number.NEGATIVE_INFINITY;
+  for (const decision of decisions) {
+    if (decision.assignmentTypeId !== normalized) continue;
+    const decidedAt = parseInstant(decision.decidedAt);
+    if (!latest || decidedAt >= latestAt) {
+      latest = decision;
+      latestAt = decidedAt;
+    }
+  }
+  return latest;
+}
+
+/**
  * Eligibility is deliberately explicit. The domain layer never infers suitability
  * from gender, age, service history, attendance, comments, roles, AI output or any
  * other proxy. Authorized humans configure this value and the scheduler consumes it.
  */
 export function isExplicitlyEligible(person: CongregationPerson, assignmentTypeId: AssignmentTypeId): boolean {
-  const latest = [...person.eligibility]
-    .filter(grant => grant.assignmentTypeId === assignmentTypeId)
-    .sort((left, right) => parseInstant(right.decidedAt) - parseInstant(left.decidedAt))[0];
-
-  return latest?.enabled === true;
+  return latestEligibilityDecision(person.eligibility, assignmentTypeId)?.enabled === true;
 }
 
 export function recordEligibilityDecision(

@@ -72,6 +72,33 @@ describe('principal-reviewed People/PX7 evidence', () => {
     expect(reasons.get('no-history')).not.toContain('LONGER_SINCE_LAST_ASSIGNMENT');
   });
 
+  it('preserves the versioned input identifier and operational warnings in the public contract', () => {
+    const result = deterministicRecommendationEvidence(FULL_CONTEXT, input({
+      people: [person('weekly')],
+      workloadAssignments: [{ tenantId: 'tenant-a', assignmentId: 'weekly-assignment', personId: 'weekly', meetingDate: '2026-04-02', state: 'assigned' }],
+    }));
+
+    expect(result.inputContractVersion).toBe('px7-recommendation-input-v1');
+    expect(result.candidates[0]?.warnings.map(item => item.code)).toEqual([
+      'HAS_WEEKLY_ASSIGNMENT',
+      'NO_COMPLETED_ASSIGNMENT_HISTORY',
+    ]);
+  });
+
+  it('validates a timezone-aware instant window even when there are no candidates', () => {
+    expect(() => deterministicRecommendationEvidence(FULL_CONTEXT, input({ startsAt: '2026-04-01' }))).toThrow('startsAt must be a timezone-aware ISO instant');
+    expect(() => deterministicRecommendationEvidence(FULL_CONTEXT, input({ startsAt: '2026-99-99T19:00:00Z' }))).toThrow('startsAt must be a valid ISO instant');
+    expect(() => deterministicRecommendationEvidence(FULL_CONTEXT, input({ endsAt: '2026-99-99T19:30:00Z' }))).toThrow('endsAt must be a valid ISO instant');
+    expect(() => deterministicRecommendationEvidence(FULL_CONTEXT, input({
+      startsAt: '2026-04-01T19:30:00.000+01:00',
+      endsAt: '2026-04-01T19:00:00.000+01:00',
+    }))).toThrow('recommendation window must end after it starts');
+    expect(() => deterministicRecommendationEvidence(FULL_CONTEXT, input({
+      startsAt: '2026-04-01T19:00:00.000+01:00',
+      endsAt: '2026-04-01T19:30:00.000+01:00',
+    }))).not.toThrow();
+  });
+
   it('does not manufacture a long-interval reason when there is no factual peer comparison', () => {
     const result = deterministicRecommendationEvidence(FULL_CONTEXT, input({
       people: [person('only')],

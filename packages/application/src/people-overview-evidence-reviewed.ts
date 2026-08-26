@@ -21,6 +21,9 @@ import {
   type RecommendationHistoryEvidence,
   type RecommendationReason,
   type RecommendationReasonCode,
+  type RecommendationWarning,
+  type RecommendationWarningCode,
+  type RecommendationInputContractVersion,
 } from './people-overview-evidence';
 
 export {
@@ -41,10 +44,28 @@ export type {
   RecommendationHistoryEvidence,
   RecommendationReason,
   RecommendationReasonCode,
+  RecommendationWarning,
+  RecommendationWarningCode,
+  RecommendationInputContractVersion,
 };
 
 function reason(code: RecommendationReasonCode): RecommendationReason {
   return Object.freeze({ code });
+}
+
+function recommendationInstant(value: string, field: 'startsAt' | 'endsAt'): number {
+  if (typeof value !== 'string' || !/T/.test(value) || !/(?:Z|[+-]\d{2}:\d{2})$/i.test(value)) {
+    throw new Error(`${field} must be a timezone-aware ISO instant`);
+  }
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) throw new Error(`${field} must be a valid ISO instant`);
+  return timestamp;
+}
+
+function validateRecommendationWindow(input: DeterministicRecommendationInput): void {
+  const startsAt = recommendationInstant(input.startsAt, 'startsAt');
+  const endsAt = recommendationInstant(input.endsAt, 'endsAt');
+  if (endsAt <= startsAt) throw new Error('recommendation window must end after it starts');
 }
 
 function normalizeLongIntervalReasons(result: DeterministicRecommendation): DeterministicRecommendation {
@@ -64,6 +85,7 @@ function normalizeLongIntervalReasons(result: DeterministicRecommendation): Dete
 
   return Object.freeze({
     contractVersion: result.contractVersion,
+    inputContractVersion: result.inputContractVersion,
     candidates: Object.freeze(result.candidates.map(candidate => normalize(candidate, true))),
     excluded: Object.freeze(result.excluded.map(candidate => normalize(candidate, false))),
   });
@@ -75,11 +97,14 @@ function normalizeLongIntervalReasons(result: DeterministicRecommendation): Dete
  * proves that a valid candidate has the longest factual interval among at least
  * two candidates with completed history. Missing history is never converted into
  * positive long-interval evidence and excluded candidates never receive it.
+ * The target instant window is validated before reading candidates so malformed
+ * input cannot become conditionally valid merely because the candidate list is empty.
  */
 export function deterministicRecommendationEvidence(
   context: AccessContext,
   input: DeterministicRecommendationInput,
 ): DeterministicRecommendation {
+  validateRecommendationWindow(input);
   return normalizeLongIntervalReasons(buildRawRecommendationEvidence(context, input));
 }
 

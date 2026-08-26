@@ -33,6 +33,18 @@ class FakeEligibilityPort implements EligibilityPort {
         decidedBy: 'elder-sensitive',
         decidedAt: '2026-08-10T14:00:00.000Z',
       },
+      {
+        assignmentTypeId: 'same-time',
+        enabled: true,
+        decidedBy: 'elder-z',
+        decidedAt: '2026-08-20T15:00:00.000Z',
+      },
+      {
+        assignmentTypeId: 'same-time',
+        enabled: false,
+        decidedBy: 'elder-a',
+        decidedAt: '2026-08-20T15:00:00.000Z',
+      },
     ];
   }
 
@@ -109,11 +121,34 @@ describe('EligibilityHttpTransport', () => {
       body: [
         { assignmentTypeId: 'bible-reading', enabled: false, decidedAt: '2026-08-20T14:00:00.000Z' },
         { assignmentTypeId: 'microphones', enabled: true, decidedAt: '2026-08-10T14:00:00.000Z' },
+        { assignmentTypeId: 'same-time', enabled: false, decidedAt: '2026-08-20T15:00:00.000Z' },
       ],
     });
     const serialized = JSON.stringify(response.body);
     expect(serialized).not.toContain('decidedBy');
     expect(serialized).not.toContain('elder-sensitive');
+  });
+
+  it('uses the last recorded same-timestamp decision after set, independent of actor id', () => {
+    const sameTimePort: EligibilityPort = {
+      listEligibility: () => [],
+      setEligibility: (context, input) => ({
+        id: input.personId,
+        tenantId: context.tenantId,
+        displayName: 'Sensitive Name',
+        active: true,
+        availability: [],
+        eligibility: [
+          { assignmentTypeId: input.assignmentTypeId, enabled: false, decidedBy: 'elder-z', decidedAt: '2026-08-20T14:00:00.000Z' },
+          { assignmentTypeId: input.assignmentTypeId, enabled: true, decidedBy: 'elder-a', decidedAt: '2026-08-20T14:00:00.000Z' },
+        ],
+      }),
+    };
+    const transport = new EligibilityHttpTransport(sameTimePort);
+    expect(transport.set(request())).toEqual({
+      status: 200,
+      body: { assignmentTypeId: 'bible-reading', enabled: true, decidedAt: '2026-08-20T14:00:00.000Z' },
+    });
   });
 
   it('does not let generic people.write substitute for eligibility.read', () => {
