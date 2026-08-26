@@ -151,7 +151,7 @@ try {
   assertRecommendationRequests(state.recommendationRequests);
   for (const rawCode of ['ELIGIBLE', 'AVAILABLE', 'NO_MEETING_CONFLICT']) if (state.main.includes(rawCode)) throw new Error(`Raw PX7 reason code leaked into profile insight: ${rawCode}`);
   if (state.href.includes('Runtime%20person') || state.href.includes('Runtime person') || state.href.includes('@')) throw new Error(`Human-readable PII leaked into profile URL: ${state.href}`);
-  if (!state.main.includes('Empenhe-se na leitura e no ensino') || !state.main.includes('Sem histórico concluído')) throw new Error('Profile insight did not localize approved PX7 evidence');
+  if (!state.main.includes('Empenhe-se na leitura e no ensino') || !state.main.includes('Sem histórico de designações concluídas')) throw new Error('Profile insight did not localize approved PX7 evidence');
 
   await cdp.send('Page.reload', { ignoreCache: true });
   await poll(async () => {
