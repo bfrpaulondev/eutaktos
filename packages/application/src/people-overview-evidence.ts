@@ -1,6 +1,7 @@
 import {
   assertCapability,
   detectSchedulingConflicts,
+  isResponsibilityActiveAt,
   unavailableIntervalsForPerson,
   type AccessContext,
   type AssignmentHistoryRecord,
@@ -8,6 +9,7 @@ import {
   type CongregationPerson,
   type MidweekMeeting,
   type NonStudentAssignment,
+  type ResponsibilityAssignment,
   type StudentAssignment,
 } from '@eutaktos/domain';
 import { manualPlanningCandidates, type ManualPlanningCandidate } from './hourglass-planning';
@@ -18,15 +20,23 @@ export type RecommendationReasonCode =
   | 'NO_MEETING_CONFLICT'
   | 'NO_WEEKLY_ASSIGNMENT'
   | 'LONGER_SINCE_LAST_ASSIGNMENT'
-  | 'HAS_WEEKLY_ASSIGNMENT'
+  | 'MEETS_REQUIRED_RESPONSIBILITY'
   | 'AWAY_DURING_MEETING'
   | 'NOT_ELIGIBLE'
   | 'CONFLICTING_ASSIGNMENT'
   | 'INACTIVE'
+  | 'MISSING_REQUIRED_RESPONSIBILITY';
+
+export type RecommendationWarningCode =
+  | 'HAS_WEEKLY_ASSIGNMENT'
   | 'NO_COMPLETED_ASSIGNMENT_HISTORY';
 
 export interface RecommendationReason {
   readonly code: RecommendationReasonCode;
+}
+
+export interface RecommendationWarning {
+  readonly code: RecommendationWarningCode;
 }
 
 export interface RecommendationHistoryEvidence {
@@ -40,13 +50,20 @@ export interface RecommendationCandidateEvidence {
   readonly status: 'candidate' | 'excluded';
   /** Present only for candidates that passed every hard constraint. */
   readonly rank?: number;
+  /** Positive, factual evidence for candidates; exclusion evidence for excluded people. */
   readonly reasons: readonly RecommendationReason[];
+  /** Neutral or cautionary operational facts. Warnings never make an excluded person selectable. */
+  readonly warnings: readonly RecommendationWarning[];
   readonly history: RecommendationHistoryEvidence;
   readonly sameWeekAssignmentCount: number;
 }
 
+export type RecommendationInputContractVersion = 'px7-recommendation-input-v1';
+
 export interface DeterministicRecommendation {
   readonly contractVersion: 'px7-evidence-v1';
+  /** Echoes the accepted input version so future callers can negotiate deliberately. */
+  readonly inputContractVersion: RecommendationInputContractVersion;
   readonly candidates: readonly RecommendationCandidateEvidence[];
   readonly excluded: readonly RecommendationCandidateEvidence[];
 }
@@ -57,6 +74,8 @@ export interface DeterministicRecommendation {
  * tenant; the browser never supplies an authority-bearing tenant or capability.
  */
 export interface DeterministicRecommendationInput {
+  /** Optional only during the v1 migration; new callers should always send this version. */
+  readonly inputContractVersion?: RecommendationInputContractVersion;
   readonly assignmentTypeId: string;
   /** Assignment-history part type. It may be the same as assignmentTypeId. */
   readonly partType: string;
@@ -72,6 +91,13 @@ export interface DeterministicRecommendationInput {
   readonly activeAssignments: readonly ActiveAssignmentEvidence[];
   /** Active assignments used only as a same-local-week workload signal. */
   readonly workloadAssignments: readonly AssignmentWorkloadEvidence[];
+  /**
+   * Authorized responsibility records. They are consulted only when the target
+   * explicitly requires a responsibility key; otherwise they do not influence ranking.
+   */
+  readonly responsibilities?: readonly Readonly<ResponsibilityAssignment>[];
+  /** Optional explicit operational constraint for the target part. */
+  readonly requiredResponsibilityKey?: string;
 }
 
 export interface AssignmentWorkloadEvidence {
@@ -250,14 +276,30 @@ function isoWeekKey(dateInput: string): string {
   return `${isoYear}-W${String(week).padStart(2, '0')}`;
 }
 
-function assertEvidenceReadCapabilities(context: AccessContext): void {
+function assertEvidenceReadCapabilities(context: AccessContext, requiresResponsibilities: boolean): void {
   assertCapability(context, 'people.read');
   assertCapability(context, 'eligibility.read');
   assertCapability(context, 'availability.read');
   assertCapability(context, 'schedule.read');
+  if (requiresResponsibilities) assertCapability(context, 'responsibilities.read');
+}
+
+function acceptedInputContractVersion(input: DeterministicRecommendationInput): RecommendationInputContractVersion {
+  const version = input.inputContractVersion ?? 'px7-recommendation-input-v1';
+  if (version !== 'px7-recommendation-input-v1') throw new Error('Unsupported recommendation input contract version');
+  return version;
+}
+
+function optionalResponsibilityKey(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  return required(value, 'requiredResponsibilityKey');
 }
 
 function reason(code: RecommendationReasonCode): RecommendationReason {
+  return Object.freeze({ code });
+}
+
+function warning(code: RecommendationWarningCode): RecommendationWarning {
   return Object.freeze({ code });
 }
 
@@ -284,35 +326,65 @@ function historyEvidence(candidate: ManualPlanningCandidate): RecommendationHist
   });
 }
 
+function hasRequiredResponsibility(
+  candidate: ManualPlanningCandidate,
+  tenantId: string,
+  startsAt: string,
+  requiredResponsibilityKey: string | undefined,
+  responsibilities: readonly Readonly<ResponsibilityAssignment>[],
+): boolean {
+  if (!requiredResponsibilityKey) return true;
+  return responsibilities.some(responsibility =>
+    responsibility.tenantId === tenantId &&
+    responsibility.personId === candidate.personId &&
+    responsibility.responsibilityKey === requiredResponsibilityKey &&
+    isResponsibilityActiveAt(responsibility, startsAt),
+  );
+}
+
 function candidateEvidence(
   candidate: ManualPlanningCandidate,
   tenantId: string,
   targetWeek: string,
+  startsAt: string,
+  requiredResponsibilityKey: string | undefined,
+  responsibilities: readonly Readonly<ResponsibilityAssignment>[],
   assignments: readonly AssignmentWorkloadEvidence[],
 ): RecommendationCandidateEvidence {
-  const reasons: RecommendationReason[] = [];
-  if (!candidate.active) reasons.push(reason('INACTIVE'));
-  if (candidate.explicitlyEligible) reasons.push(reason('ELIGIBLE'));
-  else reasons.push(reason('NOT_ELIGIBLE'));
-
   const unavailable = candidate.conflicts.some(conflict => conflict.kind === 'unavailable');
   const assignmentConflict = candidate.conflicts.some(conflict => conflict.kind === 'assignment-overlap');
-  if (unavailable) reasons.push(reason('AWAY_DURING_MEETING'));
-  if (assignmentConflict) reasons.push(reason('CONFLICTING_ASSIGNMENT'));
-  if (!candidate.conflicts.length) {
-    reasons.push(reason('AVAILABLE'));
-    reasons.push(reason('NO_MEETING_CONFLICT'));
+  const meetsResponsibility = hasRequiredResponsibility(
+    candidate,
+    tenantId,
+    startsAt,
+    requiredResponsibilityKey,
+    responsibilities,
+  );
+  const selectable = candidate.selectable && meetsResponsibility;
+  const sameWeekAssignmentCount = sameWeekAssignments(candidate.personId, tenantId, targetWeek, assignments);
+  const reasons: RecommendationReason[] = [];
+  const warnings: RecommendationWarning[] = [];
+
+  if (selectable) {
+    reasons.push(reason('ELIGIBLE'), reason('AVAILABLE'), reason('NO_MEETING_CONFLICT'));
+    if (sameWeekAssignmentCount === 0) reasons.push(reason('NO_WEEKLY_ASSIGNMENT'));
+    if (requiredResponsibilityKey) reasons.push(reason('MEETS_REQUIRED_RESPONSIBILITY'));
+  } else {
+    if (!candidate.active) reasons.push(reason('INACTIVE'));
+    if (!candidate.explicitlyEligible) reasons.push(reason('NOT_ELIGIBLE'));
+    if (unavailable) reasons.push(reason('AWAY_DURING_MEETING'));
+    if (assignmentConflict) reasons.push(reason('CONFLICTING_ASSIGNMENT'));
+    if (!meetsResponsibility) reasons.push(reason('MISSING_REQUIRED_RESPONSIBILITY'));
   }
 
-  const sameWeekAssignmentCount = sameWeekAssignments(candidate.personId, tenantId, targetWeek, assignments);
-  reasons.push(reason(sameWeekAssignmentCount === 0 ? 'NO_WEEKLY_ASSIGNMENT' : 'HAS_WEEKLY_ASSIGNMENT'));
-  if (candidate.neverAssigned) reasons.push(reason('NO_COMPLETED_ASSIGNMENT_HISTORY'));
-  else reasons.push(reason('LONGER_SINCE_LAST_ASSIGNMENT'));
+  if (sameWeekAssignmentCount > 0) warnings.push(warning('HAS_WEEKLY_ASSIGNMENT'));
+  if (candidate.neverAssigned) warnings.push(warning('NO_COMPLETED_ASSIGNMENT_HISTORY'));
 
   return Object.freeze({
     personId: candidate.personId,
-    status: candidate.selectable ? 'candidate' : 'excluded',
+    status: selectable ? 'candidate' : 'excluded',
     reasons: Object.freeze(reasons),
+    warnings: Object.freeze(warnings),
     history: historyEvidence(candidate),
     sameWeekAssignmentCount,
   });
@@ -349,11 +421,20 @@ export function deterministicRecommendationEvidence(
   context: AccessContext,
   input: DeterministicRecommendationInput,
 ): DeterministicRecommendation {
-  assertEvidenceReadCapabilities(context);
+  const inputContractVersion = acceptedInputContractVersion(input);
+  const requiredResponsibilityKey = optionalResponsibilityKey(input.requiredResponsibilityKey);
+  if (requiredResponsibilityKey && !Array.isArray(input.responsibilities)) {
+    throw new Error('responsibilities are required when requiredResponsibilityKey is provided');
+  }
+  assertEvidenceReadCapabilities(context, Boolean(requiredResponsibilityKey));
+
   const assignmentTypeId = required(input.assignmentTypeId, 'assignmentTypeId');
   const partType = required(input.partType, 'partType');
   const targetMeetingDate = civilDate(input.targetMeetingDate, 'targetMeetingDate');
   const referenceDate = civilDate(input.referenceDate, 'referenceDate');
+  const startsAt = required(input.startsAt, 'startsAt');
+  const endsAt = required(input.endsAt, 'endsAt');
+  const responsibilities = input.responsibilities ?? [];
   const activeAssignments = input.activeAssignments
     .filter(assignment => assignment.tenantId === context.tenantId && assignment.state === 'assigned')
     .map(({ state: _state, ...assignment }) => assignment);
@@ -367,14 +448,22 @@ export function deterministicRecommendationEvidence(
     assignmentTypeId,
     partType,
     referenceDate,
-    startsAt: required(input.startsAt, 'startsAt'),
-    endsAt: required(input.endsAt, 'endsAt'),
+    startsAt,
+    endsAt,
     people: input.people,
     history: completedHistory,
     existingAssignments: activeAssignments,
   });
   const targetWeek = isoWeekKey(targetMeetingDate);
-  const allEvidence = planning.map(candidate => candidateEvidence(candidate, context.tenantId, targetWeek, input.workloadAssignments));
+  const allEvidence = planning.map(candidate => candidateEvidence(
+    candidate,
+    context.tenantId,
+    targetWeek,
+    startsAt,
+    requiredResponsibilityKey,
+    responsibilities,
+    input.workloadAssignments,
+  ));
   const candidates = allEvidence
     .filter(item => item.status === 'candidate')
     .sort(candidateOrder)
@@ -382,6 +471,7 @@ export function deterministicRecommendationEvidence(
   const excluded = allEvidence.filter(item => item.status === 'excluded').sort(excludedOrder);
   return Object.freeze({
     contractVersion: 'px7-evidence-v1',
+    inputContractVersion,
     candidates: Object.freeze(candidates),
     excluded: Object.freeze(excluded),
   });
@@ -396,7 +486,7 @@ export function affectedAssignmentsByAvailability(
   context: AccessContext,
   input: AffectedAssignmentInput,
 ): readonly AffectedAssignmentEvidence[] {
-  assertEvidenceReadCapabilities(context);
+  assertEvidenceReadCapabilities(context, false);
   const people = new Map(input.people
     .filter(person => person.tenantId === context.tenantId)
     .map(person => [person.id, person]));

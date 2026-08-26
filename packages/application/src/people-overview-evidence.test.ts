@@ -6,6 +6,7 @@ import {
   type CongregationPerson,
   type MidweekMeeting,
   type NonStudentAssignment,
+  type ResponsibilityAssignment,
   type StudentAssignment,
 } from '@eutaktos/domain';
 import {
@@ -23,6 +24,12 @@ const FULL_CONTEXT = createAccessContext({
   tenantId: 'tenant-a',
   actorId: 'actor-a',
   capabilities: ['people.read', 'eligibility.read', 'availability.read', 'schedule.read'],
+});
+
+const RESPONSIBILITY_CONTEXT = createAccessContext({
+  tenantId: 'tenant-a',
+  actorId: 'actor-a',
+  capabilities: ['people.read', 'eligibility.read', 'availability.read', 'schedule.read', 'responsibilities.read'],
 });
 
 function person(overrides: Partial<CongregationPerson> = {}): CongregationPerson {
@@ -110,13 +117,20 @@ describe('People Overview and PX7 deterministic evidence', () => {
     expect(result.candidates).toHaveLength(1);
     expect(result.candidates[0]).toMatchObject({ personId: 'eligible', rank: 1, status: 'candidate' });
     expect(result.candidates[0].reasons.map(item => item.code)).toEqual([
-      'ELIGIBLE', 'AVAILABLE', 'NO_MEETING_CONFLICT', 'NO_WEEKLY_ASSIGNMENT', 'NO_COMPLETED_ASSIGNMENT_HISTORY',
+      'ELIGIBLE', 'AVAILABLE', 'NO_MEETING_CONFLICT', 'NO_WEEKLY_ASSIGNMENT',
     ]);
+    expect(result.candidates[0].warnings.map(item => item.code)).toEqual(['NO_COMPLETED_ASSIGNMENT_HISTORY']);
     expect(result.excluded.map(item => [item.personId, item.reasons.map(reason => reason.code)])).toEqual([
-      ['away', ['ELIGIBLE', 'AWAY_DURING_MEETING', 'NO_WEEKLY_ASSIGNMENT', 'NO_COMPLETED_ASSIGNMENT_HISTORY']],
-      ['conflicting', ['ELIGIBLE', 'CONFLICTING_ASSIGNMENT', 'NO_WEEKLY_ASSIGNMENT', 'NO_COMPLETED_ASSIGNMENT_HISTORY']],
-      ['inactive', ['INACTIVE', 'ELIGIBLE', 'AVAILABLE', 'NO_MEETING_CONFLICT', 'NO_WEEKLY_ASSIGNMENT', 'NO_COMPLETED_ASSIGNMENT_HISTORY']],
-      ['ineligible', ['NOT_ELIGIBLE', 'AVAILABLE', 'NO_MEETING_CONFLICT', 'NO_WEEKLY_ASSIGNMENT', 'NO_COMPLETED_ASSIGNMENT_HISTORY']],
+      ['away', ['AWAY_DURING_MEETING']],
+      ['conflicting', ['CONFLICTING_ASSIGNMENT']],
+      ['inactive', ['INACTIVE']],
+      ['ineligible', ['NOT_ELIGIBLE']],
+    ]);
+    expect(result.excluded.map(item => [item.personId, item.warnings.map(warning => warning.code)])).toEqual([
+      ['away', ['NO_COMPLETED_ASSIGNMENT_HISTORY']],
+      ['conflicting', ['NO_COMPLETED_ASSIGNMENT_HISTORY']],
+      ['inactive', ['NO_COMPLETED_ASSIGNMENT_HISTORY']],
+      ['ineligible', ['NO_COMPLETED_ASSIGNMENT_HISTORY']],
     ]);
   });
 
@@ -134,8 +148,12 @@ describe('People Overview and PX7 deterministic evidence', () => {
 
     expect(result.candidates).toEqual([]);
     expect(result.excluded.map(candidate => [candidate.personId, candidate.reasons.map(reason => reason.code)])).toEqual([
-      ['away-workload', ['ELIGIBLE', 'AWAY_DURING_MEETING', 'HAS_WEEKLY_ASSIGNMENT', 'NO_COMPLETED_ASSIGNMENT_HISTORY']],
-      ['ineligible-workload', ['NOT_ELIGIBLE', 'AVAILABLE', 'NO_MEETING_CONFLICT', 'HAS_WEEKLY_ASSIGNMENT', 'NO_COMPLETED_ASSIGNMENT_HISTORY']],
+      ['away-workload', ['AWAY_DURING_MEETING']],
+      ['ineligible-workload', ['NOT_ELIGIBLE']],
+    ]);
+    expect(result.excluded.map(candidate => [candidate.personId, candidate.warnings.map(warning => warning.code)])).toEqual([
+      ['away-workload', ['HAS_WEEKLY_ASSIGNMENT', 'NO_COMPLETED_ASSIGNMENT_HISTORY']],
+      ['ineligible-workload', ['HAS_WEEKLY_ASSIGNMENT', 'NO_COMPLETED_ASSIGNMENT_HISTORY']],
     ]);
   });
 
@@ -269,5 +287,68 @@ describe('People Overview and PX7 deterministic evidence', () => {
       status: 'blocked',
       requiredBoundary: 'canonical availability-change history projection linked to person and period identity',
     });
+  });
+
+  it('accepts and echoes only the supported versioned recommendation input contract', () => {
+    expect(deterministicRecommendationEvidence(FULL_CONTEXT, input()).inputContractVersion).toBe('px7-recommendation-input-v1');
+    expect(() => deterministicRecommendationEvidence(FULL_CONTEXT, input({
+      inputContractVersion: 'px7-recommendation-input-v2' as never,
+    }))).toThrow('Unsupported recommendation input contract version');
+  });
+
+  it('never gives excluded candidates a positive recommendation reason', () => {
+    const result = deterministicRecommendationEvidence(FULL_CONTEXT, input({
+      people: [
+        person({ id: 'ineligible', eligibility: [] }),
+        person({ id: 'away', availability: [{ id: 'away', startsAt: '2026-04-01T19:00:00.000Z', endsAt: '2026-04-01T19:30:00.000Z' }] }),
+        person({ id: 'conflict' }),
+      ],
+      activeAssignments: [activeAssignment({ personId: 'conflict' })],
+    }));
+
+    const positive = new Set(['ELIGIBLE', 'AVAILABLE', 'NO_MEETING_CONFLICT', 'MEETS_REQUIRED_RESPONSIBILITY', 'LONGER_SINCE_LAST_ASSIGNMENT']);
+    for (const candidate of result.excluded) {
+      expect(candidate.reasons.some(item => positive.has(item.code))).toBe(false);
+    }
+  });
+
+  it('enforces an explicitly required active responsibility without allowing foreign or expired records to satisfy it', () => {
+    const responsibilities: readonly ResponsibilityAssignment[] = [
+      {
+        id: 'active-responsibility', tenantId: 'tenant-a', personId: 'responsible', responsibilityKey: 'chairman',
+        startsAt: '2026-01-01T00:00:00.000Z', assignedAt: '2026-01-01T00:00:00.000Z', assignedBy: 'actor-a',
+      },
+      {
+        id: 'expired-responsibility', tenantId: 'tenant-a', personId: 'expired', responsibilityKey: 'chairman',
+        startsAt: '2026-01-01T00:00:00.000Z', endsAt: '2026-03-01T00:00:00.000Z', assignedAt: '2026-01-01T00:00:00.000Z', assignedBy: 'actor-a',
+      },
+      {
+        id: 'foreign-responsibility', tenantId: 'tenant-b', personId: 'foreign-evidence', responsibilityKey: 'chairman',
+        startsAt: '2026-01-01T00:00:00.000Z', assignedAt: '2026-01-01T00:00:00.000Z', assignedBy: 'actor-b',
+      },
+    ];
+    const result = deterministicRecommendationEvidence(RESPONSIBILITY_CONTEXT, input({
+      people: [person({ id: 'responsible' }), person({ id: 'expired' }), person({ id: 'foreign-evidence' }), person({ id: 'missing' })],
+      requiredResponsibilityKey: 'chairman',
+      responsibilities,
+    }));
+
+    expect(result.candidates.map(candidate => candidate.personId)).toEqual(['responsible']);
+    expect(result.candidates[0]?.reasons.map(item => item.code)).toContain('MEETS_REQUIRED_RESPONSIBILITY');
+    expect(result.excluded.map(candidate => [candidate.personId, candidate.reasons.map(item => item.code)])).toEqual([
+      ['expired', ['MISSING_REQUIRED_RESPONSIBILITY']],
+      ['foreign-evidence', ['MISSING_REQUIRED_RESPONSIBILITY']],
+      ['missing', ['MISSING_REQUIRED_RESPONSIBILITY']],
+    ]);
+  });
+
+  it('fails closed when an explicit responsibility constraint lacks authorized evidence', () => {
+    expect(() => deterministicRecommendationEvidence(FULL_CONTEXT, input({
+      requiredResponsibilityKey: 'chairman',
+      responsibilities: [],
+    }))).toThrow('missing capability responsibilities.read');
+    expect(() => deterministicRecommendationEvidence(RESPONSIBILITY_CONTEXT, input({
+      requiredResponsibilityKey: 'chairman',
+    }))).toThrow('responsibilities are required when requiredResponsibilityKey is provided');
   });
 });

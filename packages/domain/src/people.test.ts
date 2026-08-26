@@ -44,6 +44,15 @@ describe('people domain', () => {
     expect(isExplicitlyEligible(revoked, 'bible-reading')).toBe(false);
   });
 
+  it('uses a stable actor-id tie-breaker when eligibility decisions share the same timestamp', () => {
+    const atSameInstant = '2026-08-15T10:00:00Z';
+    const enabled = { assignmentTypeId: 'bible-reading', enabled: true, decidedBy: 'elder-a', decidedAt: atSameInstant };
+    const revoked = { assignmentTypeId: 'bible-reading', enabled: false, decidedBy: 'elder-z', decidedAt: atSameInstant };
+
+    expect(isExplicitlyEligible({ ...basePerson, eligibility: [enabled, revoked] }, 'bible-reading')).toBe(false);
+    expect(isExplicitlyEligible({ ...basePerson, eligibility: [revoked, enabled] }, 'bible-reading')).toBe(false);
+  });
+
   it('normalizes assignment type identifiers when recording an explicit decision', () => {
     const enabled = recordEligibilityDecision(basePerson, {
       assignmentTypeId: '  bible-reading  ',

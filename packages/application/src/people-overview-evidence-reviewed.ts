@@ -21,6 +21,9 @@ import {
   type RecommendationHistoryEvidence,
   type RecommendationReason,
   type RecommendationReasonCode,
+  type RecommendationWarning,
+  type RecommendationWarningCode,
+  type RecommendationInputContractVersion,
 } from './people-overview-evidence';
 
 export {
@@ -41,6 +44,9 @@ export type {
   RecommendationHistoryEvidence,
   RecommendationReason,
   RecommendationReasonCode,
+  RecommendationWarning,
+  RecommendationWarningCode,
+  RecommendationInputContractVersion,
 };
 
 function reason(code: RecommendationReasonCode): RecommendationReason {
@@ -64,6 +70,7 @@ function normalizeLongIntervalReasons(result: DeterministicRecommendation): Dete
 
   return Object.freeze({
     contractVersion: result.contractVersion,
+    inputContractVersion: result.inputContractVersion,
     candidates: Object.freeze(result.candidates.map(candidate => normalize(candidate, true))),
     excluded: Object.freeze(result.excluded.map(candidate => normalize(candidate, false))),
   });

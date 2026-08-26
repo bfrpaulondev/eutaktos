@@ -89,7 +89,10 @@ export function isPersonAvailableAt(person: CongregationPerson, instant: string)
 export function isExplicitlyEligible(person: CongregationPerson, assignmentTypeId: AssignmentTypeId): boolean {
   const latest = [...person.eligibility]
     .filter(grant => grant.assignmentTypeId === assignmentTypeId)
-    .sort((left, right) => parseInstant(right.decidedAt) - parseInstant(left.decidedAt))[0];
+    .sort((left, right) =>
+      parseInstant(right.decidedAt) - parseInstant(left.decidedAt) ||
+      right.decidedBy.localeCompare(left.decidedBy),
+    )[0];
 
   return latest?.enabled === true;
 }

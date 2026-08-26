@@ -72,6 +72,19 @@ describe('principal-reviewed People/PX7 evidence', () => {
     expect(reasons.get('no-history')).not.toContain('LONGER_SINCE_LAST_ASSIGNMENT');
   });
 
+  it('preserves the versioned input identifier and operational warnings in the public contract', () => {
+    const result = deterministicRecommendationEvidence(FULL_CONTEXT, input({
+      people: [person('weekly')],
+      workloadAssignments: [{ tenantId: 'tenant-a', assignmentId: 'weekly-assignment', personId: 'weekly', meetingDate: '2026-04-02', state: 'assigned' }],
+    }));
+
+    expect(result.inputContractVersion).toBe('px7-recommendation-input-v1');
+    expect(result.candidates[0]?.warnings.map(item => item.code)).toEqual([
+      'HAS_WEEKLY_ASSIGNMENT',
+      'NO_COMPLETED_ASSIGNMENT_HISTORY',
+    ]);
+  });
+
   it('does not manufacture a long-interval reason when there is no factual peer comparison', () => {
     const result = deterministicRecommendationEvidence(FULL_CONTEXT, input({
       people: [person('only')],
