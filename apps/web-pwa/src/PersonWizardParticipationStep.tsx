@@ -7,11 +7,20 @@ import Space from 'antd/es/space';
 import Typography from 'antd/es/typography';
 import { ELIGIBILITY_ASSIGNMENT_TYPES } from './lib/assignmentTypeCatalog';
 import type { Locale } from './lib/preferences';
-import type { EligibilityChoice, PersonWizardDraft } from './PersonWizardModel';
+import type { EligibilityChoice, PersonWizardDraft, PersonWizardResourceState } from './PersonWizardModel';
 
-export function PersonWizardParticipationStep({ locale, draft, state, canWrite, labels, onChange, onRetry }: { locale: Locale; draft: PersonWizardDraft; state: 'loading' | 'ready' | 'error' | 'forbidden'; canWrite: boolean; labels: Readonly<{ loading: string; error: string; forbidden: string; retry: string; explanation: string; availabilityGap: string; unchanged: string; enabled: string; disabled: string; noWrite: string }>; onChange: (change: Partial<PersonWizardDraft>) => void; onRetry: () => void }) {
+export function PersonWizardParticipationStep({ locale, draft, state, canWrite, labels, onChange, onRetry }: {
+  locale: Locale;
+  draft: PersonWizardDraft;
+  state: PersonWizardResourceState;
+  canWrite: boolean;
+  labels: Readonly<{ loading: string; error: string; forbidden: string; unauthenticated: string; retry: string; explanation: string; availabilityGap: string; unchanged: string; enabled: string; disabled: string; noWrite: string }>;
+  onChange: (change: Partial<PersonWizardDraft>) => void;
+  onRetry: () => void;
+}) {
   if (state === 'loading') return <Card aria-busy="true"><Skeleton active paragraph={{ rows: 4 }} /><Typography.Text role="status">{labels.loading}</Typography.Text></Card>;
   if (state === 'error') return <Alert type="warning" showIcon title={labels.error} action={<Button onClick={onRetry}>{labels.retry}</Button>} />;
+  if (state === 'unauthenticated') return <Alert type="error" showIcon title={labels.unauthenticated} />;
   if (state === 'forbidden') return <Alert type="warning" showIcon title={labels.forbidden} />;
   const update = (id: string, choice: EligibilityChoice) => onChange({ eligibility: { ...draft.eligibility, [id]: choice } });
   return <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
