@@ -22,44 +22,67 @@ This file is the operational checklist for the current Eutaktos People correctio
 
 - Baseline `main` when this tracker was created: `7592fb7f6ba5220b385871f812d03fd17f492bd5`.
 - PX3.4 + PX3.7: integrated in `7592fb7f6ba5220b385871f812d03fd17f492bd5`.
+- PX4.11: integrated through PR `#308` at main SHA `457b21dab7e134c6ff3b2f0a29d15cd1fa0dc56d` after principal corrections and green gates.
+- Tracker: integrated through PR `#310`; main advanced to `eaba19b59d8d849b09d360060fe3fb8d3e1aa902` before this evidence update.
 - Superseded PX4.11 PR `#303`: CLOSED WITHOUT MERGE.
-- Active implementation PRs at tracker creation:
-  - `#308` — Principal PX4.11 final export/bulk slice.
+- Active worker implementation PRs after C1:
   - `#305` — Manus PX5 Unified Person Profile foundation.
   - `#309` — Grok PX6 Guided Add/Edit Person.
   - `#307` — Brunello PX7 recommendation/domain slice.
-- Repository branch inventory on 2026-08-26: **85 total branches** (`main` plus 84 slash-named branches).
-- Current correction-cycle active set: **6 branches total** — `main`, `principal/correction-tracker`, `principal/px4-11-final`, `manus/px5-unified-person-profile`, `grok/px6-guided-person-editor`, `brunello/px7-complete`.
-- The remaining **79 branches are HISTORICAL-QUARANTINE** for this cycle. They are not implementation sources. They may be deleted only after individual merge/supersession verification.
-- Open PR inventory at the same checkpoint: only `#310`, `#308`, `#305`, `#309`, `#307`; all are current/active. No other open PR needs immediate closure.
+- Repository branch inventory at tracker creation on 2026-08-26: **85 total branches** (`main` plus 84 slash-named branches).
+- Merged correction branches `principal/correction-tracker` and `principal/px4-11-final` were automatically deleted by repository merge cleanup.
+- `principal/px4-11-bulk-export` / closed PR `#303` still exists and remains `SUPERSEDED-DELETE`; never use it as an implementation source.
+- All other pre-existing branches remain `HISTORICAL-QUARANTINE` unless this tracker explicitly reclassifies them.
 
 ## Correction order
 
 ### C0 — Repository hygiene and source of truth
 
 - [x] **C0.1** Create this principal correction tracker on an isolated branch.
-  - Branch: `principal/correction-tracker`
-  - Created from main: `7592fb7f6ba5220b385871f812d03fd17f492bd5`
-- [ ] **C0.2** Integrate this tracker into `main` after its PR/gates are acceptable.
+  - Original branch: `principal/correction-tracker`.
+  - Created from main: `7592fb7f6ba5220b385871f812d03fd17f492bd5`.
+- [x] **C0.2** Integrate this tracker into `main` after its PR/gates are acceptable.
+  - PR `#310` merged after quality + browser-regression + canonical `netlify/eutakes` preview PASS.
+  - Merge SHA: `eaba19b59d8d849b09d360060fe3fb8d3e1aa902`.
+  - Merged tracker branch was automatically deleted.
 - [x] **C0.3** Inventory active principal/worker branches and classify the correction-cycle source set.
-  - 85 total branches.
-  - 6 ACTIVE source branches for this cycle.
-  - 79 HISTORICAL-QUARANTINE branches; never use them as a base without explicit reclassification.
+  - 85 total branches at the initial inventory.
+  - Only explicitly registered active branches may be used as correction sources.
+  - Historical branches are quarantined rather than deleted blindly.
 - [x] **C0.4** Check all open PRs and close any superseded open PRs.
-  - Open PRs are only #310/#308/#305/#309/#307 and all are active.
-  - Superseded #303 was already closed without merge.
+  - Superseded `#303` was closed without merge.
+  - Current worker PRs remain `#305`, `#309`, `#307`.
 - [ ] **C0.5** Remove merged/superseded branches when deletion tooling is available; until then, record them explicitly so they are never mistaken for current work.
-  - Current connector exposes branch create/update/search but no branch-delete action. Do not fake cleanup by moving refs or force-updating them.
+  - Repository automatically deleted the merged `principal/correction-tracker` and `principal/px4-11-final` branches.
+  - `principal/px4-11-bulk-export` still exists and is quarantined as superseded.
+  - Current connector has no branch-delete action. Do not fake cleanup by force-moving refs.
 
 ### C1 — PX4.11 final Directory export/bulk integration
 
-- [ ] **C1.1** Re-read current main Directory, PR #308 diff and browser failure log before editing.
-- [ ] **C1.2** Fix the browser-regression failure without weakening the actual Directory behavior or accessibility.
-  - Known failure at tracker creation: `test:ux-runtime` timed out opening localized `Nova pessoa` in pt-PT on PR #308 merge ref.
-- [ ] **C1.3** Re-run/confirm quality, unit, build, bundle, PWA privacy and browser-regression gates.
-- [ ] **C1.4** Confirm canonical `netlify/eutakes` preview success.
-- [ ] **C1.5** Integrate #308 only after all relevant gates are green.
-- [ ] **C1.6** Record final main SHA and close/delete superseded PX4 branches where safe.
+- [x] **C1.1** Re-read current main Directory, PR #308 diff and browser failure log before editing.
+  - Initial failure was the localized Add Person UX runtime timing out after Directory moved to the `people-directory-v1` capability contract.
+  - Follow-up failure exposed a real state-stability problem in bulk selection.
+- [x] **C1.2** Fix the browser-regression failure without weakening the actual Directory behavior or accessibility.
+  - Updated the legacy UX harness to provide the real server-derived `people-directory-v1` projection with `writePeople` capability instead of bypassing capability checks.
+  - Fixed `sanitizePeopleDirectoryFilters()` so already-sanitized frozen filter state preserves reference identity; this prevents filtered-list recreation from driving the selection-pruning effect into a render/update loop.
+  - Added a regression assertion that unchanged normalized filters preserve their stable reference.
+  - Product `writePeople` gating, tenant authority and privacy constraints remain intact.
+- [x] **C1.3** Re-run/confirm quality, unit, build, bundle, PWA privacy and browser-regression gates.
+  - Final PR head: `3b6a7e92ff642d4157967fb39fccc9f8066e6b15`.
+  - GitHub Actions run `32953527991`.
+  - `quality`: PASS.
+  - `browser-regression`: PASS.
+  - The browser suite includes unit tests, bundle budget, PWA privacy, production mount, localized UX runtime and People Directory export/bulk runtime.
+- [x] **C1.4** Confirm canonical `netlify/eutakes` preview success.
+  - `netlify/eutakes/deploy-preview`: PASS for the final PR head.
+  - Non-canonical Vercel rate-limit failures are not production acceptance evidence.
+- [x] **C1.5** Integrate #308 only after all relevant gates are green.
+  - PR `#308` merged successfully.
+  - Integration main SHA: `457b21dab7e134c6ff3b2f0a29d15cd1fa0dc56d`.
+- [x] **C1.6** Record final main SHA and close/delete superseded PX4 branches where safe.
+  - Accepted PX4.11 integration SHA: `457b21dab7e134c6ff3b2f0a29d15cd1fa0dc56d`.
+  - `principal/px4-11-final` was auto-deleted after merge.
+  - Superseded PR `#303` remains closed without merge; its branch remains quarantined pending a real branch-delete tool.
 
 ### C2 — PX6 principal review and correction
 
@@ -125,24 +148,24 @@ This file is the operational checklist for the current Eutaktos People correctio
 
 ## Branch hygiene register
 
-Use this table before creating any new branch.
+Consult this table before creating or reusing any branch.
 
 | Branch / PR | State | Action |
 |---|---|---|
 | `main` | ACTIVE SOURCE OF TRUTH | Never rewrite/force-push |
-| `principal/correction-tracker` / #310 | ACTIVE until tracker integrated | Merge once, then delete branch when tooling permits |
-| `principal/px4-11-final` / #308 | ACTIVE | Correct and integrate; then delete branch |
-| `principal/px4-11-bulk-export` / #303 | SUPERSEDED-DELETE | PR already closed; branch is not a source; delete when tooling permits |
+| `principal/correction-tracker` / #310 | MERGED / AUTO-DELETED | Do not recreate solely for checkbox updates |
+| `principal/px4-11-final` / #308 | MERGED / AUTO-DELETED | PX4.11 source accepted; do not recreate |
+| `principal/px4-11-bulk-export` / #303 | SUPERSEDED-DELETE | PR closed without merge; never use as source; delete when tooling permits |
 | `manus/px5-unified-person-profile` / #305 | ACTIVE WORKER DELIVERY | Preserve until corrected/integrated |
 | `grok/px6-guided-person-editor` / #309 | ACTIVE WORKER DELIVERY | Preserve until corrected/integrated |
 | `brunello/px7-complete` / #307 | ACTIVE WORKER DELIVERY | Preserve until corrected/integrated |
-| all other 79 pre-existing branches | HISTORICAL-QUARANTINE | Never use as source in this cycle; verify individually before deletion |
+| all other pre-existing branches | HISTORICAL-QUARANTINE | Never use as source in this cycle; verify individually before deletion |
 
 Historical/quarantined branches must not be deleted solely by name. Before deletion, verify they are merged/superseded and contain no unintegrated accepted work.
 
 ## Completion record
 
-Append one short entry after each integrated correction:
-
-- `2026-08-26 — C0.1/C0.3/C0.4 — PR #310 — branch inventory 85 total / active source set 6 / open PR set 5 — branch deletion pending connector support`
+- `2026-08-26 — C0.1/C0.3/C0.4 — PR #310 — branch inventory 85 total / initial active source set 6 / historical quarantine established`
+- `2026-08-26 — C0.2 — PR #310 — merge SHA eaba19b59d8d849b09d360060fe3fb8d3e1aa902 — quality PASS / browser-regression PASS / canonical eutakes preview PASS — merged branch auto-deleted`
+- `2026-08-26 — C1.1-C1.6 — PR #308 — integration SHA 457b21dab7e134c6ff3b2f0a29d15cd1fa0dc56d — CI run 32953527991 quality PASS + browser-regression PASS — canonical eutakes preview PASS — merged branch auto-deleted`
 - `YYYY-MM-DD — Cx.y — PR #___ — main SHA ___ — gates ___ — canonical preview/prod ___`
