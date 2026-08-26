@@ -47,9 +47,15 @@ export interface AuthorizedMidweekRecommendation {
   readonly excluded: readonly Readonly<RecommendationPersonEvidence>[];
 }
 
-function targetWindow(meeting: Readonly<MidweekMeeting>, slotId: string): Readonly<{ startsAt: string; endsAt: string }> {
+/** Invalid user-selected target identity/state. Stored evidence corruption remains a normal Error/500. */
+export class RecommendationTargetError extends Error {}
+
+function targetWindow(meeting: Readonly<MidweekMeeting>, slotId: string, target = false): Readonly<{ startsAt: string; endsAt: string }> {
   const slot = findSlotById(meeting, slotId);
-  if (!slot) throw new Error('Recommendation target slot was not found');
+  if (!slot) {
+    if (target) throw new RecommendationTargetError('Recommendation target slot was not found');
+    throw new Error('Assigned record references a missing slot');
+  }
   const precedingMinutes = meeting.slots
     .filter(item => item.position < slot.position)
     .reduce((total, item) => total + item.durationMinutes, 0);
@@ -118,14 +124,14 @@ export function buildAuthorizedMidweekRecommendation(
   source: MidweekRecommendationSource,
 ): AuthorizedMidweekRecommendation {
   const meeting = source.meetings.find(item => item.tenantId === context.tenantId && item.id === target.meetingId);
-  if (!meeting) throw new Error('Recommendation target meeting was not found');
-  if (meeting.state !== 'draft' && meeting.state !== 'published') throw new Error('Recommendation target meeting is not assignable');
+  if (!meeting) throw new RecommendationTargetError('Recommendation target meeting was not found');
+  if (meeting.state !== 'draft' && meeting.state !== 'published') throw new RecommendationTargetError('Recommendation target meeting is not assignable');
 
   const slot = findSlotById(meeting, target.slotId);
-  if (!slot) throw new Error('Recommendation target slot was not found');
+  if (!slot) throw new RecommendationTargetError('Recommendation target slot was not found');
   const assignmentTypeId = slot.partDefinitionId?.trim();
-  if (!assignmentTypeId) throw new Error('Recommendation target slot has no explicit assignment type');
-  const window = targetWindow(meeting, target.slotId);
+  if (!assignmentTypeId) throw new RecommendationTargetError('Recommendation target slot has no explicit assignment type');
+  const window = targetWindow(meeting, target.slotId, true);
 
   const tenantPeople = Object.freeze(source.people.filter(person => person.tenantId === context.tenantId));
   const tenantMeetings = Object.freeze(source.meetings.filter(item => item.tenantId === context.tenantId));
