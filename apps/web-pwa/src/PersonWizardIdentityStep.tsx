@@ -5,12 +5,12 @@ import Space from 'antd/es/space';
 import Switch from 'antd/es/switch';
 import Typography from 'antd/es/typography';
 import type { PersonWizardDraft } from './PersonWizardModel';
-import { supportedLocaleOptions } from './PersonWizardModel';
+import { personWizardDisplayNameValid, supportedLocaleOptions } from './PersonWizardModel';
 
 export function PersonWizardIdentityStep({ draft, labels, onChange }: { draft: PersonWizardDraft; labels: Readonly<{ name: string; nameRequired: string; locale: string; active: string; required: string; optional: string }>; onChange: (change: Partial<PersonWizardDraft>) => void }) {
   return <Space orientation="vertical" size="large" style={{ width: '100%' }}>
     <Typography.Paragraph type="secondary">{labels.required}</Typography.Paragraph>
-    <Form.Item name="displayName" label={labels.name} rules={[{ required: true, whitespace: true, message: labels.nameRequired }]}>
+    <Form.Item name="displayName" label={labels.name} rules={[{ validator: async (_, value) => { if (!personWizardDisplayNameValid(typeof value === 'string' ? value : '')) throw new Error(labels.nameRequired); } }]}>
       <Input autoComplete="name" maxLength={120} value={draft.displayName} onChange={event => onChange({ displayName: event.target.value })} />
     </Form.Item>
     <Form.Item label={`${labels.locale} · ${labels.optional}`}>
