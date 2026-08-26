@@ -9,6 +9,7 @@ const debugUrl = `http://127.0.0.1:${debugPort}`;
 const viteCli = resolve(dirname(fileURLToPath(import.meta.url)), '../../../node_modules/vite/bin/vite.js');
 const chromium = process.env.CHROMIUM_BIN ?? 'chromium';
 const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
+const expectedRecommendationSearch = '?meetingId=meeting-runtime&slotId=slot-runtime';
 
 async function poll(operation, label, attempts = 100) {
   let lastError;
@@ -47,6 +48,12 @@ function connectCdp(url) {
     }));
     socket.addEventListener('error', reject, { once: true });
   });
+}
+
+function assertIdentityOnlyRequests(requests, label) {
+  if (!requests.length || requests.some(request => request.search !== expectedRecommendationSearch || request.method !== 'GET' || request.body !== null)) {
+    throw new Error(`${label} did not preserve the C5.3 identity-only contract: ${JSON.stringify(requests)}`);
+  }
 }
 
 const devServer = spawn(process.execPath, [viteCli, '--host', '127.0.0.1', '--port', appPort, '--strictPort'], { stdio: 'ignore' });
@@ -143,7 +150,7 @@ try {
   for (const rawCode of ['ELIGIBLE', 'AVAILABLE', 'NO_MEETING_CONFLICT', 'LONGER_SINCE_LAST_ASSIGNMENT']) if (recommendationState.text.includes(rawCode)) throw new Error(`Raw PX7 code leaked into UI: ${rawCode}`);
   if (recommendationState.comboboxes < 2) throw new Error('Manual student/assistant fallback disappeared before C5.6');
   if (!recommendationState.saveDisabled) throw new Error('Save should remain disabled before a person is selected');
-  if (recommendationState.requests.length !== 1 || recommendationState.requests[0].search !== '?meetingId=meeting-runtime&slotId=slot-runtime' || recommendationState.requests[0].body !== null) throw new Error(`Recommendation request did not preserve the C5.3 identity-only contract: ${JSON.stringify(recommendationState.requests)}`);
+  assertIdentityOnlyRequests(recommendationState.requests, 'Assign recommendation request');
   if (recommendationState.url.includes('person-') || recommendationState.url.includes('Ana%20Martins') || recommendationState.url.includes('Ana Martins')) throw new Error('Person recommendation data leaked into browser URL');
 
   if (!await clickDialogButton('Designar estudante', 'Selecionar')) throw new Error('Recommendation select action was not found');
@@ -165,6 +172,7 @@ try {
   if (afterRoleRequests !== beforeRoleRequests) throw new Error('Role flow called the student-slot recommendation contract without a canonical role target');
   if (!await clickDialogButton('Designar função', 'Cancelar')) throw new Error('Role dialog cancel action was not found');
 
+  const beforeReplacementRequests = await evaluate(`window.__recommendationRequests.length`);
   await cdp.send('Page.navigate', { url: new URL('/designacoes', appUrl).toString() });
   await poll(async () => await evaluate(`Boolean(document.querySelector('#main')?.textContent?.includes('Diana Lopes')) && [...document.querySelectorAll('button')].some(node => (node.innerText || node.textContent || '').trim() === 'Substituir')`), 'Assignments workspace did not become ready');
   if (!await clickExactButton('Substituir')) throw new Error('Replace student action was not found');
@@ -172,11 +180,12 @@ try {
   const replaceState = await poll(async () => await evaluate(`(() => {
     const dialog = [...document.querySelectorAll('[role="dialog"]')].find(node => node.textContent?.includes('Substituir'));
     if (!dialog?.textContent?.includes('Ana Martins')) return null;
-    return { text: dialog.textContent ?? '', requests: window.__recommendationRequests.length };
+    return { text: dialog.textContent ?? '', newRequests: window.__recommendationRequests.slice(${beforeReplacementRequests}) };
   })()`), 'Recommendations did not load in replacement flow');
-  if (!replaceState.text.includes('Recomendados') || replaceState.requests !== beforeRoleRequests + 1) throw new Error(`Replacement flow did not reuse the recommendation picker: ${JSON.stringify(replaceState)}`);
+  if (!replaceState.text.includes('Recomendados')) throw new Error('Replacement flow did not render the recommendation picker');
+  assertIdentityOnlyRequests(replaceState.newRequests, 'Replacement recommendation request');
 
-  process.stdout.write('Recommendation picker regression passed: top-three explainable student recommendations, selection binding, replacement reuse, manual fallback retained and role flow kept outside unsupported PX7 targeting.\n');
+  process.stdout.write('Recommendation picker regression passed: top-three explainable student recommendations, selection binding, replacement reuse, identity-only requests under StrictMode, manual fallback retained and role flow kept outside unsupported PX7 targeting.\n');
 } finally {
   try { cdp?.close(); } catch {}
   browser?.kill('SIGTERM');
