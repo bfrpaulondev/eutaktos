@@ -10,6 +10,7 @@ import authVerifyHandler from './auth/verify';
 import peopleHandler from './people';
 import peopleDirectoryHandler from './people/directory';
 import peopleOverviewEvidenceHandler from './people/overview-evidence';
+import peopleRecommendationsHandler from './people/recommendations';
 import personHandler from './people/[personId]';
 import eligibilityHandler from './people/[personId]/eligibility';
 import availabilityHandler from './people/[personId]/availability';
@@ -52,7 +53,7 @@ export interface NetlifyApiResult {
 
 type RouteKey =
   | 'health' | 'ready' | 'session' | 'logout' | 'logout-all' | 'rotate-session' | 'auth-otp' | 'auth-verify'
-  | 'people' | 'people-directory' | 'people-overview-evidence' | 'person' | 'eligibility' | 'availability' | 'availability-period'
+  | 'people' | 'people-directory' | 'people-overview-evidence' | 'people-recommendations' | 'person' | 'eligibility' | 'availability' | 'availability-period'
   | 'households' | 'household' | 'service-groups' | 'service-group'
   | 'responsibilities' | 'responsibility' | 'end-responsibility' | 'congregation-settings' | 'audit-history'
   | 'access-grants' | 'subject-grants' | 'revoke-grant' | 'midweek' | 'midweek-route' | 'outbox-worker' | 'agent-respond';
@@ -74,6 +75,7 @@ const handlers: Readonly<Record<RouteKey, ApiHandler>> = Object.freeze({
   people: peopleHandler,
   'people-directory': peopleDirectoryHandler,
   'people-overview-evidence': peopleOverviewEvidenceHandler,
+  'people-recommendations': peopleRecommendationsHandler,
   person: personHandler,
   eligibility: eligibilityHandler,
   availability: availabilityHandler,
@@ -131,6 +133,7 @@ export function matchNetlifyApiRoute(path: string): RouteMatch | undefined {
     '/people': 'people',
     '/people/directory': 'people-directory',
     '/people/overview-evidence': 'people-overview-evidence',
+    '/people/recommendations': 'people-recommendations',
     '/households': 'households',
     '/service-groups': 'service-groups',
     '/responsibilities': 'responsibilities',

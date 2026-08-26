@@ -4,6 +4,8 @@ import { handleNetlifyApiEvent, matchNetlifyApiRoute, normalizeNetlifyApiPath } 
 describe('Netlify API adapter', () => {
   it('normalizes both public and rewritten Netlify paths', () => {
     expect(normalizeNetlifyApiPath({ path: '/api/people' })).toBe('/people');
+    expect(normalizeNetlifyApiPath({ path: '/api/people/recommendations' })).toBe('/people/recommendations');
+    expect(normalizeNetlifyApiPath({ path: '/.netlify/functions/api/people/recommendations' })).toBe('/people/recommendations');
     expect(normalizeNetlifyApiPath({ path: '/.netlify/functions/api/people/person-1' })).toBe('/people/person-1');
     expect(normalizeNetlifyApiPath({ rawUrl: 'https://example.netlify.app/api/health?x=1' })).toBe('/health');
     expect(normalizeNetlifyApiPath({ path: '/.netlify/functions/api/midweek/meetings/m-1/publish' })).toBe('/midweek/meetings/m-1/publish');
@@ -14,6 +16,7 @@ describe('Netlify API adapter', () => {
   it('matches People projections and dynamic identifiers from the path', () => {
     expect(matchNetlifyApiRoute('/people/directory')).toEqual({ key: 'people-directory', params: {} });
     expect(matchNetlifyApiRoute('/people/overview-evidence')).toEqual({ key: 'people-overview-evidence', params: {} });
+    expect(matchNetlifyApiRoute('/people/recommendations')).toEqual({ key: 'people-recommendations', params: {} });
     expect(matchNetlifyApiRoute('/people/person-1')).toEqual({ key: 'person', params: { personId: 'person-1' } });
     expect(matchNetlifyApiRoute('/people/person-1/eligibility')).toEqual({ key: 'eligibility', params: { personId: 'person-1' } });
     expect(matchNetlifyApiRoute('/people/person-1/availability')).toEqual({ key: 'availability', params: { personId: 'person-1' } });
@@ -42,6 +45,17 @@ describe('Netlify API adapter', () => {
     expect(result.statusCode).toBe(200);
     expect(result.headers['Cache-Control']).toBe('no-store');
     expect(JSON.parse(result.body)).toEqual({ status: 'ok', service: 'eutaktos-api' });
+  });
+
+  it('dispatches People recommendations to the real handler instead of returning router 404', async () => {
+    const result = await handleNetlifyApiEvent({
+      httpMethod: 'GET',
+      path: '/api/people/recommendations',
+      headers: {},
+      queryStringParameters: {},
+    });
+    expect(result.statusCode).toBe(400);
+    expect(JSON.parse(result.body)).toEqual({ error: 'meetingId is required' });
   });
 
   it('returns safe errors for unknown routes and malformed JSON', async () => {
