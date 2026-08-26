@@ -164,11 +164,15 @@ export function isCurrentProfileRequest(requestVersion: number, currentVersion: 
   return requestVersion === currentVersion && !aborted;
 }
 
+/** Mirrors the canonical domain interval: startsAt <= instant < endsAt. Invalid evidence fails closed. */
 export function isActiveResponsibility(value: ResponsibilityDto, now: Date): boolean {
   const startsAt = Date.parse(value.startsAt);
-  const endsAt = value.endsAt ? Date.parse(value.endsAt) : undefined;
-  if (!Number.isFinite(startsAt) || startsAt > now.getTime()) return false;
-  return endsAt === undefined || !Number.isFinite(endsAt) || endsAt >= now.getTime();
+  if (!Number.isFinite(startsAt)) return false;
+  const nowMs = now.getTime();
+  if (startsAt > nowMs) return false;
+  if (value.endsAt === undefined) return true;
+  const endsAt = Date.parse(value.endsAt);
+  return Number.isFinite(endsAt) && nowMs < endsAt;
 }
 
 export function currentAvailability(periods: readonly AvailabilityPeriodDto[], now: Date): AvailabilityPeriodDto | undefined {
@@ -185,14 +189,65 @@ export function nextAvailability(periods: readonly AvailabilityPeriodDto[], now:
     .sort((left, right) => Date.parse(left.startsAt) - Date.parse(right.startsAt))[0];
 }
 
-export function dateIsOnOrAfterToday(date: string, timezone: string, now: Date): boolean {
+function localParts(epochMs: number, timezone: string): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date(epochMs));
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}`;
+}
+
+function offsetMinutes(epochMs: number, timezone: string): number {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date(epochMs));
+  const values = Object.fromEntries(parts.map(part => [part.type, Number(part.value)]));
+  const asUtc = Date.UTC(values.year, values.month - 1, values.day, values.hour, values.minute, values.second);
+  return Math.round((asUtc - epochMs) / 60000);
+}
+
+/**
+ * Resolves the stored civil meeting date/time using the same earliest-match DST rule as the scheduling domain.
+ * Invalid/non-existent civil times return undefined rather than being guessed by the browser runtime.
+ */
+export function meetingStartMs(date: string, localTime: string, timezone: string): number | undefined {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(localTime) || !timezone.trim()) return undefined;
   try {
-    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now);
-    const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
-    const today = `${values.year}-${values.month}-${values.day}`;
-    return /^\d{4}-\d{2}-\d{2}$/.test(date) && date >= today;
+    new Intl.DateTimeFormat('en', { timeZone: timezone }).format(new Date(0));
   } catch {
-    return false;
+    return undefined;
+  }
+
+  const [year, month, day] = date.split('-').map(Number);
+  const [hour, minute] = localTime.split(':').map(Number);
+  const calendarCheck = new Date(Date.UTC(year, month - 1, day, hour, minute, 0, 0));
+  if (calendarCheck.getUTCFullYear() !== year || calendarCheck.getUTCMonth() !== month - 1 || calendarCheck.getUTCDate() !== day) return undefined;
+
+  const baseUtc = calendarCheck.getTime();
+  const target = `${date}T${localTime}`;
+  const candidates = new Set<number>();
+  try {
+    for (let deltaHours = -48; deltaHours <= 48; deltaHours += 6) {
+      const sample = baseUtc + deltaHours * 3_600_000;
+      candidates.add(baseUtc - offsetMinutes(sample, timezone) * 60_000);
+    }
+    const matches = [...candidates].filter(epochMs => localParts(epochMs, timezone) === target).sort((left, right) => left - right);
+    return matches[0];
+  } catch {
+    return undefined;
   }
 }
 
@@ -203,6 +258,24 @@ export interface PersonAssignmentEvidence {
   readonly localTime: string;
   readonly timezone: string;
   readonly role: string;
+}
+
+export function assignmentStartMs(value: PersonAssignmentEvidence): number | undefined {
+  return meetingStartMs(value.date, value.localTime, value.timezone);
+}
+
+export function assignmentIsUpcoming(value: PersonAssignmentEvidence, now: Date): boolean {
+  const startsAt = assignmentStartMs(value);
+  return startsAt !== undefined && startsAt >= now.getTime();
+}
+
+export function compareAssignmentsByInstant(left: PersonAssignmentEvidence, right: PersonAssignmentEvidence): number {
+  const leftMs = assignmentStartMs(left);
+  const rightMs = assignmentStartMs(right);
+  if (leftMs !== undefined && rightMs !== undefined) return leftMs - rightMs || left.id.localeCompare(right.id);
+  if (leftMs !== undefined) return -1;
+  if (rightMs !== undefined) return 1;
+  return `${left.date}T${left.localTime}`.localeCompare(`${right.date}T${right.localTime}`) || left.id.localeCompare(right.id);
 }
 
 export function assignmentEvidenceForPerson(overview: MidweekOverviewDto, personId: string): readonly PersonAssignmentEvidence[] {
@@ -222,7 +295,7 @@ export function assignmentEvidenceForPerson(overview: MidweekOverviewDto, person
     values.push({ id: assignment.id, state: assignment.state, date: meeting.date, localTime: meeting.localTime, timezone: meeting.timezone, role: assignment.role });
   }
 
-  return Object.freeze(values.sort((left, right) => `${left.date}T${left.localTime}`.localeCompare(`${right.date}T${right.localTime}`)));
+  return Object.freeze(values.sort(compareAssignmentsByInstant));
 }
 
 export function sectionIsPartial(data: PersonProfileData): boolean {
