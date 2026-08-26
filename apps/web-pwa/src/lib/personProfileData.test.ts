@@ -4,6 +4,7 @@ import {
   assignmentEvidenceForPerson,
   assignmentIsUpcoming,
   compareAssignmentsByInstant,
+  compareAssignmentsByInstantDescending,
   currentAvailability,
   isActiveResponsibility,
   isCurrentProfileRequest,
@@ -84,6 +85,13 @@ describe('person profile evidence', () => {
     const earlier = { id: 'earlier', state: 'assigned' as const, date: '2032-06-10', localTime: '19:00', timezone: 'Europe/Lisbon', role: 'student' };
     const later = { id: 'later', state: 'assigned' as const, date: '2032-06-10', localTime: '19:00', timezone: 'America/New_York', role: 'student' };
     expect([later, earlier].sort(compareAssignmentsByInstant).map(item => item.id)).toEqual(['earlier', 'later']);
+    expect([earlier, later].sort(compareAssignmentsByInstantDescending).map(item => item.id)).toEqual(['later', 'earlier']);
+  });
+
+  it('keeps invalid temporal evidence behind valid assignments in descending history order', () => {
+    const valid = { id: 'valid', state: 'completed' as const, date: '2032-06-10', localTime: '19:00', timezone: 'Europe/Lisbon', role: 'student' };
+    const invalid = { id: 'invalid', state: 'completed' as const, date: '2032-06-11', localTime: '19:00', timezone: 'Invalid/Timezone', role: 'student' };
+    expect([invalid, valid].sort(compareAssignmentsByInstantDescending).map(item => item.id)).toEqual(['valid', 'invalid']);
   });
 
   it('treats every active explicit availability reason as unavailable and keeps future periods chronological', () => {
