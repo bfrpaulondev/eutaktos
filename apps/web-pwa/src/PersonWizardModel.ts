@@ -73,7 +73,7 @@ export function wizardErrorState(error: unknown): Exclude<PersonWizardMutationSt
   if (status === 403 || /forbidden|access denied|permission|permissão|permiso/i.test(message)) return 'permission-error';
   if (
     status === 400 || status === 409 || status === 422 ||
-    /required|invalid|validation|\bmust\b|too long|unknown|duplicate|not allowed|already exists|conflict/i.test(message)
+    /required|\bmust\b|too long|not allowed|already exists|duplicate|conflict|unknown (?:assignment|person|household|group)|invalid (?:display|preferred|locale|assignment|person|household|group)/i.test(message)
   ) return 'validation-error';
   return 'retryable-error';
 }
@@ -87,6 +87,10 @@ export function wizardResourceState(error: unknown): Exclude<PersonWizardResourc
 
 export function shouldInitializeRelatedBaseline(preserveDraft: boolean, initialized: boolean): boolean {
   return !preserveDraft || !initialized;
+}
+
+export function isAmbiguousCreateOutcome(mode: PersonWizardMode, state: PersonWizardMutationState, hasConfirmedCore: boolean): boolean {
+  return mode === 'create' && state === 'retryable-error' && !hasConfirmedCore;
 }
 
 export function supportedLocaleOptions(current: string): readonly string[] {
@@ -146,7 +150,7 @@ export async function savePersonWizard(input: SavePersonWizardInput): Promise<Pe
   const organizationChanged = personWizardOrganizationChanged(initial, draft);
   const eligibilityChanges = personWizardEligibilityChanges(initial, draft);
 
-  // Eligibility changes require both the explicit write authority and a readable
+  // Eligibility changes require both explicit write authority and a readable
   // authoritative baseline. Fail before the core mutation so capability gaps do
   // not create avoidable partial saves.
   if (eligibilityChanges.length > 0 && (!canReadEligibility || !canWriteEligibility)) throw new Error('Forbidden (403)');
