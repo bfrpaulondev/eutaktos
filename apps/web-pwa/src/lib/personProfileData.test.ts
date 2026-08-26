@@ -2,10 +2,12 @@ import type { MidweekOverviewDto } from './midweekApi';
 import type { PersonProfileData } from './personProfileData';
 import {
   assignmentEvidenceForPerson,
+  assignmentIsUpcoming,
+  compareAssignmentsByInstant,
   currentAvailability,
-  dateIsOnOrAfterToday,
   isActiveResponsibility,
   isCurrentProfileRequest,
+  meetingStartMs,
   nextAvailability,
   PersonProfileLoadError,
   sectionIsPartial,
@@ -54,10 +56,34 @@ describe('person profile evidence', () => {
     expect(JSON.stringify(evidence)).not.toContain('Sensitive display name');
   });
 
-  it('uses meeting timezone to decide upcoming assignments', () => {
-    const now = new Date('2032-06-11T02:00:00.000Z'); // still 10 June in New York
-    expect(dateIsOnOrAfterToday('2032-06-10', 'America/New_York', now)).toBe(true);
-    expect(dateIsOnOrAfterToday('2032-06-09', 'America/New_York', now)).toBe(false);
+  it('uses meeting date, local time and timezone instead of the civil date alone for upcoming assignments', () => {
+    const sameDayPast = { id: 'past', state: 'assigned' as const, date: '2032-06-10', localTime: '10:00', timezone: 'America/New_York', role: 'student' };
+    const sameDayFuture = { id: 'future', state: 'assigned' as const, date: '2032-06-10', localTime: '20:00', timezone: 'America/New_York', role: 'student' };
+    const now = new Date('2032-06-10T19:00:00.000Z'); // 15:00 in New York
+
+    expect(assignmentIsUpcoming(sameDayPast, now)).toBe(false);
+    expect(assignmentIsUpcoming(sameDayFuture, now)).toBe(true);
+  });
+
+  it('uses the scheduling earliest-match rule for an ambiguous Europe/Lisbon DST local time', () => {
+    const ambiguous = { id: 'dst', state: 'assigned' as const, date: '2026-10-25', localTime: '01:30', timezone: 'Europe/Lisbon', role: 'student' };
+    expect(meetingStartMs(ambiguous.date, ambiguous.localTime, ambiguous.timezone)).toBe(Date.parse('2026-10-25T00:30:00.000Z'));
+    // At 01:00Z Lisbon has fallen back to 01:00 local. A civil-clock-only comparison would incorrectly call 01:30 upcoming.
+    expect(assignmentIsUpcoming(ambiguous, new Date('2026-10-25T01:00:00.000Z'))).toBe(false);
+  });
+
+  it('fails closed for invalid or non-existent meeting civil times', () => {
+    const invalid = { id: 'bad', state: 'assigned' as const, date: '2026-03-29', localTime: '01:30', timezone: 'Europe/Lisbon', role: 'student' };
+    // 01:30 does not exist when Lisbon jumps from 01:00 UTC to 02:00 WEST on this date.
+    expect(meetingStartMs(invalid.date, invalid.localTime, invalid.timezone)).toBeUndefined();
+    expect(assignmentIsUpcoming(invalid, new Date('2026-03-28T00:00:00.000Z'))).toBe(false);
+    expect(meetingStartMs('2032-06-10', '19:30', 'Invalid/Timezone')).toBeUndefined();
+  });
+
+  it('orders assignment evidence by resolved instant rather than local-time text', () => {
+    const earlier = { id: 'earlier', state: 'assigned' as const, date: '2032-06-10', localTime: '19:00', timezone: 'Europe/Lisbon', role: 'student' };
+    const later = { id: 'later', state: 'assigned' as const, date: '2032-06-10', localTime: '19:00', timezone: 'America/New_York', role: 'student' };
+    expect([later, earlier].sort(compareAssignmentsByInstant).map(item => item.id)).toEqual(['earlier', 'later']);
   });
 
   it('treats every active explicit availability reason as unavailable and keeps future periods chronological', () => {
@@ -72,11 +98,14 @@ describe('person profile evidence', () => {
     expect(nextAvailability(periods, now)?.id).toBe('future');
   });
 
-  it('filters responsibilities by their factual active interval', () => {
+  it('filters responsibilities using the canonical half-open active interval and rejects invalid timestamps', () => {
     const now = new Date('2032-06-10T12:00:00.000Z');
     expect(isActiveResponsibility({ id: 'active', personId: 'person-1', responsibilityKey: 'coordinator', startsAt: '2032-06-01T00:00:00.000Z' }, now)).toBe(true);
     expect(isActiveResponsibility({ id: 'ended', personId: 'person-1', responsibilityKey: 'coordinator', startsAt: '2032-06-01T00:00:00.000Z', endsAt: '2032-06-09T00:00:00.000Z' }, now)).toBe(false);
     expect(isActiveResponsibility({ id: 'future', personId: 'person-1', responsibilityKey: 'coordinator', startsAt: '2032-06-11T00:00:00.000Z' }, now)).toBe(false);
+    expect(isActiveResponsibility({ id: 'ends-now', personId: 'person-1', responsibilityKey: 'coordinator', startsAt: '2032-06-01T00:00:00.000Z', endsAt: now.toISOString() }, now)).toBe(false);
+    expect(isActiveResponsibility({ id: 'invalid-start', personId: 'person-1', responsibilityKey: 'coordinator', startsAt: 'not-a-date' }, now)).toBe(false);
+    expect(isActiveResponsibility({ id: 'invalid-end', personId: 'person-1', responsibilityKey: 'coordinator', startsAt: '2032-06-01T00:00:00.000Z', endsAt: 'not-a-date' }, now)).toBe(false);
   });
 });
 
