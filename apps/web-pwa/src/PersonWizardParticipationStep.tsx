@@ -3,7 +3,6 @@ import Button from 'antd/es/button';
 import Card from 'antd/es/card';
 import Empty from 'antd/es/empty';
 import Input from 'antd/es/input';
-import List from 'antd/es/list';
 import Select from 'antd/es/select';
 import Skeleton from 'antd/es/skeleton';
 import Space from 'antd/es/space';
@@ -156,26 +155,24 @@ export function PersonWizardParticipationStep({
           : <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
             <Alert type="info" showIcon title={labels.availabilityExplanation} />
             <Typography.Text strong>{labels.currentPeriods}</Typography.Text>
-            {periods.length ? <List
-              size="small"
-              dataSource={[...periods].sort((left, right) => left.startsAt.localeCompare(right.startsAt))}
-              renderItem={item => {
+            {periods.length ? <Space orientation="vertical" size="small" style={{ width: '100%' }}>
+              {[...periods].sort((left, right) => left.startsAt.localeCompare(right.startsAt)).map(item => {
                 const removalQueued = draft.availabilityRemovals.some(value => value.id === item.id);
-                return <List.Item
-                  key={item.id}
-                  actions={canWriteAvailability && !removalQueued ? [
-                    <Button key="correct" size="small" onClick={() => queueCorrection(item)}>{labels.correctPeriod}</Button>,
-                    <Button key="remove" size="small" danger onClick={() => queueRemoval(item)}>{labels.removePeriod}</Button>,
-                  ] : undefined}
-                >
-                  <Space wrap>
-                    <Typography.Text>{dateValue(item.startsAt)} – {dateValue(item.endsAt)}</Typography.Text>
-                    <Tag>{reasonLabel(item.reasonCode ?? 'away')}</Tag>
-                    {removalQueued ? <Tag color="warning">{labels.removalQueued}</Tag> : null}
-                  </Space>
-                </List.Item>;
-              }}
-            /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={labels.noPeriods} />}
+                return <Card key={item.id} size="small">
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                    <Space wrap>
+                      <Typography.Text>{dateValue(item.startsAt)} – {dateValue(item.endsAt)}</Typography.Text>
+                      <Tag>{reasonLabel(item.reasonCode ?? 'away')}</Tag>
+                      {removalQueued ? <Tag color="warning">{labels.removalQueued}</Tag> : null}
+                    </Space>
+                    {canWriteAvailability && !removalQueued ? <Space wrap>
+                      <Button size="small" onClick={() => queueCorrection(item)}>{labels.correctPeriod}</Button>
+                      <Button size="small" danger onClick={() => queueRemoval(item)}>{labels.removePeriod}</Button>
+                    </Space> : null}
+                  </div>
+                </Card>;
+              })}
+            </Space> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={labels.noPeriods} />}
             {!canWriteAvailability ? <Alert type="info" showIcon title={labels.availabilityReadOnly} /> : <Card size="small">
               <Space orientation="vertical" size="small" style={{ width: '100%' }}>
                 <Typography.Text strong>{labels.availability} · {labels.optional}</Typography.Text>
