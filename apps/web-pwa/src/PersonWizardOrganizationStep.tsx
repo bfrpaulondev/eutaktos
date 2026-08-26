@@ -3,7 +3,6 @@ import Button from 'antd/es/button';
 import Card from 'antd/es/card';
 import Empty from 'antd/es/empty';
 import Input from 'antd/es/input';
-import List from 'antd/es/list';
 import Select from 'antd/es/select';
 import Skeleton from 'antd/es/skeleton';
 import Space from 'antd/es/space';
@@ -149,26 +148,24 @@ export function PersonWizardOrganizationStep({
           ? <Alert type="info" showIcon title={labels.responsibilityReadOnly} />
           : <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
             <Alert type="info" showIcon title={labels.responsibilityExplanation} />
-            {responsibilities.length ? <List
-              size="small"
-              dataSource={[...responsibilities]}
-              renderItem={item => {
+            {responsibilities.length ? <Space orientation="vertical" size="small" style={{ width: '100%' }}>
+              {[...responsibilities].map(item => {
                 const status = personWizardResponsibilityStatus(item);
                 const endingQueued = draft.responsibilityEnds.some(value => value.id === item.id);
-                return <List.Item
-                  key={item.id}
-                  actions={canWriteResponsibilities && status === 'active' && !endingQueued
-                    ? [<Button key="end" size="small" onClick={() => queueEnd(item)}>{labels.endResponsibility}</Button>]
-                    : undefined}
-                >
-                  <Space wrap>
-                    <Typography.Text>{item.responsibilityKey}</Typography.Text>
-                    <Tag color={status === 'active' ? 'success' : status === 'invalid' ? 'error' : 'default'}>{statusLabel(item)}</Tag>
-                    {endingQueued ? <Tag color="warning">{labels.endQueued}</Tag> : null}
-                  </Space>
-                </List.Item>;
-              }}
-            /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={labels.noResponsibilities} />}
+                return <Card key={item.id} size="small">
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                    <Space wrap>
+                      <Typography.Text>{item.responsibilityKey}</Typography.Text>
+                      <Tag color={status === 'active' ? 'success' : status === 'invalid' ? 'error' : 'default'}>{statusLabel(item)}</Tag>
+                      {endingQueued ? <Tag color="warning">{labels.endQueued}</Tag> : null}
+                    </Space>
+                    {canWriteResponsibilities && status === 'active' && !endingQueued
+                      ? <Button size="small" onClick={() => queueEnd(item)}>{labels.endResponsibility}</Button>
+                      : null}
+                  </div>
+                </Card>;
+              })}
+            </Space> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={labels.noResponsibilities} />}
             {!canWriteResponsibilities ? <Alert type="info" showIcon title={labels.responsibilityReadOnly} /> : <Card size="small">
               <Space orientation="vertical" size="small" style={{ width: '100%' }}>
                 <Typography.Text strong>{labels.responsibilityKey} · {labels.optional}</Typography.Text>
