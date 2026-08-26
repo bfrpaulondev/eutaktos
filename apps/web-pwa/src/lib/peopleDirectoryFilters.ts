@@ -59,7 +59,7 @@ export function sanitizePeopleDirectoryFilters(filters: PeopleDirectoryFilters, 
   const validGroupIds = new Set(directory.filters.groups.map(group => group.id));
   const validEligibility = new Set(directory.filters.assignmentTypeIds);
   const validResponsibilities = new Set(directory.filters.responsibilityKeys);
-  return Object.freeze({
+  const sanitized = Object.freeze({
     status: filters.status,
     availability: directory.capabilities.availability ? filters.availability : 'all',
     ...(filters.groupId && validGroupIds.has(filters.groupId) ? { groupId: filters.groupId } : {}),
@@ -70,6 +70,12 @@ export function sanitizePeopleDirectoryFilters(filters: PeopleDirectoryFilters, 
       ? { responsibilityKey: filters.responsibilityKey }
       : {}),
   });
+  const unchanged = sanitized.status === filters.status
+    && sanitized.availability === filters.availability
+    && sanitized.groupId === filters.groupId
+    && sanitized.eligibilityTypeId === filters.eligibilityTypeId
+    && sanitized.responsibilityKey === filters.responsibilityKey;
+  return unchanged && Object.isFrozen(filters) ? filters : sanitized;
 }
 
 export function filterPeopleDirectory(

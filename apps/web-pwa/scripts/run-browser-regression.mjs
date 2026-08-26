@@ -8,6 +8,7 @@ const checks = [
   { label: 'PWA privacy', args: ['run', 'test:pwa-privacy'] },
   { label: 'production mount', args: ['run', 'test:production-mount'] },
   { label: 'browser UX runtime', args: ['run', 'test:ux-runtime'] },
+  { label: 'People Directory export runtime', args: ['run', 'test:people-directory-export-runtime'] },
   { label: 'System theme runtime', args: ['run', 'test:system-theme-runtime'] },
   { label: 'lazy-route recovery', args: ['run', 'test:lazy-recovery'] },
   { label: 'sanitized visual regression', args: ['run', 'test:visual-sanitized'] },
