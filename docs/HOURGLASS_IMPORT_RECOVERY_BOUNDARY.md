@@ -32,9 +32,16 @@ It is **not** the authoritative Hourglass write contract by itself. Its generic 
 
 ### Atomic migration commit foundation (2026-08-27)
 
-`eutaktos_apply_hourglass_migration_commit` provides the durable atomic apply primitive. It applies all supported person changes together with the migration log, complete rollback plan, audit row and outbox event in one database transaction, records post-commit versions, rejects cross-tenant payloads, duplicate change identities and concurrent entity modifications, and uses a complete commit fingerprint for replay identity.
+`eutaktos_apply_hourglass_migration_commit` provides the durable atomic apply primitive. It applies all supported person changes together with the migration log, complete rollback plan, audit row and outbox event in one database transaction, records post-commit versions, rejects cross-tenant payloads, duplicate change identities and concurrent entity modifications, and retains a complete exact-envelope commit fingerprint for integrity checks.
 
-Migration `20260827114500_hourglass_migration_apply_replay_lock.sql` additionally serializes apply attempts for the same tenant + migration identity with a transaction-scoped advisory lock before the existing fingerprint replay guard executes. This closes the concurrent-retry race where two identical requests could previously pass the pre-insert replay lookup at the same time. The internal unlocked function is no longer executable by `service_role`; callers must use the serialized wrapper.
+Migration `20260827114500_hourglass_migration_apply_replay_lock.sql` serializes apply attempts for the same tenant + migration identity with a transaction-scoped advisory lock. This closes the concurrent-retry race where two identical requests could previously pass the pre-insert replay lookup at the same time. The internal unlocked function is not executable by `service_role`; callers use the serialized wrapper.
+
+Migration `20260827121500_hourglass_migration_intent_replay.sql` adds a second, logical replay identity. The future authenticated execute boundary must compute a lowercase SHA-256 `intentFingerprint` **server-side** from the freshly revalidated mutation intent and must reuse the same migration identity for the same client mutation identity. The persisted logical fingerprint allows an ambiguous retry to return `already-applied` even if rebuilt audit/event identifiers or timestamps differ. Reusing the migration identity with a different logical intent fails closed. The browser never supplies an authoritative fingerprint.
+
+The exact commit fingerprint and logical intent fingerprint have different jobs:
+
+- `commitFingerprint` proves the exact persisted envelope used for the original atomic write;
+- `intentFingerprint` proves that a later retry represents the same server-validated logical mutation.
 
 ### Create-only rollback foundation (2026-08-27)
 
@@ -66,7 +73,7 @@ A future implementation must provide one server-owned execution boundary that:
 5. atomically applies all supported changes or applies none;
 6. persists a migration identifier, operation log and complete rollback evidence in the same durable transaction;
 7. records minimum-necessary audit/domain-event metadata without imported PII values;
-8. supports idempotent retry after ambiguous network outcomes, including simultaneous retries for the same migration identity;
+8. supports idempotent retry after ambiguous network outcomes, including simultaneous retries for the same migration identity, by using a stable client mutation identity plus a server-computed logical intent fingerprint;
 9. exposes rollback only for migration shapes whose persisted rollback evidence is complete enough to restore safely;
 10. verifies the resulting authoritative state after execute and rollback;
 11. never places source payload, contact values, names or other imported PII in URLs, browser storage, analytics, logs or service-worker caches.
