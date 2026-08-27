@@ -43,6 +43,8 @@ export interface CongregationPerson {
   active: boolean;
   /** Stable identifiers from an explicitly linked external source; never contact data. */
   externalIds?: readonly string[];
+  /** Explicit administrative labels only. Never inferred from personal or sensitive attributes. */
+  labels?: readonly string[];
   availability: readonly AvailabilityPeriod[];
   /** Append-only decision sequence. For equal decidedAt values, the later recorded entry wins. */
   eligibility: readonly EligibilityGrant[];
@@ -163,6 +165,35 @@ export function normalizeOrdinaryContact(contact: OrdinaryContact): OrdinaryCont
   if (email && (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) throw new Error('ordinaryContactEmail is invalid');
   if (address !== undefined && address.length > 500) throw new Error('ordinaryContactAddress is too long');
   return Object.freeze({ ...(phone ? { phone } : {}), ...(email ? { email } : {}), ...(address ? { address } : {}) });
+}
+
+/**
+ * Normalizes explicit administrative labels for a person. Labels are intentionally
+ * small, human-authored metadata. They must never be generated from sensitive or
+ * inferred personal attributes. Matching is case-insensitive while the first
+ * normalized spelling is preserved for display.
+ */
+export function normalizePersonLabels(values: readonly string[]): readonly string[] {
+  if (!Array.isArray(values)) throw new Error('labels must be an array');
+  if (values.length > 20) throw new Error('labels cannot exceed 20 items');
+  const result: string[] = [];
+  const seen = new Set<string>();
+  for (const value of values) {
+    if (typeof value !== 'string') throw new Error('label must be a string');
+    const label = value.trim().replace(/\s+/g, ' ');
+    if (!label) throw new Error('label is required');
+    if (label.length > 40) throw new Error('label is too long');
+    if (/[\u0000-\u001F\u007F]/.test(label)) throw new Error('label contains control characters');
+    const key = label.toLocaleLowerCase('en-US');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(label);
+  }
+  return Object.freeze(result.sort((left, right) => left.localeCompare(right, 'en')));
+}
+
+export function labelsOf(person: CongregationPerson): readonly string[] {
+  return person.labels ?? [];
 }
 
 export function ordinaryContactOf(person: CongregationPerson): OrdinaryContact {
