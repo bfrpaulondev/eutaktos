@@ -1,12 +1,12 @@
 # People Product Experience — current integrated status
 
-> Principal status snapshot updated 2026-08-27 after PX10 zoom/reflow integration. This file records what is actually present on `main`; it does not turn deferred real-user production acceptance into automated evidence.
+> Principal status snapshot updated 2026-08-27 after PX9.3 Labels integration. This file records what is actually present on `main`; it does not turn deferred real-user production acceptance into automated evidence.
 
 ## Current baseline
 
 - Repository: `bfrpaulondev/eutaktos`
 - Canonical production: `https://eutakes.netlify.app/`
-- Current technical People/PX baseline after PR #353: `a29645fa4acbde6a10a32d0090f7ff571a26d2ed`
+- Current technical People/PX baseline: `4d6f0cd09f4567cf4ca8870f782308c144e7345e`.
 - UI foundation: Ant Design 6. Runtime MUI/Emotion dependencies have been retired and guarded from reintroduction.
 - Tenant, actor and capabilities remain server-derived. Client state is never authoritative for those values.
 
@@ -46,7 +46,7 @@ PX7.1–PX7.7 and PX7.9–PX7.15 are implemented. PX7 remains advisory: the huma
 
 ### PX8 — responsible-person assistance
 
-Integrated through the PX8 People assistance work (`98e68ccfe13d1ff14b02dedf7f1ffa2bd9a426fb` and subsequent main history):
+Integrated through the PX8 People assistance work:
 
 - absence affecting an assignment;
 - canonical substitution suggestions where the reviewed recommendation contract supports them;
@@ -62,26 +62,34 @@ Integrated through the PX8 People assistance work (`98e68ccfe13d1ff14b02dedf7f1f
 
 Implemented technical slices:
 
+- **PX9.3 Labels/tags**: canonical server-owned explicit labels contract, normalization/persistence through People service, capability-aware HTTP/client round trip, People Directory management and local filtering, partial-persistence-safe retries, privacy boundary tests and browser authority regression. Integrated by `87dc02f0c7c2a1f055a3af50f37358ab66a3c2e2` + `4d6f0cd09f4567cf4ca8870f782308c144e7345e`.
 - import source selection;
 - server-authoritative import preview/validation/duplicate/conflict analysis;
 - dry-run/recovery boundary with execute/rollback deliberately blocked until durable atomic transaction + migration-log rollback architecture exists;
 - emergency mode and emergency-contact boundary;
 - existing capability-aware People Directory CSV export with spreadsheet-formula injection protection.
 
-Still not safely complete without reviewed contracts/persistence: transfers, labels/tags, reminders, record cards/reports, archive/do-not-publish, map/location privacy model, complete configurable Contact List projection, and durable import execute/rollback.
+Remaining PX9 contract/persistence gaps:
 
-Do not create those as frontend-only state or widen private DTOs without a Principal-reviewed server contract.
+- **PX9.1/PX9.2 Transfers** — no reviewed send/receive persistence and secure token lifecycle contract yet.
+- **PX9.4 Reminders** — `NotificationIntentService` already supports idempotent `assignment.reminder` intents, but there is no canonical read model/API that authoritatively exposes who needs a reminder, why, and the last reminder date. Do not infer that in browser state.
+- **PX9.5 Record cards/reports** — report shape, period semantics and privacy/export contract are not approved.
+- **PX9.6 Archive / A não publicar** — current active/inactive People state is insufficient for required reason/date/audit/restore semantics; dedicated server persistence is still required.
+- **PX9.10/PX9.11 Map** — no approved person/group location model and privacy capability boundary exists.
+- **PX9.12 Configurable Contact List** — ordinary Contact is intentionally a dedicated least-privilege resource and is excluded from Directory; a safe server projection/export contract is required before bulk contact-list UI.
+- **PX9.16 PDF export** — implement only against an approved report/contact-list contract; do not widen private DTOs for convenience.
+- **PX9.17 DOCX** remains product-research dependent and must not be implemented solely for parity.
+- durable import execute/rollback remains blocked on atomic migration-log architecture.
 
 ### PX10 — quality / accessibility evidence
 
 Technically automated and integrated:
 
-- existing responsive/mobile/keyboard/theme/privacy/browser gates;
+- responsive/mobile/keyboard/theme/privacy/browser gates;
 - permanent 200% desktop zoom-equivalent People reflow gate at 640 CSS px;
 - permanent 400% desktop zoom-equivalent People reflow gate at 320 CSS px;
-- People Directory header actions fixed to reflow long localized labels at 320 CSS px;
-- Person Wizard included in the same zoom/reflow regression;
-- PR #353 exact head `6fb16d78cf541cced7f39d635e96ded3a5cc7dfe` passed `quality`, full `browser-regression`, and canonical `netlify/eutakes/deploy-preview` before squash merge `a29645fa4acbde6a10a32d0090f7ff571a26d2ed`.
+- People Directory header actions reflow long localized labels at 320 CSS px;
+- Person Wizard included in the same zoom/reflow regression.
 
 Still requires a human/independent acceptance agent where automation is insufficient:
 
@@ -91,7 +99,7 @@ Still requires a human/independent acceptance agent where automation is insuffic
 
 ### PX11 — Ant Design migration / MUI retirement
 
-Technically complete at the current baseline:
+Technically complete:
 
 - People and supporting runtime surfaces migrated to Ant Design 6;
 - MUI/Emotion runtime dependencies removed from the web PWA package;
@@ -105,7 +113,8 @@ Automated tests, sanitized browser fixtures, preview deployments and CI do **not
 ## Safe next engineering order
 
 1. Keep current main green and preserve the accepted People/PX behavior.
-2. Synchronize stale master-plan checkboxes only when the corresponding integrated evidence is traceable; never use checkbox edits to manufacture completion.
-3. For remaining PX9 work, define/review server contracts and persistence first, then UI.
-4. Keep PX7.8 blocked until a real manual constraint contract exists.
-5. Perform the deferred real-user production/screen-reader acceptance separately; do not replace it with mocked CI.
+2. Synchronize stale master-plan checkboxes only when corresponding integrated evidence is traceable; never use checkbox edits to manufacture completion.
+3. For each remaining PX9 slice, define/review the server authority, persistence and privacy contract first; only then build UI.
+4. PX9.4 Reminders should reuse `NotificationIntentService` for sending but first needs an authoritative reminder-needed/last-reminder read model.
+5. Keep PX7.8 blocked until a real persistent manual-constraint contract exists.
+6. Perform deferred real-user production/screen-reader acceptance separately; do not replace it with mocked CI.
