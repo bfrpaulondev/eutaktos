@@ -146,6 +146,12 @@ export class SupabaseRestDatabase {
     if (typeof value !== 'string' || !value.trim()) throw new DatabaseRequestError(502);
     return value;
   }
+  async applyHourglassMigrationCommit(input: Readonly<Record<string, unknown>>): Promise<{ outcome: 'applied' | 'already-applied' }> {
+    const value = await this.#request('/rest/v1/rpc/eutaktos_apply_hourglass_migration_commit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+    const record = objectRecord(value);
+    if (record.outcome !== 'applied' && record.outcome !== 'already-applied') throw new DatabaseRequestError(502);
+    return { outcome: record.outcome };
+  }
   async deleteEntityChange(input: Readonly<Record<string, unknown>>): Promise<void> { await this.#request('/rest/v1/rpc/eutaktos_delete_entity_change', { method: 'POST', headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify(input) }); }
   async createGrantChange(input: Readonly<Record<string, unknown>>): Promise<void> { await this.#request('/rest/v1/rpc/eutaktos_apply_grant_change', { method: 'POST', headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify(input) }); }
   async revokeSession(sessionId: string): Promise<void> { const params = new URLSearchParams({ id: `eq.${sessionId}`, revoked_at: 'is.null' }); await this.#request(`/rest/v1/eutaktos_sessions?${params}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify({ revoked_at: new Date().toISOString() }) }); }

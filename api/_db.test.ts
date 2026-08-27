@@ -96,6 +96,41 @@ describe('SupabaseRestDatabase', () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
+  it('uses one database RPC for the atomic migration commit and accepts both replay outcomes', async () => {
+    const fetcher = vi.fn<typeof fetch>(async (input, init) => {
+      expect(String(input)).toBe('https://example.supabase.co/rest/v1/rpc/eutaktos_apply_hourglass_migration_commit');
+      expect(init?.method).toBe('POST');
+      const body = JSON.parse(String(init?.body));
+      expect(body.p_tenant_id).toBe('tenant-a');
+      expect(body.p_person_changes).toHaveLength(1);
+      return jsonResponse({ outcome: 'applied', log: { migrationId: 'm1' } });
+    });
+    await expect(new SupabaseRestDatabase(config, fetcher).applyHourglassMigrationCommit({
+      p_tenant_id: 'tenant-a',
+      p_migration: { log: { migrationId: 'm1' }, rollbackPlan: { steps: [] } },
+      p_person_changes: [{ kind: 'create', id: 'p-new', data: { id: 'p-new', tenantId: 'tenant-a' } }],
+    })).resolves.toEqual({ outcome: 'applied' });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports an already-applied migration retry without re-applying changes', async () => {
+    const fetcher = vi.fn<typeof fetch>(async () => jsonResponse({ outcome: 'already-applied', log: { migrationId: 'm1' } }));
+    await expect(new SupabaseRestDatabase(config, fetcher).applyHourglassMigrationCommit({
+      p_tenant_id: 'tenant-a',
+      p_migration: { log: { migrationId: 'm1' }, rollbackPlan: { steps: [] } },
+      p_person_changes: [],
+    })).resolves.toEqual({ outcome: 'already-applied' });
+  });
+
+  it('rejects an unrecognized migration commit outcome from the database', async () => {
+    const fetcher = vi.fn<typeof fetch>(async () => jsonResponse({ outcome: 'something-else' }));
+    await expect(new SupabaseRestDatabase(config, fetcher).applyHourglassMigrationCommit({
+      p_tenant_id: 'tenant-a',
+      p_migration: {},
+      p_person_changes: [],
+    })).rejects.toMatchObject({ status: 502 });
+  });
+
   it('reports readiness false when the database schema is unavailable', async () => {
     const fetcher = vi.fn<typeof fetch>(async () => new Response('{}',{status:500,headers:{'content-type':'application/json'}}));
     await expect(new SupabaseRestDatabase(config,fetcher).ready()).resolves.toBe(false);
