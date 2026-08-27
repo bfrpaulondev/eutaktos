@@ -156,8 +156,14 @@ try {
   await cdp.send('Page.reload', { ignoreCache: true });
   await poll(async () => {
     const current = await locationState();
-    return current.search.includes('view=profile') && current.search.includes('person=person-runtime') && current.main.includes('Runtime person') && current.main.includes('Resumo') && current.main.includes('Insight de candidato') && current.main.includes('Recomendação #1');
-  }, 'Profile deep link and contextual insight did not survive refresh');
+    return current.search.includes('view=profile')
+      && current.search.includes('person=person-runtime')
+      && current.main.includes('Runtime person')
+      && current.main.includes('Resumo')
+      && current.main.includes('Insight de candidato')
+      && current.main.includes('Recomendação #1')
+      && current.recommendationRequests.length > 0;
+  }, 'Profile deep link, contextual insight and refreshed PX7 request did not survive refresh');
   state = await locationState();
   assertRecommendationRequests(state.recommendationRequests);
 
