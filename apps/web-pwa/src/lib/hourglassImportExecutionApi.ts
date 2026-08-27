@@ -16,6 +16,12 @@ export interface HourglassExecutionResultDto {
   readonly unchangedCount: number;
 }
 
+export interface HourglassRollbackResultDto {
+  readonly outcome: 'rolled-back' | 'already-rolled-back';
+  readonly migrationId: string;
+  readonly removedCount: number;
+}
+
 function record(value: unknown): Readonly<Record<string, unknown>> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid Hourglass execution response');
   return value as Readonly<Record<string, unknown>>;
@@ -52,6 +58,12 @@ export function parseHourglassExecutionResultResponse(value: unknown): Hourglass
   return Object.freeze({ outcome: root.outcome, ...(migrationId ? { migrationId } : {}), createdCount: count(root.createdCount), unchangedCount: count(root.unchangedCount) });
 }
 
+export function parseHourglassRollbackResultResponse(value: unknown): HourglassRollbackResultDto {
+  const root = record(value);
+  if (root.contractVersion !== 'hourglass-rollback-result-v1' || (root.outcome !== 'rolled-back' && root.outcome !== 'already-rolled-back')) throw new Error('Invalid Hourglass execution response');
+  return Object.freeze({ outcome: root.outcome, migrationId: exact(root.migrationId, /^hourglass-migration-[0-9a-f]{32}$/), removedCount: count(root.removedCount) });
+}
+
 export class HourglassExecutionApiError extends Error {
   readonly status: number;
   constructor(status: number) {
@@ -83,6 +95,9 @@ export function createHourglassImportExecutionApi(fetcher: typeof fetch = fetch)
     async execute(payload: unknown, executionId: string, confirmationDigest: string, signal?: AbortSignal): Promise<HourglassExecutionResultDto> {
       return parseHourglassExecutionResultResponse(await post(fetcher, '/api/import/hourglass/execute', { source: 'json', payload, executionId, confirmationDigest }, signal));
     },
+    async rollback(migrationId: string, signal?: AbortSignal): Promise<HourglassRollbackResultDto> {
+      return parseHourglassRollbackResultResponse(await post(fetcher, '/api/import/hourglass/rollback', { migrationId }, signal));
+    },
   });
 }
 
@@ -92,5 +107,8 @@ export const hourglassImportExecutionApi = Object.freeze({
   },
   execute(payload: unknown, executionId: string, confirmationDigest: string, signal?: AbortSignal): Promise<HourglassExecutionResultDto> {
     return createHourglassImportExecutionApi(globalThis.fetch.bind(globalThis)).execute(payload, executionId, confirmationDigest, signal);
+  },
+  rollback(migrationId: string, signal?: AbortSignal): Promise<HourglassRollbackResultDto> {
+    return createHourglassImportExecutionApi(globalThis.fetch.bind(globalThis)).rollback(migrationId, signal);
   },
 });
