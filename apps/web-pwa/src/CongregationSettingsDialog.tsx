@@ -1,8 +1,15 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, InputLabel, MenuItem, Paper, Select, TextField } from '@mui/material';
+import Alert from 'antd/es/alert';
+import Button from 'antd/es/button';
+import Card from 'antd/es/card';
+import Input from 'antd/es/input';
+import Modal from 'antd/es/modal';
+import Select from 'antd/es/select';
+import Skeleton from 'antd/es/skeleton';
+import Space from 'antd/es/space';
+import Typography from 'antd/es/typography';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import type { Locale } from './lib/preferences';
 import { congregationSettingsApi, type CongregationSettingsDto, type Weekday } from './lib/congregationSettingsApi';
-import { Stack, Typography } from './ui/MuiCompat';
 
 const copy = {
   'pt-PT': { title: 'Configurações da congregação', subtitle: 'Perfil operacional e horários regulares. As permissões do servidor continuam a ser a autoridade.', loading: 'A carregar configurações…', unavailable: 'Não foi possível carregar as configurações da congregação. Tenta novamente.', saveError: 'Não foi possível guardar as configurações. Tenta novamente.', retry: 'Tentar novamente', notConfigured: 'Ainda não existe um perfil configurado. Preenche os dados abaixo para criar o primeiro.', saved: 'Configurações guardadas.', unsaved: 'Existem alterações não guardadas.', profile: 'Perfil da congregação', profileHint: 'Usa o nome que deve aparecer nas interfaces da congregação.', timeAndLanguage: 'Horário e idioma', timeAndLanguageHint: 'O fuso horário e o idioma predefinido afetam a apresentação local, não as permissões.', regularMeetings: 'Reuniões regulares', meetingsHint: 'Indica apenas os horários regulares que já estão definidos pela congregação.', name: 'Nome da congregação', nameHelp: 'Até 120 caracteres.', timezone: 'Fuso horário IANA', timezoneHelp: 'Por exemplo, Europe/Lisbon ou UTC.', defaultLocale: 'Idioma predefinido', defaultLocaleHelp: 'Usado como predefinição onde aplicável.', midweek: 'Reunião do meio da semana', weekend: 'Reunião do fim de semana', weekday: 'Dia da semana', time: 'Hora local', timeHelp: 'Formato de 24 horas.', close: 'Fechar', save: 'Guardar configurações', saving: 'A guardar…', cancel: 'Cancelar', discardTitle: 'Descartar alterações não guardadas?', discardBody: 'As alterações feitas neste formulário serão perdidas. Esta ação não altera as configurações já guardadas.', discard: 'Descartar alterações', weekdays: ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'], localeOptions: { 'pt-PT': 'Português (Portugal)', en: 'English', es: 'Español' } },
@@ -12,12 +19,50 @@ const copy = {
 
 function initialSettings(locale: Locale): CongregationSettingsDto {
   let timezone = 'UTC';
-  try { timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch { timezone = 'UTC'; }
-  return { name: '', timezone, defaultLocale: locale, midweekMeeting: { weekday: 2, localTime: '19:30' }, weekendMeeting: { weekday: 0, localTime: '10:00' } };
+  try {
+    timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    timezone = 'UTC';
+  }
+  return {
+    name: '',
+    timezone,
+    defaultLocale: locale,
+    midweekMeeting: { weekday: 2, localTime: '19:30' },
+    weekendMeeting: { weekday: 0, localTime: '10:00' },
+  };
 }
-function normalizeSettings(settings: CongregationSettingsDto): CongregationSettingsDto { return { name: settings.name.trim(), timezone: settings.timezone.trim(), defaultLocale: settings.defaultLocale.trim(), midweekMeeting: { ...settings.midweekMeeting }, weekendMeeting: { ...settings.weekendMeeting } }; }
-export function settingsAreEqual(first: CongregationSettingsDto, second: CongregationSettingsDto): boolean { return first.name === second.name && first.timezone === second.timezone && first.defaultLocale === second.defaultLocale && first.midweekMeeting.weekday === second.midweekMeeting.weekday && first.midweekMeeting.localTime === second.midweekMeeting.localTime && first.weekendMeeting.weekday === second.weekendMeeting.weekday && first.weekendMeeting.localTime === second.weekendMeeting.localTime; }
-export function canSaveCongregationSettings(form: CongregationSettingsDto, saving: boolean): boolean { return !saving && Boolean(form.name.trim() && form.timezone.trim() && form.defaultLocale.trim() && /^([01]\d|2[0-3]):[0-5]\d$/.test(form.midweekMeeting.localTime) && /^([01]\d|2[0-3]):[0-5]\d$/.test(form.weekendMeeting.localTime)); }
+
+function normalizeSettings(settings: CongregationSettingsDto): CongregationSettingsDto {
+  return {
+    name: settings.name.trim(),
+    timezone: settings.timezone.trim(),
+    defaultLocale: settings.defaultLocale.trim(),
+    midweekMeeting: { ...settings.midweekMeeting },
+    weekendMeeting: { ...settings.weekendMeeting },
+  };
+}
+
+export function settingsAreEqual(first: CongregationSettingsDto, second: CongregationSettingsDto): boolean {
+  return first.name === second.name
+    && first.timezone === second.timezone
+    && first.defaultLocale === second.defaultLocale
+    && first.midweekMeeting.weekday === second.midweekMeeting.weekday
+    && first.midweekMeeting.localTime === second.midweekMeeting.localTime
+    && first.weekendMeeting.weekday === second.weekendMeeting.weekday
+    && first.weekendMeeting.localTime === second.weekendMeeting.localTime;
+}
+
+export function canSaveCongregationSettings(form: CongregationSettingsDto, saving: boolean): boolean {
+  return !saving
+    && Boolean(
+      form.name.trim()
+      && form.timezone.trim()
+      && form.defaultLocale.trim()
+      && /^([01]\d|2[0-3]):[0-5]\d$/.test(form.midweekMeeting.localTime)
+      && /^([01]\d|2[0-3]):[0-5]\d$/.test(form.weekendMeeting.localTime),
+    );
+}
 
 export function CongregationSettingsDialog({ locale, open, onClose }: { locale: Locale; open: boolean; onClose: () => void }) {
   const text = copy[locale];
@@ -34,40 +79,236 @@ export function CongregationSettingsDialog({ locale, open, onClose }: { locale: 
   const savingRef = useRef(false);
 
   const load = async (signal?: AbortSignal) => {
-    setLoading(true); setLoaded(false); setLoadError(false); setSaveError(false); setNotice(false);
+    setLoading(true);
+    setLoaded(false);
+    setLoadError(false);
+    setSaveError(false);
+    setNotice(false);
     try {
       const settings = await congregationSettingsApi.get(signal);
       const next = settings ?? initialSettings(locale);
-      setForm(next); setSavedForm(next); setNotConfigured(!settings); setLoaded(true);
-    } catch (reason) { if (reason instanceof DOMException && reason.name === 'AbortError') return; setLoadError(true); }
-    finally { if (!signal?.aborted) setLoading(false); }
+      setForm(next);
+      setSavedForm(next);
+      setNotConfigured(!settings);
+      setLoaded(true);
+    } catch (reason) {
+      if (reason instanceof DOMException && reason.name === 'AbortError') return;
+      setLoadError(true);
+    } finally {
+      if (!signal?.aborted) setLoading(false);
+    }
   };
-  useEffect(() => { if (!open) return; const controller = new AbortController(); void load(controller.signal); return () => controller.abort(); }, [open, locale]);
+
+  useEffect(() => {
+    if (!open) return;
+    const controller = new AbortController();
+    void load(controller.signal);
+    return () => controller.abort();
+  }, [open, locale]);
 
   const dirty = loaded && !settingsAreEqual(form, savedForm);
-  const requestClose = () => { if (saving) return; if (dirty) { setConfirmDiscard(true); return; } onClose(); };
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!canSaveCongregationSettings(form, saving) || savingRef.current) return;
-    savingRef.current = true; setSaving(true); setSaveError(false); setNotice(false);
-    try { const saved = await congregationSettingsApi.save(normalizeSettings(form)); setForm(saved); setSavedForm(saved); setNotConfigured(false); setNotice(true); }
-    catch { setSaveError(true); }
-    finally { savingRef.current = false; setSaving(false); }
+  const requestClose = () => {
+    if (saving) return;
+    if (dirty) {
+      setConfirmDiscard(true);
+      return;
+    }
+    onClose();
   };
 
-  return <Dialog open={open} onClose={requestClose} fullWidth maxWidth="md" aria-labelledby="congregation-settings-title">
-    <Box component="form" onSubmit={submit}><DialogTitle id="congregation-settings-title">{text.title}</DialogTitle><DialogContent><Stack spacing={2.5} sx={{ pt: 1 }}><Typography color="text.secondary">{text.subtitle}</Typography>
-      {loading ? <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="center" role="status" sx={{ py: 5 }}><CircularProgress size={24} /><Typography color="text.secondary">{text.loading}</Typography></Stack> : null}
-      {!loading && loadError ? <Alert severity="warning" action={<Button color="inherit" size="small" onClick={() => void load()}>{text.retry}</Button>}>{text.unavailable}</Alert> : null}
-      {loaded ? <>{notConfigured ? <Alert severity="info">{text.notConfigured}</Alert> : null}{dirty ? <Alert severity="info">{text.unsaved}</Alert> : null}{saveError ? <Alert severity="error">{text.saveError}</Alert> : null}{notice ? <Alert severity="success" onClose={() => setNotice(false)}>{text.saved}</Alert> : null}
-        <SettingsSection title={text.profile} hint={text.profileHint}><TextField label={text.name} helperText={text.nameHelp} value={form.name} onChange={event => setForm(current => ({ ...current, name: event.target.value }))} required autoFocus slotProps={{ htmlInput: { maxLength: 120, autoComplete: 'organization' } }} /></SettingsSection>
-        <SettingsSection title={text.timeAndLanguage} hint={text.timeAndLanguageHint}><Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}><TextField label={text.timezone} helperText={text.timezoneHelp} value={form.timezone} onChange={event => setForm(current => ({ ...current, timezone: event.target.value }))} required slotProps={{ htmlInput: { maxLength: 100, autoComplete: 'off', spellCheck: false } }} /><TextField select label={text.defaultLocale} helperText={text.defaultLocaleHelp} value={form.defaultLocale} onChange={event => setForm(current => ({ ...current, defaultLocale: event.target.value }))} required>{(['pt-PT', 'en', 'es'] as const).map(value => <MenuItem key={value} value={value}>{text.localeOptions[value]}</MenuItem>)}</TextField></Box></SettingsSection>
-        <SettingsSection title={text.regularMeetings} hint={text.meetingsHint}><Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 2 }}><MeetingEditor title={text.midweek} weekdayLabel={text.weekday} timeLabel={text.time} timeHelp={text.timeHelp} weekdays={text.weekdays} value={form.midweekMeeting} onWeekday={weekday => setForm(current => ({ ...current, midweekMeeting: { ...current.midweekMeeting, weekday } }))} onTime={localTime => setForm(current => ({ ...current, midweekMeeting: { ...current.midweekMeeting, localTime } }))} /><MeetingEditor title={text.weekend} weekdayLabel={text.weekday} timeLabel={text.time} timeHelp={text.timeHelp} weekdays={text.weekdays} value={form.weekendMeeting} onWeekday={weekday => setForm(current => ({ ...current, weekendMeeting: { ...current.weekendMeeting, weekday } }))} onTime={localTime => setForm(current => ({ ...current, weekendMeeting: { ...current.weekendMeeting, localTime } }))} /></Box></SettingsSection>
-      </> : null}
-    </Stack></DialogContent><DialogActions><Button onClick={requestClose} disabled={saving}>{text.close}</Button><Button type="submit" variant="contained" disabled={!loaded || !canSaveCongregationSettings(form, saving)}>{saving ? text.saving : text.save}</Button></DialogActions></Box>
-    <Dialog open={confirmDiscard} onClose={() => !saving && setConfirmDiscard(false)} fullWidth maxWidth="xs" aria-labelledby="settings-discard-title" aria-describedby="settings-discard-description"><DialogTitle id="settings-discard-title">{text.discardTitle}</DialogTitle><DialogContent><Typography id="settings-discard-description">{text.discardBody}</Typography></DialogContent><DialogActions><Button disabled={saving} onClick={() => setConfirmDiscard(false)}>{text.cancel}</Button><Button color="warning" variant="contained" disabled={saving} onClick={() => { setConfirmDiscard(false); onClose(); }}>{text.discard}</Button></DialogActions></Dialog>
-  </Dialog>;
+  const submit = async () => {
+    if (!canSaveCongregationSettings(form, saving) || savingRef.current) return;
+    savingRef.current = true;
+    setSaving(true);
+    setSaveError(false);
+    setNotice(false);
+    try {
+      const saved = await congregationSettingsApi.save(normalizeSettings(form));
+      setForm(saved);
+      setSavedForm(saved);
+      setNotConfigured(false);
+      setNotice(true);
+    } catch {
+      setSaveError(true);
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+  };
+
+  const onSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    void submit();
+  };
+
+  return <>
+    <Modal
+      open={open}
+      destroyOnHidden
+      width={860}
+      title={<div id="congregation-settings-title"><Typography.Title level={4} style={{ margin: 0 }}>{text.title}</Typography.Title></div>}
+      aria-labelledby="congregation-settings-title"
+      onCancel={requestClose}
+      maskClosable={!saving}
+      keyboard={!saving}
+      footer={[
+        <Button key="close" disabled={saving} onClick={requestClose}>{text.close}</Button>,
+        <Button key="save" type="primary" htmlType="submit" form="congregation-settings-form" loading={saving} disabled={!loaded || !canSaveCongregationSettings(form, saving)}>{saving ? text.saving : text.save}</Button>,
+      ]}
+    >
+      <form id="congregation-settings-form" onSubmit={onSubmit}>
+        <Space orientation="vertical" size="large" style={{ width: '100%' }}>
+          <Typography.Text type="secondary">{text.subtitle}</Typography.Text>
+
+          {loading ? <div role="status" aria-live="polite" aria-label={text.loading}><Skeleton active paragraph={{ rows: 6 }} /></div> : null}
+          {!loading && loadError ? <Alert type="warning" showIcon title={text.unavailable} action={<Button size="small" onClick={() => void load()}>{text.retry}</Button>} /> : null}
+
+          {loaded ? <>
+            {notConfigured ? <Alert type="info" showIcon title={text.notConfigured} /> : null}
+            {dirty ? <Alert type="info" showIcon title={text.unsaved} /> : null}
+            {saveError ? <Alert type="error" showIcon title={text.saveError} /> : null}
+            {notice ? <Alert type="success" showIcon closable onClose={() => setNotice(false)} title={text.saved} /> : null}
+
+            <SettingsSection title={text.profile} hint={text.profileHint}>
+              <Field label={text.name} help={text.nameHelp}>
+                <Input
+                  aria-label={text.name}
+                  value={form.name}
+                  maxLength={120}
+                  autoComplete="organization"
+                  required
+                  autoFocus
+                  onChange={event => setForm(current => ({ ...current, name: event.target.value }))}
+                />
+              </Field>
+            </SettingsSection>
+
+            <SettingsSection title={text.timeAndLanguage} hint={text.timeAndLanguageHint}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+                <Field label={text.timezone} help={text.timezoneHelp}>
+                  <Input
+                    aria-label={text.timezone}
+                    value={form.timezone}
+                    maxLength={100}
+                    autoComplete="off"
+                    spellCheck={false}
+                    required
+                    onChange={event => setForm(current => ({ ...current, timezone: event.target.value }))}
+                  />
+                </Field>
+                <Field label={text.defaultLocale} help={text.defaultLocaleHelp}>
+                  <Select
+                    aria-label={text.defaultLocale}
+                    style={{ width: '100%' }}
+                    value={form.defaultLocale}
+                    onChange={value => setForm(current => ({ ...current, defaultLocale: value }))}
+                    options={(['pt-PT', 'en', 'es'] as const).map(value => ({ value, label: text.localeOptions[value] }))}
+                  />
+                </Field>
+              </div>
+            </SettingsSection>
+
+            <SettingsSection title={text.regularMeetings} hint={text.meetingsHint}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+                <MeetingEditor
+                  title={text.midweek}
+                  weekdayLabel={text.weekday}
+                  timeLabel={text.time}
+                  timeHelp={text.timeHelp}
+                  weekdays={text.weekdays}
+                  value={form.midweekMeeting}
+                  onWeekday={weekday => setForm(current => ({ ...current, midweekMeeting: { ...current.midweekMeeting, weekday } }))}
+                  onTime={localTime => setForm(current => ({ ...current, midweekMeeting: { ...current.midweekMeeting, localTime } }))}
+                />
+                <MeetingEditor
+                  title={text.weekend}
+                  weekdayLabel={text.weekday}
+                  timeLabel={text.time}
+                  timeHelp={text.timeHelp}
+                  weekdays={text.weekdays}
+                  value={form.weekendMeeting}
+                  onWeekday={weekday => setForm(current => ({ ...current, weekendMeeting: { ...current.weekendMeeting, weekday } }))}
+                  onTime={localTime => setForm(current => ({ ...current, weekendMeeting: { ...current.weekendMeeting, localTime } }))}
+                />
+              </div>
+            </SettingsSection>
+          </> : null}
+        </Space>
+      </form>
+    </Modal>
+
+    <Modal
+      open={confirmDiscard}
+      destroyOnHidden
+      width={440}
+      title={<span id="settings-discard-title">{text.discardTitle}</span>}
+      aria-labelledby="settings-discard-title"
+      aria-describedby="settings-discard-description"
+      onCancel={() => { if (!saving) setConfirmDiscard(false); }}
+      maskClosable={!saving}
+      keyboard={!saving}
+      footer={[
+        <Button key="cancel" disabled={saving} onClick={() => setConfirmDiscard(false)}>{text.cancel}</Button>,
+        <Button key="discard" danger type="primary" disabled={saving} onClick={() => { setConfirmDiscard(false); onClose(); }}>{text.discard}</Button>,
+      ]}
+    >
+      <Typography.Paragraph id="settings-discard-description" style={{ marginBottom: 0 }}>{text.discardBody}</Typography.Paragraph>
+    </Modal>
+  </>;
 }
 
-function SettingsSection({ title, hint, children }: { title: string; hint: string; children: React.ReactNode }) { return <Paper component="section" variant="outlined" sx={{ p: { xs: 1.5, sm: 2 }, borderRadius: 2, boxShadow: 'none', bgcolor: 'transparent' }}><Stack spacing={1.5}><Box><Typography variant="subtitle1" fontWeight={800}>{title}</Typography><Typography variant="body2" color="text.secondary">{hint}</Typography></Box>{children}</Stack></Paper>; }
-function MeetingEditor({ title, weekdayLabel, timeLabel, timeHelp, weekdays, value, onWeekday, onTime }: { title: string; weekdayLabel: string; timeLabel: string; timeHelp: string; weekdays: readonly string[]; value: CongregationSettingsDto['midweekMeeting']; onWeekday: (weekday: Weekday) => void; onTime: (time: string) => void }) { return <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, boxShadow: 'none', bgcolor: 'background.default' }}><Stack spacing={1.5}><Typography variant="subtitle2" fontWeight={800}>{title}</Typography><FormControl fullWidth><InputLabel>{weekdayLabel}</InputLabel><Select label={weekdayLabel} value={value.weekday} onChange={event => onWeekday(Number(event.target.value) as Weekday)}>{weekdays.map((label, index) => <MenuItem key={label} value={index}>{label}</MenuItem>)}</Select></FormControl><TextField label={timeLabel} helperText={timeHelp} type="time" value={value.localTime} onChange={event => onTime(event.target.value)} required slotProps={{ htmlInput: { step: 60 } }} /></Stack></Paper>; }
+function Field({ label, help, children }: { label: string; help: string; children: ReactNode }) {
+  return <label style={{ display: 'block' }}>
+    <Typography.Text strong>{label}</Typography.Text>
+    <div style={{ marginTop: 6 }}>{children}</div>
+    <Typography.Text type="secondary" style={{ display: 'block', marginTop: 4, fontSize: 12 }}>{help}</Typography.Text>
+  </label>;
+}
+
+function SettingsSection({ title, hint, children }: { title: string; hint: string; children: ReactNode }) {
+  return <Card size="small">
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+      <div>
+        <Typography.Text strong>{title}</Typography.Text>
+        <Typography.Paragraph type="secondary" style={{ margin: '4px 0 0' }}>{hint}</Typography.Paragraph>
+      </div>
+      {children}
+    </Space>
+  </Card>;
+}
+
+function MeetingEditor({ title, weekdayLabel, timeLabel, timeHelp, weekdays, value, onWeekday, onTime }: {
+  title: string;
+  weekdayLabel: string;
+  timeLabel: string;
+  timeHelp: string;
+  weekdays: readonly string[];
+  value: CongregationSettingsDto['midweekMeeting'];
+  onWeekday: (weekday: Weekday) => void;
+  onTime: (time: string) => void;
+}) {
+  return <Card size="small" title={title}>
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+      <label style={{ display: 'block' }}>
+        <Typography.Text>{weekdayLabel}</Typography.Text>
+        <Select
+          aria-label={`${title} · ${weekdayLabel}`}
+          style={{ width: '100%', marginTop: 6 }}
+          value={value.weekday}
+          onChange={weekday => onWeekday(weekday as Weekday)}
+          options={weekdays.map((label, index) => ({ value: index, label }))}
+        />
+      </label>
+      <Field label={timeLabel} help={timeHelp}>
+        <Input
+          aria-label={`${title} · ${timeLabel}`}
+          type="time"
+          value={value.localTime}
+          step={60}
+          required
+          onChange={event => onTime(event.target.value)}
+        />
+      </Field>
+    </Space>
+  </Card>;
+}
