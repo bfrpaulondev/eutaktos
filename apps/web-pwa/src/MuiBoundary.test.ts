@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-const expectedMuiConsumers = Object.freeze([
-  'theme.ts',
-  'ui/MuiCompat.tsx',
-].sort());
-
 const sourceModules = import.meta.glob('./**/*.{ts,tsx}', {
   query: '?raw',
   import: 'default',
@@ -26,13 +21,14 @@ function muiConsumers(): readonly string[] {
 }
 
 describe('PX11 MUI retirement boundary', () => {
-  it('keeps an explicit inventory and rejects new or unrecorded MUI consumers', () => {
-    expect(muiConsumers()).toEqual(expectedMuiConsumers);
+  it('rejects every direct MUI runtime consumer', () => {
+    expect(muiConsumers()).toEqual([]);
   });
 
-  it('confirms migrated product/shell primitives no longer depend on MUI', () => {
-    for (const file of ['AccessManagementDialog.tsx', 'App.tsx', 'AuditHistoryDialog.tsx', 'AuthSignInPanel.tsx', 'AwayPeriodsSection.tsx', 'CongregationSettingsDialog.tsx', 'EligibilityDialog.tsx', 'HouseholdsSection.tsx', 'HourglassImportInspector.tsx', 'LogoutControl.tsx', 'MagicLinkConfirmationPanel.tsx', 'MidweekAuthoringControls.tsx', 'MidweekWorkspace.tsx', 'ProductionDashboard.tsx', 'PwaConnectionStatus.tsx', 'PwaUpdateRecovery.tsx', 'ResponsibilitiesSection.tsx', 'SectionWorkspace.tsx', 'ServiceGroupsSection.tsx', 'TaskShell.tsx']) {
+  it('keeps application, shell and palette authority MUI-free', () => {
+    for (const file of ['App.tsx', 'TaskShell.tsx', 'theme.ts', 'ui/AntDesignFoundation.tsx']) {
       expect(source(file)).not.toContain('@mui/material');
+      expect(source(file)).not.toContain('@emotion/');
     }
   });
 });

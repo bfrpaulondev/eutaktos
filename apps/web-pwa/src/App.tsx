@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { AppRecoveryBoundary } from './AppRecoveryBoundary';
 import { PwaConnectionStatus } from './PwaConnectionStatus';
 import { PwaUpdateRecovery } from './PwaUpdateRecovery';
@@ -9,8 +9,7 @@ import {
   type Preferences,
 } from './lib/preferences';
 import { useSystemPrefersDark } from './lib/systemColorMode';
-import { buildEutaktosTheme } from './theme';
-import { LegacyMuiThemeBridge } from './ui/MuiCompat';
+import { EUTAKTOS_PALETTES } from './theme';
 
 const TaskShell = lazy(async () => {
   const module = await import('./TaskShell');
@@ -37,7 +36,7 @@ export default function App() {
   const [preferences, setPreferences] = useState<Preferences>(loadPreferences);
   const systemPrefersDark = useSystemPrefersDark();
   const effectivePalette = resolvePaletteId(preferences.paletteId, preferences.colorMode, systemPrefersDark);
-  const theme = useMemo(() => buildEutaktosTheme({ ...preferences, paletteId: effectivePalette }), [effectivePalette, preferences]);
+  const effectiveMode = EUTAKTOS_PALETTES[effectivePalette].mode;
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
@@ -45,10 +44,10 @@ export default function App() {
     document.documentElement.dataset.palette = effectivePalette;
     document.documentElement.dataset.textSize = preferences.textSize;
     document.documentElement.dataset.colorMode = preferences.colorMode;
-    document.documentElement.style.colorScheme = theme.palette.mode;
-  }, [effectivePalette, preferences, theme.palette.mode]);
+    document.documentElement.style.colorScheme = effectiveMode;
+  }, [effectiveMode, effectivePalette, preferences]);
 
-  return <LegacyMuiThemeBridge theme={theme}>
+  return <>
     <AppRecoveryBoundary locale={preferences.locale}>
       <Suspense fallback={<main id="main" tabIndex={-1} style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', padding: 24 }}><p role="status">A carregar área…</p></main>}>
         <TaskShell preferences={preferences} setPreferences={setPreferences} />
@@ -56,5 +55,5 @@ export default function App() {
     </AppRecoveryBoundary>
     <PwaConnectionStatus locale={preferences.locale} />
     <PwaUpdateRecovery />
-  </LegacyMuiThemeBridge>;
+  </>;
 }

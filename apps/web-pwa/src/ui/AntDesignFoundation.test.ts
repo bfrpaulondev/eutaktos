@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_PREFERENCES, type Preferences } from '../lib/preferences';
-import { buildAntDesignTheme, resolveAntDesignMode } from './AntDesignFoundation';
+import { EUTAKTOS_PALETTES } from '../theme';
+import { buildAntDesignTheme, resolveAntDesignMode, resolveAntDesignPalette } from './AntDesignFoundation';
 
 function preferences(overrides: Partial<Preferences> = {}): Preferences {
   return { ...DEFAULT_PREFERENCES, ...overrides };
@@ -22,29 +23,25 @@ describe('resolveAntDesignMode', () => {
 });
 
 describe('buildAntDesignTheme', () => {
-  it('uses distinct semantic surfaces for light and dark mode', () => {
-    const light = buildAntDesignTheme(preferences({ colorMode: 'light' }), true);
-    const dark = buildAntDesignTheme(preferences({ colorMode: 'dark' }), false);
+  it('uses the selected Eutaktos palette for Ant semantic surfaces', () => {
+    const warm = buildAntDesignTheme(preferences({ colorMode: 'light', paletteId: 'warm' }), false);
+    expect(warm.token?.colorBgBase).toBe(EUTAKTOS_PALETTES.warm.background);
+    expect(warm.token?.colorBgContainer).toBe(EUTAKTOS_PALETTES.warm.surface);
+    expect(warm.token?.colorPrimary).toBe(EUTAKTOS_PALETTES.warm.primary);
+  });
 
-    expect(light.token?.colorBgBase).toBe('#F4F7FA');
-    expect(light.token?.colorBgContainer).toBe('#FFFFFF');
-    expect(dark.token?.colorBgBase).toBe('#0F151C');
-    expect(dark.token?.colorBgContainer).toBe('#18212B');
-    expect(light.token?.colorText).not.toBe(dark.token?.colorText);
+  it('forces the dark palette for explicit/system dark while preserving light palette choices otherwise', () => {
+    expect(resolveAntDesignPalette(preferences({ colorMode: 'dark', paletteId: 'warm' }), false).id).toBe('dark');
+    expect(resolveAntDesignPalette(preferences({ colorMode: 'system', paletteId: 'blue' }), true).id).toBe('dark');
+    expect(resolveAntDesignPalette(preferences({ colorMode: 'system', paletteId: 'blue' }), false).id).toBe('blue');
   });
 
   it('reflects accessibility and density preferences in component tokens', () => {
-    const configured = buildAntDesignTheme(preferences({
-      colorMode: 'light',
-      density: 'compact',
-      highContrast: true,
-      reducedMotion: true,
-      textSize: 'large',
-    }), false);
-
+    const configured = buildAntDesignTheme(preferences({ colorMode: 'light', density: 'compact', highContrast: true, reducedMotion: true, textSize: 'large' }), false);
     expect(configured.token?.controlHeight).toBe(36);
     expect(configured.token?.lineWidth).toBe(2);
     expect(configured.token?.motion).toBe(false);
     expect(configured.token?.fontSize).toBe(16);
+    expect(configured.token?.colorTextSecondary).toBe(EUTAKTOS_PALETTES.classic.text);
   });
 });
