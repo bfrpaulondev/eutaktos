@@ -22,7 +22,8 @@ export type AuditedResourceType =
   | 'duty-assignment'
   | 'assignment-response'
   | 'notification-intent'
-  | 'migration';
+  | 'migration'
+  | 'recommendation-constraint';
 
 export interface AuditEvent {
   id: AuditEventId;
