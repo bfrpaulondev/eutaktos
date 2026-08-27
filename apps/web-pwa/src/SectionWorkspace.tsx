@@ -2,6 +2,7 @@ import BellOutlined from '@ant-design/icons/es/icons/BellOutlined';
 import Button from 'antd/es/button';
 import Card from 'antd/es/card';
 import Divider from 'antd/es/divider';
+import Dropdown from 'antd/es/dropdown';
 import Space from 'antd/es/space';
 import Typography from 'antd/es/typography';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
@@ -48,9 +49,9 @@ const PersonRecommendationInsight = lazy(async () => {
 });
 
 const copy = {
-  'pt-PT': { organization: 'Organização', organizationTitle: 'Pessoas e organização', organizationSubtitle: 'Mantém perfis, agregados, grupos, responsabilidades, ausências e permissões no mesmo contexto.', overview: 'Visão geral', directory: 'Diretório', households: 'Agregados', groups: 'Grupos de serviço', responsibilities: 'Responsabilidades', reminders: 'Lembretes', audit: 'Histórico de auditoria', access: 'Gerir acessos', hourglass: 'Inspecionar export Hourglass', overviewLoading: 'A carregar Pessoas…', profileLoading: 'A carregar perfil…' },
-  en: { organization: 'Organization', organizationTitle: 'People and organization', organizationSubtitle: 'Keep profiles, households, groups, responsibilities, away periods and permissions in the same context.', overview: 'Overview', directory: 'Directory', households: 'Households', groups: 'Service groups', responsibilities: 'Responsibilities', reminders: 'Reminders', audit: 'Audit history', access: 'Manage access', hourglass: 'Inspect Hourglass export', overviewLoading: 'Loading People…', profileLoading: 'Loading profile…' },
-  es: { organization: 'Organización', organizationTitle: 'Personas y organización', organizationSubtitle: 'Mantén perfiles, grupos familiares, grupos, responsabilidades, ausencias y permisos en el mismo contexto.', overview: 'Vista general', directory: 'Directorio', households: 'Grupos familiares', groups: 'Grupos de servicio', responsibilities: 'Responsabilidades', reminders: 'Recordatorios', audit: 'Historial de auditoría', access: 'Gestionar accesos', hourglass: 'Inspeccionar exportación Hourglass', overviewLoading: 'Cargando Personas…', profileLoading: 'Cargando perfil…' },
+  'pt-PT': { organization: 'Organização', organizationTitle: 'Pessoas e organização', organizationSubtitle: 'Mantém perfis, agregados, grupos, responsabilidades, ausências e permissões no mesmo contexto.', overview: 'Visão geral', directory: 'Diretório', households: 'Agregados', groups: 'Grupos de serviço', responsibilities: 'Responsabilidades', tools: 'Ferramentas', reminders: 'Lembretes', audit: 'Histórico de auditoria', access: 'Gerir acessos', hourglass: 'Inspecionar export Hourglass', overviewLoading: 'A carregar Pessoas…', profileLoading: 'A carregar perfil…' },
+  en: { organization: 'Organization', organizationTitle: 'People and organization', organizationSubtitle: 'Keep profiles, households, groups, responsibilities, away periods and permissions in the same context.', overview: 'Overview', directory: 'Directory', households: 'Households', groups: 'Service groups', responsibilities: 'Responsibilities', tools: 'Tools', reminders: 'Reminders', audit: 'Audit history', access: 'Manage access', hourglass: 'Inspect Hourglass export', overviewLoading: 'Loading People…', profileLoading: 'Loading profile…' },
+  es: { organization: 'Organización', organizationTitle: 'Personas y organización', organizationSubtitle: 'Mantén perfiles, grupos familiares, grupos, responsabilidades, ausencias y permisos en el mismo contexto.', overview: 'Vista general', directory: 'Directorio', households: 'Grupos familiares', groups: 'Grupos de servicio', responsibilities: 'Responsabilidades', tools: 'Herramientas', reminders: 'Recordatorios', audit: 'Historial de auditoría', access: 'Gestionar accesos', hourglass: 'Inspeccionar exportación Hourglass', overviewLoading: 'Cargando Personas…', profileLoading: 'Cargando perfil…' },
 } as const;
 
 function peopleViewFromLocation(): PeopleWorkspaceView {
@@ -89,7 +90,7 @@ function OrganizationWorkspace({ locale }: { locale: Locale }) {
   const [auditOpen, setAuditOpen] = useState(false);
   const [accessOpen, setAccessOpen] = useState(false);
   const [hourglassOpen, setHourglassOpen] = useState(false);
-  const remindersButtonRef = useRef<HTMLButtonElement | null>(null);
+  const toolsButtonRef = useRef<HTMLButtonElement | null>(null);
   const auditButtonRef = useRef<HTMLButtonElement | null>(null);
   const accessButtonRef = useRef<HTMLButtonElement | null>(null);
   const text = copy[locale];
@@ -124,6 +125,8 @@ function OrganizationWorkspace({ locale }: { locale: Locale }) {
     window.requestAnimationFrame(() => setCreateRequest(current => current + 1));
   };
 
+  const restoreToolsFocus = () => window.requestAnimationFrame(() => toolsButtonRef.current?.focus());
+
   if (view === 'overview') return <Space orientation="vertical" size="large" style={{ display: 'flex' }}>
     <Suspense fallback={<LoadingSurface label={text.overviewLoading} />}>
       <PeopleOverview locale={locale} onOpenDirectory={() => selectView('directory')} onAddPerson={openCreate} />
@@ -145,8 +148,21 @@ function OrganizationWorkspace({ locale }: { locale: Locale }) {
             <Typography.Paragraph type="secondary" style={{ marginBlockEnd: 0 }}>{text.organizationSubtitle}</Typography.Paragraph>
           </div>
           <Space wrap>
-            <Button ref={remindersButtonRef} icon={<BellOutlined />} onClick={() => setRemindersOpen(true)}>{text.reminders}</Button>
-            <Button onClick={() => setHourglassOpen(true)}>{text.hourglass}</Button>
+            <Dropdown
+              trigger={['click']}
+              menu={{
+                items: [
+                  { key: 'reminders', icon: <BellOutlined />, label: text.reminders },
+                  { key: 'hourglass', label: text.hourglass },
+                ],
+                onClick: ({ key }) => {
+                  if (key === 'reminders') setRemindersOpen(true);
+                  if (key === 'hourglass') setHourglassOpen(true);
+                },
+              }}
+            >
+              <Button ref={toolsButtonRef}>{text.tools}</Button>
+            </Dropdown>
             <Button ref={auditButtonRef} onClick={() => setAuditOpen(true)}>{text.audit}</Button>
             <Button ref={accessButtonRef} onClick={() => setAccessOpen(true)}>{text.access}</Button>
           </Space>
@@ -164,10 +180,10 @@ function OrganizationWorkspace({ locale }: { locale: Locale }) {
     {view === 'households' ? <HouseholdsSection locale={locale} /> : null}
     {view === 'groups' ? <ServiceGroupsSection locale={locale} /> : null}
     {view === 'responsibilities' ? <ResponsibilitiesSection locale={locale} /> : null}
-    <PeopleRemindersDialog locale={locale} open={remindersOpen} onClose={() => { setRemindersOpen(false); window.requestAnimationFrame(() => remindersButtonRef.current?.focus()); }} />
+    <PeopleRemindersDialog locale={locale} open={remindersOpen} onClose={() => { setRemindersOpen(false); restoreToolsFocus(); }} />
     <AuditHistoryDialog locale={locale} open={auditOpen} onClose={() => { setAuditOpen(false); window.requestAnimationFrame(() => auditButtonRef.current?.focus()); }} />
     <AccessManagementDialog locale={locale} open={accessOpen} onClose={() => { setAccessOpen(false); window.requestAnimationFrame(() => accessButtonRef.current?.focus()); }} />
-    <HourglassImportInspector locale={locale} open={hourglassOpen} onClose={() => setHourglassOpen(false)} />
+    <HourglassImportInspector locale={locale} open={hourglassOpen} onClose={() => { setHourglassOpen(false); restoreToolsFocus(); }} />
   </Space>;
 }
 
