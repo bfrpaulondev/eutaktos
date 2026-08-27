@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createPeopleRemindersApi, parsePeopleReminders } from './peopleRemindersApi';
+import { createPeopleRemindersApi, parsePeopleReminderSend, parsePeopleReminders } from './peopleRemindersApi';
 
 const response = {
   contractVersion: 'people-reminders-v1',
@@ -55,5 +55,41 @@ describe('People reminders API', () => {
     }));
     const init = fetcher.mock.calls[0]?.[1];
     expect(init?.body).toBeUndefined();
+  });
+
+  it('posts only response identity, stable mutation identity and locale, then parses queued state', async () => {
+    const sendResponse = {
+      contractVersion: 'people-reminder-send-v1',
+      state: 'queued',
+      deliveryId: 'delivery-1',
+      channel: 'in-app',
+    } as const;
+    expect(parsePeopleReminderSend(sendResponse)).toEqual(sendResponse);
+
+    const fetcher = vi.fn(async (): Promise<Response> => new Response(JSON.stringify(sendResponse), {
+      status: 202,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+    const api = createPeopleRemindersApi(fetcher as unknown as typeof fetch);
+    const controller = new AbortController();
+    const input = { responseId: 'response-1', mutationId: 'mutation-1', locale: 'pt-PT' as const };
+
+    await expect(api.send(input, controller.signal)).resolves.toEqual(sendResponse);
+    expect(fetcher).toHaveBeenCalledWith('/api/people/reminders', expect.objectContaining({
+      method: 'POST',
+      credentials: 'same-origin',
+      cache: 'no-store',
+      body: JSON.stringify(input),
+      signal: controller.signal,
+    }));
+  });
+
+  it('rejects false delivered semantics in the send response', () => {
+    expect(() => parsePeopleReminderSend({
+      contractVersion: 'people-reminder-send-v1',
+      state: 'delivered',
+      deliveryId: 'delivery-1',
+      channel: 'in-app',
+    })).toThrow('Invalid People reminders response');
   });
 });
