@@ -33,6 +33,7 @@ export function parseTransferCodeBody(value: unknown): string {
 }
 
 export function transferPayloadFromPeople(people: readonly Readonly<CongregationPerson>[]): readonly Readonly<TransferPayloadPerson>[] {
+  if (people.some(person => !person.active)) throw new BadRequestError('Inactive people cannot be transferred');
   return Object.freeze(people.map(person => {
     const contact = ordinaryContactOf(person);
     const ordinaryContact = Object.keys(contact).length ? Object.freeze({ ...contact }) : undefined;
