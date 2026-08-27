@@ -1,15 +1,23 @@
 import {
+  CssBaseline,
   Stack as MuiStack,
+  ThemeProvider,
   Typography as MuiTypography,
   type StackProps as MuiStackProps,
+  type Theme,
   type TypographyProps as MuiTypographyProps,
 } from '@mui/material';
+import type { ReactNode } from 'react';
 
-// Material UI v9 intentionally removed several legacy System props from component
-// top-level props. These tiny wrappers keep Eutaktos call sites concise while routing
-// those values into `sx`, which is the supported v9 API. They add no visual behavior.
+// Temporary bridge for the final PX11 retirement slices. Legacy MUI consumers remain
+// behind this file while migrated application surfaces stay free of direct MUI imports.
+// Remove this module after the remaining consumers and theme builder have moved to Ant.
 
 type ResponsiveCssValue = string | number | Record<string, string | number | undefined>;
+
+export function LegacyMuiThemeBridge({ theme, children }: { theme: Theme; children: ReactNode }) {
+  return <ThemeProvider theme={theme}><CssBaseline />{children}</ThemeProvider>;
+}
 
 export interface StackProps extends MuiStackProps {
   alignItems?: ResponsiveCssValue;
@@ -19,32 +27,11 @@ export interface StackProps extends MuiStackProps {
 }
 
 export function Stack({ alignItems, justifyContent, flexWrap, gap, sx, ...props }: StackProps) {
-  return (
-    <MuiStack
-      {...props}
-      sx={{
-        ...(alignItems !== undefined ? { alignItems } : {}),
-        ...(justifyContent !== undefined ? { justifyContent } : {}),
-        ...(flexWrap !== undefined ? { flexWrap } : {}),
-        ...(gap !== undefined ? { gap } : {}),
-        ...(sx as object),
-      }}
-    />
-  );
+  return <MuiStack {...props} sx={{ ...(alignItems !== undefined ? { alignItems } : {}), ...(justifyContent !== undefined ? { justifyContent } : {}), ...(flexWrap !== undefined ? { flexWrap } : {}), ...(gap !== undefined ? { gap } : {}), ...(sx as object) }} />;
 }
 
-export interface TypographyProps extends MuiTypographyProps {
-  fontWeight?: string | number;
-}
+export interface TypographyProps extends MuiTypographyProps { fontWeight?: string | number; }
 
 export function Typography({ fontWeight, sx, ...props }: TypographyProps) {
-  return (
-    <MuiTypography
-      {...props}
-      sx={{
-        ...(fontWeight !== undefined ? { fontWeight } : {}),
-        ...(sx as object),
-      }}
-    />
-  );
+  return <MuiTypography {...props} sx={{ ...(fontWeight !== undefined ? { fontWeight } : {}), ...(sx as object) }} />;
 }
