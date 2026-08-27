@@ -7,6 +7,7 @@ import {
 } from '@eutaktos/domain';
 import { requireCapability, resolvePrincipal } from '../../_auth';
 import { assertTrustedMutation, BadRequestError, exactKeys, requestBody, requiredString, runEndpoint } from '../../_endpoint';
+import { correlationId } from '../../_transport';
 import { PeopleSnapshotUnitOfWork, RuntimeIds } from '../../_uow';
 import { json, methodNotAllowed, queryValue, type ApiHandler } from '../../_types';
 
@@ -54,6 +55,7 @@ const handler: ApiHandler = async (request, response) => {
     exactKeys(body, ['action', 'reason']);
     const action = requiredString(body, 'action', 20);
     const service = new PersonArchiveService(unitOfWork, new RuntimeIds());
+    const requestMetadata = correlationId(request) ? { correlationId: correlationId(request) } : {};
     let person: CongregationPerson;
 
     if (action === 'archive') {
@@ -64,7 +66,7 @@ const handler: ApiHandler = async (request, response) => {
         json(response, 200, projection(existing, true));
         return;
       }
-      person = service.archive(context, { personId, reason }, { correlationId: request.headers?.['x-correlation-id'] as string | undefined });
+      person = service.archive(context, { personId, reason }, requestMetadata);
     } else if (action === 'restore') {
       if (body.reason !== undefined) throw new BadRequestError('reason is not allowed for restore');
       const state = personArchiveState(existing);
@@ -72,7 +74,7 @@ const handler: ApiHandler = async (request, response) => {
         if (state.history.at(-1)?.action === 'restored') { json(response, 200, projection(existing, true)); return; }
         throw new BadRequestError('Person is not archived');
       }
-      person = service.restore(context, { personId }, { correlationId: request.headers?.['x-correlation-id'] as string | undefined });
+      person = service.restore(context, { personId }, requestMetadata);
     } else {
       throw new BadRequestError('action must be archive or restore');
     }
