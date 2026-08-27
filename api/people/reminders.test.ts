@@ -4,7 +4,7 @@ import {
   createAssignmentResponse,
   type CongregationPerson,
 } from '@eutaktos/domain';
-import { assertReminderListRequest, buildReminderListPayload } from './reminders';
+import { assertReminderListRequest, buildReminderListPayload, parseReminderSendRequest } from './reminders';
 
 function person(tenantId = 'tenant-a'): CongregationPerson {
   return Object.freeze({
@@ -79,9 +79,26 @@ describe('People reminders API contract', () => {
     })).toThrow();
   });
 
-  it('rejects request bodies and query fields rather than accepting authority-shaped input', () => {
+  it('rejects GET bodies and query fields rather than accepting authority-shaped input', () => {
     expect(() => assertReminderListRequest({ query: { tenantId: 'tenant-a' }, body: undefined })).toThrow('does not accept query');
     expect(() => assertReminderListRequest({ query: {}, body: { actorId: 'admin-1' } })).toThrow('does not accept a request body');
     expect(() => assertReminderListRequest({ query: {}, body: undefined })).not.toThrow();
+  });
+
+  it('accepts only response identity, stable mutation identity and supported locale for send', () => {
+    expect(parseReminderSendRequest({
+      query: {},
+      body: { responseId: 'response-1', mutationId: 'mutation-1', locale: 'pt-PT' },
+    })).toEqual({ responseId: 'response-1', mutationId: 'mutation-1', locale: 'pt-PT' });
+    expect(() => parseReminderSendRequest({ query: { tenantId: 'tenant-a' }, body: {} })).toThrow('does not accept query');
+    expect(() => parseReminderSendRequest({
+      query: {}, body: { responseId: 'response-1', mutationId: 'mutation-1', locale: 'fr' },
+    })).toThrow('locale is invalid');
+    expect(() => parseReminderSendRequest({
+      query: {}, body: { responseId: 'response/1', mutationId: 'mutation-1', locale: 'en' },
+    })).toThrow('responseId is invalid');
+    expect(() => parseReminderSendRequest({
+      query: {}, body: { responseId: 'response-1', mutationId: 'mutation-1', locale: 'es', recipientId: 'person-1' },
+    })).toThrow('Unknown request field');
   });
 });
