@@ -68,7 +68,7 @@ export class NotificationIntentSnapshotUnitOfWork implements NotificationIntentU
       p_audit: pending.auditEvents[0],
       p_event: pending.domainEvents[0],
     });
-    const persisted = normalizeDeliveryAttempt(value as DeliveryAttempt);
+    const persisted = normalizeDeliveryAttempt(value as unknown as DeliveryAttempt);
     if (persisted.tenantId !== this.#tenantId || persisted.idempotencyKey !== pending.delivery.idempotencyKey) {
       throw new Error('Invalid persisted notification delivery identity');
     }
