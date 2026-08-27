@@ -71,6 +71,10 @@ const copy = {
 
 type LoadState = 'loading' | 'ready' | 'error';
 
+export function peopleRemindersCopy(locale: Locale) {
+  return copy[locale];
+}
+
 function errorStatus(error: unknown): number | undefined {
   const match = /\((\d{3})\)$/.exec(error instanceof Error ? error.message : '');
   return match ? Number(match[1]) : undefined;
@@ -94,7 +98,7 @@ export function PeopleRemindersDialog({ open, locale, onClose, api = peopleRemin
   readonly onClose: () => void;
   readonly api?: PeopleRemindersApi;
 }) {
-  const text = copy[locale];
+  const text = peopleRemindersCopy(locale);
   const [data, setData] = useState<PeopleRemindersDto | null>(null);
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [loadError, setLoadError] = useState<unknown>(null);
