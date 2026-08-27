@@ -74,8 +74,10 @@ try {
 
   await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('button')].find(button => button.textContent?.trim() === 'Diretório'))`), 'O acesso ao diretório não foi apresentado');
   await evaluate(`[...document.querySelectorAll('button')].find(button => button.textContent?.trim() === 'Diretório')?.click()`);
-  await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('button')].find(button => button.textContent?.includes('Inspecionar export Hourglass')))`), 'A entrada Hourglass não foi apresentada');
-  await evaluate(`[...document.querySelectorAll('button')].find(button => button.textContent?.includes('Inspecionar export Hourglass'))?.click()`);
+  await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('button')].find(button => button.textContent?.trim() === 'Ferramentas'))`), 'A entrada Ferramentas não foi apresentada');
+  await evaluate(`[...document.querySelectorAll('button')].find(button => button.textContent?.trim() === 'Ferramentas')?.click()`);
+  await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('[role="menuitem"], .ant-dropdown-menu-item')].find(item => item.textContent?.includes('Inspecionar export Hourglass')))`), 'A entrada Hourglass não foi apresentada no menu Ferramentas');
+  await evaluate(`[...document.querySelectorAll('[role="menuitem"], .ant-dropdown-menu-item')].find(item => item.textContent?.includes('Inspecionar export Hourglass'))?.click()`);
   await poll(async () => await evaluate(`Boolean(document.querySelector('[role="dialog"]')?.textContent?.includes('Inspeção de export Hourglass'))`), 'O diálogo Hourglass não abriu');
 
   await evaluate(`(() => {

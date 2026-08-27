@@ -120,6 +120,19 @@ async function clickExactButton(label) {
   );
 }
 
+async function clickExactMenuItem(label) {
+  return await poll(
+    async () => await evaluate(`(() => {
+      const item = [...document.querySelectorAll('[role="menuitem"]')].find(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(label)} && node.getClientRects().length > 0 && getComputedStyle(node).visibility !== 'hidden');
+      if (!item) return false;
+      item.click();
+      return true;
+    })()`),
+    `O item de menu exato ${label} não ficou interativo`,
+    80,
+  );
+}
+
 async function openLocalizedDialog(trigger, title, closeLabel, locale) {
   if (!await clickExactButton(trigger)) throw new Error(`O gatilho localizado ${trigger} não foi encontrado em ${locale}`);
   await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('[role="dialog"]')].find(node => node.textContent?.includes(${JSON.stringify(title)})))`), `O diálogo ${title} não abriu em ${locale}`);
@@ -133,6 +146,21 @@ async function openLocalizedDialog(trigger, title, closeLabel, locale) {
   await poll(async () => await evaluate(`![...document.querySelectorAll('[role="dialog"]')].some(node => node.textContent?.includes(${JSON.stringify(title)}) && getComputedStyle(node).visibility !== 'hidden')`), `O diálogo ${title} não fechou em ${locale}`);
 }
 
+async function openLocalizedToolDialog(toolsTrigger, itemTrigger, title, closeLabel, locale) {
+  if (!await clickExactButton(toolsTrigger)) throw new Error(`O menu de ferramentas ${toolsTrigger} não foi encontrado em ${locale}`);
+  if (!await clickExactMenuItem(itemTrigger)) throw new Error(`A ferramenta localizada ${itemTrigger} não foi encontrada em ${locale}`);
+  await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('[role="dialog"]')].find(node => node.textContent?.includes(${JSON.stringify(title)})))`), `O diálogo ${title} não abriu em ${locale}`);
+  const closed = await evaluate(`(() => {
+    const dialog = [...document.querySelectorAll('[role="dialog"]')].find(node => node.textContent?.includes(${JSON.stringify(title)}));
+    const button = dialog && [...dialog.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(closeLabel)});
+    button?.click();
+    return Boolean(button);
+  })()`);
+  if (!closed) throw new Error(`O fecho localizado do diálogo ${title} não foi encontrado em ${locale}`);
+  await poll(async () => await evaluate(`![...document.querySelectorAll('[role="dialog"]')].some(node => node.textContent?.includes(${JSON.stringify(title)}) && getComputedStyle(node).visibility !== 'hidden')`), `O diálogo ${title} não fechou em ${locale}`);
+  await poll(async () => await evaluate(`document.activeElement?.textContent?.trim() === ${JSON.stringify(toolsTrigger)}`), `O foco não regressou ao menu de ferramentas em ${locale}`);
+}
+
 async function verifyLocalizedOrganization(locale, expected) {
   await visitWorkspace(expected.path, expected.overview, locale, expected.documentTitle);
   if (!await clickExactButton(expected.add)) throw new Error(`A ação principal ${expected.add} não foi encontrada em ${locale}`);
@@ -143,10 +171,11 @@ async function verifyLocalizedOrganization(locale, expected) {
   await poll(async () => await evaluate(`Boolean(document.querySelector('#main')?.textContent?.includes(${JSON.stringify(expected.heading)}))`), `O diretório não apresentou o contexto organizacional em ${locale}`);
   const missingLabels = await evaluate(`(() => {
     const labels = new Set([...document.querySelectorAll('button')].map(node => (node.innerText || node.textContent || '').trim()));
-    return ${JSON.stringify(['overviewLabel', 'directory', 'households', 'groups', 'responsibilities', 'hourglass', 'audit', 'access'].map(key => expected[key]))}.filter(label => !labels.has(label));
+    return ${JSON.stringify(['overviewLabel', 'directory', 'households', 'groups', 'responsibilities', 'tools', 'audit', 'access'].map(key => expected[key]))}.filter(label => !labels.has(label));
   })()`);
   if (missingLabels.length) throw new Error(`Faltam rótulos organizacionais localizados em ${locale}: ${missingLabels.join(', ')}`);
-  await openLocalizedDialog(expected.hourglass, expected.hourglassTitle, expected.close, locale);
+  await openLocalizedToolDialog(expected.tools, expected.reminders, expected.remindersTitle, expected.close, locale);
+  await openLocalizedToolDialog(expected.tools, expected.hourglass, expected.hourglassTitle, expected.close, locale);
   await openLocalizedDialog(expected.audit, expected.auditTitle, expected.close, locale);
   await openLocalizedDialog(expected.access, expected.accessTitle, expected.close, locale);
 }
@@ -184,6 +213,7 @@ try {
           assignmentHistory: { status: 'ready' },
         }],
       });
+      if (pathname === '/api/people/reminders' && (!init?.method || init.method === 'GET')) return json({ contractVersion: 'people-reminders-v1', items: [] });
       if (pathname === '/api/households' && (!init?.method || init.method === 'GET')) return json([]);
       if (pathname === '/api/service-groups' && (!init?.method || init.method === 'GET')) return json([{ id: 'group-runtime', name: 'Runtime group', memberIds: ['person-runtime'] }]);
       if (pathname === '/api/midweek' && (!init?.method || init.method === 'GET')) return json({ meetings: [], studentAssignments: [], nonStudentAssignments: [] });
@@ -219,9 +249,9 @@ try {
     es: [['/agenda', 'Agenda', 'Eutaktos — Preparar reunión'], ['/designacoes', 'Asignaciones', 'Eutaktos — Planificación'], ['/pessoas', 'Personas', 'Eutaktos — Personas'], ['/preferencias', 'Preferencias', 'Eutaktos — Administración']],
   };
   const organization = {
-    'pt-PT': { path: '/pessoas', overview: 'Pessoas', heading: 'Pessoas e organização', documentTitle: 'Eutaktos — Pessoas', overviewLabel: 'Visão geral', add: 'Adicionar pessoa', createTitle: 'Adicionar pessoa', cancel: 'Cancelar', directory: 'Diretório', households: 'Agregados', groups: 'Grupos de serviço', responsibilities: 'Responsabilidades', hourglass: 'Inspecionar export Hourglass', audit: 'Histórico de auditoria', access: 'Gerir acessos', hourglassTitle: 'Inspeção de export Hourglass', auditTitle: 'Histórico de auditoria', accessTitle: 'Gestão de acessos', close: 'Fechar' },
-    en: { path: '/people', overview: 'People', heading: 'People and organization', documentTitle: 'Eutaktos — People', overviewLabel: 'Overview', add: 'Add person', createTitle: 'Add person', cancel: 'Cancel', directory: 'Directory', households: 'Households', groups: 'Service groups', responsibilities: 'Responsibilities', hourglass: 'Inspect Hourglass export', audit: 'Audit history', access: 'Manage access', hourglassTitle: 'Hourglass export inspector', auditTitle: 'Audit history', accessTitle: 'Access management', close: 'Close' },
-    es: { path: '/pessoas', overview: 'Personas', heading: 'Personas y organización', documentTitle: 'Eutaktos — Personas', overviewLabel: 'Vista general', add: 'Añadir persona', createTitle: 'Añadir persona', cancel: 'Cancelar', directory: 'Directorio', households: 'Grupos familiares', groups: 'Grupos de servicio', responsibilities: 'Responsabilidades', hourglass: 'Inspeccionar exportación Hourglass', audit: 'Historial de auditoría', access: 'Gestionar accesos', hourglassTitle: 'Inspector de exportación Hourglass', auditTitle: 'Historial de auditoría', accessTitle: 'Gestión de accesos', close: 'Cerrar' },
+    'pt-PT': { path: '/pessoas', overview: 'Pessoas', heading: 'Pessoas e organização', documentTitle: 'Eutaktos — Pessoas', overviewLabel: 'Visão geral', add: 'Adicionar pessoa', createTitle: 'Adicionar pessoa', cancel: 'Cancelar', directory: 'Diretório', households: 'Agregados', groups: 'Grupos de serviço', responsibilities: 'Responsabilidades', tools: 'Ferramentas', reminders: 'Lembretes', remindersTitle: 'Lembretes', hourglass: 'Inspecionar export Hourglass', audit: 'Histórico de auditoria', access: 'Gerir acessos', hourglassTitle: 'Inspeção de export Hourglass', auditTitle: 'Histórico de auditoria', accessTitle: 'Gestão de acessos', close: 'Fechar' },
+    en: { path: '/people', overview: 'People', heading: 'People and organization', documentTitle: 'Eutaktos — People', overviewLabel: 'Overview', add: 'Add person', createTitle: 'Add person', cancel: 'Cancel', directory: 'Directory', households: 'Households', groups: 'Service groups', responsibilities: 'Responsibilities', tools: 'Tools', reminders: 'Reminders', remindersTitle: 'Reminders', hourglass: 'Inspect Hourglass export', audit: 'Audit history', access: 'Manage access', hourglassTitle: 'Hourglass export inspector', auditTitle: 'Audit history', accessTitle: 'Access management', close: 'Close' },
+    es: { path: '/pessoas', overview: 'Personas', heading: 'Personas y organización', documentTitle: 'Eutaktos — Personas', overviewLabel: 'Vista general', add: 'Añadir persona', createTitle: 'Añadir persona', cancel: 'Cancelar', directory: 'Directorio', households: 'Grupos familiares', groups: 'Grupos de servicio', responsibilities: 'Responsabilidades', tools: 'Herramientas', reminders: 'Recordatorios', remindersTitle: 'Recordatorios', hourglass: 'Inspeccionar exportación Hourglass', audit: 'Historial de auditoría', access: 'Gestionar accesos', hourglassTitle: 'Inspector de exportación Hourglass', auditTitle: 'Historial de auditoría', accessTitle: 'Gestión de accesos', close: 'Cerrar' },
   };
 
   for (const locale of ['pt-PT', 'en', 'es']) {
@@ -243,7 +273,7 @@ try {
   const accessibility = await evaluate(`({ mode: document.documentElement.dataset.colorMode, background: getComputedStyle(document.body).backgroundColor, border: getComputedStyle(document.querySelector('.ant-card')).borderTopWidth })`);
   if (accessibility.mode !== 'dark' || accessibility.border !== '2px' || accessibility.background === 'rgb(0, 0, 0)') throw new Error(`O tema acessível não foi aplicado corretamente: ${JSON.stringify(accessibility)}`);
 
-  process.stdout.write('UX runtime checks passed: task-oriented shell, pt-PT/en/es workspaces, People/Organization deep links, guided Add Person entry, safe unknown-route fallback, More focus restore, dark/high contrast, 320px reflow, skip link, landmarks and aria-current.\n');
+  process.stdout.write('UX runtime checks passed: task-oriented shell, pt-PT/en/es workspaces, People/Organization deep links, localized People tools including Reminders, guided Add Person entry, safe unknown-route fallback, More focus restore, dark/high contrast, 320px reflow, skip link, landmarks and aria-current.\n');
 } finally {
   cdp?.close();
   if (browser && !browser.killed) browser.kill('SIGTERM');
