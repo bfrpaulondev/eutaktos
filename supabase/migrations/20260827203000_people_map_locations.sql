@@ -90,6 +90,8 @@ begin
     raise exception 'invalid people map location' using errcode = '22023';
   end if;
 
+  perform pg_advisory_xact_lock(hashtext(p_tenant_id), hashtext(p_person_id));
+
   v_latitude := round(p_latitude, 2);
   v_longitude := round(p_longitude, 2);
 
@@ -163,6 +165,8 @@ begin
      or p_removed_at is null then
     raise exception 'invalid people map removal' using errcode = '22023';
   end if;
+
+  perform pg_advisory_xact_lock(hashtext(p_tenant_id), hashtext(p_person_id));
 
   delete from public.eutaktos_people_map_locations
    where tenant_id = p_tenant_id and person_id = p_person_id;
