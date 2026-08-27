@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 const expectedMuiConsumers = Object.freeze([
   'App.tsx',
   'MidweekAuthoringControls.tsx',
-  'MidweekWorkspace.tsx',
   'TaskShell.tsx',
   'theme.ts',
   'ui/MuiCompat.tsx',
@@ -35,7 +34,7 @@ describe('PX11 MUI retirement boundary', () => {
   });
 
   it('confirms migrated product/shell primitives no longer depend on MUI', () => {
-    for (const file of ['AccessManagementDialog.tsx', 'AuditHistoryDialog.tsx', 'AuthSignInPanel.tsx', 'AwayPeriodsSection.tsx', 'CongregationSettingsDialog.tsx', 'EligibilityDialog.tsx', 'HouseholdsSection.tsx', 'HourglassImportInspector.tsx', 'LogoutControl.tsx', 'MagicLinkConfirmationPanel.tsx', 'ProductionDashboard.tsx', 'PwaConnectionStatus.tsx', 'PwaUpdateRecovery.tsx', 'ResponsibilitiesSection.tsx', 'SectionWorkspace.tsx', 'ServiceGroupsSection.tsx']) {
+    for (const file of ['AccessManagementDialog.tsx', 'AuditHistoryDialog.tsx', 'AuthSignInPanel.tsx', 'AwayPeriodsSection.tsx', 'CongregationSettingsDialog.tsx', 'EligibilityDialog.tsx', 'HouseholdsSection.tsx', 'HourglassImportInspector.tsx', 'LogoutControl.tsx', 'MagicLinkConfirmationPanel.tsx', 'MidweekWorkspace.tsx', 'ProductionDashboard.tsx', 'PwaConnectionStatus.tsx', 'PwaUpdateRecovery.tsx', 'ResponsibilitiesSection.tsx', 'SectionWorkspace.tsx', 'ServiceGroupsSection.tsx']) {
       expect(source(file)).not.toContain('@mui/material');
     }
   });
