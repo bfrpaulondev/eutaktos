@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   createHourglassImportExecutionApi,
-  HourglassExecutionApiError,
   parseHourglassExecutionResultResponse,
   parseHourglassPreparedExecutionResponse,
   parseHourglassRollbackResultResponse,
@@ -70,6 +69,6 @@ describe('Hourglass execution API client', () => {
 
   it('preserves HTTP authorization failures as explicit status errors', async () => {
     const api = createHourglassImportExecutionApi(vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 })));
-    await expect(api.prepare({}, 'mutation-12345678')).rejects.toMatchObject<Partial<HourglassExecutionApiError>>({ name: 'HourglassExecutionApiError', status: 403 });
+    await expect(api.prepare({}, 'mutation-12345678')).rejects.toMatchObject({ name: 'HourglassExecutionApiError', status: 403 });
   });
 });
