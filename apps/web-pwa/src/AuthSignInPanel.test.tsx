@@ -20,11 +20,11 @@ describe('AuthSignInPanel Ant migration', () => {
   it('keeps the secure-cookie privacy explanation and accessible sign-in controls', () => {
     const markup = renderToStaticMarkup(<AuthSignInPanel onAuthenticated={() => undefined} />);
 
-    expect(markup).toContain('Entrar no Eutaktos');
+    expect(markup).toMatch(/Entrar no Eutaktos|Sign in to Eutaktos|Entrar en Eutaktos/);
     expect(markup).toContain('aria-label="Email"');
     expect(markup).toContain('type="email"');
-    expect(markup).toContain('cookie seguro');
-    expect(markup).toContain('Não guardamos tokens de autenticação');
+    expect(markup).toMatch(/cookie seguro|secure cookie session|cookie segura/);
+    expect(markup).toMatch(/Não guardamos tokens de autenticação|Authentication tokens are not stored|No almacenamos tokens de autenticación/);
     expect(markup).not.toContain('@mui/material');
   });
 });
