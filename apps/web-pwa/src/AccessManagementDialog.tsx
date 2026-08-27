@@ -65,7 +65,7 @@ export function AccessManagementDialog({ locale, open, onClose }: { locale: Loca
   const grantRef = useRef(false);
   const revokeRef = useRef(false);
   const grantButtonRef = useRef<HTMLButtonElement | null>(null);
-  const revokeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const revokeButtonRef = useRef<HTMLElement | null>(null);
 
   const filteredPeople = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase(locale);
