@@ -32,6 +32,16 @@ describe('People Map place search', () => {
     expect(serialized).not.toContain('person');
   });
 
+  it('deduplicates visually identical provider labels before presenting choices', () => {
+    const result = projectPhotonResponse({ features: [
+      { geometry: { type: 'Point', coordinates: [-8.89, 38.52] }, properties: { name: 'Setúbal', country: 'Portugal' } },
+      { geometry: { type: 'Point', coordinates: [-8.88, 38.53] }, properties: { name: ' setúbal ', country: 'PORTUGAL' } },
+      { geometry: { type: 'Point', coordinates: [-9.14, 38.72] }, properties: { name: 'Lisboa', country: 'Portugal' } },
+    ] });
+    expect(result.results).toHaveLength(2);
+    expect(result.results.map(item => item.label)).toEqual(['Setúbal, Portugal', 'Lisboa, Portugal']);
+  });
+
   it('sends the user-entered place text only to the server-side geocoder and caches the exact retry', async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({
       type: 'FeatureCollection',
