@@ -10,7 +10,6 @@ const expectedMuiConsumers = Object.freeze([
   'AwayPeriodsSection.tsx',
   'CongregationSettingsDialog.tsx',
   'EligibilityDialog.tsx',
-  'HourglassImportInspector.tsx',
   'HouseholdsSection.tsx',
   'MagicLinkConfirmationPanel.tsx',
   'MidweekAuthoringControls.tsx',
@@ -45,9 +44,9 @@ describe('PX11 MUI retirement boundary', () => {
     expect(muiConsumers()).toEqual(expectedMuiConsumers);
   });
 
-  it('confirms migrated shell primitives no longer depend on MUI', () => {
+  it('confirms migrated product/shell primitives no longer depend on MUI', () => {
     const root = join(process.cwd(), 'src');
-    for (const file of ['LogoutControl.tsx', 'PwaConnectionStatus.tsx', 'PwaUpdateRecovery.tsx']) {
+    for (const file of ['HourglassImportInspector.tsx', 'LogoutControl.tsx', 'PwaConnectionStatus.tsx', 'PwaUpdateRecovery.tsx']) {
       expect(readFileSync(join(root, file), 'utf8')).not.toContain('@mui/material');
     }
   });
