@@ -63,6 +63,17 @@ The reviewed contract is `docs/PEOPLE_MAP_CONTRACT.md` and requires, among other
 
 Implementation is being completed in a separate worker lane. This audit intentionally does not edit that worker's files.
 
+## PX9 branch hygiene
+
+The repository still contains several historical `principal/px9-*` branches after their corresponding slices were integrated. They are not evidence that those features remain unfinished.
+
+Two Map branches require an explicit distinction:
+
+- `principal/px9-map-runtime` is the reviewed in-progress runtime base created from the current Map contract and is the only Principal Map branch that may be used as implementation input.
+- `principal/px9-people-map` is **HISTORICAL / QUARANTINED**. It predates the final contract and contains incompatible names such as `people-map.read` / `people-map.write` and an older precision shape. It must not be merged or reused as the authoritative Map implementation.
+
+Other historical PX9 branches should be treated as quarantined unless their exact diff/current purpose is re-verified. Their presence must not trigger duplicate implementation of already-integrated slices.
+
 ## PX9.17 DOCX status
 
 PX9.17 is **DEFERRED / NOT REQUIRED** for People technical closeout.
@@ -90,7 +101,9 @@ These shared files should be reconciled only after the final Map PR lands, so th
 
 Repository issue search on 2026-08-27 found no open DOCX/PX9.17 implementation issue.
 
-Open issues containing “People” include historical/coordination/acceptance epics such as #318, #270, #268 and broad product epics. Their existence alone must not be interpreted as evidence of missing People runtime code; each issue's actual acceptance scope must be evaluated separately.
+Issue #318 was a stale duplicate C6 independent-acceptance handoff. The authoritative replacement #319 is already closed `completed` with the accepted C6 evidence, so #318 was closed as `duplicate` during this audit.
+
+Other open issues containing “People”, including #270, #268 and broad product epics, are historical/coordination/acceptance scopes. Their existence alone must not be interpreted as evidence of missing People runtime code; each issue's actual acceptance scope must be evaluated separately.
 
 The final closeout must not automatically close broad project epics merely because the People reference module is technically complete.
 
