@@ -24,7 +24,7 @@ const handler: ApiHandler = async (request, response) => {
     const input = parseHourglassExecuteRequest(request);
     const context = createAccessContext({ tenantId: principal.tenantId, actorId: principal.actorId, capabilities: principal.capabilities });
     try {
-      const attempt = await loadPersistedHourglassExecutionAttempt(database, context, input.inspection, input.executionId);
+      const attempt = await loadPersistedHourglassExecutionAttempt(database, context, input.inspection, input.executionId, input.confirmationDigest);
       const result = await executeHourglassImport(database, context, input.inspection, attempt.confirmationDigest, attempt);
       json(response, 200, Object.freeze({
         contractVersion: 'hourglass-execution-result-v1',
