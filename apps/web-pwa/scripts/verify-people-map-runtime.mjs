@@ -67,6 +67,23 @@ async function clickExactButton(label) {
   })()`), `Button ${label} did not become available`);
 }
 
+async function chooseSelectOption(label, optionText) {
+  await poll(async () => await evaluate(`(() => {
+    const control = [...document.querySelectorAll('[role="combobox"]')].find(node => node.getAttribute('aria-label') === ${JSON.stringify(label)});
+    if (!control) return false;
+    control.click();
+    return true;
+  })()`), `Select ${label} did not become available`);
+  return await poll(async () => await evaluate(`(() => {
+    const option = [...document.querySelectorAll('[role="option"]')].find(node => (node.textContent || '').trim().includes(${JSON.stringify(optionText)}));
+    if (!option) return false;
+    option.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    option.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    option.click();
+    return true;
+  })()`), `Option ${optionText} did not become available`);
+}
+
 async function setNumberInput(label, value) {
   return await poll(async () => await evaluate(`(() => {
     const input = document.querySelector('input[aria-label=${JSON.stringify(label)}]');
@@ -98,7 +115,7 @@ try {
     window.__mapHarness = { mode: localStorage.getItem('eutaktos-map-test-mode') ?? 'write', points: [point('person-ana', 'Ana Runtime', 38.72, -9.14), point('person-bruno', 'Bruno Runtime', 40.21, -8.41)], putCount: 0, deleteCount: 0, listCount: 0, tileRequests: [] };
     const ok = value => new Response(JSON.stringify(value), { status: 200, headers: { 'Content-Type': 'application/json' } });
     const failure = (status, message) => new Response(JSON.stringify({ error: message }), { status, headers: { 'Content-Type': 'application/json' } });
-    const caps = mode => mode === 'write' ? ['people.read', 'map.read', 'map.write'] : mode === 'readonly' ? ['people.read', 'map.read'] : mode === 'no-map' ? ['people.read'] : [];
+    const caps = mode => mode === 'write' ? ['people.read', 'people.write', 'map.read', 'map.write'] : mode === 'map-write-only' ? ['people.read', 'map.read', 'map.write'] : mode === 'readonly' ? ['people.read', 'map.read'] : mode === 'no-map' ? ['people.read'] : [];
     window.fetch = async (input, init) => {
       const rawUrl = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
       const url = new URL(rawUrl, window.location.origin);
@@ -117,6 +134,10 @@ try {
         if (mode === 'forbidden' || mode === 'no-map') return failure(403, 'Forbidden');
         if (mode === 'error') return failure(503, 'Unavailable');
         return ok({ contractVersion: 'people-map-v1', points: harness.points });
+      }
+      if (url.pathname === '/api/service-groups' && method === 'GET') {
+        if (mode === 'unauthenticated') return failure(401, 'Unauthorized');
+        return ok([{ id: 'group-north', name: 'Grupo Norte', memberIds: ['person-ana'] }]);
       }
       if (url.pathname === '/api/people' && method === 'GET') return ok([
         { id: 'person-ana', displayName: 'Ana Runtime', active: true },
@@ -150,7 +171,17 @@ try {
   await cdp.send('Page.navigate', { url: new URL('/pessoas?view=map', appUrl).toString() });
   await poll(async () => await evaluate(`document.readyState === 'complete' && Boolean(document.querySelector('#people-map-title')?.textContent?.includes('Mapa de pessoas'))`), 'Map view did not load');
   await poll(async () => await evaluate(`Boolean(document.querySelector('#main')?.textContent?.includes('Ana Runtime') && document.querySelector('#main')?.textContent?.includes('Lista de localizações aproximadas'))`), 'Map fallback list did not render the authorized point');
+  await poll(async () => await evaluate(`Boolean(document.querySelector('#main')?.textContent?.includes('Legenda de grupos') && document.querySelector('#main')?.textContent?.includes('Grupo Norte: 1') && document.querySelector('#main')?.textContent?.includes('Sem grupo: 1'))`), 'Map group legend did not render from the authorized service-group projection');
   await poll(async () => await evaluate(`Boolean(document.querySelector('.leaflet-container'))`), 'Graphical Leaflet map did not render');
+
+  await chooseSelectOption('Filtrar por grupo', 'Grupo Norte');
+  await poll(async () => await evaluate(`(() => {
+    const pressedPeople = [...document.querySelectorAll('button')].filter(node => ['Ana Runtime', 'Bruno Runtime'].includes((node.innerText || node.textContent || '').trim()));
+    return pressedPeople.some(node => (node.innerText || node.textContent || '').trim() === 'Ana Runtime') && !pressedPeople.some(node => (node.innerText || node.textContent || '').trim() === 'Bruno Runtime') && document.querySelectorAll('.leaflet-marker-icon').length === 1;
+  })()`), 'Map group filter did not constrain the graphical map and equivalent list together');
+  await chooseSelectOption('Filtrar por grupo', 'Todas as localizações');
+  await poll(async () => await evaluate(`document.querySelectorAll('.leaflet-marker-icon').length === 2`), 'Map group filter did not restore all authorized points');
+
   const graphicalMarker = await poll(async () => await evaluate(`(() => { const marker = [...document.querySelectorAll('.leaflet-marker-icon')].find(node => node.getAttribute('title') === 'Bruno Runtime'); if (!marker) return false; marker.focus(); return true; })()`), 'Keyboard-focusable graphical marker did not render');
   if (!graphicalMarker) throw new Error('Keyboard-focusable graphical marker did not render');
   await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
@@ -161,9 +192,9 @@ try {
   const initial = await evaluate(`({ href: location.href, stored: Object.entries(localStorage), tiles: window.__mapHarness.tileRequests, mapText: document.querySelector('#main')?.textContent ?? '' })`);
   if (initial.href.includes('38.72') || initial.href.includes('-9.14')) throw new Error('Map coordinates leaked into URL');
   if (initial.stored.some(([, value]) => String(value).includes('Ana Runtime') || String(value).includes('38.72'))) throw new Error('Map person data leaked into localStorage');
-  if (initial.tiles.some(url => String(url).includes('Ana Runtime') || String(url).includes('person-ana'))) throw new Error('A third-party map request received Person identity');
+  if (initial.tiles.some(url => String(url).includes('Ana Runtime') || String(url).includes('person-ana') || String(url).includes('Grupo Norte'))) throw new Error('A third-party map request received Person or group identity');
 
-  if (!await clickExactButton('Adicionar localização aproximada')) throw new Error('Map write entry point is missing for map.write');
+  if (!await clickExactButton('Adicionar localização aproximada')) throw new Error('Map write entry point is missing for people.write + map.write');
   if (!await clickExactButton('Cancelar')) throw new Error('Map editor did not allow cancellation without a write');
   if (!await clickExactButton('Editar localização')) throw new Error('Map edit action is missing for an existing point');
   await setNumberInput('Latitude', '38.520123');
@@ -183,7 +214,12 @@ try {
   await evaluate(`localStorage.setItem('eutaktos-map-test-mode', 'readonly'); true`);
   await cdp.send('Page.navigate', { url: new URL('/pessoas?view=map', appUrl).toString() });
   await poll(async () => await evaluate(`Boolean(document.querySelector('#main')?.textContent?.includes('Tem acesso de consulta.'))`), 'Read-only Map state did not render');
-  if (await evaluate(`Boolean([...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === 'Adicionar localização aproximada'))`)) throw new Error('Map write action rendered without map.write');
+  if (await evaluate(`Boolean([...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === 'Adicionar localização aproximada'))`)) throw new Error('Map write action rendered without people.write + map.write');
+
+  await evaluate(`localStorage.setItem('eutaktos-map-test-mode', 'map-write-only'); true`);
+  await cdp.send('Page.navigate', { url: new URL('/pessoas?view=map', appUrl).toString() });
+  await poll(async () => await evaluate(`Boolean(document.querySelector('#main')?.textContent?.includes('Tem acesso de consulta.'))`), 'Map did not remain read-only when map.write existed without people.write');
+  if (await evaluate(`Boolean([...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === 'Adicionar localização aproximada'))`)) throw new Error('Map write action rendered with map.write but without people.write');
 
   await evaluate(`localStorage.setItem('eutaktos-map-test-mode', 'no-map'); true`);
   await cdp.send('Page.navigate', { url: new URL('/pessoas', appUrl).toString() });
@@ -205,7 +241,7 @@ try {
   if (!await clickExactButton('Tentar novamente')) throw new Error('Map error retry was not available');
   await poll(async () => await evaluate(`Boolean(document.querySelector('#main')?.textContent?.includes('Ana Runtime'))`), 'Map retry did not recover');
 
-  process.stdout.write('PX9.10/PX9.11 map runtime passed: capability gate, visual map/list equivalence, normalized edit/refetch, 401/403/error retry, double-submit and URL/storage/tile privacy.\n');
+  process.stdout.write('PX9.10/PX9.11 map runtime passed: dual capability gate, group filter/legend, visual map/list equivalence, normalized edit/refetch, 401/403/error retry, double-submit and URL/storage/tile privacy.\n');
 } finally {
   cdp?.close();
   if (browser && !browser.killed) browser.kill('SIGTERM');
