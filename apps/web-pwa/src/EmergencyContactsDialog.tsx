@@ -105,6 +105,6 @@ export function EmergencyContactsDialog({ personId, personName, locale, open, on
       </Space>
     </Modal>
     <Modal open={discardOpen} onCancel={() => setDiscardOpen(false)} title={text.discardTitle} footer={<Space><Button onClick={() => setDiscardOpen(false)}>{text.keepEditing}</Button><Button danger type="primary" onClick={discardDraftAndClose}>{text.discard}</Button></Space>}><Paragraph>{text.discardBody}</Paragraph></Modal>
-    <Modal open={confirmingId !== null} onCancel={closeRemoveConfirmation} title={text.confirmTitle} footer={<Space><Button disabled={removingId !== null} onClick={closeRemoveConfirmation}>{text.cancel}</Button><Button danger type="primary" loading={removingId !== null} onClick={() => void remove()}>{removingId ? text.removing : text.confirm}</Button></Space>}><Paragraph>{text.confirmBody}</Paragraph></Modal>
+    <Modal open={confirmingId !== null} onCancel={closeRemoveConfirmation} title={<span id="emergency-contact-remove-title">{text.confirmTitle}</span>} aria-labelledby="emergency-contact-remove-title" aria-describedby="emergency-contact-remove-description" footer={<Space><Button disabled={removingId !== null} onClick={closeRemoveConfirmation}>{text.cancel}</Button><Button danger type="primary" loading={removingId !== null} onClick={() => void remove()}>{removingId ? text.removing : text.confirm}</Button></Space>}><Paragraph id="emergency-contact-remove-description">{text.confirmBody}</Paragraph></Modal>
   </>;
 }
