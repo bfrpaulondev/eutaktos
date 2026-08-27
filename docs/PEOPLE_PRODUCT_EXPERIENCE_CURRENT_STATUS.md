@@ -1,12 +1,12 @@
 # People Product Experience — current integrated status
 
-> Principal status snapshot updated 2026-08-27 after PX9.4 reminder send integration. This file records what is actually present on `main`; it does not turn deferred real-user production acceptance into automated evidence.
+> Principal status snapshot updated 2026-08-27 after PX9.6 Archive / “A não publicar” integration and the latest Hourglass recovery foundations. This file records what is actually present on `main`; it does not turn deferred real-user production acceptance into automated evidence.
 
 ## Current baseline
 
 - Repository: `bfrpaulondev/eutaktos`
 - Canonical production: `https://eutakes.netlify.app/`
-- Current technical People/PX baseline: `8d15110c84bf7c093f18eafe58fd08ff99ffa601`.
+- Current technical People/PX baseline: `1d2a2da0905ecf1b3c64031efdbee5069a16985d`.
 - UI foundation: Ant Design 6. Runtime MUI/Emotion dependencies have been retired and guarded from reintroduction.
 - Tenant, actor and capabilities remain server-derived. Client state is never authoritative for those values.
 
@@ -63,29 +63,26 @@ Integrated through the PX8 People assistance work:
 Implemented technical slices:
 
 - **PX9.3 Labels/tags**: canonical server-owned explicit labels contract, normalization/persistence through People service, capability-aware HTTP/client round trip, People Directory management and local filtering, partial-persistence-safe retries, privacy boundary tests and browser authority regression.
-- import source selection;
-- server-authoritative import preview/validation/duplicate/conflict analysis;
-- dry-run/recovery boundary with execute/rollback deliberately blocked until durable atomic transaction + migration-log rollback architecture exists;
-- emergency mode and emergency-contact boundary;
-- existing capability-aware People Directory CSV export with spreadsheet-formula injection protection.
-- **PX9.4 Reminders — authoritative review/read boundary**: `GET /api/people/reminders` is server-authoritative, capability-gated, tenant-scoped and exposes only pending assignment-response reminder items with reason, pending timestamp and last-reminder timestamp plus the minimum display identity required by the workflow.
-- **PX9.4 Reminders — atomic persistence foundation**: the notification-intent path atomically persists delivery, assignment-reminder ledger, audit and outbox event with tenant/correlation/idempotency enforcement and a minimal non-contact delivery envelope.
-- **PX9.4 Reminders — safe preferences**: existing and future People receive canonical in-app-only notification preferences; push/email/WhatsApp remain disabled and opted-out. No external-channel consent is invented on another person's behalf.
-- **PX9.4 Reminders — explicit send composition**: `POST /api/people/reminders` accepts only the pending response identity, stable client mutation identity and supported locale. Assignment and recipient remain server-derived from the currently pending authoritative response. Same-origin mutation protection and `schedule.write` are enforced server-side.
-- **PX9.4 Reminders — retry/delivery semantics**: the UI reuses the same mutation identity after ambiguous failures, prevents double-submit/stale response ownership, authoritatively refetches after success and reports only `queued`; it never represents an external channel as delivered without delivery evidence.
+- **PX9.4 Reminders**: server-authoritative pending evidence, explicit same-origin send intent, stable mutation identity for ambiguous retries, authoritative refetch, safe notification preferences and `queued` rather than fabricated delivery semantics.
+- **PX9.6 Archive / “A não publicar”**: explicit server persistence for archive reason/date/current state and append-only history; archive forces inactive state; restore is a separate explicit operation; generic profile reactivation cannot bypass restore; GET/POST archive HTTP boundary is tenant/capability controlled and does not expose actor IDs/internal prior-state snapshots; Ant Design People tool supports read-only inspection, explicit archive/restore confirmations, pt-PT/en/es, stale-response ownership, double-submit protection and authoritative post-write refetch.
+- **PX9.7/PX9.8 import foundations**: source selection plus server-authoritative Hourglass preview/validation/duplicate/conflict analysis.
+- **PX9.9 recovery foundations**: atomic create-only import commit and rollback primitives, durable migration evidence, serialized retry/replay protection and an internal Hourglass-specific server execution composition that rebuilds fresh authoritative state immediately before commit.
+- **PX9.13/PX9.14 emergency mode** and emergency-contact boundary.
+- **PX9.15 CSV export** through the capability-aware People Directory export with spreadsheet-formula injection protection.
 
-PX9.4 technical implementation was accepted through PR #366 at head `92faedc0e09c476d1d4b96eed5f3e176d10e9dd9`: quality PASS, browser-regression PASS, canonical `eutakes` Netlify deploy-preview ready, then squash-merged as main SHA `8d15110c84bf7c093f18eafe58fd08ff99ffa601`.
+PX9.6 UI/API technical integration was accepted through PR #377 at exact head `30c926fece86d9b1c960a832318f942b0ff1e673`: quality PASS, browser-regression PASS, canonical `netlify/eutakes` deploy-preview PASS, then squash-merged as main SHA `1d2a2da0905ecf1b3c64031efdbee5069a16985d`.
 
-Remaining PX9 contract/persistence gaps:
+The destructive real-user production archive/restore walkthrough is **not** claimed complete; its exact disposable-fixture scenario is recorded in `docs/PEOPLE_REAL_USER_PRODUCTION_E2E_PENDING.md`.
+
+Remaining PX9 contract/product gaps:
 
 - **PX9.1/PX9.2 Transfers** — no reviewed send/receive persistence and secure token lifecycle contract yet.
 - **PX9.5 Record cards/reports** — report shape, period semantics and privacy/export contract are not approved.
-- **PX9.6 Archive / A não publicar** — current active/inactive People state is insufficient for required reason/date/audit/restore semantics; dedicated server persistence is still required.
+- **PX9.9 user-facing execute/rollback** — persistence and internal execution composition now exist, but no authenticated prepare → confirm → execute HTTP handshake or authorized rollback HTTP/UI is exposed. Browser timestamps/tenant/actor/capabilities must never become authority when this boundary is added.
 - **PX9.10/PX9.11 Map** — no approved person/group location model and privacy capability boundary exists.
 - **PX9.12 Configurable Contact List** — ordinary Contact is intentionally a dedicated least-privilege resource and is excluded from Directory; a safe server projection/export contract is required before bulk contact-list UI.
 - **PX9.16 PDF export** — implement only against an approved report/contact-list contract; do not widen private DTOs for convenience.
 - **PX9.17 DOCX** remains product-research dependent and must not be implemented solely for parity.
-- durable import execute/rollback remains blocked on atomic migration-log architecture.
 
 ### PX10 — quality / accessibility evidence
 
@@ -120,7 +117,8 @@ Automated tests, sanitized browser fixtures, preview deployments and CI do **not
 
 1. Keep current main green and preserve the accepted People/PX behavior.
 2. Synchronize stale master-plan checkboxes only when corresponding integrated evidence is traceable; never use checkbox edits to manufacture completion.
-3. PX9.4 is technically integrated. Do not create a second reminder/delivery path; future external channels must remain gated by explicit self-service consent and real delivery-state evidence.
-4. For each other remaining PX9 slice, define/review the server authority, persistence and privacy contract first; only then build UI.
-5. Keep PX7.8 blocked until a real persistent manual-constraint contract exists.
-6. Perform deferred real-user production/screen-reader acceptance separately; do not replace it with mocked CI.
+3. Do not create second implementations for Labels, Reminders or Archive; those slices now have canonical server authority and People UI.
+4. Complete the PX9.9 authenticated prepare → confirm → execute handshake and create-only rollback HTTP/UI only if the server can own the execution attempt and freshness proof without trusting browser authority.
+5. For each other remaining PX9 slice, define/review server authority, persistence and privacy contracts first; only then build UI.
+6. Keep PX7.8 blocked until a real persistent manual-constraint contract exists.
+7. Perform deferred real-user production/screen-reader acceptance separately; do not replace it with mocked CI.

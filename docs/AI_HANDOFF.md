@@ -1,6 +1,6 @@
 # AI HANDOFF — CURRENT SOURCE OF TRUTH
 
-> Updated 2026-08-27 after PX9.4 Reminders integration. Historical worker reports and older acceptance summaries may be stale. Always fetch current `main` first.
+> Updated 2026-08-27 after PX9.6 Archive / “A não publicar” technical integration and the latest Hourglass recovery foundations. Historical worker reports and older acceptance summaries may be stale. Always fetch current `main` first.
 
 ## Mandatory reading order
 
@@ -21,7 +21,7 @@ No agent may invent a competing DTO/domain model, client-only authority or UI di
 - Canonical production: `https://eutakes.netlify.app/`
 - `https://rainbow-zuccutto-00d981.netlify.app/` is not the production acceptance target.
 - Vercel statuses are not Eutaktos acceptance evidence.
-- Current People/PX technical baseline after PX9.4 Reminders: `8d15110c84bf7c093f18eafe58fd08ff99ffa601`.
+- Current People/PX technical baseline after PX9.6 Archive UI integration: `1d2a2da0905ecf1b3c64031efdbee5069a16985d`.
 - Earlier independently accepted People-core baseline `f013f72722c18a6df06ad7c6390be668ed239dbf` remains historical evidence, but substantial approved work has been integrated since then.
 
 ## Current product state
@@ -32,7 +32,7 @@ The following are technically integrated on `main`:
 - PX6 complete guided Identity → Contact → Organization → Participation → Review workflow using canonical Contact/responsibility/availability contracts, authoritative refetch and partial-persistence-safe retries;
 - PX7 deterministic explainable recommendations except PX7.8 manual constraints, which remains contract-blocked;
 - PX8 operational assistance using reviewed authoritative evidence without autonomous assignment;
-- approved PX9 slices including Labels/tags management/filtering, reminder review/send with idempotent queued-state semantics, import source selection/preview, safe recovery boundary, emergency mode and safe CSV export;
+- approved PX9 slices including Labels/tags management/filtering, reminder review/send with idempotent queued-state semantics, Archive / “A não publicar” reason/date/history/restore, import source selection/preview, atomic recovery foundations, emergency mode and safe CSV export;
 - PX10 automated 200%/400% desktop zoom-equivalent reflow coverage for People Directory + Person Wizard;
 - PX11 Ant Design 6 migration and MUI/Emotion runtime retirement.
 
@@ -46,19 +46,31 @@ Still blocked. There is no approved persistent manual-exclusion/preference contr
 
 ### Remaining PX9
 
-Labels/tags and Reminders are no longer remaining gaps: both are integrated through canonical server authority and People UI.
+Labels/tags, Reminders and Archive / “A não publicar” are no longer technical implementation gaps: all three have canonical server authority and People UI.
 
 The remaining slices require contract-first work:
 
 - Transfers need reviewed send/receive persistence and a secure token lifecycle.
 - Record cards/reports need approved report shapes, period semantics and privacy/export rules.
-- Archive / “A não publicar” needs reason/date/audit/restore persistence beyond the existing active flag.
 - Map needs an approved location model and least-privilege capability/privacy boundary.
 - Configurable Contact List needs a dedicated safe server projection/export contract; ordinary Contact must remain excluded from the general Directory DTO.
-- Durable import execute/rollback still requires atomic transaction + migration-log + rollback architecture.
+- Hourglass import now has durable atomic create-only apply/rollback primitives, serialized replay protection and an internal fresh-state execution composition, but the user-facing authenticated prepare → confirm → execute handshake and authorized rollback HTTP/UI are not exposed yet.
 - PDF export should follow an approved report/contact-list contract; DOCX remains product-research dependent.
 
 Do not implement these as frontend-only state or widen private DTOs merely to close master-plan checkboxes.
+
+### Archive boundary already integrated
+
+The authoritative archive path is now:
+
+- `GET /api/people/:personId/archive` for current state, reason/date, append-only action history and server-derived write capability;
+- `POST /api/people/:personId/archive` for explicit `archive` or `restore` intent after same-origin mutation validation;
+- archive reason is persisted in Person state but is not copied into audit/domain-event metadata;
+- generic profile `active:true` cannot bypass explicit restore for an archived Person;
+- the People tool requires a reason and confirmation for archive, a separate confirmation for restore, prevents double submit/stale response ownership and refetches authoritative state before success;
+- actor IDs and internal prior-active snapshots remain private to the server boundary.
+
+Do not create a second archive implementation or overload the generic active flag again.
 
 ### Reminder boundary already integrated
 
@@ -76,6 +88,8 @@ Do not create a second reminder delivery implementation.
 ### Human production/accessibility acceptance
 
 Real screen-reader acceptance and write-capable real-user production walkthroughs cannot be replaced with mocked browser fixtures. Required scenarios are kept in `docs/PEOPLE_REAL_USER_PRODUCTION_E2E_PENDING.md` for a later independent agent with approved credentials/data.
+
+PX9.6 now has an exact disposable-fixture archive/restore production scenario in that document. CI/preview acceptance proves technical readiness only; it does not prove the destructive production walkthrough.
 
 Do not mark those human scenarios complete from CI, sanitized fixtures, preview deploys or static inspection.
 
@@ -102,7 +116,7 @@ Do not add new MUI runtime dependencies or create a second design system.
 
 1. Preserve the current green People/PX baseline and canonical security/privacy boundaries.
 2. Reconcile stale source-of-truth checkboxes/documentation against actual integrated evidence; never reimplement completed slices because an old checkbox was not synchronized.
-3. Complete only remaining PX9 slices after their server/domain/privacy contracts are reviewed and implemented safely.
+3. Complete the remaining PX9 slices only after their server/domain/privacy contracts are reviewed and implemented safely; the next concrete recovery slice is the authenticated Hourglass prepare → confirm → execute boundary if it can remain fully server-authoritative.
 4. Keep PX7.8 blocked until a real manual-constraint contract exists.
 5. Leave destructive/write real-user production acceptance and real screen-reader acceptance for the documented independent acceptance pass.
 6. When only those human acceptance items remain, stop autonomous implementation rather than fabricating completion.
