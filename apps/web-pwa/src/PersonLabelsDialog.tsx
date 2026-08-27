@@ -15,7 +15,7 @@ const copy = {
   es: { title: 'Etiquetas', explanation: 'Las etiquetas son metadatos administrativos explícitos. No cambian la elegibilidad ni las recomendaciones.', empty: 'Sin etiquetas', edit: 'Editar etiquetas', save: 'Guardar', cancel: 'Cancelar', saving: 'Guardando…', readOnly: 'Puede consultar estas etiquetas, pero no tiene permiso para cambiarlas.', invalid: 'Use como máximo 20 etiquetas, de hasta 40 caracteres cada una.', error: 'No se pudieron guardar las etiquetas. Inténtelo de nuevo.', retry: 'Intentar de nuevo' },
 } as const;
 
-function normalizeLabels(values: readonly string[]): readonly string[] {
+export function normalizeLabels(values: readonly string[]): readonly string[] {
   const result: string[] = [];
   const seen = new Set<string>();
   for (const value of values) {
@@ -34,6 +34,25 @@ export function labelsDraftValid(values: readonly string[]): boolean {
     const normalized = value.trim().replace(/\s+/g, ' ');
     return normalized.length > 0 && normalized.length <= 40 && !/[\u0000-\u001F\u007F]/.test(normalized);
   });
+}
+
+function sameLabels(left: readonly string[], right: readonly string[]): boolean {
+  return JSON.stringify(normalizeLabels(left)) === JSON.stringify(normalizeLabels(right));
+}
+
+/**
+ * Reads before writing so a retry after a persisted PATCH + failed refetch does
+ * not repeat the mutation. Success is still reported only after an authoritative read.
+ */
+export async function persistPersonLabels(api: PeopleApi, personId: string, desired: readonly string[]): Promise<readonly string[]> {
+  const normalized = normalizeLabels(desired);
+  const before = (await api.list()).find(person => person.id === personId);
+  if (!before) throw new Error('Person not found during label refetch');
+  if (!sameLabels(before.labels ?? [], normalized)) await api.update(personId, { labels: normalized });
+  const authoritative = (await api.list()).find(person => person.id === personId);
+  const confirmed = normalizeLabels(authoritative?.labels ?? []);
+  if (!authoritative || !sameLabels(confirmed, normalized)) throw new Error('Authoritative label refetch mismatch');
+  return confirmed;
 }
 
 export function PersonLabelsDialog({ personId, personName, labels, locale, canWrite, open, onClose, onSaved, api = peopleApi }: {
@@ -64,7 +83,7 @@ export function PersonLabelsDialog({ personId, personName, labels, locale, canWr
 
   const normalized = normalizeLabels(draft);
   const valid = labelsDraftValid(draft);
-  const changed = JSON.stringify(normalized) !== JSON.stringify(normalizeLabels(labels));
+  const changed = !sameLabels(normalized, labels);
 
   const save = async () => {
     if (!canWrite || !valid || !changed || mutationLockRef.current) return;
@@ -72,10 +91,7 @@ export function PersonLabelsDialog({ personId, personName, labels, locale, canWr
     setSaving(true);
     setSaveError(false);
     try {
-      await api.update(personId, { labels: normalized });
-      const authoritative = (await api.list()).find(person => person.id === personId);
-      const confirmed = normalizeLabels(authoritative?.labels ?? []);
-      if (!authoritative || JSON.stringify(confirmed) !== JSON.stringify(normalized)) throw new Error('Authoritative label refetch mismatch');
+      const confirmed = await persistPersonLabels(api, personId, normalized);
       setDraft(confirmed);
       setEditing(false);
       onSaved(confirmed);
@@ -93,17 +109,7 @@ export function PersonLabelsDialog({ personId, personName, labels, locale, canWr
       {!canWrite ? <Alert type="warning" showIcon title={text.readOnly} /> : null}
       {saveError ? <Alert type="error" showIcon title={text.error} action={<Button size="small" disabled={saving} onClick={() => void save()}>{text.retry}</Button>} /> : null}
       {editing ? <>
-        <Select
-          aria-label={text.edit}
-          mode="tags"
-          open={false}
-          value={[...draft]}
-          onChange={value => setDraft(value)}
-          disabled={saving}
-          tokenSeparators={[',']}
-          style={{ width: '100%' }}
-          placeholder={text.empty}
-        />
+        <Select aria-label={text.edit} mode="tags" open={false} value={[...draft]} onChange={value => setDraft(value)} disabled={saving} tokenSeparators={[',']} style={{ width: '100%' }} placeholder={text.empty} />
         {!valid ? <Typography.Text type="danger" role="alert">{text.invalid}</Typography.Text> : null}
         <Space wrap><Button onClick={() => { setDraft(labels); setEditing(false); setSaveError(false); }} disabled={saving}>{text.cancel}</Button><Button type="primary" loading={saving} disabled={!valid || !changed} onClick={() => void save()}>{saving ? text.saving : text.save}</Button></Space>
       </> : <>
