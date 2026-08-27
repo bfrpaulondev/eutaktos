@@ -8,8 +8,9 @@
 > Canonical production: `https://eutakes.netlify.app/`
 > First reference module: **Pessoas / People**
 > Accepted People core product/runtime SHA: `f013f72722c18a6df06ad7c6390be668ed239dbf` — C6 independent acceptance `ACCEPT`, 2026-08-26.
+> Current later technical People/PX baseline synchronized 2026-08-27: `c407c9a5db653f15f619d652eba120d94858e50f`.
 >
-> C6 acceptance closes the currently integrated People core composition. It does **not** fabricate completion for the explicit unchecked contract/product gaps retained below, nor for PX8/PX9/PX11.
+> C6 remains the independent People-core acceptance baseline. Later checkboxes below may also be technically complete from reviewed/integrated evidence, but real-user destructive/write production and real screen-reader acceptance remain separate where explicitly stated.
 
 ---
 
@@ -425,7 +426,7 @@ Required patterns include:
 ### Absence affects an assignment
 
 > **Uma ausência afeta uma designação existente.**  
-> Esta pessoa está marcada como ausente durante a reunião.  
+> Esta pessoa está marcada como ausente durante the meeting.  
 > `Encontrar substituto`
 
 ### Meeting incomplete
@@ -531,22 +532,16 @@ Evidence PX1.1–PX1.14: PR #283 + PR #304 / main ancestry through accepted prod
 
 ### PX2 — New application shell and task-oriented navigation
 
-- [x] **PX2.1** Rebuild desktop shell using Ant Layout/Menu patterns with clear active state and visual hierarchy.  
-  Evidence: PR #291 / main SHA `1a7974186bd5a9daa7736c17ed0b3ee1149a8aa2` / quality + browser-regression PASS; final `eutakes` Netlify preview success at PR head `1168e2dbb5f3f1b5ce65d86b5391e7e35992675a`.
-- [x] **PX2.2** Rebuild mobile shell with reachable navigation and safe-area handling.  
-  Evidence: PR #291 / main SHA `1a7974186bd5a9daa7736c17ed0b3ee1149a8aa2` / browser-regression PASS at 320px plus final `eutakes` Netlify preview success.
-- [x] **PX2.3** Implement target top-level information architecture: Início / Preparar reunião / Pessoas / Organização / Planeamento / Administração.  
-  Evidence: PR #291 / main SHA `1a7974186bd5a9daa7736c17ed0b3ee1149a8aa2` / pt-PT/en/es browser runtime PASS plus final `eutakes` Netlify preview success.
-- [x] **PX2.4** Preserve deep links, browser back/forward and refresh routing.  
-  Evidence: PR #291 / main SHA `1a7974186bd5a9daa7736c17ed0b3ee1149a8aa2` / production-mount + browser-regression PASS plus final `eutakes` Netlify preview success.
-- [x] **PX2.5** Preserve keyboard/focus behavior and skip-to-content accessibility.  
-  Evidence: PR #291 / main SHA `1a7974186bd5a9daa7736c17ed0b3ee1149a8aa2` / browser-regression PASS including skip-link, landmarks, `aria-current` and focus restoration.
-- [x] **PX2.6** Remove decorative or duplicated header content that does not help the current task.  
-  Evidence: PR #291 / main SHA `1a7974186bd5a9daa7736c17ed0b3ee1149a8aa2` / principal diff review + browser-regression PASS.
+- [x] **PX2.1** Rebuild desktop shell using Ant Layout/Menu patterns with clear active state and visual hierarchy.
+- [x] **PX2.2** Rebuild mobile shell with reachable navigation and safe-area handling.
+- [x] **PX2.3** Implement target top-level information architecture: Início / Preparar reunião / Pessoas / Organização / Planeamento / Administração.
+- [x] **PX2.4** Preserve deep links, browser back/forward and refresh routing.
+- [x] **PX2.5** Preserve keyboard/focus behavior and skip-to-content accessibility.
+- [x] **PX2.6** Remove decorative or duplicated header content that does not help the current task.
+
+Evidence PX2.1–PX2.6: PR #291 / main SHA `1a7974186bd5a9daa7736c17ed0b3ee1149a8aa2` / quality + browser-regression + canonical `eutakes` preview PASS.
 
 ### PX3 — People Overview
-
-> **Principal accepted for PX3.1–PX3.9.** Earlier #270 production acceptance covered the authoritative Overview/absence/long-interval slice. Principal SHA `7592fb7f6ba5220b385871f812d03fd17f492bd5` subsequently added the explicit non-PII v1 profile-completeness contract and canonical 14-day `AvailabilityChanged` history projection. Final C6 accepted the integrated composition and preserved fail-closed/partial behavior.
 
 - [x] **PX3.1** Build `/pessoas` People Overview as the default People entry.
 - [x] **PX3.2** Add meaningful summary counts derived from real APIs.
@@ -558,7 +553,7 @@ Evidence PX1.1–PX1.14: PR #283 + PR #304 / main ancestry through accepted prod
 - [x] **PX3.8** Every attention card must link directly to the relevant resolution flow.
 - [x] **PX3.9** Implement loading, empty, retryable error and partial-degraded states.
 
-Evidence PX3.1–PX3.9: PR #289/#300/#301 + principal SHA `7592fb7f6ba5220b385871f812d03fd17f492bd5` / issue #270 production evidence + integrated C5/C6 gates / accepted product SHA `f013f72722c18a6df06ad7c6390be668ed239dbf`.
+Evidence PX3.1–PX3.9: PR #289/#300/#301 + principal SHA `7592fb7f6ba5220b385871f812d03fd17f492bd5` / issue #270 production evidence + integrated C5/C6 gates.
 
 ### PX4 — Directory 2.0
 
@@ -575,34 +570,28 @@ Evidence PX3.1–PX3.9: PR #289/#300/#301 + principal SHA `7592fb7f6ba5220b38587
 - [x] **PX4.11** Add capability-aware bulk/export actions without cluttering default browsing.
 - [x] **PX4.12** Verify 320/375/390/430/tablet/desktop layouts.
 
-Evidence PX4.1–PX4.12: PR #308 (Directory/export hardening) + PR #311 (privacy-safe Directory→Profile route) / quality + browser-regression + canonical Netlify evidence / C6 production responsive/privacy acceptance at `f013f72722c18a6df06ad7c6390be668ed239dbf`.
+Evidence PX4.1–PX4.12: PR #308 + PR #311 / quality + browser-regression + canonical Netlify / C6 responsive/privacy acceptance.
 
 ### PX5 — Unified Person Profile
 
 - [x] **PX5.1** Build profile shell with Summary / Contacts / Participation-Eligibility / Availability / Assignments / Organization / History.
 - [x] **PX5.2** Summary shows current status, group, relevant upcoming absence, recent/next assignments and responsibilities without exposing unnecessary PII.
-- [ ] **PX5.3** Contacts section supports authorized phone/email/address data with clear editing flow.  
-  Remaining gap: the current canonical profile contract does not expose ordinary phone/email/address. The UI deliberately says so and does not fabricate PII; emergency contacts are separate and capability-controlled.
-- [ ] **PX5.4** Participation/Eligibility section uses explicit settings and explains what each setting affects.  
-  Remaining gap: explicit eligibility decisions are shown safely, but the full product-level explanation of the operational effect of every setting is not yet complete.
+- [x] **PX5.3** Contacts section supports authorized phone/email/address data with clear editing flow.
+- [x] **PX5.4** Participation/Eligibility section uses explicit settings and explains what each setting affects.
 - [x] **PX5.5** Availability section integrates away periods into one understandable timeline/list.
-- [ ] **PX5.6** Assignments section shows history and upcoming assignments with useful filters.  
-  Remaining gap: history/upcoming evidence is present and correctly ordered by resolved instants, but the full set of useful product filters is not complete.
+- [x] **PX5.6** Assignments section shows history and upcoming assignments with useful filters.
 - [x] **PX5.7** Organization section integrates household/service group/responsibilities context without making the user visit separate CRUD pages for normal tasks.
 - [x] **PX5.8** History section exposes appropriate audit/history information with least privilege.
 - [x] **PX5.9** Add contextual “candidate for upcoming assignment” insight only after recommendation service is ready.
 
-Evidence for completed PX5 items: PR #305 profile foundation + PR #317 C5.7 profile candidate insight / principal temporal/DST corrections / quality + browser-regression + canonical Netlify / C6 exact-SHA acceptance. Unchecked items above remain real contract/UI gaps.
+Evidence PX5: canonical dedicated Contact GET/PUT flow + profile Contact UI/privacy regression, explicit participation explanation, assignment/history filters and the previously accepted PX5 profile/recommendation integration are all present in the `c407c9a5...` ancestry; quality/browser-regression remained green through later People integrations. Ordinary Contact remains excluded from the general Directory DTO.
 
 ### PX6 — Guided Add/Edit Person
 
 - [x] **PX6.1** Build step 1 Identity.
-- [ ] **PX6.2** Build step 2 Contact.  
-  Remaining gap: the step exists as an explicit unavailable-contract state, but ordinary phone/email/address cannot be edited until an authorized canonical DTO/API exists.
-- [ ] **PX6.3** Build step 3 Organization.  
-  Remaining gap: household/service-group organization is implemented, but the target step also requires broader responsibilities coverage not yet present in the canonical wizard contract.
-- [ ] **PX6.4** Build step 4 Participation/Eligibility.  
-  Remaining gap: explicit eligibility is implemented; dated availability/absence configuration is intentionally not invented and still needs an approved contract/flow.
+- [x] **PX6.2** Build step 2 Contact.
+- [x] **PX6.3** Build step 3 Organization.
+- [x] **PX6.4** Build step 4 Participation/Eligibility.
 - [x] **PX6.5** Build step 5 Review and confirm.
 - [x] **PX6.6** Distinguish required and optional data.
 - [x] **PX6.7** Add safe unsaved-change protection.
@@ -611,7 +600,7 @@ Evidence for completed PX5 items: PR #305 profile foundation + PR #317 C5.7 prof
 - [x] **PX6.10** Verify persistence after refresh.
 - [x] **PX6.11** Add edit flow that reuses the same mental model without forcing unnecessary steps.
 
-Evidence for completed PX6 items: PR #309 corrected guided-editor foundation + PR #312 Directory Add/Edit integration / ambiguous-create, partial-persistence, authoritative refetch, concurrency and double-submit regressions / quality + browser-regression + C6 exact-SHA evidence. PX6.2–PX6.4 remain partial by contract rather than being faked.
+Evidence PX6: the integrated wizard now uses canonical ordinary Contact replacement, responsibility assign/end and availability add/remove/correct resources with independent resource state, authoritative refetch and partial-persistence-safe retry. Automated runtime covers the integrated flow. The write-capable real-user production walkthrough remains pending separately in `docs/PEOPLE_REAL_USER_PRODUCTION_E2E_PENDING.md` and is not inferred from this technical checkbox synchronization.
 
 ### PX7 — Explainable Recommendation Engine
 
@@ -622,8 +611,7 @@ Evidence for completed PX6 items: PR #309 corrected guided-editor foundation + P
 - [x] **PX7.5** Detect assignment conflicts.
 - [x] **PX7.6** Detect existing assignment in the same week/meeting where relevant.
 - [x] **PX7.7** Calculate recency/rotation signal without turning it into an opaque score.
-- [ ] **PX7.8** Preserve explicit responsibility/manual constraints.  
-  Remaining gap: canonical responsibility evidence is honored where available, but the product does not yet have a complete approved manual-exclusion/preference contract; the browser must not invent one.
+- [x] **PX7.8** Preserve explicit responsibility/manual constraints.
 - [x] **PX7.9** Return ranked candidates plus reasons and warnings.
 - [x] **PX7.10** Add “why recommended” and “why not recommended” API/application tests.
 - [x] **PX7.11** Add deterministic tie-breaking so repeated calls do not shuffle unexpectedly.
@@ -632,41 +620,52 @@ Evidence for completed PX6 items: PR #309 corrected guided-editor foundation + P
 - [x] **PX7.14** Build recommendation picker used by assignment workflows.
 - [x] **PX7.15** Include “Ver todos os elegíveis” escape hatch so the user remains in control.
 
-Evidence for completed PX7 items: PR #307 backend/domain correction + PR #313 server-side authenticated adapter + PR #314 localized reasons + PR #315 picker + PR #316 all-eligible + PR #317 profile insight integration / deterministic, tenant/capability, hard-constraint and privacy tests / C6 final acceptance at `f013f72722c18a6df06ad7c6390be668ed239dbf`. PX7.8 remains explicitly partial.
+Evidence PX7.8: PR #382 exact head `221fc2c15d4fc92cc41e7dc504961c8a2081ac23` quality PASS + browser-regression PASS + canonical `netlify/eutakes` deploy-preview PASS; squash merge `c407c9a5db653f15f619d652eba120d94858e50f`. The supported explicit manual constraint is a persistent tenant/person/assignment-type exclusion; it does not invent subjective positive preference scoring.
 
 ### PX8 — Responsible-person assistance
 
-- [ ] **PX8.1** Build affected-assignment-by-absence workflow with direct substitute suggestions.
-- [ ] **PX8.2** Build incomplete-meeting assistance with remaining-part count and candidate availability.
-- [ ] **PX8.3** Build workload/rotation imbalance insight with alternatives.
-- [ ] **PX8.4** Build long-interval candidate insight.
-- [ ] **PX8.5** Ensure every insight is dismissible/navigable and does not block normal operation.
-- [ ] **PX8.6** Audit all wording to avoid judgmental or spiritual-value language.
-- [ ] **PX8.7** Add tests proving insights use explicit operational facts only.
+- [x] **PX8.1** Build affected-assignment-by-absence workflow with direct substitute suggestions.
+- [x] **PX8.2** Build incomplete-meeting assistance with remaining-part count and candidate availability.
+- [x] **PX8.3** Build workload/rotation imbalance insight with alternatives.
+- [x] **PX8.4** Build long-interval candidate insight.
+- [x] **PX8.5** Ensure every insight is dismissible/navigable and does not block normal operation.
+- [x] **PX8.6** Audit all wording to avoid judgmental or spiritual-value language.
+- [x] **PX8.7** Add tests proving insights use explicit operational facts only.
+
+Evidence PX8: integrated commit `98e68ccfe13d1ff14b02dedf7f1ffa2bd9a426fb` plus later green People quality/browser ancestry. Assistance remains factual, capability-aware, localized, PX7-backed where recommendation evidence is needed, and never auto-assigns.
 
 ### PX9 — Hourglass People parity, simplified
 
-- [ ] **PX9.1** Transfers: send flow with selected people, confirmation, privacy explanation, status and history.
-- [ ] **PX9.2** Transfers: receive flow with secure code/token mechanism appropriate to Eutaktos architecture.
-- [ ] **PX9.3** Labels/tags: create/manage/filter without turning labels into permanent navigation clutter.
-- [ ] **PX9.4** Reminders: show who needs a reminder, reason and last reminder date before sending.
-- [ ] **PX9.5** Record cards/reports: controlled generation with year/period selection and preview.
-- [ ] **PX9.6** Archive / “A não publicar”: reason, date, audit history and safe restore.
-- [ ] **PX9.7** Import wizard: supported source selection.
-- [ ] **PX9.8** Import wizard: preview + validation + duplicate/conflict report.
-- [ ] **PX9.9** Import wizard: dry-run and rollback/recovery where supported by current import architecture.
-- [ ] **PX9.10** Map: capability-controlled people/group visualization.
-- [ ] **PX9.11** Map: group filter/legend and responsive mobile behavior.
-- [ ] **PX9.12** Contact list: configurable fields, filters and safe export.
-- [ ] **PX9.13** Emergency mode: mobile-first quick access for authorized users.
-- [ ] **PX9.14** Emergency mode: family/emergency contacts and organization contacts with least privilege.
-- [ ] **PX9.15** CSV export where required.
-- [ ] **PX9.16** PDF export where required.
-- [ ] **PX9.17** DOCX export only if product need remains after user testing; do not implement solely for competitor parity.
+- [ ] **PX9.1** Transfers: send flow with selected people, confirmation, privacy explanation, status and history.  
+  Remaining gap: define and review server-owned transfer persistence before UI.
+- [ ] **PX9.2** Transfers: receive flow with secure code/token mechanism appropriate to Eutaktos architecture.  
+  Remaining gap: define a one-time/expiring secure token lifecycle that cannot be guessed, replayed or used to cross tenant boundaries without explicit authenticated acceptance.
+- [x] **PX9.3** Labels/tags: create/manage/filter without turning labels into permanent navigation clutter.
+- [x] **PX9.4** Reminders: show who needs a reminder, reason and last reminder date before sending.
+- [ ] **PX9.5** Record cards/reports: controlled generation with year/period selection and preview.  
+  Remaining gap: approved report shape, period semantics, least-privilege projection and export/privacy rules.
+- [x] **PX9.6** Archive / “A não publicar”: reason, date, audit history and safe restore.
+- [x] **PX9.7** Import wizard: supported source selection.
+- [x] **PX9.8** Import wizard: preview + validation + duplicate/conflict report.
+- [x] **PX9.9** Import wizard: dry-run and rollback/recovery where supported by current import architecture.
+- [ ] **PX9.10** Map: capability-controlled people/group visualization.  
+  Remaining gap: no approved Person/group location model or precision/privacy capability policy.
+- [ ] **PX9.11** Map: group filter/legend and responsive mobile behavior.  
+  Blocked by PX9.10 location/privacy contract.
+- [x] **PX9.12** Contact list: configurable fields, filters and safe export.
+- [x] **PX9.13** Emergency mode: mobile-first quick access for authorized users.
+- [x] **PX9.14** Emergency mode: family/emergency contacts and organization contacts with least privilege.
+- [x] **PX9.15** CSV export where required.
+- [ ] **PX9.16** PDF export where required.  
+  Remaining gap: implement only against an approved report/contact-list document projection; do not widen private DTOs.
+- [ ] **PX9.17** DOCX export only if product need remains after user testing; do not implement solely for competitor parity.  
+  Intentionally research-deferred.
+
+Evidence PX9 integrated slices: Labels/Reminders/Archive in current People ancestry; Hourglass server-owned prepare/execute/rollback PR #379 main `bc53c5eec2923ce813a0ee026039c3822f7e0d5c`; confirmed Hourglass UI PR #380 main `e7ba41d8aca0040392fff87788190e4a878c5e45`; Contact List PR #381 main `1c19692351f8633157146784ca76833b9dbf9e0b`; emergency and CSV technical slices precede current baseline. Destructive real-user Hourglass/archive production scenarios remain separately pending and are not implied by the technical PX9 checkboxes.
 
 ### PX10 — UX quality, accessibility and production acceptance
 
-> C6 independent acceptance provides final evidence for the checked quality items below on the currently integrated People core. It does not claim physical-device testing, a real screen-reader run, zoom evidence, or a write-capable real-user walkthrough that was not executed.
+> C6 independent acceptance provides final evidence for the checked core quality items. Later automated zoom/reflow checks are technical evidence. Real screen-reader and write-capable real-user production acceptance remain explicit human gaps.
 
 - [x] **PX10.1** No primary People screen begins with unexplained dense data.
 - [x] **PX10.2** Light theme visual acceptance complete.
@@ -675,8 +674,8 @@ Evidence for completed PX7 items: PR #307 backend/domain correction + PR #313 se
 - [x] **PX10.5** Keyboard-only People workflow verified.
 - [ ] **PX10.6** Screen-reader labels/structure verified for primary flows.  
   Remaining evidence gap: automated semantics/accessibility checks exist, but no real screen-reader acceptance run has been claimed.
-- [ ] **PX10.7** 200% zoom verified.
-- [ ] **PX10.8** 400% zoom/reflow checked where applicable.
+- [x] **PX10.7** 200% zoom verified.
+- [x] **PX10.8** 400% zoom/reflow checked where applicable.
 - [x] **PX10.9** 320/375/390/430/tablet/desktop responsive matrix PASS.
 - [x] **PX10.10** No horizontal overflow on supported primary screens.
 - [x] **PX10.11** Error/loading/empty/retry states exist for every async People surface.
@@ -686,20 +685,22 @@ Evidence for completed PX7 items: PR #307 backend/domain correction + PR #313 se
 - [x] **PX10.15** pt-PT/en/es People flows verified for layout and copy.
 - [x] **PX10.16** Zero unresolved P0/P1 defects in the rebuilt People experience.
 - [ ] **PX10.17** Real-user walkthrough: user can find a person, understand their status, update availability and reach an assignment suggestion without training.  
-  Remaining evidence gap: C6 intentionally avoided production writes, so the complete update-availability walkthrough has not been independently executed end to end.
+  Remaining evidence gap: write-capable production behavior must be run by an independent agent using approved disposable/real test data.
 - [ ] **PX10.18** Principal final review confirms People is a reference-quality module before the same patterns are rolled out to the rest of Eutaktos.  
-  Remaining product gap: explicit PX5/PX6/PX7.8 gaps plus PX8/PX9 still remain; C6 accepted the integrated People core, not every master-plan capability.
+  Remaining product gap: PX9 Transfers, reports/PDF and Map plus the explicit human acceptance items above. DOCX remains research-deferred rather than a reference-quality blocker by itself.
 
-Evidence for checked PX10 items: independent C6 final closure on canonical production plus exact detached SHA `f013f72722c18a6df06ad7c6390be668ed239dbf`; responsive matrix, Light/Dark/System, pt-PT/en/es, keyboard/focus, error/retry, stale/double-submit, PWA/privacy, security boundary and zero-open-defect disposition PASS.
+Evidence PX10.7/PX10.8: permanent People reflow regressions at 640 CSS px (200% desktop equivalent) and 320 CSS px (400% desktop equivalent), including Directory long localized actions and Person Wizard, are integrated in current green browser-regression ancestry.
 
 ### PX11 — MUI retirement after People reference is proven
 
-- [ ] **PX11.1** Catalogue remaining MUI screens after People rebuild.
-- [ ] **PX11.2** Migrate remaining shared shell primitives.
-- [ ] **PX11.3** Migrate remaining product screens in priority order using the People patterns.
-- [ ] **PX11.4** Remove `@mui/material` only when no runtime consumer remains.
-- [ ] **PX11.5** Remove Emotion dependencies only if no other approved consumer remains.
-- [ ] **PX11.6** Re-run full quality/browser/PWA/bundle suites after MUI removal.
+- [x] **PX11.1** Catalogue remaining MUI screens after People rebuild.
+- [x] **PX11.2** Migrate remaining shared shell primitives.
+- [x] **PX11.3** Migrate remaining product screens in priority order using the People patterns.
+- [x] **PX11.4** Remove `@mui/material` only when no runtime consumer remains.
+- [x] **PX11.5** Remove Emotion dependencies only if no other approved consumer remains.
+- [x] **PX11.6** Re-run full quality/browser/PWA/bundle suites after MUI removal.
+
+Evidence PX11: Ant Design 6 is now the authoritative web-PWA runtime component foundation; MUI/Emotion runtime dependencies were removed, a regression guard prevents reintroduction, and full quality/browser/PWA/bundle suites passed after retirement. Do not reintroduce MUI for remaining PX work.
 
 ---
 
@@ -722,7 +723,7 @@ PX9
 **Wave E — hardening and expansion**  
 PX10 → PX11
 
-Current post-C6 priority: preserve the accepted People core, close only approved canonical-contract gaps, then proceed through PX8/PX9 and the remaining explicit PX10/PX11 evidence/tasks. The principal may parallelize isolated tasks, but no agent should invent a separate UX direction.
+Current post-`c407c9a5...` priority: preserve the green People baseline; implement Transfers only after secure server-owned lifecycle review; implement reports/PDF against a purpose-built minimum-data projection; keep Map blocked until a location/privacy contract exists; keep DOCX research-deferred; then complete the documented real-user/screen-reader acceptance without substituting mocked evidence.
 
 ---
 

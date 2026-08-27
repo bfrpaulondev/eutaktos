@@ -2,94 +2,89 @@
 
 ## Status
 
-PX9.8 provides the currently safe production-supported Hourglass reconciliation operation: an authenticated, server-authoritative **read-only dry-run** through `POST /api/import/hourglass/preview`.
+PX9.7–PX9.9 now have a technically integrated, server-authoritative Hourglass flow on `main`:
 
-PX9.9 is **not complete**. Durable atomic apply, replay serialization, a deliberately create-only rollback primitive, and an Hourglass-specific internal server execution composition now exist. No authenticated execute/rollback HTTP surface or browser Apply/Rollback action is exposed yet.
+`inspect locally → preview → prepare → explicit confirm → atomic execute → optional create-only rollback`
 
-## What is safe today
+The earlier read-only boundary is superseded by PR #379 (authenticated server-owned prepare/execute/rollback handshake) and PR #380 (confirmed Ant Design browser flow). This document distinguishes that technical completion from the destructive real-user production acceptance that is still intentionally pending.
+
+## Supported product boundary
 
 - The browser parses only the selected supported source and retains the source payload in memory for the current inspector session.
-- Only the proven Hourglass JSON source with stable `publishers[].id` can be sent to the server for comparison.
-- The server re-validates the payload and resolves tenant, actor and capabilities from the authenticated session for the existing preview route.
+- Only the proven Hourglass JSON source with stable `publishers[].id` can proceed to server reconciliation and writes.
+- Contact-list CSV and privileges CSV remain inspection-only because no stable publisher identity has been proven for those sources.
+- Preview and prepare both re-validate the bounded source server-side under authenticated tenant/capability context.
 - Reconciliation matching is tenant-scoped external-ID-only. Display names are never identity keys.
-- The preview returns `create`, `unchanged` and `conflict` outcomes without exposing internal person IDs, tenant IDs or Hourglass external IDs to the UI.
-- The preview performs no People, eligibility, external-reference, migration-log, audit or outbox mutation.
+- The server returns create/unchanged/conflict evidence without exposing internal Person IDs, tenant IDs or Hourglass external IDs to the browser.
+- Any conflict blocks execution; the product does not silently update an existing Person.
+- The browser never supplies tenant, actor, capabilities, attempt timestamps or migration authority.
 
-This remains the supported user-facing PX9 boundary until the authenticated execute handshake and rollback surface are separately reviewed and accepted.
+## Atomic migration commit foundation
 
-## Existing reusable application foundation
+`eutaktos_apply_hourglass_migration_commit` is the durable atomic apply primitive. It applies all supported Person changes together with the migration log, complete rollback plan, audit row and outbox event in one database transaction, records post-commit versions, rejects cross-tenant payloads, duplicate change identities and concurrent entity modifications, and uses a complete commit fingerprint for replay identity.
 
-`packages/application/src/migration-workflow-service.ts` models useful invariants that Hourglass write composition must preserve:
+Migration `20260827114500_hourglass_migration_apply_replay_lock.sql` serializes apply attempts for the same tenant + migration identity with a transaction-scoped advisory lock before the fingerprint replay guard executes. The internal unlocked function is not executable by `service_role`; callers use the serialized wrapper.
 
-- prepare before execute;
-- stale-confirmation rejection;
-- explicit conflict/error rejection;
-- tenant isolation and `people.write` capability enforcement;
-- migration audit and domain events;
-- explicit rollback state.
+## Create-only rollback foundation
 
-It is **not** the authoritative Hourglass write contract by itself. Its generic row/update model predates the current Hourglass projection, which includes explicit eligibility evidence and treats differences to existing People as conflicts rather than silent updates. Do not bind it blindly to production persistence.
-
-### Atomic migration commit foundation (2026-08-27)
-
-`eutaktos_apply_hourglass_migration_commit` provides the durable atomic apply primitive. It applies all supported person changes together with the migration log, complete rollback plan, audit row and outbox event in one database transaction, records post-commit versions, rejects cross-tenant payloads, duplicate change identities and concurrent entity modifications, and uses a complete commit fingerprint for replay identity.
-
-Migration `20260827114500_hourglass_migration_apply_replay_lock.sql` additionally serializes apply attempts for the same tenant + migration identity with a transaction-scoped advisory lock before the existing fingerprint replay guard executes. This closes the concurrent-retry race where two identical requests could previously pass the pre-insert replay lookup at the same time. The internal unlocked function is not executable by `service_role`; callers must use the serialized wrapper.
-
-### Create-only rollback foundation (2026-08-27)
-
-`eutaktos_rollback_hourglass_create_migration` provides a deliberately narrow atomic rollback primitive for the shape the authoritative Hourglass preview can currently accept safely: created People only. It:
+`eutaktos_rollback_hourglass_create_migration` is deliberately narrow because the currently approved Hourglass write shape creates People only. It:
 
 - locks the persisted migration and every created Person before deletion;
 - requires exact post-commit entity versions;
 - aborts the whole rollback if any created Person changed or disappeared;
 - marks the migration `rolled-back` and persists audit/outbox evidence atomically;
 - treats an exact retry as `already-rolled-back`;
-- rejects update/restore migration shapes instead of pretending the older partial restore snapshot is sufficient for explicit eligibility or richer People state.
+- rejects update/restore migration shapes instead of pretending an incomplete restore snapshot is sufficient.
 
-### Hourglass-specific internal execution composition (2026-08-27)
+## Hourglass-specific execution composition
 
-PR #374 / integrated main `9637b23b1ea7b6533cedae73ad48ff83f8dcea1e` adds the internal `prepareHourglassExecution` and `executeHourglassImport` composition in `api/import/hourglass/_execution.ts`.
+`api/import/hourglass/_execution.ts` rebuilds the canonical preview from fresh tenant-scoped People immediately before commit and preserves these invariants:
 
-The composition:
+- requires `people.read`, `people.write`, `eligibility.read` and `eligibility.write` before authoritative execution state is read or mutated;
+- SHA-256 confirmation digest is stale-state evidence, never authority;
+- preserves `create` / `unchanged` / `conflict` semantics;
+- imports newly created People as inactive with only stable Hourglass publisher external identity and explicitly demonstrated Hourglass privileges as eligibility decisions;
+- imports no ordinary Contact or emergency-contact data;
+- exact ambiguous retries reproduce the same server-owned migration identity/fingerprint and recover the prior result safely;
+- a rolled-back execution identity cannot be reused as if it were an unapplied migration;
+- authoritative Person state is re-read and verified after apply.
 
-- requires `people.read`, `people.write`, `eligibility.read` and `eligibility.write` before reading or mutating authoritative state;
-- rebuilds the canonical Hourglass preview from fresh tenant-scoped People immediately before commit;
-- uses a SHA-256 confirmation digest only as stale-state evidence, never as authority;
-- preserves `create` / `unchanged` / `conflict` semantics and rejects unresolved conflicts instead of silently updating existing People;
-- maps newly imported People as inactive, with only the stable Hourglass publisher external id and explicitly demonstrated Hourglass privileges as eligibility decisions;
-- imports no ordinary contact or emergency-contact data;
-- derives stable migration/person/operation/audit/event identities from a server execution attempt so an ambiguous exact retry can reproduce the same atomic commit fingerprint;
-- reuses persisted create evidence only to reconstruct the pre-commit state for an exact replay, while the serialized database RPC remains the final idempotency authority;
-- rejects reuse of an execution identity after rollback;
-- re-reads authoritative People after `applied` or `already-applied` and verifies the expected created state.
+## Authenticated prepare → confirm → execute handshake
 
-The internal execution attempt contains a generated identity and initiation timestamp. It is **not** yet an approved browser contract. A future HTTP route must not trust a browser-supplied attempt timestamp or authority fields; the prepare→confirm→execute handshake must keep that server-generated attempt trustworthy across requests.
+PR #379 / main SHA `bc53c5eec2923ce813a0ee026039c3822f7e0d5c` completed the HTTP authority boundary:
 
-These internal primitives still do **not** expose execute or rollback to a user:
+- `POST /api/import/hourglass/prepare` validates same-origin mutation, derives principal/capabilities server-side, persists a server-owned execution attempt and returns its opaque `executionId`, expiry, confirmation digest, exact reviewed preview and counts;
+- `POST /api/import/hourglass/execute` requires the persisted execution identity plus the exact prepared confirmation digest and source payload, reloads the server-owned attempt, rebuilds fresh authoritative state and invokes the atomic execution composition;
+- `POST /api/import/hourglass/rollback` accepts only the migration identity returned by a completed import and invokes the authorized create-only rollback composition;
+- request parsers reject extra/authority-bearing fields and bounded request limits remain aligned with the 5 MB import contract;
+- same-origin mutation protection, tenant/capability checks, replay/idempotency and late-retry recovery are covered by handler/application/database tests.
 
-- no authenticated execute route calls the internal execution composition;
-- no authenticated rollback endpoint consumes the create-only rollback primitive;
-- no browser Apply/Rollback action is authorized yet;
-- the canonical user-facing import surface therefore remains the read-only dry-run preview.
+The server-generated attempt timestamp and authority remain private server facts. The browser cannot choose or reconstruct them.
 
-## Required remaining production contract before PX9.9 can be completed
+## Browser confirmation and retry ownership
 
-Before exposing execute, the authenticated handshake must:
+PR #380 / main SHA `e7ba41d8aca0040392fff87788190e4a878c5e45` completed the user-facing Ant Design flow:
 
-1. resolve tenant, actor and all required capabilities from the verified session;
-2. re-inspect the submitted Hourglass payload server-side under the same bounded import limits;
-3. create or recover a server-owned execution attempt without trusting browser timestamps, tenant, actor or capability claims;
-4. bind the human-confirmed preview digest to that attempt so a changed authoritative preview fails stale before mutation;
-5. invoke the existing Hourglass-specific create-only execution composition rather than independent per-person writes;
-6. preserve same-origin mutation protection and exact retry/idempotency behavior after ambiguous network outcomes;
-7. return only minimum-necessary execution status and migration identity, without leaking imported PII into URLs, logs, analytics, browser storage or service-worker caches;
-8. expose rollback separately only for the persisted create-only migration shape currently proven safe;
-9. verify resulting authoritative state after execute and rollback;
-10. keep real-user destructive production acceptance separate and explicitly documented.
+- the user first reviews a read-only reconciliation preview;
+- Prepare obtains the exact server-bound preview and confirmation digest;
+- execution requires a separate explicit confirmation dialog;
+- conflict previews cannot execute;
+- ambiguous execution failures can be retried against the same prepared attempt rather than generating a duplicate migration;
+- successful imports expose only minimum-necessary outcome/counts and the opaque migration identity needed for rollback;
+- rollback has a separate destructive confirmation;
+- stale response ownership, request cancellation and double-submit guards prevent old or repeated async work from taking control;
+- pt-PT/en/es copy is present;
+- source payload and execution state are not persisted to browser storage or URLs.
 
-If the HTTP handshake cannot preserve the server-owned execution identity and atomic/recovery guarantees, the product must keep the import read-only rather than display a misleading Apply or Rollback action.
+## Production acceptance boundary
 
-## Acceptance boundary
+PX9.9 is technically complete. It is **not** a claim that a destructive real-user production import/rollback has been executed.
 
-PX9.9 remains unchecked until the authenticated prepare→confirm→execute boundary and the authorized create-only rollback boundary are exposed and pass automated failure/retry/concurrency/tenant/privacy tests. The write-capable real-user production walkthrough remains a separate independent acceptance task and must not be inferred from CI or preview deployments.
+The independent production scenario must use an approved disposable Hourglass fixture and is recorded in `docs/PEOPLE_REAL_USER_PRODUCTION_E2E_PENDING.md`. CI, sanitized browser fixtures and Netlify preview evidence prove technical readiness only; they do not replace that production write acceptance.
+
+## Non-goals / deferred expansion
+
+- No automatic import from Contact-list CSV or privilege-matrix CSV without a proven stable identity contract.
+- No silent update of existing People on reconciliation conflicts.
+- No rollback support for richer update/restore shapes until the persistence snapshot can prove complete restoration of all affected state.
+- No Contact PII import through this Hourglass path.
