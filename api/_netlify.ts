@@ -14,6 +14,7 @@ import peopleAssistanceHandler from './people/assistance';
 import peopleRecommendationsHandler from './people/recommendations';
 import peopleRemindersHandler from './people/reminders';
 import peopleContactListHandler from './people/contact-list';
+import peopleRecordCardsHandler from './people/record-cards';
 import personHandler from './people/[personId]';
 import personArchiveHandler from './people/[personId]/archive';
 import eligibilityHandler from './people/[personId]/eligibility';
@@ -62,7 +63,7 @@ export interface NetlifyApiResult {
 
 type RouteKey =
   | 'health' | 'ready' | 'session' | 'logout' | 'logout-all' | 'rotate-session' | 'auth-otp' | 'auth-verify'
-  | 'people' | 'people-directory' | 'people-overview-evidence' | 'people-assistance' | 'people-recommendations' | 'people-reminders' | 'people-contact-list' | 'person' | 'person-archive' | 'eligibility' | 'availability' | 'ordinary-contact' | 'availability-period'
+  | 'people' | 'people-directory' | 'people-overview-evidence' | 'people-assistance' | 'people-recommendations' | 'people-reminders' | 'people-contact-list' | 'people-record-cards' | 'person' | 'person-archive' | 'eligibility' | 'availability' | 'ordinary-contact' | 'availability-period'
   | 'hourglass-preview' | 'hourglass-prepare' | 'hourglass-execute' | 'hourglass-rollback'
   | 'households' | 'household' | 'service-groups' | 'service-group'
   | 'responsibilities' | 'responsibility' | 'end-responsibility' | 'congregation-settings' | 'audit-history'
@@ -89,6 +90,7 @@ const handlers: Readonly<Record<RouteKey, ApiHandler>> = Object.freeze({
   'people-recommendations': peopleRecommendationsHandler,
   'people-reminders': peopleRemindersHandler,
   'people-contact-list': peopleContactListHandler,
+  'people-record-cards': peopleRecordCardsHandler,
   person: personHandler,
   'person-archive': personArchiveHandler,
   eligibility: eligibilityHandler,
@@ -156,6 +158,7 @@ export function matchNetlifyApiRoute(path: string): RouteMatch | undefined {
     '/people/recommendations': 'people-recommendations',
     '/people/reminders': 'people-reminders',
     '/people/contact-list': 'people-contact-list',
+    '/people/record-cards': 'people-record-cards',
     '/import/hourglass/preview': 'hourglass-preview',
     '/import/hourglass/prepare': 'hourglass-prepare',
     '/import/hourglass/execute': 'hourglass-execute',
