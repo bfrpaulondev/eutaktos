@@ -1,12 +1,13 @@
 # People Product Experience — current integrated status
 
-> Principal status snapshot updated 2026-08-27 after PX7.8 manual exclusions, the authenticated Hourglass execute/rollback flow and configurable Contact List integration. This file records what is actually present on `main`; it does not turn deferred real-user production acceptance into automated evidence.
+> Principal status snapshot updated 2026-08-27 after PX7.8 manual exclusions, authenticated Hourglass execution/rollback, configurable Contact List and PX9.5 Record Cards integration. This file records what is actually present on `main`; it does not turn deferred real-user production acceptance into automated evidence.
 
 ## Current baseline
 
 - Repository: `bfrpaulondev/eutaktos`
 - Canonical production: `https://eutakes.netlify.app/`
-- Current technical People/PX baseline: `c407c9a5db653f15f619d652eba120d94858e50f`.
+- Current technical People/PX baseline: `fd2256bb97b4dcdd79d64b91fa84bf8341854f04`.
+- PX9.5 runtime integration is main ancestor `e8d25f0e0d36305cc618e94ca1f52d17a5db9157`.
 - UI foundation: Ant Design 6. Runtime MUI/Emotion dependencies have been retired and guarded from reintroduction.
 - Tenant, actor and capabilities remain server-derived. Client state is never authoritative for those values.
 
@@ -79,6 +80,7 @@ Technically integrated slices:
 
 - **PX9.3 Labels/tags**: canonical server-owned explicit labels contract, management/filtering, partial-persistence-safe retries and privacy/authority coverage.
 - **PX9.4 Reminders**: server-authoritative pending evidence, explicit same-origin send intent, stable mutation identity for ambiguous retries, authoritative refetch, safe notification preferences and `queued` rather than fabricated delivery semantics.
+- **PX9.5 Record Cards / Reports**: purpose-built `GET /api/people/record-cards` projection requiring server-derived `people.read + schedule.read + reports.read`; accepts only annual or bounded civil-date period selectors; projects authoritative completed scheduling history into minimum-data person cards; excludes Contact/emergency/eligibility/availability/archive/recommendation data; Ant UI provides explicit year/custom preview before output, stale-request ownership and browser print/save-as-PDF action. PR #383 exact head `1a6f4293566e55e9fea12bb292119453bbdf5e02` passed quality + browser-regression + canonical `netlify/eutakes` preview and squash-merged as `e8d25f0e0d36305cc618e94ca1f52d17a5db9157`. Direct binary PX9.16 PDF export is not claimed by this slice.
 - **PX9.6 Archive / “A não publicar”**: explicit archive reason/date/current state/history, separate restore, generic-reactivation bypass protection, capability-aware API/UI and safe retry/refetch behavior.
 - **PX9.7/PX9.8 Import**: source selection, bounded parsing, server-authoritative preview/validation/duplicate/conflict analysis.
 - **PX9.9 Import execute/recovery**: atomic create-only apply/rollback, serialized replay protection, server-owned persisted execution attempts, authenticated prepare → confirm → execute handshake, explicit create-only rollback HTTP boundary and confirmed Ant Design UI. PR #379 main `bc53c5eec2923ce813a0ee026039c3822f7e0d5c`; PR #380 main `e7ba41d8aca0040392fff87788190e4a878c5e45`.
@@ -91,9 +93,8 @@ Destructive real-user production archive/import/rollback acceptance is **not** c
 Remaining PX9 product/contract gaps:
 
 - **PX9.1/PX9.2 Transfers** — no reviewed send/receive persistence and secure token lifecycle contract yet.
-- **PX9.5 Record cards/reports** — report shape, period semantics and privacy/export contract are not approved.
 - **PX9.10/PX9.11 Map** — no approved Person/group location model and least-privilege privacy/capability boundary exists.
-- **PX9.16 PDF export** — depends on an approved report/contact-list document contract; do not widen private DTOs for convenience.
+- **PX9.16 PDF export** — the minimum-data Record Cards report projection is now approved and integrated, so direct binary PDF can build on that contract without widening private DTOs. Browser print/save-as-PDF already exists but is intentionally not treated as the direct binary export task.
 - **PX9.17 DOCX** remains product-research dependent and must not be implemented solely for parity.
 
 ### PX10 — quality / accessibility evidence
@@ -128,10 +129,10 @@ Automated tests, sanitized browser fixtures, preview deployments and CI do **not
 
 ## Safe next engineering order
 
-1. Preserve the green `c407c9a5...` People/PX baseline and its server authority/privacy boundaries.
-2. Synchronize stale master-plan checkboxes only from integrated evidence; never reimplement completed slices because an older document lagged `main`.
+1. Preserve the green `fd2256bb...` People/PX baseline and its server authority/privacy boundaries.
+2. Do not rebuild PX7.8, Hourglass execute/rollback, Contact List or Record Cards because older checkboxes/text may lag integrated evidence.
 3. Implement PX9.1/PX9.2 Transfers only after a reviewed server-owned persistence + secure one-time token lifecycle is defined.
-4. Implement PX9.5 reports and PX9.16 PDF together only after a minimum-data report projection/period/privacy contract is approved.
+4. PX9.16 direct PDF may now build only on the integrated minimum-data Record Cards projection; do not widen private DTOs.
 5. Keep PX9.10/PX9.11 Map blocked until a location model and least-privilege precision/capability policy exist.
 6. Keep PX9.17 DOCX deferred until product research demonstrates a need beyond CSV/PDF.
 7. Perform real-user production and real screen-reader acceptance separately; do not replace them with mocked CI.
