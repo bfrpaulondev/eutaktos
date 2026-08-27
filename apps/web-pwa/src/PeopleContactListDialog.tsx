@@ -143,7 +143,7 @@ export function PeopleContactListDialog({ locale, open, onClose }: { locale: Loc
           <Descriptions.Item label={text.generated}>{new Date(data.generatedAt).toLocaleString(locale)}</Descriptions.Item>
         </Descriptions>
         {!visiblePeople.length ? <Empty description={text.empty} /> : <List
-          dataSource={visiblePeople}
+          dataSource={[...visiblePeople]}
           renderItem={person => <List.Item key={person.personId}>
             <Card size="small" style={{ width: '100%' }}>
               <Space direction="vertical" size="small" style={{ width: '100%' }}>
