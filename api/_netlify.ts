@@ -9,6 +9,7 @@ import authOtpHandler from './auth/otp';
 import authVerifyHandler from './auth/verify';
 import peopleHandler from './people';
 import peopleDirectoryHandler from './people/directory';
+import peopleContactListHandler from './people/contact-list';
 import peopleOverviewEvidenceHandler from './people/overview-evidence';
 import peopleAssistanceHandler from './people/assistance';
 import peopleRecommendationsHandler from './people/recommendations';
@@ -56,7 +57,7 @@ export interface NetlifyApiResult {
 
 type RouteKey =
   | 'health' | 'ready' | 'session' | 'logout' | 'logout-all' | 'rotate-session' | 'auth-otp' | 'auth-verify'
-  | 'people' | 'people-directory' | 'people-overview-evidence' | 'people-assistance' | 'people-recommendations' | 'person' | 'eligibility' | 'availability' | 'ordinary-contact' | 'availability-period'
+  | 'people' | 'people-directory' | 'people-contact-list' | 'people-overview-evidence' | 'people-assistance' | 'people-recommendations' | 'person' | 'eligibility' | 'availability' | 'ordinary-contact' | 'availability-period'
   | 'hourglass-preview'
   | 'households' | 'household' | 'service-groups' | 'service-group'
   | 'responsibilities' | 'responsibility' | 'end-responsibility' | 'congregation-settings' | 'audit-history'
@@ -78,6 +79,7 @@ const handlers: Readonly<Record<RouteKey, ApiHandler>> = Object.freeze({
   'auth-verify': authVerifyHandler,
   people: peopleHandler,
   'people-directory': peopleDirectoryHandler,
+  'people-contact-list': peopleContactListHandler,
   'people-overview-evidence': peopleOverviewEvidenceHandler,
   'people-assistance': peopleAssistanceHandler,
   'people-recommendations': peopleRecommendationsHandler,
@@ -139,6 +141,7 @@ export function matchNetlifyApiRoute(path: string): RouteMatch | undefined {
     '/auth/verify': 'auth-verify',
     '/people': 'people',
     '/people/directory': 'people-directory',
+    '/people/contact-list': 'people-contact-list',
     '/people/overview-evidence': 'people-overview-evidence',
     '/people/assistance': 'people-assistance',
     '/people/recommendations': 'people-recommendations',
