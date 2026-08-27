@@ -1,5 +1,5 @@
 export const ACCESS_CAPABILITIES = [
-  'people.read', 'people.write',
+  'people.read', 'people.write', 'map.read', 'map.write',
   'eligibility.read', 'eligibility.write',
   'availability.read', 'availability.write',
   'emergency-contacts.read', 'emergency-contacts.write',
