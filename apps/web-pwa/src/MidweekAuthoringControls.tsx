@@ -1,5 +1,13 @@
-import { useState, type FormEvent } from 'react';
-import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, MenuItem, TextField } from '@mui/material';
+import Alert from 'antd/es/alert';
+import Button from 'antd/es/button';
+import Divider from 'antd/es/divider';
+import Form from 'antd/es/form';
+import Input from 'antd/es/input';
+import Modal from 'antd/es/modal';
+import Select from 'antd/es/select';
+import Space from 'antd/es/space';
+import Typography from 'antd/es/typography';
+import { useRef, useState, type FormEvent } from 'react';
 import { midweekApi, type MidweekMeetingDto, type NonStudentAssignmentDto, type StudentAssignmentDto } from './lib/midweekApi';
 import type { PersonProfileDto } from './lib/peopleApi';
 import type { Locale } from './lib/preferences';
@@ -12,7 +20,6 @@ import {
   STANDARD_NON_STUDENT_ROLES,
 } from './lib/assignmentTypeCatalog';
 import { RecommendationPicker } from './RecommendationPicker';
-import { Stack, Typography } from './ui/MuiCompat';
 
 export { BUILTIN_PARTS, slotAllowsStudentAssignment };
 
@@ -27,40 +34,282 @@ function localTimezone(): string {
   catch { return 'UTC'; }
 }
 
-export function CreateMidweekMeetingControl({ locale, onChanged }: { locale:Locale; onChanged:()=>Promise<void>|void }) {
-  const text=copy[locale]; const [open,setOpen]=useState(false); const [date,setDate]=useState(''); const [time,setTime]=useState('19:30'); const [timezone,setTimezone]=useState(localTimezone); const [location,setLocation]=useState(''); const [working,setWorking]=useState(false); const [error,setError]=useState(false);
-  const submit=async(event:FormEvent)=>{event.preventDefault();if(!date||!time||!timezone.trim()||working)return;setWorking(true);setError(false);try{await midweekApi.createMeeting({date,localTime:time,timezone:timezone.trim(),...(location.trim()?{locationId:location.trim()}:{})});setOpen(false);setDate('');setLocation('');await onChanged();}catch{setError(true);}finally{setWorking(false);}};
-  return <><Button variant="contained" onClick={()=>{setError(false);setOpen(true);}}>{text.createMeeting}</Button><Dialog open={open} onClose={()=>!working&&setOpen(false)} fullWidth maxWidth="sm"><form onSubmit={submit}><DialogTitle>{text.meetingTitle}</DialogTitle><DialogContent><Stack spacing={2} sx={{pt:1}}><TextField type="date" label={text.date} value={date} onChange={e=>setDate(e.target.value)} required slotProps={{inputLabel:{shrink:true}}}/><TextField type="time" label={text.time} value={time} onChange={e=>setTime(e.target.value)} required slotProps={{inputLabel:{shrink:true},htmlInput:{step:60}}}/><TextField label={text.timezone} value={timezone} onChange={e=>setTimezone(e.target.value)} required/><TextField label={text.location} value={location} onChange={e=>setLocation(e.target.value)} slotProps={{htmlInput:{maxLength:200}}}/>{error?<Alert severity="error">{text.error}</Alert>:null}</Stack></DialogContent><DialogActions><Button onClick={()=>setOpen(false)} disabled={working}>{text.cancel}</Button><Button type="submit" variant="contained" disabled={working||!date||!time||!timezone.trim()}>{working?text.working:text.save}</Button></DialogActions></form></Dialog></>;
+function personOptions(people: readonly PersonProfileDto[], excludedId?: string) {
+  return people.filter(person => person.active && person.id !== excludedId).map(person => ({ value: person.id, label: person.displayName }));
 }
 
-type AssignmentKind='student'|'role';
-export function MidweekMeetingControls({ locale, meeting, people, onChanged }:{ locale:Locale; meeting:MidweekMeetingDto; people:readonly PersonProfileDto[]; onChanged:()=>Promise<void>|void }) {
-  const text=copy[locale]; const activePeople=people.filter(person=>person.active); const [partOpen,setPartOpen]=useState(false); const [titleKey,setTitleKey]=useState(''); const [duration,setDuration]=useState('5'); const [definition,setDefinition]=useState(''); const [assignment,setAssignment]=useState<{kind:AssignmentKind;slotId:string}|null>(null); const [personId,setPersonId]=useState(''); const [assistantId,setAssistantId]=useState(''); const [roleChoice,setRoleChoice]=useState(''); const [customRole,setCustomRole]=useState(''); const [manualStudentSelection,setManualStudentSelection]=useState(false); const [working,setWorking]=useState(false); const [error,setError]=useState(false); const [publishOpen,setPublishOpen]=useState(false);
-  if(meeting.state!=='draft')return meeting.slots.length?<Stack spacing={.75}>{meeting.slots.map(slot=><Typography key={slot.id} variant="body2">{slot.position+1}. {slot.titleKey} · {slot.durationMinutes} min</Typography>)}</Stack>:null;
-  const run=async(op:()=>Promise<unknown>)=>{if(working)return;setWorking(true);setError(false);try{await op();await onChanged();return true;}catch{setError(true);return false;}finally{setWorking(false);}};
-  const addPart=async(event:FormEvent)=>{event.preventDefault();if(!titleKey.trim()||!Number.isInteger(Number(duration))||Number(duration)<=0)return;const ok=await run(()=>midweekApi.addSlot(meeting.id,{position:meeting.slots.length,durationMinutes:Number(duration),titleKey:titleKey.trim(),...(definition?{partDefinitionId:definition}:{})}));if(ok){setPartOpen(false);setTitleKey('');setDuration('5');setDefinition('');}};
-  const selectedAssignmentPart=assignment?builtinPart(meeting.slots.find(slot=>slot.id===assignment.slotId)?.partDefinitionId):undefined;
-  const requiresAssistant=assignment?.kind==='student'&&selectedAssignmentPart?.assistantRequirement==='required';
-  const resolvedRole=resolveAssignmentTypeChoice(roleChoice,customRole);
-  const closeAssignment=()=>{if(working)return;setAssignment(null);setManualStudentSelection(false);};
-  const saveAssignment=async(event:FormEvent)=>{event.preventDefault();if(!assignment||!personId||(requiresAssistant&&!assistantId))return;const ok=assignment.kind==='student'?await run(()=>midweekApi.assignStudent(meeting.id,{slotId:assignment.slotId,studentId:personId,assistantId:assistantId||null})):resolvedRole?await run(()=>midweekApi.assignNonStudent(meeting.id,{slotId:assignment.slotId,personId,role:resolvedRole})):false;if(ok){setAssignment(null);setPersonId('');setAssistantId('');setRoleChoice('');setCustomRole('');setManualStudentSelection(false);}};
-  const chooseDefinition=(partId:string)=>{setDefinition(partId);const part=builtinPart(partId);if(part){setTitleKey(part.titleKey);setDuration(String(part.durationMinutes));}};
-  return <Stack spacing={1.25}><Divider/>{meeting.slots.map(slot=><Stack key={slot.id} direction={{xs:'column',sm:'row'}} spacing={1} alignItems={{sm:'center'}} justifyContent="space-between"><Typography variant="body2"><strong>{slot.position+1}. {slot.titleKey}</strong> · {slot.durationMinutes} min</Typography><Stack direction="row" spacing={.5} flexWrap="wrap" useFlexGap>{slotAllowsStudentAssignment(slot.partDefinitionId)?<Button size="small" disabled={working||!activePeople.length} onClick={()=>{setError(false);setPersonId('');setAssistantId('');setManualStudentSelection(false);setAssignment({kind:'student',slotId:slot.id});}}>{text.assignStudent}</Button>:null}<Button size="small" disabled={working||!activePeople.length} onClick={()=>{setError(false);setPersonId('');setManualStudentSelection(false);setAssignment({kind:'role',slotId:slot.id});}}>{text.assignRole}</Button><Button size="small" color="warning" disabled={working} onClick={()=>void run(()=>midweekApi.removeSlot(meeting.id,slot.id))}>{text.removePart}</Button></Stack></Stack>)}{!activePeople.length?<Typography variant="caption" color="text.secondary">{text.noPeople}</Typography>:null}{error?<Alert severity="error">{text.error}</Alert>:null}<Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap><Button variant="outlined" disabled={working} onClick={()=>{setError(false);setPartOpen(true);}}>{text.addPart}</Button><Button variant="contained" disabled={working} onClick={()=>{setError(false);setPublishOpen(true);}}>{text.publish}</Button></Stack>
-  <Dialog open={partOpen} onClose={()=>!working&&setPartOpen(false)} fullWidth maxWidth="sm"><form onSubmit={addPart}><DialogTitle>{text.partTitle}</DialogTitle><DialogContent><Stack spacing={2} sx={{pt:1}}><TextField select label={text.partDefinition} value={definition} onChange={e=>chooseDefinition(e.target.value)}><MenuItem value="">{text.customPart}</MenuItem>{BUILTIN_PARTS.map(part=><MenuItem key={part.id} value={part.id}>{part.label[locale]}</MenuItem>)}</TextField><TextField label={text.titleKey} value={titleKey} onChange={e=>setTitleKey(e.target.value)} required/><TextField type="number" label={text.duration} value={duration} onChange={e=>setDuration(e.target.value)} required slotProps={{htmlInput:{min:1,max:180,step:1}}}/>{error?<Alert severity="error">{text.error}</Alert>:null}</Stack></DialogContent><DialogActions><Button onClick={()=>setPartOpen(false)} disabled={working}>{text.cancel}</Button><Button type="submit" variant="contained" disabled={working||!titleKey.trim()}>{working?text.working:text.save}</Button></DialogActions></form></Dialog>
-  <Dialog open={assignment!==null} onClose={closeAssignment} fullWidth maxWidth="sm"><form onSubmit={saveAssignment}><DialogTitle>{assignment?.kind==='student'?text.assignStudent:text.assignRole}</DialogTitle><DialogContent><Stack spacing={2} sx={{pt:1}}>{assignment?.kind==='student'&&assignment?<><RecommendationPicker locale={locale} meetingId={meeting.id} slotId={assignment.slotId} selectedPersonId={personId||undefined} onSelect={setPersonId} disabled={working}/><Button size="small" variant="text" disabled={working} onClick={()=>setManualStudentSelection(value=>!value)} aria-expanded={manualStudentSelection}>{manualStudentSelection?text.hideManualStudent:text.manualStudent}</Button>{manualStudentSelection?<><Typography variant="caption" color="text.secondary">{text.manualStudentHint}</Typography><TextField select label={text.student} value={personId} onChange={e=>setPersonId(e.target.value)} required>{activePeople.map(person=><MenuItem key={person.id} value={person.id}>{person.displayName}</MenuItem>)}</TextField></>:null}</>:<TextField select label={text.person} value={personId} onChange={e=>setPersonId(e.target.value)} required>{activePeople.map(person=><MenuItem key={person.id} value={person.id}>{person.displayName}</MenuItem>)}</TextField>}{assignment?.kind==='student'?<TextField select label={requiresAssistant?text.assistantRequired:text.assistant} value={assistantId} onChange={e=>setAssistantId(e.target.value)} required={requiresAssistant}><MenuItem value="">{text.none}</MenuItem>{activePeople.filter(p=>p.id!==personId).map(person=><MenuItem key={person.id} value={person.id}>{person.displayName}</MenuItem>)}</TextField>:<><TextField select label={text.role} value={roleChoice} onChange={e=>{setRoleChoice(e.target.value);setCustomRole('');}} required><MenuItem value="" disabled>{text.chooseRole}</MenuItem>{STANDARD_NON_STUDENT_ROLES.map(option=><MenuItem key={option.id} value={option.id}>{option.label[locale]}</MenuItem>)}<MenuItem value={CUSTOM_ASSIGNMENT_TYPE_CHOICE}>{text.customRole}</MenuItem></TextField>{roleChoice===CUSTOM_ASSIGNMENT_TYPE_CHOICE?<TextField label={text.customRoleId} value={customRole} onChange={e=>setCustomRole(e.target.value)} required slotProps={{htmlInput:{maxLength:100,autoComplete:'off'}}}/>:null}</>}{error?<Alert severity="error">{text.error}</Alert>:null}</Stack></DialogContent><DialogActions><Button onClick={closeAssignment} disabled={working}>{text.cancel}</Button><Button type="submit" variant="contained" disabled={working||!personId||(assignment?.kind==='role'&&!resolvedRole)||Boolean(requiresAssistant&&!assistantId)}>{working?text.working:text.save}</Button></DialogActions></form></Dialog>
-  <Dialog open={publishOpen} onClose={()=>!working&&setPublishOpen(false)} aria-labelledby="midweek-publish-title" aria-describedby="midweek-publish-description"><DialogTitle id="midweek-publish-title">{text.publish}</DialogTitle><DialogContent><Typography id="midweek-publish-description">{text.publishConfirm}</Typography>{error?<Alert severity="error" sx={{mt:2}}>{text.error}</Alert>:null}</DialogContent><DialogActions><Button onClick={()=>setPublishOpen(false)} disabled={working}>{text.cancel}</Button><Button variant="contained" disabled={working} onClick={async()=>{const ok=await run(()=>midweekApi.publishMeeting(meeting.id));if(ok)setPublishOpen(false);}}>{working?text.working:text.confirm}</Button></DialogActions></Dialog>
-  </Stack>;
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return <Form.Item label={label} style={{ marginBottom: 12 }}>{children}</Form.Item>;
 }
 
-export function StudentAssignmentControls({ locale, assignment, people, onChanged }:{locale:Locale;assignment:StudentAssignmentDto;people:readonly PersonProfileDto[];onChanged:()=>Promise<void>|void}){
-  const text=copy[locale];const [open,setOpen]=useState(false);const [studentId,setStudentId]=useState(assignment.studentId);const [assistantId,setAssistantId]=useState(assignment.assistantId??'');const [manualStudentSelection,setManualStudentSelection]=useState(false);const [working,setWorking]=useState(false);const [error,setError]=useState(false);const active=people.filter(p=>p.active);if(assignment.state!=='assigned')return null;
-  const run=async(op:()=>Promise<void>)=>{setWorking(true);setError(false);try{await op();await onChanged();return true;}catch{setError(true);return false;}finally{setWorking(false);}};
-  const close=()=>{if(working)return;setOpen(false);setManualStudentSelection(false);};
-  return <><Stack direction="row" spacing={1}><Button size="small" variant="outlined" onClick={()=>{setManualStudentSelection(false);setOpen(true);}}>{text.replace}</Button><Button size="small" color="warning" disabled={working} onClick={()=>void run(()=>midweekApi.cancelStudent(assignment.id))}>{text.cancelAssignment}</Button></Stack><Dialog open={open} onClose={close} fullWidth maxWidth="sm"><DialogTitle>{text.replace}</DialogTitle><DialogContent><Stack spacing={2} sx={{pt:1}}>{open?<RecommendationPicker locale={locale} meetingId={assignment.meetingId} slotId={assignment.slotId} selectedPersonId={studentId||undefined} onSelect={setStudentId} disabled={working}/>:null}<Button size="small" variant="text" disabled={working} onClick={()=>setManualStudentSelection(value=>!value)} aria-expanded={manualStudentSelection}>{manualStudentSelection?text.hideManualStudent:text.manualStudent}</Button>{manualStudentSelection?<><Typography variant="caption" color="text.secondary">{text.manualStudentHint}</Typography><TextField select label={text.student} value={studentId} onChange={e=>setStudentId(e.target.value)}>{active.map(p=><MenuItem key={p.id} value={p.id}>{p.displayName}</MenuItem>)}</TextField></>:null}<TextField select label={text.assistant} value={assistantId} onChange={e=>setAssistantId(e.target.value)}><MenuItem value="">{text.none}</MenuItem>{active.filter(p=>p.id!==studentId).map(p=><MenuItem key={p.id} value={p.id}>{p.displayName}</MenuItem>)}</TextField>{error?<Alert severity="error">{text.error}</Alert>:null}</Stack></DialogContent><DialogActions><Button onClick={close} disabled={working}>{text.cancel}</Button><Button variant="contained" disabled={working||!studentId} onClick={async()=>{const ok=await run(()=>midweekApi.replaceStudent(assignment.id,{studentId,assistantId:assistantId||null}));if(ok){setOpen(false);setManualStudentSelection(false);}}}>{working?text.working:text.save}</Button></DialogActions></Dialog></>;
+export function CreateMidweekMeetingControl({ locale, onChanged }: { locale: Locale; onChanged: () => Promise<void> | void }) {
+  const text = copy[locale];
+  const [open, setOpen] = useState(false);
+  const [date, setDate] = useState('');
+  const [time, setTime] = useState('19:30');
+  const [timezone, setTimezone] = useState(localTimezone);
+  const [location, setLocation] = useState('');
+  const [working, setWorking] = useState(false);
+  const [error, setError] = useState(false);
+  const workingRef = useRef(false);
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!date || !time || !timezone.trim() || workingRef.current) return;
+    workingRef.current = true;
+    setWorking(true);
+    setError(false);
+    try {
+      await midweekApi.createMeeting({ date, localTime: time, timezone: timezone.trim(), ...(location.trim() ? { locationId: location.trim() } : {}) });
+      setOpen(false);
+      setDate('');
+      setLocation('');
+      await onChanged();
+    } catch {
+      setError(true);
+    } finally {
+      workingRef.current = false;
+      setWorking(false);
+    }
+  };
+
+  return <>
+    <Button type="primary" onClick={() => { setError(false); setOpen(true); }}>{text.createMeeting}</Button>
+    <Modal open={open} title={text.meetingTitle} footer={null} onCancel={() => { if (!workingRef.current) setOpen(false); }} destroyOnHidden>
+      <form onSubmit={submit}>
+        <Field label={text.date}><Input aria-label={text.date} type="date" value={date} onChange={event => setDate(event.target.value)} required /></Field>
+        <Field label={text.time}><Input aria-label={text.time} type="time" step={60} value={time} onChange={event => setTime(event.target.value)} required /></Field>
+        <Field label={text.timezone}><Input aria-label={text.timezone} value={timezone} onChange={event => setTimezone(event.target.value)} required /></Field>
+        <Field label={text.location}><Input aria-label={text.location} maxLength={200} value={location} onChange={event => setLocation(event.target.value)} /></Field>
+        {error ? <Alert type="error" showIcon title={text.error} style={{ marginBottom: 16 }} /> : null}
+        <Space style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Button onClick={() => setOpen(false)} disabled={working}>{text.cancel}</Button>
+          <Button htmlType="submit" type="primary" loading={working} disabled={working || !date || !time || !timezone.trim()}>{working ? text.working : text.save}</Button>
+        </Space>
+      </form>
+    </Modal>
+  </>;
 }
 
-export function NonStudentAssignmentControls({ locale, assignment, people, onChanged }:{locale:Locale;assignment:NonStudentAssignmentDto;people:readonly PersonProfileDto[];onChanged:()=>Promise<void>|void}){
-  const text=copy[locale];const [open,setOpen]=useState(false);const [personId,setPersonId]=useState(assignment.personId);const [working,setWorking]=useState(false);const [error,setError]=useState(false);const active=people.filter(p=>p.active);if(assignment.state!=='assigned')return null;
-  const run=async(op:()=>Promise<void>)=>{setWorking(true);setError(false);try{await op();await onChanged();return true;}catch{setError(true);return false;}finally{setWorking(false);}};
-  return <><Stack direction="row" spacing={1}><Button size="small" variant="outlined" onClick={()=>setOpen(true)}>{text.replace}</Button><Button size="small" color="warning" disabled={working} onClick={()=>void run(()=>midweekApi.cancelNonStudent(assignment.id))}>{text.cancelAssignment}</Button></Stack><Dialog open={open} onClose={()=>!working&&setOpen(false)} fullWidth maxWidth="sm"><DialogTitle>{text.replace}</DialogTitle><DialogContent><Stack spacing={2} sx={{pt:1}}><TextField select label={text.person} value={personId} onChange={e=>setPersonId(e.target.value)}>{active.map(p=><MenuItem key={p.id} value={p.id}>{p.displayName}</MenuItem>)}</TextField>{error?<Alert severity="error">{text.error}</Alert>:null}</Stack></DialogContent><DialogActions><Button onClick={()=>setOpen(false)} disabled={working}>{text.cancel}</Button><Button variant="contained" disabled={working||!personId} onClick={async()=>{const ok=await run(()=>midweekApi.replaceNonStudent(assignment.id,personId));if(ok)setOpen(false);}}>{working?text.working:text.save}</Button></DialogActions></Dialog></>;
+type AssignmentKind = 'student' | 'role';
+
+export function MidweekMeetingControls({ locale, meeting, people, onChanged }: { locale: Locale; meeting: MidweekMeetingDto; people: readonly PersonProfileDto[]; onChanged: () => Promise<void> | void }) {
+  const text = copy[locale];
+  const activePeople = people.filter(person => person.active);
+  const [partOpen, setPartOpen] = useState(false);
+  const [titleKey, setTitleKey] = useState('');
+  const [duration, setDuration] = useState('5');
+  const [definition, setDefinition] = useState('');
+  const [assignment, setAssignment] = useState<{ kind: AssignmentKind; slotId: string } | null>(null);
+  const [personId, setPersonId] = useState('');
+  const [assistantId, setAssistantId] = useState('');
+  const [roleChoice, setRoleChoice] = useState('');
+  const [customRole, setCustomRole] = useState('');
+  const [manualStudentSelection, setManualStudentSelection] = useState(false);
+  const [working, setWorking] = useState(false);
+  const [error, setError] = useState(false);
+  const [publishOpen, setPublishOpen] = useState(false);
+  const workingRef = useRef(false);
+
+  if (meeting.state !== 'draft') return meeting.slots.length ? <Space orientation="vertical" size="small">{meeting.slots.map(slot => <Typography.Text key={slot.id}>{slot.position + 1}. {slot.titleKey} · {slot.durationMinutes} min</Typography.Text>)}</Space> : null;
+
+  const run = async (operation: () => Promise<unknown>) => {
+    if (workingRef.current) return false;
+    workingRef.current = true;
+    setWorking(true);
+    setError(false);
+    try {
+      await operation();
+      await onChanged();
+      return true;
+    } catch {
+      setError(true);
+      return false;
+    } finally {
+      workingRef.current = false;
+      setWorking(false);
+    }
+  };
+
+  const addPart = async (event: FormEvent) => {
+    event.preventDefault();
+    const minutes = Number(duration);
+    if (!titleKey.trim() || !Number.isInteger(minutes) || minutes <= 0 || minutes > 180) return;
+    const ok = await run(() => midweekApi.addSlot(meeting.id, { position: meeting.slots.length, durationMinutes: minutes, titleKey: titleKey.trim(), ...(definition ? { partDefinitionId: definition } : {}) }));
+    if (ok) {
+      setPartOpen(false);
+      setTitleKey('');
+      setDuration('5');
+      setDefinition('');
+    }
+  };
+
+  const selectedAssignmentPart = assignment ? builtinPart(meeting.slots.find(slot => slot.id === assignment.slotId)?.partDefinitionId) : undefined;
+  const requiresAssistant = assignment?.kind === 'student' && selectedAssignmentPart?.assistantRequirement === 'required';
+  const resolvedRole = resolveAssignmentTypeChoice(roleChoice, customRole);
+  const closeAssignment = () => { if (!workingRef.current) { setAssignment(null); setManualStudentSelection(false); } };
+
+  const saveAssignment = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!assignment || !personId || (requiresAssistant && !assistantId)) return;
+    const ok = assignment.kind === 'student'
+      ? await run(() => midweekApi.assignStudent(meeting.id, { slotId: assignment.slotId, studentId: personId, assistantId: assistantId || null }))
+      : resolvedRole
+        ? await run(() => midweekApi.assignNonStudent(meeting.id, { slotId: assignment.slotId, personId, role: resolvedRole }))
+        : false;
+    if (ok) {
+      setAssignment(null);
+      setPersonId('');
+      setAssistantId('');
+      setRoleChoice('');
+      setCustomRole('');
+      setManualStudentSelection(false);
+    }
+  };
+
+  const chooseDefinition = (partId: string) => {
+    setDefinition(partId);
+    const part = builtinPart(partId);
+    if (part) {
+      setTitleKey(part.titleKey);
+      setDuration(String(part.durationMinutes));
+    }
+  };
+
+  return <Space orientation="vertical" size="middle" style={{ display: 'flex' }}>
+    <Divider style={{ marginBlock: 4 }} />
+    {meeting.slots.map(slot => <div key={slot.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+      <Typography.Text><strong>{slot.position + 1}. {slot.titleKey}</strong> · {slot.durationMinutes} min</Typography.Text>
+      <Space wrap size="small">
+        {slotAllowsStudentAssignment(slot.partDefinitionId) ? <Button size="small" disabled={working || !activePeople.length} onClick={() => { setError(false); setPersonId(''); setAssistantId(''); setManualStudentSelection(false); setAssignment({ kind: 'student', slotId: slot.id }); }}>{text.assignStudent}</Button> : null}
+        <Button size="small" disabled={working || !activePeople.length} onClick={() => { setError(false); setPersonId(''); setManualStudentSelection(false); setAssignment({ kind: 'role', slotId: slot.id }); }}>{text.assignRole}</Button>
+        <Button size="small" danger disabled={working} onClick={() => void run(() => midweekApi.removeSlot(meeting.id, slot.id))}>{text.removePart}</Button>
+      </Space>
+    </div>)}
+    {!activePeople.length ? <Typography.Text type="secondary">{text.noPeople}</Typography.Text> : null}
+    {error ? <Alert type="error" showIcon title={text.error} /> : null}
+    <Space wrap>
+      <Button disabled={working} onClick={() => { setError(false); setPartOpen(true); }}>{text.addPart}</Button>
+      <Button type="primary" disabled={working} onClick={() => { setError(false); setPublishOpen(true); }}>{text.publish}</Button>
+    </Space>
+
+    <Modal open={partOpen} title={text.partTitle} footer={null} onCancel={() => { if (!workingRef.current) setPartOpen(false); }} destroyOnHidden>
+      <form onSubmit={addPart}>
+        <Field label={text.partDefinition}><Select aria-label={text.partDefinition} value={definition} onChange={chooseDefinition} style={{ width: '100%' }} options={[{ value: '', label: text.customPart }, ...BUILTIN_PARTS.map(part => ({ value: part.id, label: part.label[locale] }))]} /></Field>
+        <Field label={text.titleKey}><Input aria-label={text.titleKey} value={titleKey} onChange={event => setTitleKey(event.target.value)} required /></Field>
+        <Field label={text.duration}><Input aria-label={text.duration} type="number" min={1} max={180} step={1} value={duration} onChange={event => setDuration(event.target.value)} required /></Field>
+        {error ? <Alert type="error" showIcon title={text.error} style={{ marginBottom: 16 }} /> : null}
+        <Space style={{ display: 'flex', justifyContent: 'flex-end' }}><Button onClick={() => setPartOpen(false)} disabled={working}>{text.cancel}</Button><Button htmlType="submit" type="primary" loading={working} disabled={working || !titleKey.trim()}>{working ? text.working : text.save}</Button></Space>
+      </form>
+    </Modal>
+
+    <Modal open={assignment !== null} title={assignment?.kind === 'student' ? text.assignStudent : text.assignRole} footer={null} onCancel={closeAssignment} destroyOnHidden>
+      <form onSubmit={saveAssignment}>
+        <Space orientation="vertical" size="middle" style={{ display: 'flex' }}>
+          {assignment?.kind === 'student' && assignment ? <>
+            <RecommendationPicker locale={locale} meetingId={meeting.id} slotId={assignment.slotId} selectedPersonId={personId || undefined} onSelect={setPersonId} disabled={working} />
+            <Button size="small" type="text" disabled={working} onClick={() => setManualStudentSelection(value => !value)} aria-expanded={manualStudentSelection}>{manualStudentSelection ? text.hideManualStudent : text.manualStudent}</Button>
+            {manualStudentSelection ? <><Typography.Text type="secondary">{text.manualStudentHint}</Typography.Text><Field label={text.student}><Select aria-label={text.student} value={personId || undefined} onChange={setPersonId} options={personOptions(activePeople)} style={{ width: '100%' }} /></Field></> : null}
+          </> : <Field label={text.person}><Select aria-label={text.person} value={personId || undefined} onChange={setPersonId} options={personOptions(activePeople)} style={{ width: '100%' }} /></Field>}
+          {assignment?.kind === 'student' ? <Field label={requiresAssistant ? text.assistantRequired : text.assistant}><Select aria-label={requiresAssistant ? text.assistantRequired : text.assistant} value={assistantId || undefined} onChange={value => setAssistantId(value ?? '')} allowClear={!requiresAssistant} options={[{ value: '', label: text.none }, ...personOptions(activePeople, personId)]} style={{ width: '100%' }} /></Field> : <>
+            <Field label={text.role}><Select aria-label={text.role} value={roleChoice || undefined} placeholder={text.chooseRole} onChange={value => { setRoleChoice(value); setCustomRole(''); }} options={[...STANDARD_NON_STUDENT_ROLES.map(option => ({ value: option.id, label: option.label[locale] })), { value: CUSTOM_ASSIGNMENT_TYPE_CHOICE, label: text.customRole }]} style={{ width: '100%' }} /></Field>
+            {roleChoice === CUSTOM_ASSIGNMENT_TYPE_CHOICE ? <Field label={text.customRoleId}><Input aria-label={text.customRoleId} value={customRole} onChange={event => setCustomRole(event.target.value)} required maxLength={100} autoComplete="off" /></Field> : null}
+          </>}
+          {error ? <Alert type="error" showIcon title={text.error} /> : null}
+          <Space style={{ display: 'flex', justifyContent: 'flex-end' }}><Button onClick={closeAssignment} disabled={working}>{text.cancel}</Button><Button htmlType="submit" type="primary" loading={working} disabled={working || !personId || (assignment?.kind === 'role' && !resolvedRole) || Boolean(requiresAssistant && !assistantId)}>{working ? text.working : text.save}</Button></Space>
+        </Space>
+      </form>
+    </Modal>
+
+    <Modal open={publishOpen} title={text.publish} onCancel={() => { if (!workingRef.current) setPublishOpen(false); }} footer={<Space><Button onClick={() => setPublishOpen(false)} disabled={working}>{text.cancel}</Button><Button type="primary" loading={working} disabled={working} onClick={async () => { const ok = await run(() => midweekApi.publishMeeting(meeting.id)); if (ok) setPublishOpen(false); }}>{working ? text.working : text.confirm}</Button></Space>}>
+      <Typography.Paragraph id="midweek-publish-description">{text.publishConfirm}</Typography.Paragraph>
+      {error ? <Alert type="error" showIcon title={text.error} /> : null}
+    </Modal>
+  </Space>;
+}
+
+export function StudentAssignmentControls({ locale, assignment, people, onChanged }: { locale: Locale; assignment: StudentAssignmentDto; people: readonly PersonProfileDto[]; onChanged: () => Promise<void> | void }) {
+  const text = copy[locale];
+  const [open, setOpen] = useState(false);
+  const [studentId, setStudentId] = useState(assignment.studentId);
+  const [assistantId, setAssistantId] = useState(assignment.assistantId ?? '');
+  const [manualStudentSelection, setManualStudentSelection] = useState(false);
+  const [working, setWorking] = useState(false);
+  const [error, setError] = useState(false);
+  const workingRef = useRef(false);
+  const active = people.filter(person => person.active);
+  if (assignment.state !== 'assigned') return null;
+
+  const run = async (operation: () => Promise<void>) => {
+    if (workingRef.current) return false;
+    workingRef.current = true;
+    setWorking(true);
+    setError(false);
+    try {
+      await operation();
+      await onChanged();
+      return true;
+    } catch {
+      setError(true);
+      return false;
+    } finally {
+      workingRef.current = false;
+      setWorking(false);
+    }
+  };
+  const close = () => { if (!workingRef.current) { setOpen(false); setManualStudentSelection(false); } };
+
+  return <>
+    <Space wrap size="small"><Button size="small" onClick={() => { setManualStudentSelection(false); setOpen(true); }}>{text.replace}</Button><Button size="small" danger disabled={working} onClick={() => void run(() => midweekApi.cancelStudent(assignment.id))}>{text.cancelAssignment}</Button></Space>
+    <Modal open={open} title={text.replace} footer={null} onCancel={close} destroyOnHidden>
+      <Space orientation="vertical" size="middle" style={{ display: 'flex' }}>
+        {open ? <RecommendationPicker locale={locale} meetingId={assignment.meetingId} slotId={assignment.slotId} selectedPersonId={studentId || undefined} onSelect={setStudentId} disabled={working} /> : null}
+        <Button size="small" type="text" disabled={working} onClick={() => setManualStudentSelection(value => !value)} aria-expanded={manualStudentSelection}>{manualStudentSelection ? text.hideManualStudent : text.manualStudent}</Button>
+        {manualStudentSelection ? <><Typography.Text type="secondary">{text.manualStudentHint}</Typography.Text><Field label={text.student}><Select aria-label={text.student} value={studentId || undefined} onChange={setStudentId} options={personOptions(active)} style={{ width: '100%' }} /></Field></> : null}
+        <Field label={text.assistant}><Select aria-label={text.assistant} value={assistantId || undefined} onChange={value => setAssistantId(value ?? '')} allowClear options={[{ value: '', label: text.none }, ...personOptions(active, studentId)]} style={{ width: '100%' }} /></Field>
+        {error ? <Alert type="error" showIcon title={text.error} /> : null}
+        <Space style={{ display: 'flex', justifyContent: 'flex-end' }}><Button onClick={close} disabled={working}>{text.cancel}</Button><Button type="primary" loading={working} disabled={working || !studentId} onClick={async () => { const ok = await run(() => midweekApi.replaceStudent(assignment.id, { studentId, assistantId: assistantId || null })); if (ok) { setOpen(false); setManualStudentSelection(false); } }}>{working ? text.working : text.save}</Button></Space>
+      </Space>
+    </Modal>
+  </>;
+}
+
+export function NonStudentAssignmentControls({ locale, assignment, people, onChanged }: { locale: Locale; assignment: NonStudentAssignmentDto; people: readonly PersonProfileDto[]; onChanged: () => Promise<void> | void }) {
+  const text = copy[locale];
+  const [open, setOpen] = useState(false);
+  const [personId, setPersonId] = useState(assignment.personId);
+  const [working, setWorking] = useState(false);
+  const [error, setError] = useState(false);
+  const workingRef = useRef(false);
+  const active = people.filter(person => person.active);
+  if (assignment.state !== 'assigned') return null;
+
+  const run = async (operation: () => Promise<void>) => {
+    if (workingRef.current) return false;
+    workingRef.current = true;
+    setWorking(true);
+    setError(false);
+    try {
+      await operation();
+      await onChanged();
+      return true;
+    } catch {
+      setError(true);
+      return false;
+    } finally {
+      workingRef.current = false;
+      setWorking(false);
+    }
+  };
+
+  return <>
+    <Space wrap size="small"><Button size="small" onClick={() => setOpen(true)}>{text.replace}</Button><Button size="small" danger disabled={working} onClick={() => void run(() => midweekApi.cancelNonStudent(assignment.id))}>{text.cancelAssignment}</Button></Space>
+    <Modal open={open} title={text.replace} footer={null} onCancel={() => { if (!workingRef.current) setOpen(false); }} destroyOnHidden>
+      <Space orientation="vertical" size="middle" style={{ display: 'flex' }}>
+        <Field label={text.person}><Select aria-label={text.person} value={personId || undefined} onChange={setPersonId} options={personOptions(active)} style={{ width: '100%' }} /></Field>
+        {error ? <Alert type="error" showIcon title={text.error} /> : null}
+        <Space style={{ display: 'flex', justifyContent: 'flex-end' }}><Button onClick={() => setOpen(false)} disabled={working}>{text.cancel}</Button><Button type="primary" loading={working} disabled={working || !personId} onClick={async () => { const ok = await run(() => midweekApi.replaceNonStudent(assignment.id, personId)); if (ok) setOpen(false); }}>{working ? text.working : text.save}</Button></Space>
+      </Space>
+    </Modal>
+  </>;
 }
