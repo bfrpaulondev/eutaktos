@@ -106,4 +106,8 @@ export function createHourglassImportPreviewApi(fetcher: typeof fetch = fetch) {
   });
 }
 
-export const hourglassImportPreviewApi = createHourglassImportPreviewApi();
+export const hourglassImportPreviewApi = Object.freeze({
+  preview(payload: unknown, signal?: AbortSignal): Promise<HourglassPreviewDto> {
+    return createHourglassImportPreviewApi(globalThis.fetch.bind(globalThis)).preview(payload, signal);
+  },
+});
