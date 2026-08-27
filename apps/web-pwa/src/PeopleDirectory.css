@@ -18,6 +18,16 @@
   gap: 10px;
 }
 
+/* Long localized action labels must reflow inside the mobile content column.
+   Ant buttons otherwise keep a single-line intrinsic width that can exceed the
+   usable 320 CSS px viewport at 400% zoom. */
+.people-directory-mobile .ant-btn {
+  max-width: 100%;
+  white-space: normal;
+  height: auto;
+  min-height: var(--ant-control-height, 32px);
+}
+
 @media (min-width: 600px) {
   .people-directory-filter-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
