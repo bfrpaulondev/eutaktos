@@ -10,10 +10,46 @@ import { peopleApi, type PeopleApi } from './lib/peopleApi';
 import type { Locale } from './lib/preferences';
 
 const copy = {
-  'pt-PT': { title: 'Etiquetas', explanation: 'Etiquetas são metadados administrativos explícitos. Não alteram elegibilidade nem recomendações.', empty: 'Sem etiquetas', edit: 'Editar etiquetas', save: 'Guardar', cancel: 'Cancelar', saving: 'A guardar…', readOnly: 'Pode consultar estas etiquetas, mas não tem permissão para as alterar.', invalid: 'Use no máximo 20 etiquetas, com até 40 caracteres cada.', error: 'Não foi possível guardar as etiquetas. Tente novamente.', retry: 'Tentar novamente' },
-  en: { title: 'Labels', explanation: 'Labels are explicit administrative metadata. They do not change eligibility or recommendations.', empty: 'No labels', edit: 'Edit labels', save: 'Save', cancel: 'Cancel', saving: 'Saving…', readOnly: 'You can view these labels, but you do not have permission to change them.', invalid: 'Use at most 20 labels, with up to 40 characters each.', error: 'Labels could not be saved. Try again.', retry: 'Try again' },
-  es: { title: 'Etiquetas', explanation: 'Las etiquetas son metadatos administrativos explícitos. No cambian la elegibilidad ni las recomendaciones.', empty: 'Sin etiquetas', edit: 'Editar etiquetas', save: 'Guardar', cancel: 'Cancelar', saving: 'Guardando…', readOnly: 'Puede consultar estas etiquetas, pero no tiene permiso para cambiarlas.', invalid: 'Use como máximo 20 etiquetas, de hasta 40 caracteres cada una.', error: 'No se pudieron guardar las etiquetas. Inténtelo de nuevo.', retry: 'Intentar de nuevo' },
+  'pt-PT': {
+    title: 'Etiquetas',
+    explanation: 'Etiquetas são metadados administrativos explícitos. Não alteram elegibilidade nem recomendações.',
+    empty: 'Sem etiquetas', edit: 'Editar etiquetas', save: 'Guardar', cancel: 'Cancelar', saving: 'A guardar…',
+    readOnly: 'Pode consultar estas etiquetas, mas não tem permissão para as alterar.',
+    invalid: 'Use no máximo 20 etiquetas, com até 40 caracteres cada.',
+    unauthenticated: 'A sessão terminou antes de guardar as etiquetas. Inicie sessão novamente.',
+    forbidden: 'Já não tem permissão para alterar estas etiquetas.',
+    error: 'Não foi possível guardar as etiquetas. Tente novamente.', retry: 'Tentar novamente',
+  },
+  en: {
+    title: 'Labels',
+    explanation: 'Labels are explicit administrative metadata. They do not change eligibility or recommendations.',
+    empty: 'No labels', edit: 'Edit labels', save: 'Save', cancel: 'Cancel', saving: 'Saving…',
+    readOnly: 'You can view these labels, but you do not have permission to change them.',
+    invalid: 'Use at most 20 labels, with up to 40 characters each.',
+    unauthenticated: 'Your session ended before the labels could be saved. Sign in again.',
+    forbidden: 'You no longer have permission to change these labels.',
+    error: 'Labels could not be saved. Try again.', retry: 'Try again',
+  },
+  es: {
+    title: 'Etiquetas',
+    explanation: 'Las etiquetas son metadatos administrativos explícitos. No cambian la elegibilidad ni las recomendaciones.',
+    empty: 'Sin etiquetas', edit: 'Editar etiquetas', save: 'Guardar', cancel: 'Cancelar', saving: 'Guardando…',
+    readOnly: 'Puede consultar estas etiquetas, pero no tiene permiso para cambiarlas.',
+    invalid: 'Use como máximo 20 etiquetas, de hasta 40 caracteres cada una.',
+    unauthenticated: 'La sesión terminó antes de guardar las etiquetas. Inicie sesión de nuevo.',
+    forbidden: 'Ya no tiene permiso para cambiar estas etiquetas.',
+    error: 'No se pudieron guardar las etiquetas. Inténtelo de nuevo.', retry: 'Intentar de nuevo',
+  },
 } as const;
+
+type SaveErrorState = 'unauthenticated' | 'forbidden' | 'retryable' | null;
+
+export function labelSaveErrorState(error: unknown): Exclude<SaveErrorState, null> {
+  const message = error instanceof Error ? error.message : '';
+  if (/\(401\)$/.test(message)) return 'unauthenticated';
+  if (/\(403\)$/.test(message)) return 'forbidden';
+  return 'retryable';
+}
 
 export function normalizeLabels(values: readonly string[]): readonly string[] {
   const result: string[] = [];
@@ -70,7 +106,7 @@ export function PersonLabelsDialog({ personId, personName, labels, locale, canWr
   const [draft, setDraft] = useState<readonly string[]>(labels);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState(false);
+  const [saveError, setSaveError] = useState<SaveErrorState>(null);
   const mutationLockRef = useRef(false);
 
   useEffect(() => {
@@ -78,7 +114,7 @@ export function PersonLabelsDialog({ personId, personName, labels, locale, canWr
     setDraft(labels);
     setEditing(false);
     setSaving(false);
-    setSaveError(false);
+    setSaveError(null);
   }, [open, personId, labels]);
 
   const normalized = normalizeLabels(draft);
@@ -89,29 +125,45 @@ export function PersonLabelsDialog({ personId, personName, labels, locale, canWr
     if (!canWrite || !valid || !changed || mutationLockRef.current) return;
     mutationLockRef.current = true;
     setSaving(true);
-    setSaveError(false);
+    setSaveError(null);
     try {
       const confirmed = await persistPersonLabels(api, personId, normalized);
       setDraft(confirmed);
       setEditing(false);
       onSaved(confirmed);
-    } catch {
-      setSaveError(true);
+    } catch (error) {
+      setSaveError(labelSaveErrorState(error));
     } finally {
       setSaving(false);
       mutationLockRef.current = false;
     }
   };
 
+  const saveErrorMessage = saveError === 'unauthenticated'
+    ? text.unauthenticated
+    : saveError === 'forbidden'
+      ? text.forbidden
+      : saveError === 'retryable'
+        ? text.error
+        : undefined;
+
   return <Modal open={open} title={`${text.title} — ${personName}`} onCancel={saving ? undefined : onClose} footer={null} destroyOnHidden>
     <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       <Alert type="info" showIcon title={text.explanation} />
       {!canWrite ? <Alert type="warning" showIcon title={text.readOnly} /> : null}
-      {saveError ? <Alert type="error" showIcon title={text.error} action={<Button size="small" disabled={saving} onClick={() => void save()}>{text.retry}</Button>} /> : null}
+      {saveErrorMessage ? <Alert
+        type="error"
+        showIcon
+        title={saveErrorMessage}
+        action={saveError === 'retryable' ? <Button size="small" disabled={saving} onClick={() => void save()}>{text.retry}</Button> : undefined}
+      /> : null}
       {editing ? <>
         <Select aria-label={text.edit} mode="tags" open={false} value={[...draft]} onChange={value => setDraft(value)} disabled={saving} tokenSeparators={[',']} style={{ width: '100%' }} placeholder={text.empty} />
         {!valid ? <Typography.Text type="danger" role="alert">{text.invalid}</Typography.Text> : null}
-        <Space wrap><Button onClick={() => { setDraft(labels); setEditing(false); setSaveError(false); }} disabled={saving}>{text.cancel}</Button><Button type="primary" loading={saving} disabled={!valid || !changed} onClick={() => void save()}>{saving ? text.saving : text.save}</Button></Space>
+        <Space wrap>
+          <Button onClick={() => { setDraft(labels); setEditing(false); setSaveError(null); }} disabled={saving}>{text.cancel}</Button>
+          <Button type="primary" loading={saving} disabled={!valid || !changed} onClick={() => void save()}>{saving ? text.saving : text.save}</Button>
+        </Space>
       </> : <>
         <Space size={[4, 4]} wrap>{labels.length ? labels.map(label => <Tag key={label}>{label}</Tag>) : <Typography.Text type="secondary">{text.empty}</Typography.Text>}</Space>
         {canWrite ? <Button onClick={() => setEditing(true)}>{text.edit}</Button> : null}
