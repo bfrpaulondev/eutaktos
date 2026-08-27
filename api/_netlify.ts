@@ -15,12 +15,14 @@ import peopleRecommendationsHandler from './people/recommendations';
 import peopleRemindersHandler from './people/reminders';
 import peopleContactListHandler from './people/contact-list';
 import peopleRecordCardsHandler from './people/record-cards';
+import peopleMapHandler from './people/map';
 import peopleTransfersHandler from './people/transfers';
 import peopleTransferPreviewHandler from './people/transfers/preview';
 import peopleTransferClaimHandler from './people/transfers/claim';
 import peopleTransferCancelHandler from './people/transfers/[transferId]/cancel';
 import personHandler from './people/[personId]';
 import personArchiveHandler from './people/[personId]/archive';
+import personMapLocationHandler from './people/[personId]/map-location';
 import eligibilityHandler from './people/[personId]/eligibility';
 import availabilityHandler from './people/[personId]/availability';
 import ordinaryContactHandler from './people/[personId]/contact';
@@ -67,7 +69,7 @@ export interface NetlifyApiResult {
 
 type RouteKey =
   | 'health' | 'ready' | 'session' | 'logout' | 'logout-all' | 'rotate-session' | 'auth-otp' | 'auth-verify'
-  | 'people' | 'people-directory' | 'people-overview-evidence' | 'people-assistance' | 'people-recommendations' | 'people-reminders' | 'people-contact-list' | 'people-record-cards' | 'people-transfers' | 'people-transfer-preview' | 'people-transfer-claim' | 'people-transfer-cancel' | 'person' | 'person-archive' | 'eligibility' | 'availability' | 'ordinary-contact' | 'availability-period'
+  | 'people' | 'people-directory' | 'people-overview-evidence' | 'people-assistance' | 'people-recommendations' | 'people-reminders' | 'people-contact-list' | 'people-record-cards' | 'people-map' | 'people-transfers' | 'people-transfer-preview' | 'people-transfer-claim' | 'people-transfer-cancel' | 'person' | 'person-archive' | 'person-map-location' | 'eligibility' | 'availability' | 'ordinary-contact' | 'availability-period'
   | 'hourglass-preview' | 'hourglass-prepare' | 'hourglass-execute' | 'hourglass-rollback'
   | 'households' | 'household' | 'service-groups' | 'service-group'
   | 'responsibilities' | 'responsibility' | 'end-responsibility' | 'congregation-settings' | 'audit-history'
@@ -95,12 +97,14 @@ const handlers: Readonly<Record<RouteKey, ApiHandler>> = Object.freeze({
   'people-reminders': peopleRemindersHandler,
   'people-contact-list': peopleContactListHandler,
   'people-record-cards': peopleRecordCardsHandler,
+  'people-map': peopleMapHandler,
   'people-transfers': peopleTransfersHandler,
   'people-transfer-preview': peopleTransferPreviewHandler,
   'people-transfer-claim': peopleTransferClaimHandler,
   'people-transfer-cancel': peopleTransferCancelHandler,
   person: personHandler,
   'person-archive': personArchiveHandler,
+  'person-map-location': personMapLocationHandler,
   eligibility: eligibilityHandler,
   availability: availabilityHandler,
   'ordinary-contact': ordinaryContactHandler,
@@ -167,6 +171,7 @@ export function matchNetlifyApiRoute(path: string): RouteMatch | undefined {
     '/people/reminders': 'people-reminders',
     '/people/contact-list': 'people-contact-list',
     '/people/record-cards': 'people-record-cards',
+    '/people/map': 'people-map',
     '/people/transfers': 'people-transfers',
     '/people/transfers/preview': 'people-transfer-preview',
     '/people/transfers/claim': 'people-transfer-claim',
@@ -214,6 +219,7 @@ export function matchNetlifyApiRoute(path: string): RouteMatch | undefined {
 
   const patterns: readonly [RegExp, RouteKey, string][] = [
     [/^\/people\/([^/]+)\/archive$/, 'person-archive', 'personId'],
+    [/^\/people\/([^/]+)\/map-location$/, 'person-map-location', 'personId'],
     [/^\/people\/([^/]+)\/eligibility$/, 'eligibility', 'personId'],
     [/^\/people\/([^/]+)\/availability$/, 'availability', 'personId'],
     [/^\/people\/([^/]+)\/contact$/, 'ordinary-contact', 'personId'],

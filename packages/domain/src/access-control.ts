@@ -3,6 +3,8 @@ import type { PersonId, TenantId } from './people';
 export const CAPABILITIES = Object.freeze([
   'people.read',
   'people.write',
+  'map.read',
+  'map.write',
   'eligibility.read',
   'eligibility.write',
   'availability.read',
@@ -90,10 +92,12 @@ export function canAccessResource(
 /**
  * Highly sensitive capabilities are deliberately separate from general tenant
  * administration. A congregation administrator must not gain Review Center,
- * eligibility, delegation, access-management or emergency-contact access merely
- * by holding `tenant.manage`.
+ * eligibility, delegation, access-management, emergency-contact or map-location
+ * access merely by holding `tenant.manage`.
  */
 export const SENSITIVE_CAPABILITIES: readonly Capability[] = Object.freeze([
+  'map.read',
+  'map.write',
   'eligibility.write',
   'emergency-contacts.read',
   'emergency-contacts.write',

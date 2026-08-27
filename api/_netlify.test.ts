@@ -8,6 +8,7 @@ describe('Netlify API adapter', () => {
     expect(normalizeNetlifyApiPath({ path: '/api/people/reminders' })).toBe('/people/reminders');
     expect(normalizeNetlifyApiPath({ path: '/api/people/contact-list' })).toBe('/people/contact-list');
     expect(normalizeNetlifyApiPath({ path: '/api/people/record-cards' })).toBe('/people/record-cards');
+    expect(normalizeNetlifyApiPath({ path: '/api/people/map' })).toBe('/people/map');
     expect(normalizeNetlifyApiPath({ path: '/api/people/assistance' })).toBe('/people/assistance');
     expect(normalizeNetlifyApiPath({ path: '/api/import/hourglass/preview' })).toBe('/import/hourglass/preview');
     expect(normalizeNetlifyApiPath({ path: '/.netlify/functions/api/import/hourglass/preview' })).toBe('/import/hourglass/preview');
@@ -30,16 +31,19 @@ describe('Netlify API adapter', () => {
     expect(matchNetlifyApiRoute('/people/reminders')).toEqual({ key: 'people-reminders', params: {} });
     expect(matchNetlifyApiRoute('/people/contact-list')).toEqual({ key: 'people-contact-list', params: {} });
     expect(matchNetlifyApiRoute('/people/record-cards')).toEqual({ key: 'people-record-cards', params: {} });
+    expect(matchNetlifyApiRoute('/people/map')).toEqual({ key: 'people-map', params: {} });
     expect(matchNetlifyApiRoute('/import/hourglass/preview')).toEqual({ key: 'hourglass-preview', params: {} });
     expect(matchNetlifyApiRoute('/people/person-1')).toEqual({ key: 'person', params: { personId: 'person-1' } });
     expect(matchNetlifyApiRoute('/people/person-1/eligibility')).toEqual({ key: 'eligibility', params: { personId: 'person-1' } });
     expect(matchNetlifyApiRoute('/people/person-1/availability')).toEqual({ key: 'availability', params: { personId: 'person-1' } });
     expect(matchNetlifyApiRoute('/people/person-1/contact')).toEqual({ key: 'ordinary-contact', params: { personId: 'person-1' } });
+    expect(matchNetlifyApiRoute('/people/person%20a/map-location')).toEqual({ key: 'person-map-location', params: { personId: 'person a' } });
     expect(matchNetlifyApiRoute('/people/person-1/availability/away-1')).toEqual({ key: 'availability-period', params: { personId: 'person-1', availabilityPeriodId: 'away-1' } });
     expect(matchNetlifyApiRoute('/responsibilities/res-1/end')).toEqual({ key: 'end-responsibility', params: { responsibilityId: 'res-1' } });
     expect(matchNetlifyApiRoute('/access/subjects/actor-1/grants')).toEqual({ key: 'subject-grants', params: { subjectId: 'actor-1' } });
     expect(matchNetlifyApiRoute('/people/%2Fetc')).toBeUndefined();
     expect(matchNetlifyApiRoute('/people/person-1/availability/%2Fetc')).toBeUndefined();
+    expect(matchNetlifyApiRoute('/people/%2Fetc/map-location')).toBeUndefined();
   });
 
   it('routes authentication and congregation settings through the central Netlify function', () => {
@@ -83,6 +87,13 @@ describe('Netlify API adapter', () => {
   it('dispatches Record Cards to the real authenticated handler instead of returning router 404', async () => {
     const result = await handleNetlifyApiEvent({ httpMethod: 'GET', path: '/api/people/record-cards', headers: {}, queryStringParameters: { year: '2026' } });
     expect(result.statusCode).toBe(401);
+    expect(JSON.parse(result.body)).toEqual({ error: 'Unauthorized' });
+  });
+
+  it('dispatches People Map to the real authenticated handler instead of returning router 404', async () => {
+    const result = await handleNetlifyApiEvent({ httpMethod: 'GET', path: '/api/people/map', headers: {} });
+    expect(result.statusCode).toBe(401);
+    expect(result.headers['Cache-Control']).toBe('no-store');
     expect(JSON.parse(result.body)).toEqual({ error: 'Unauthorized' });
   });
 

@@ -20,6 +20,7 @@ import { PeopleTransfersDialog } from './PeopleTransfersDialog';
 import { ResponsibilitiesSection } from './ResponsibilitiesSection';
 import { ServiceGroupsSection } from './ServiceGroupsSection';
 import type { Locale } from './lib/preferences';
+import { sessionApi } from './lib/sessionApi';
 import {
   peopleWorkspaceProfileRefFromSearch,
   peopleWorkspaceSearchForProfile,
@@ -52,10 +53,15 @@ const PersonRecommendationInsight = lazy(async () => {
   return { default: module.PersonRecommendationInsight };
 });
 
+const PeopleMapSection = lazy(async () => {
+  const module = await import('./PeopleMapSection');
+  return { default: module.PeopleMapSection };
+});
+
 const copy = {
-  'pt-PT': { organization: 'Organização', organizationTitle: 'Pessoas e organização', organizationSubtitle: 'Mantém perfis, agregados, grupos, responsabilidades, ausências e permissões no mesmo contexto.', overview: 'Visão geral', directory: 'Diretório', households: 'Agregados', groups: 'Grupos de serviço', responsibilities: 'Responsabilidades', tools: 'Ferramentas', transfers: 'Transferências', reminders: 'Lembretes', archive: 'Arquivo / A não publicar', contactList: 'Lista de contactos', recordCards: 'Cartões / Registos', audit: 'Histórico de auditoria', access: 'Gerir acessos', hourglass: 'Inspecionar export Hourglass', overviewLoading: 'A carregar Pessoas…', profileLoading: 'A carregar perfil…' },
-  en: { organization: 'Organization', organizationTitle: 'People and organization', organizationSubtitle: 'Keep profiles, households, groups, responsibilities, away periods and permissions in the same context.', overview: 'Overview', directory: 'Directory', households: 'Households', groups: 'Service groups', responsibilities: 'Responsibilities', tools: 'Tools', transfers: 'Transfers', reminders: 'Reminders', archive: 'Archive / Do not publish', contactList: 'Contact list', recordCards: 'Record cards / Reports', audit: 'Audit history', access: 'Manage access', hourglass: 'Inspect Hourglass export', overviewLoading: 'Loading People…', profileLoading: 'Loading profile…' },
-  es: { organization: 'Organización', organizationTitle: 'Personas y organización', organizationSubtitle: 'Mantén perfis, grupos familiares, grupos, responsabilidades, ausencias y permisos en el mismo contexto.', overview: 'Vista general', directory: 'Directorio', households: 'Grupos familiares', groups: 'Grupos de servicio', responsibilities: 'Responsabilidades', tools: 'Herramientas', transfers: 'Transferencias', reminders: 'Recordatorios', archive: 'Archivo / No publicar', contactList: 'Lista de contactos', recordCards: 'Tarjetas / Registros', audit: 'Historial de auditoría', access: 'Gestionar accesos', hourglass: 'Inspeccionar exportación Hourglass', overviewLoading: 'Cargando Personas…', profileLoading: 'Cargando perfil…' },
+  'pt-PT': { organization: 'Organização', organizationTitle: 'Pessoas e organização', organizationSubtitle: 'Mantém perfis, agregados, grupos, responsabilidades, ausências e permissões no mesmo contexto.', overview: 'Visão geral', directory: 'Diretório', households: 'Agregados', groups: 'Grupos de serviço', responsibilities: 'Responsabilidades', map: 'Mapa', mapLoading: 'A carregar mapa…', tools: 'Ferramentas', transfers: 'Transferências', reminders: 'Lembretes', archive: 'Arquivo / A não publicar', contactList: 'Lista de contactos', recordCards: 'Cartões / Registos', audit: 'Histórico de auditoria', access: 'Gerir acessos', hourglass: 'Inspecionar export Hourglass', overviewLoading: 'A carregar Pessoas…', profileLoading: 'A carregar perfil…' },
+  en: { organization: 'Organization', organizationTitle: 'People and organization', organizationSubtitle: 'Keep profiles, households, groups, responsibilities, away periods and permissions in the same context.', overview: 'Overview', directory: 'Directory', households: 'Households', groups: 'Service groups', responsibilities: 'Responsibilities', map: 'Map', mapLoading: 'Loading map…', tools: 'Tools', transfers: 'Transfers', reminders: 'Reminders', archive: 'Archive / Do not publish', contactList: 'Contact list', recordCards: 'Record cards / Reports', audit: 'Audit history', access: 'Manage access', hourglass: 'Inspect Hourglass export', overviewLoading: 'Loading People…', profileLoading: 'Loading profile…' },
+  es: { organization: 'Organización', organizationTitle: 'Personas y organización', organizationSubtitle: 'Mantén perfis, grupos familiares, grupos, responsabilidades, ausencias y permisos en el mismo contexto.', overview: 'Vista general', directory: 'Directorio', households: 'Grupos familiares', groups: 'Grupos de servicio', responsibilities: 'Responsabilidades', map: 'Mapa', mapLoading: 'Cargando mapa…', tools: 'Herramientas', transfers: 'Transferencias', reminders: 'Recordatorios', archive: 'Archivo / No publicar', contactList: 'Lista de contactos', recordCards: 'Tarjetas / Registros', audit: 'Historial de auditoría', access: 'Gestionar accesos', hourglass: 'Inspeccionar exportación Hourglass', overviewLoading: 'Cargando Personas…', profileLoading: 'Cargando perfil…' },
 } as const;
 
 function peopleViewFromLocation(): PeopleWorkspaceView {
@@ -98,12 +104,20 @@ function OrganizationWorkspace({ locale }: { locale: Locale }) {
   const [auditOpen, setAuditOpen] = useState(false);
   const [accessOpen, setAccessOpen] = useState(false);
   const [hourglassOpen, setHourglassOpen] = useState(false);
+  const [canReadMap, setCanReadMap] = useState(false);
   const toolsButtonRef = useRef<HTMLButtonElement | null>(null);
   const auditButtonRef = useRef<HTMLButtonElement | null>(null);
   const accessButtonRef = useRef<HTMLButtonElement | null>(null);
   const text = copy[locale];
-  const views = ['overview', 'directory', 'households', 'groups', 'responsibilities'] as const satisfies readonly NavigablePeopleView[];
-  const labels: Record<NavigablePeopleView, string> = { overview: text.overview, directory: text.directory, households: text.households, groups: text.groups, responsibilities: text.responsibilities };
+  const views: readonly NavigablePeopleView[] = [
+    'overview',
+    'directory',
+    ...(canReadMap ? ['map' as const] : []),
+    'households',
+    'groups',
+    'responsibilities',
+  ];
+  const labels: Record<NavigablePeopleView, string> = { overview: text.overview, directory: text.directory, map: text.map, households: text.households, groups: text.groups, responsibilities: text.responsibilities };
 
   useEffect(() => {
     const onPopState = () => {
@@ -112,6 +126,16 @@ function OrganizationWorkspace({ locale }: { locale: Locale }) {
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void sessionApi.current(controller.signal).then(session => {
+      if (!controller.signal.aborted) setCanReadMap(session.capabilities.includes('map.read'));
+    }).catch(() => {
+      if (!controller.signal.aborted) setCanReadMap(false);
+    });
+    return () => controller.abort();
   }, []);
 
   const selectView = (next: NavigablePeopleView) => {
@@ -192,6 +216,7 @@ function OrganizationWorkspace({ locale }: { locale: Locale }) {
       </Space>
     </Card>
     {view === 'directory' ? <PeopleDirectory locale={locale} createRequest={createRequest} onOpenProfile={openProfile} /> : null}
+    {view === 'map' ? <Suspense fallback={<LoadingSurface label={text.mapLoading} />}><PeopleMapSection locale={locale} /></Suspense> : null}
     {view === 'profile' && profileRef ? <Suspense fallback={<LoadingSurface label={text.profileLoading} />}><Space orientation="vertical" size="large" style={{ display: 'flex' }}><PersonProfile personId={profileRef} locale={locale} onBack={() => selectView('directory')} /><PersonRecommendationInsight personId={profileRef} locale={locale} /></Space></Suspense> : null}
     {view === 'households' ? <HouseholdsSection locale={locale} /> : null}
     {view === 'groups' ? <ServiceGroupsSection locale={locale} /> : null}

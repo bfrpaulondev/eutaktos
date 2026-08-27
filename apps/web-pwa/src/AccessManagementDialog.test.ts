@@ -8,6 +8,8 @@ describe('AccessManagementDialog capability presentation', () => {
     expect(grouped).not.toContain(undefined);
     expect(capabilityGroup('people.read')).toBe('people');
     expect(capabilityGroup('availability.write')).toBe('availability');
+    expect(capabilityGroup('map.read')).toBe('map');
+    expect(capabilityGroup('map.write')).toBe('map');
     expect(capabilityGroup('schedule.read')).toBe('operations');
     expect(capabilityGroup('audit.read')).toBe('review');
     expect(capabilityGroup('tenant.manage')).toBe('administration');
@@ -16,6 +18,8 @@ describe('AccessManagementDialog capability presentation', () => {
   it('marks sensitive capabilities for confirmation without granting them automatically', () => {
     expect(isSensitiveCapability('access.manage')).toBe(true);
     expect(isSensitiveCapability('tenant.manage')).toBe(true);
+    expect(isSensitiveCapability('map.read')).toBe(true);
+    expect(isSensitiveCapability('map.write')).toBe(true);
     expect(isSensitiveCapability('people.read')).toBe(false);
   });
 
