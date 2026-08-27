@@ -12,7 +12,6 @@ const expectedMuiConsumers = Object.freeze([
   'MagicLinkConfirmationPanel.tsx',
   'MidweekAuthoringControls.tsx',
   'MidweekWorkspace.tsx',
-  'ProductionDashboard.tsx',
   'ResponsibilitiesSection.tsx',
   'SectionWorkspace.tsx',
   'ServiceGroupsSection.tsx',
@@ -47,7 +46,7 @@ describe('PX11 MUI retirement boundary', () => {
   });
 
   it('confirms migrated product/shell primitives no longer depend on MUI', () => {
-    for (const file of ['HourglassImportInspector.tsx', 'LogoutControl.tsx', 'PwaConnectionStatus.tsx', 'PwaUpdateRecovery.tsx']) {
+    for (const file of ['HourglassImportInspector.tsx', 'LogoutControl.tsx', 'ProductionDashboard.tsx', 'PwaConnectionStatus.tsx', 'PwaUpdateRecovery.tsx']) {
       expect(source(file)).not.toContain('@mui/material');
     }
   });
