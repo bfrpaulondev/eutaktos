@@ -7,10 +7,12 @@ const principal = (capabilities: readonly string[]): VerifiedPrincipal => ({
 });
 
 describe('People Map location mutation contract', () => {
-  it('requires explicit map.write and does not infer it from general capabilities', () => {
+  it('requires both people.write and explicit map.write and does not infer either from tenant administration', () => {
     expect(() => requirePeopleMapWrite(principal(['people.write']))).toThrow('Forbidden');
+    expect(() => requirePeopleMapWrite(principal(['map.write']))).toThrow('Forbidden');
     expect(() => requirePeopleMapWrite(principal(['tenant.manage', 'people.write']))).toThrow('Forbidden');
-    expect(() => requirePeopleMapWrite(principal(['map.write']))).not.toThrow();
+    expect(() => requirePeopleMapWrite(principal(['tenant.manage', 'map.write']))).toThrow('Forbidden');
+    expect(() => requirePeopleMapWrite(principal(['people.write', 'map.write']))).not.toThrow();
   });
 
   it('accepts only finite coordinate values inside the approved global bounds', () => {
