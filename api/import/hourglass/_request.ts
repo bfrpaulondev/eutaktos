@@ -10,6 +10,7 @@ export interface HourglassPrepareRequest {
 export interface HourglassExecuteRequest {
   readonly inspection: Readonly<HourglassImportInspection>;
   readonly executionId: string;
+  readonly confirmationDigest: string;
 }
 
 function inspection(body: Readonly<Record<string, unknown>>): Readonly<HourglassImportInspection> {
@@ -36,9 +37,10 @@ export function parseHourglassPrepareRequest(request: Pick<ApiRequest, 'query' |
 export function parseHourglassExecuteRequest(request: Pick<ApiRequest, 'query' | 'body'>): Readonly<HourglassExecuteRequest> {
   if (Object.keys(request.query).length) throw new BadRequestError('Hourglass execute does not accept query fields');
   const body = requestBody(request.body);
-  exactKeys(body, ['source', 'payload', 'executionId']);
+  exactKeys(body, ['source', 'payload', 'executionId', 'confirmationDigest']);
   const executionId = opaque(requiredString(body, 'executionId', 80), 'executionId', /^hourglass-execution-[0-9a-f]{32}$/);
-  return Object.freeze({ inspection: inspection(body), executionId });
+  const confirmationDigest = opaque(requiredString(body, 'confirmationDigest', 64).toLowerCase(), 'confirmationDigest', /^[0-9a-f]{64}$/);
+  return Object.freeze({ inspection: inspection(body), executionId, confirmationDigest });
 }
 
 export function parseHourglassRollbackRequest(request: Pick<ApiRequest, 'query' | 'body'>): string {
