@@ -26,8 +26,9 @@ const copy = {
 function currentYear(): string { return String(new Date().getFullYear()); }
 
 function printReport(data: PeopleRecordCardsDto, locale: Locale, title: string): void {
-  const popup = window.open('', '_blank', 'noopener,noreferrer');
+  const popup = window.open('', '_blank');
   if (!popup) return;
+  popup.opener = null;
   const document = popup.document;
   document.title = title;
   const heading = document.createElement('h1');
