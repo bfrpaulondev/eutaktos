@@ -21,6 +21,14 @@ describe('domain events', () => {
     ]);
   });
 
+  it('preserves only bounded primitive event payload data and freezes the payload', () => {
+    const event = createDomainEvent({ ...base, payload: { deliveryId: 'delivery-1', retryCount: 0, external: false, failure: null } });
+    expect(event.payload).toEqual({ deliveryId: 'delivery-1', retryCount: 0, external: false, failure: null });
+    expect(Object.isFrozen(event.payload)).toBe(true);
+    expect(() => createDomainEvent({ ...base, payload: { nested: { value: 'forbidden' } } as never })).toThrow('Invalid domain event payload value');
+    expect(() => createDomainEvent({ ...base, payload: { invalid: Number.NaN } as never })).toThrow('Invalid domain event payload value');
+  });
+
   it('enforces tenant boundaries', () => {
     const event = createDomainEvent(base);
     expect(() => assertEventTenant(event, 'tenant-b')).toThrow('Cross-tenant domain event access denied');
