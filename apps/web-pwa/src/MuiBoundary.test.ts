@@ -1,5 +1,3 @@
-import { readdirSync, readFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const expectedMuiConsumers = Object.freeze([
@@ -22,20 +20,23 @@ const expectedMuiConsumers = Object.freeze([
   'ui/MuiCompat.tsx',
 ].sort());
 
-function walk(directory: string): readonly string[] {
-  return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
-    const path = join(directory, entry.name);
-    return entry.isDirectory() ? walk(path) : [path];
-  });
+const sourceModules = import.meta.glob('./**/*.{ts,tsx}', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+}) as Readonly<Record<string, string>>;
+
+function source(path: string): string {
+  const value = sourceModules[`./${path}`];
+  if (typeof value !== 'string') throw new Error(`Missing source module: ${path}`);
+  return value;
 }
 
 function muiConsumers(): readonly string[] {
-  const root = join(process.cwd(), 'src');
-  return walk(root)
-    .filter(path => /\.[cm]?[jt]sx?$/.test(path))
-    .filter(path => !path.endsWith('MuiBoundary.test.ts'))
-    .filter(path => /(?:from\s+|import\s*)['"]@mui\/material(?:\/[^'"]+)?['"]/.test(readFileSync(path, 'utf8')))
-    .map(path => relative(root, path).replaceAll('\\', '/'))
+  return Object.entries(sourceModules)
+    .filter(([path]) => !path.endsWith('/MuiBoundary.test.ts'))
+    .filter(([, contents]) => /(?:from\s+|import\s*)['"]@mui\/material(?:\/[^'"]+)?['"]/.test(contents))
+    .map(([path]) => path.replace(/^\.\//, ''))
     .sort();
 }
 
@@ -45,9 +46,8 @@ describe('PX11 MUI retirement boundary', () => {
   });
 
   it('confirms migrated product/shell primitives no longer depend on MUI', () => {
-    const root = join(process.cwd(), 'src');
     for (const file of ['HourglassImportInspector.tsx', 'LogoutControl.tsx', 'PwaConnectionStatus.tsx', 'PwaUpdateRecovery.tsx']) {
-      expect(readFileSync(join(root, file), 'utf8')).not.toContain('@mui/material');
+      expect(source(file)).not.toContain('@mui/material');
     }
   });
 });
