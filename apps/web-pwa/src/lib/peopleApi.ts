@@ -3,6 +3,7 @@ export interface PersonProfileDto {
   displayName: string;
   preferredLocale?: string;
   active: boolean;
+  labels: readonly string[];
 }
 
 export interface CreatePersonPayload {
@@ -15,6 +16,7 @@ export interface UpdatePersonPayload {
   displayName?: string;
   preferredLocale?: string | null;
   active?: boolean;
+  labels?: readonly string[];
 }
 
 export interface PeopleApi {
@@ -25,6 +27,12 @@ export interface PeopleApi {
 
 interface ErrorBody {
   error?: unknown;
+}
+
+function parseLabels(value: unknown): readonly string[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.some(item => typeof item !== 'string')) throw new Error('Invalid People API response');
+  return Object.freeze([...value]);
 }
 
 function parsePersonProfile(value: unknown): PersonProfileDto {
@@ -44,6 +52,7 @@ function parsePersonProfile(value: unknown): PersonProfileDto {
     displayName: candidate.displayName,
     ...(typeof candidate.preferredLocale === 'string' ? { preferredLocale: candidate.preferredLocale } : {}),
     active: candidate.active,
+    labels: parseLabels(candidate.labels),
   };
 }
 
@@ -71,6 +80,7 @@ function updatePayload(input: UpdatePersonPayload): UpdatePersonPayload {
     ...(input.displayName !== undefined ? { displayName: input.displayName } : {}),
     ...(input.preferredLocale !== undefined ? { preferredLocale: input.preferredLocale } : {}),
     ...(input.active !== undefined ? { active: input.active } : {}),
+    ...(input.labels !== undefined ? { labels: input.labels } : {}),
   };
 }
 
