@@ -14,6 +14,7 @@ import peopleAssistanceHandler from './people/assistance';
 import peopleRecommendationsHandler from './people/recommendations';
 import peopleRemindersHandler from './people/reminders';
 import personHandler from './people/[personId]';
+import personArchiveHandler from './people/[personId]/archive';
 import eligibilityHandler from './people/[personId]/eligibility';
 import availabilityHandler from './people/[personId]/availability';
 import ordinaryContactHandler from './people/[personId]/contact';
@@ -57,7 +58,7 @@ export interface NetlifyApiResult {
 
 type RouteKey =
   | 'health' | 'ready' | 'session' | 'logout' | 'logout-all' | 'rotate-session' | 'auth-otp' | 'auth-verify'
-  | 'people' | 'people-directory' | 'people-overview-evidence' | 'people-assistance' | 'people-recommendations' | 'people-reminders' | 'person' | 'eligibility' | 'availability' | 'ordinary-contact' | 'availability-period'
+  | 'people' | 'people-directory' | 'people-overview-evidence' | 'people-assistance' | 'people-recommendations' | 'people-reminders' | 'person' | 'person-archive' | 'eligibility' | 'availability' | 'ordinary-contact' | 'availability-period'
   | 'hourglass-preview'
   | 'households' | 'household' | 'service-groups' | 'service-group'
   | 'responsibilities' | 'responsibility' | 'end-responsibility' | 'congregation-settings' | 'audit-history'
@@ -84,6 +85,7 @@ const handlers: Readonly<Record<RouteKey, ApiHandler>> = Object.freeze({
   'people-recommendations': peopleRecommendationsHandler,
   'people-reminders': peopleRemindersHandler,
   person: personHandler,
+  'person-archive': personArchiveHandler,
   eligibility: eligibilityHandler,
   availability: availabilityHandler,
   'ordinary-contact': ordinaryContactHandler,
@@ -178,6 +180,7 @@ export function matchNetlifyApiRoute(path: string): RouteMatch | undefined {
   }
 
   const patterns: readonly [RegExp, RouteKey, string][] = [
+    [/^\/people\/([^/]+)\/archive$/, 'person-archive', 'personId'],
     [/^\/people\/([^/]+)\/eligibility$/, 'eligibility', 'personId'],
     [/^\/people\/([^/]+)\/availability$/, 'availability', 'personId'],
     [/^\/people\/([^/]+)\/contact$/, 'ordinary-contact', 'personId'],
