@@ -20,6 +20,8 @@ import availabilityHandler from './people/[personId]/availability';
 import ordinaryContactHandler from './people/[personId]/contact';
 import availabilityPeriodHandler from './people/[personId]/availability/[availabilityPeriodId]';
 import hourglassPreviewHandler from './import/hourglass/preview';
+import hourglassExecutionPrepareHandler from './import/hourglass/execution/prepare';
+import hourglassExecutionExecuteHandler from './import/hourglass/execution/execute';
 import householdsHandler from './households';
 import householdHandler from './households/[householdId]';
 import serviceGroupsHandler from './service-groups';
@@ -59,7 +61,7 @@ export interface NetlifyApiResult {
 type RouteKey =
   | 'health' | 'ready' | 'session' | 'logout' | 'logout-all' | 'rotate-session' | 'auth-otp' | 'auth-verify'
   | 'people' | 'people-directory' | 'people-overview-evidence' | 'people-assistance' | 'people-recommendations' | 'people-reminders' | 'person' | 'person-archive' | 'eligibility' | 'availability' | 'ordinary-contact' | 'availability-period'
-  | 'hourglass-preview'
+  | 'hourglass-preview' | 'hourglass-execution-prepare' | 'hourglass-execution-execute'
   | 'households' | 'household' | 'service-groups' | 'service-group'
   | 'responsibilities' | 'responsibility' | 'end-responsibility' | 'congregation-settings' | 'audit-history'
   | 'access-grants' | 'subject-grants' | 'revoke-grant' | 'midweek' | 'midweek-route' | 'outbox-worker' | 'agent-respond';
@@ -91,6 +93,8 @@ const handlers: Readonly<Record<RouteKey, ApiHandler>> = Object.freeze({
   'ordinary-contact': ordinaryContactHandler,
   'availability-period': availabilityPeriodHandler,
   'hourglass-preview': hourglassPreviewHandler,
+  'hourglass-execution-prepare': hourglassExecutionPrepareHandler,
+  'hourglass-execution-execute': hourglassExecutionExecuteHandler,
   households: householdsHandler,
   household: householdHandler,
   'service-groups': serviceGroupsHandler,
@@ -148,6 +152,8 @@ export function matchNetlifyApiRoute(path: string): RouteMatch | undefined {
     '/people/recommendations': 'people-recommendations',
     '/people/reminders': 'people-reminders',
     '/import/hourglass/preview': 'hourglass-preview',
+    '/import/hourglass/execution/prepare': 'hourglass-execution-prepare',
+    '/import/hourglass/execution/execute': 'hourglass-execution-execute',
     '/households': 'households',
     '/service-groups': 'service-groups',
     '/responsibilities': 'responsibilities',
