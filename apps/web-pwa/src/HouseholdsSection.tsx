@@ -1,13 +1,23 @@
+import Alert from 'antd/es/alert';
+import Button from 'antd/es/button';
+import Card from 'antd/es/card';
+import Col from 'antd/es/col';
+import Empty from 'antd/es/empty';
+import Input from 'antd/es/input';
+import Modal from 'antd/es/modal';
+import Row from 'antd/es/row';
+import Skeleton from 'antd/es/skeleton';
+import Space from 'antd/es/space';
+import Tag from 'antd/es/tag';
+import Typography from 'antd/es/typography';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, LinearProgress, Paper, TextField } from '@mui/material';
 import type { Locale } from './lib/preferences';
 import { householdsApi, type HouseholdDto, type HouseholdsApi } from './lib/householdsApi';
-import { Stack, Typography } from './ui/MuiCompat';
 
 const copy = {
-  'pt-PT': { title: 'Agregados familiares', subtitle: 'Agrupa pessoas da mesma família sem duplicar informação de perfis.', create: 'Criar agregado', name: 'Nome do agregado', members: 'IDs dos membros', edit: 'Editar', delete: 'Eliminar', save: 'Guardar', saving: 'A guardar…', cancel: 'Cancelar', confirm: 'Eliminar agregado?', confirmBody: 'Esta ação remove o agregado, mas não elimina os perfis das pessoas.', removing: 'A eliminar…', empty: 'Ainda não existem agregados familiares.', loading: 'A carregar agregados…', error: 'Não foi possível carregar os agregados. Tenta novamente.', saveError: 'Não foi possível guardar o agregado. Tenta novamente.', deleteError: 'Não foi possível eliminar o agregado. Tenta novamente.', retry: 'Tentar novamente', hint: 'Separa IDs por vírgulas. Apenas IDs já fornecidos pela API são guardados.', member: 'membro', membersCount: 'membros', successCreate: 'Agregado criado com sucesso.', successUpdate: 'Agregado atualizado com sucesso.', successDelete: 'Agregado eliminado com sucesso.', actions: 'Ações do agregado', close: 'Fechar', discardTitle: 'Descartar alterações?', discardBody: 'As alterações não guardadas a este agregado serão perdidas.', keepEditing: 'Continuar a editar', discard: 'Descartar alterações' },
-  en: { title: 'Households', subtitle: 'Group people from the same family without duplicating profile information.', create: 'Create household', name: 'Household name', members: 'Member IDs', edit: 'Edit', delete: 'Delete', save: 'Save', saving: 'Saving…', cancel: 'Cancel', confirm: 'Delete household?', confirmBody: 'This removes the household but does not delete any people profiles.', removing: 'Deleting…', empty: 'There are no households yet.', loading: 'Loading households…', error: 'Households could not be loaded. Please try again.', saveError: 'The household could not be saved. Please try again.', deleteError: 'The household could not be deleted. Please try again.', retry: 'Try again', hint: 'Separate IDs with commas. Only IDs already provided by the API are saved.', member: 'member', membersCount: 'members', successCreate: 'Household created successfully.', successUpdate: 'Household updated successfully.', successDelete: 'Household deleted successfully.', actions: 'Household actions', close: 'Close', discardTitle: 'Discard changes?', discardBody: 'Unsaved changes to this household will be lost.', keepEditing: 'Keep editing', discard: 'Discard changes' },
-  es: { title: 'Grupos familiares', subtitle: 'Agrupa personas de la misma familia sin duplicar información de perfiles.', create: 'Crear grupo', name: 'Nombre del grupo', members: 'IDs de miembros', edit: 'Editar', delete: 'Eliminar', save: 'Guardar', saving: 'Guardando…', cancel: 'Cancelar', confirm: '¿Eliminar grupo familiar?', confirmBody: 'Esta acción elimina el grupo, pero no elimina los perfiles de las personas.', removing: 'Eliminando…', empty: 'Todavía no hay grupos familiares.', loading: 'Cargando grupos familiares…', error: 'No se pudieron cargar los grupos. Inténtalo de nuevo.', saveError: 'No se pudo guardar el grupo. Inténtalo de nuevo.', deleteError: 'No se pudo eliminar el grupo. Inténtalo de nuevo.', retry: 'Intentar de nuevo', hint: 'Separa los IDs con comas. Solo se guardan IDs ya proporcionados por la API.', member: 'miembro', membersCount: 'miembros', successCreate: 'Grupo creado correctamente.', successUpdate: 'Grupo actualizado correctamente.', successDelete: 'Grupo eliminado correctamente.', actions: 'Acciones del grupo', close: 'Cerrar', discardTitle: '¿Descartar cambios?', discardBody: 'Se perderán los cambios no guardados de este grupo familiar.', keepEditing: 'Seguir editando', discard: 'Descartar cambios' },
+  'pt-PT': { title: 'Agregados familiares', subtitle: 'Agrupa pessoas da mesma família sem duplicar informação de perfis.', create: 'Criar agregado', name: 'Nome do agregado', members: 'IDs dos membros', edit: 'Editar', delete: 'Eliminar', save: 'Guardar', saving: 'A guardar…', cancel: 'Cancelar', confirm: 'Eliminar agregado?', confirmBody: 'Esta ação remove o agregado, mas não elimina os perfis das pessoas.', removing: 'A eliminar…', empty: 'Ainda não existem agregados familiares.', loading: 'A carregar agregados…', error: 'Não foi possível carregar os agregados. Tenta novamente.', saveError: 'Não foi possível guardar o agregado. Tenta novamente.', deleteError: 'Não foi possível eliminar o agregado. Tenta novamente.', retry: 'Tentar novamente', hint: 'Separa IDs por vírgulas. Apenas IDs já fornecidos pela API são guardados.', member: 'membro', membersCount: 'membros', successCreate: 'Agregado criado com sucesso.', successUpdate: 'Agregado atualizado com sucesso.', successDelete: 'Agregado eliminado com sucesso.', actions: 'Ações do agregado', discardTitle: 'Descartar alterações?', discardBody: 'As alterações não guardadas a este agregado serão perdidas.', keepEditing: 'Continuar a editar', discard: 'Descartar alterações' },
+  en: { title: 'Households', subtitle: 'Group people from the same family without duplicating profile information.', create: 'Create household', name: 'Household name', members: 'Member IDs', edit: 'Edit', delete: 'Delete', save: 'Save', saving: 'Saving…', cancel: 'Cancel', confirm: 'Delete household?', confirmBody: 'This removes the household but does not delete any people profiles.', removing: 'Deleting…', empty: 'There are no households yet.', loading: 'Loading households…', error: 'Households could not be loaded. Please try again.', saveError: 'The household could not be saved. Please try again.', deleteError: 'The household could not be deleted. Please try again.', retry: 'Try again', hint: 'Separate IDs with commas. Only IDs already provided by the API are saved.', member: 'member', membersCount: 'members', successCreate: 'Household created successfully.', successUpdate: 'Household updated successfully.', successDelete: 'Household deleted successfully.', actions: 'Household actions', discardTitle: 'Discard changes?', discardBody: 'Unsaved changes to this household will be lost.', keepEditing: 'Keep editing', discard: 'Discard changes' },
+  es: { title: 'Grupos familiares', subtitle: 'Agrupa personas de la misma familia sin duplicar información de perfiles.', create: 'Crear grupo', name: 'Nombre del grupo', members: 'IDs de miembros', edit: 'Editar', delete: 'Eliminar', save: 'Guardar', saving: 'Guardando…', cancel: 'Cancelar', confirm: '¿Eliminar grupo familiar?', confirmBody: 'Esta acción elimina el grupo, pero no elimina los perfiles de las personas.', removing: 'Eliminando…', empty: 'Todavía no hay grupos familiares.', loading: 'Cargando grupos familiares…', error: 'No se pudieron cargar los grupos. Inténtalo de nuevo.', saveError: 'No se pudo guardar el grupo. Inténtalo de nuevo.', deleteError: 'No se pudo eliminar el grupo. Inténtalo de nuevo.', retry: 'Intentar de nuevo', hint: 'Separa los IDs con comas. Solo se guardan IDs ya proporcionados por la API.', member: 'miembro', membersCount: 'miembros', successCreate: 'Grupo creado correctamente.', successUpdate: 'Grupo actualizado correctamente.', successDelete: 'Grupo eliminado correctamente.', actions: 'Acciones del grupo', discardTitle: '¿Descartar cambios?', discardBody: 'Se perderán los cambios no guardados de este grupo familiar.', keepEditing: 'Seguir editando', discard: 'Descartar cambios' },
 } as const;
 
 export function parseMemberIds(value: string): string[] {
@@ -25,6 +35,10 @@ export function hasUnsavedHouseholdDraft(name: string, members: string, editing:
   return normalizedName !== editing.name || normalizedMembers.join('\u0000') !== editing.memberIds.join('\u0000');
 }
 
+function focusCreateButton() {
+  window.requestAnimationFrame(() => document.getElementById('households-create-button')?.focus());
+}
+
 export function HouseholdsSection({ locale, api = householdsApi }: { locale: Locale; api?: HouseholdsApi }) {
   const text = copy[locale];
   const [items, setItems] = useState<readonly HouseholdDto[]>([]);
@@ -40,8 +54,7 @@ export function HouseholdsSection({ locale, api = householdsApi }: { locale: Loc
   const [deleting, setDeleting] = useState(false);
   const [name, setName] = useState('');
   const [members, setMembers] = useState('');
-  const createButtonRef = useRef<HTMLButtonElement | null>(null);
-  const actionTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const actionTriggerRef = useRef<HTMLElement | null>(null);
   const savingRef = useRef(false);
   const deletingRef = useRef(false);
 
@@ -66,7 +79,14 @@ export function HouseholdsSection({ locale, api = householdsApi }: { locale: Loc
 
   const sorted = useMemo(() => [...items].sort((first, second) => first.name.localeCompare(second.name, locale)), [items, locale]);
   const deletingHousehold = sorted.find(item => item.id === deleteId) ?? null;
-  const restoreEditorTrigger = (wasEditing: boolean) => window.requestAnimationFrame(() => (wasEditing ? actionTriggerRef.current : createButtonRef.current)?.focus());
+
+  const restoreEditorTrigger = (wasEditing: boolean) => {
+    window.requestAnimationFrame(() => {
+      if (wasEditing) actionTriggerRef.current?.focus();
+      else document.getElementById('households-create-button')?.focus();
+    });
+  };
+
   const closeEditor = () => {
     if (saving) return;
     if (hasUnsavedHouseholdDraft(name, members, editing)) {
@@ -78,6 +98,7 @@ export function HouseholdsSection({ locale, api = householdsApi }: { locale: Loc
     setOperationError(null);
     restoreEditorTrigger(wasEditing);
   };
+
   const discardEditor = () => {
     const wasEditing = editing !== null;
     setDiscardOpen(false);
@@ -88,12 +109,14 @@ export function HouseholdsSection({ locale, api = householdsApi }: { locale: Loc
     setOperationError(null);
     restoreEditorTrigger(wasEditing);
   };
+
   const closeDelete = () => {
     if (deleting) return;
     setDeleteId(null);
     window.requestAnimationFrame(() => actionTriggerRef.current?.focus());
   };
-  const begin = (item?: HouseholdDto, trigger?: HTMLButtonElement) => {
+
+  const begin = (item?: HouseholdDto, trigger?: HTMLElement) => {
     if (trigger) actionTriggerRef.current = trigger;
     setNotice(null);
     setOperationError(null);
@@ -114,7 +137,9 @@ export function HouseholdsSection({ locale, api = householdsApi }: { locale: Loc
     const householdName = name.trim();
     const memberIds = parseMemberIds(members);
     try {
-      const saved = editing ? await api.update(editing.id, { name: householdName, memberIds }) : await api.create({ name: householdName, memberIds });
+      const saved = editing
+        ? await api.update(editing.id, { name: householdName, memberIds })
+        : await api.create({ name: householdName, memberIds });
       setItems(current => editing ? current.map(item => item.id === saved.id ? saved : item) : [...current, saved]);
       const wasEditing = editing !== null;
       setOpen(false);
@@ -123,7 +148,7 @@ export function HouseholdsSection({ locale, api = householdsApi }: { locale: Loc
       setName('');
       setMembers('');
       setNotice(wasEditing ? 'update' : 'create');
-      window.requestAnimationFrame(() => (wasEditing ? actionTriggerRef.current : createButtonRef.current)?.focus());
+      restoreEditorTrigger(wasEditing);
     } catch {
       setOperationError('save');
     } finally {
@@ -153,16 +178,107 @@ export function HouseholdsSection({ locale, api = householdsApi }: { locale: Loc
   };
 
   const noticeText = notice === 'create' ? text.successCreate : notice === 'update' ? text.successUpdate : text.successDelete;
-  return <Box component="section" aria-labelledby="households-title">
-    <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 2, borderRadius: 3 }}><Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" gap={2} alignItems={{ md: 'flex-end' }}><Box sx={{ maxWidth: 720 }}><Typography variant="overline" color="primary.main">{text.title}</Typography><Typography variant="h2" id="households-title" sx={{ fontSize: { xs: '2rem', sm: '2.6rem' } }}>{text.title}</Typography><Typography color="text.secondary" sx={{ mt: 1 }}>{text.subtitle}</Typography></Box><Button ref={createButtonRef} variant="contained" onClick={() => begin()}>{text.create}</Button></Stack></Paper>
-    {notice ? <Alert severity="success" onClose={() => setNotice(null)} sx={{ mb: 2 }}>{noticeText}</Alert> : null}
-    {operationError ? <Alert severity="error" sx={{ mb: 2 }}>{operationError === 'save' ? text.saveError : text.deleteError}</Alert> : null}
-    {loadError ? <Alert severity="warning" action={<Button color="inherit" size="small" disabled={loading} onClick={() => void load()}>{text.retry}</Button>} sx={{ mb: 2 }}>{text.error}</Alert> : null}
-    {loading ? <Box role="status" aria-live="polite" sx={{ py: 2 }}><LinearProgress aria-label={text.loading} /><Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>{text.loading}</Typography></Box> : null}
-    {!loading && !loadError && sorted.length === 0 ? <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderRadius: 2.5, boxShadow: 'none', bgcolor: 'transparent' }}><Typography color="text.secondary">{text.empty}</Typography></Paper> : null}
-    {!loading && !loadError && sorted.length > 0 ? <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5, mt: 2 }}>{sorted.map(item => <Card component="article" key={item.id}><CardContent><Stack spacing={1.5}><Stack direction="row" justifyContent="space-between" gap={1.5} alignItems="flex-start"><Typography variant="h6" fontWeight={700} sx={{ overflowWrap: 'anywhere' }}>{item.name}</Typography><Chip label={`${item.memberIds.length} ${item.memberIds.length === 1 ? text.member : text.membersCount}`} size="small" variant="outlined" /></Stack><Divider />{item.memberIds.length > 0 ? <Stack direction="row" flexWrap="wrap" gap={0.5} useFlexGap aria-label={text.members}>{item.memberIds.slice(0, 4).map(memberId => <Chip key={memberId} label={memberId} size="small" variant="outlined" />)}{item.memberIds.length > 4 ? <Chip label={`+${item.memberIds.length - 4}`} size="small" /> : null}</Stack> : <Typography variant="body2" color="text.secondary">{text.empty}</Typography>}<Stack direction={{ xs: 'column', sm: 'row' }} spacing={0.75} aria-label={`${text.actions} — ${item.name}`}><Button size="small" variant="outlined" onClick={event => begin(item, event.currentTarget)}>{text.edit}</Button><Button size="small" color="error" variant="outlined" disabled={deleting} onClick={event => { actionTriggerRef.current = event.currentTarget; setOperationError(null); setDeleteId(item.id); }}>{text.delete}</Button></Stack></Stack></CardContent></Card>)}</Box> : null}
-    <Dialog open={open} onClose={closeEditor} fullWidth maxWidth="sm" aria-describedby="household-form-error"><Box component="form" onSubmit={submit}><DialogTitle>{editing ? text.edit : text.create}</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}><TextField label={text.name} value={name} onChange={event => setName(event.target.value)} required autoFocus slotProps={{ htmlInput: { maxLength: 120 } }} /><TextField label={text.members} value={members} onChange={event => setMembers(event.target.value)} helperText={text.hint} multiline minRows={2} />{operationError === 'save' ? <Alert id="household-form-error" severity="error">{text.saveError}</Alert> : null}</Stack></DialogContent><DialogActions><Button onClick={closeEditor} disabled={saving}>{text.cancel}</Button><Button type="submit" variant="contained" disabled={!canSubmitHousehold(name, saving)}>{saving ? text.saving : text.save}</Button></DialogActions></Box></Dialog>
-    <Dialog open={discardOpen} onClose={() => setDiscardOpen(false)} aria-labelledby="household-discard-title" aria-describedby="household-discard-description"><DialogTitle id="household-discard-title">{text.discardTitle}</DialogTitle><DialogContent><Typography id="household-discard-description">{text.discardBody}</Typography></DialogContent><DialogActions><Button autoFocus onClick={() => setDiscardOpen(false)}>{text.keepEditing}</Button><Button color="warning" variant="contained" onClick={discardEditor}>{text.discard}</Button></DialogActions></Dialog>
-    <Dialog open={deletingHousehold !== null} onClose={closeDelete} fullWidth maxWidth="xs" aria-labelledby="household-delete-title" aria-describedby="household-delete-description"><DialogTitle id="household-delete-title">{text.confirm}</DialogTitle><DialogContent><Typography id="household-delete-description">{text.confirmBody}</Typography>{deletingHousehold ? <Typography sx={{ mt: 1 }} fontWeight={700}>{deletingHousehold.name}</Typography> : null}</DialogContent><DialogActions><Button disabled={deleting} onClick={closeDelete}>{text.cancel}</Button><Button color="error" variant="contained" disabled={deleting} onClick={() => void remove()}>{deleting ? text.removing : text.delete}</Button></DialogActions></Dialog>
-  </Box>;
+
+  return <section aria-labelledby="households-title">
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+      <Card>
+        <Row gutter={[16, 16]} align="bottom" justify="space-between">
+          <Col xs={24} md={18}>
+            <Typography.Text type="secondary">{text.title}</Typography.Text>
+            <Typography.Title level={2} id="households-title" style={{ marginTop: 4, marginBottom: 8 }}>{text.title}</Typography.Title>
+            <Typography.Text type="secondary">{text.subtitle}</Typography.Text>
+          </Col>
+          <Col xs={24} md={6} style={{ textAlign: 'right' }}>
+            <Button id="households-create-button" type="primary" onClick={() => begin()}>{text.create}</Button>
+          </Col>
+        </Row>
+      </Card>
+
+      {notice ? <Alert type="success" showIcon closable title={noticeText} onClose={() => setNotice(null)} /> : null}
+      {operationError ? <Alert type="error" showIcon title={operationError === 'save' ? text.saveError : text.deleteError} /> : null}
+      {loadError ? <Alert type="warning" showIcon title={text.error} action={<Button size="small" disabled={loading} onClick={() => void load()}>{text.retry}</Button>} /> : null}
+      {loading ? <Card role="status" aria-live="polite" aria-label={text.loading}><Skeleton active paragraph={{ rows: 3 }} /><Typography.Text type="secondary">{text.loading}</Typography.Text></Card> : null}
+      {!loading && !loadError && sorted.length === 0 ? <Card><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={text.empty} /></Card> : null}
+
+      {!loading && !loadError && sorted.length > 0 ? <Row gutter={[16, 16]}>
+        {sorted.map(item => <Col key={item.id} xs={24} sm={12} xl={8}>
+          <Card title={item.name} extra={<Tag>{item.memberIds.length} {item.memberIds.length === 1 ? text.member : text.membersCount}</Tag>} style={{ height: '100%' }}>
+            <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+              {item.memberIds.length > 0 ? <Space wrap aria-label={text.members}>
+                {item.memberIds.slice(0, 4).map(memberId => <Tag key={memberId}>{memberId}</Tag>)}
+                {item.memberIds.length > 4 ? <Tag>+{item.memberIds.length - 4}</Tag> : null}
+              </Space> : <Typography.Text type="secondary">{text.empty}</Typography.Text>}
+              <Space wrap aria-label={`${text.actions} — ${item.name}`}>
+                <Button size="small" onClick={event => begin(item, event.currentTarget)}>{text.edit}</Button>
+                <Button size="small" danger disabled={deleting} onClick={event => { actionTriggerRef.current = event.currentTarget; setOperationError(null); setDeleteId(item.id); }}>{text.delete}</Button>
+              </Space>
+            </Space>
+          </Card>
+        </Col>)}
+      </Row> : null}
+    </Space>
+
+    <Modal
+      open={open}
+      title={<span id="household-editor-title">{editing ? text.edit : text.create}</span>}
+      aria-labelledby="household-editor-title"
+      aria-describedby={operationError === 'save' ? 'household-form-error' : undefined}
+      onCancel={closeEditor}
+      maskClosable={!saving}
+      keyboard={!saving}
+      footer={null}
+      destroyOnHidden
+    >
+      <form onSubmit={submit}>
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+          <label>
+            <Typography.Text strong>{text.name}</Typography.Text>
+            <Input autoFocus required maxLength={120} value={name} onChange={event => setName(event.target.value)} aria-label={text.name} />
+          </label>
+          <label>
+            <Typography.Text strong>{text.members}</Typography.Text>
+            <Input.TextArea rows={3} value={members} onChange={event => setMembers(event.target.value)} aria-label={text.members} placeholder={text.hint} />
+          </label>
+          {operationError === 'save' ? <Alert id="household-form-error" type="error" showIcon title={text.saveError} /> : null}
+          <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+            <Button onClick={closeEditor} disabled={saving}>{text.cancel}</Button>
+            <Button htmlType="submit" type="primary" loading={saving} disabled={!canSubmitHousehold(name, saving)}>{saving ? text.saving : text.save}</Button>
+          </Space>
+        </Space>
+      </form>
+    </Modal>
+
+    <Modal
+      open={discardOpen}
+      title={<span id="household-discard-title">{text.discardTitle}</span>}
+      aria-labelledby="household-discard-title"
+      aria-describedby="household-discard-description"
+      onCancel={() => setDiscardOpen(false)}
+      footer={[
+        <Button key="keep" autoFocus onClick={() => setDiscardOpen(false)}>{text.keepEditing}</Button>,
+        <Button key="discard" danger type="primary" onClick={discardEditor}>{text.discard}</Button>,
+      ]}
+    >
+      <Typography.Text id="household-discard-description">{text.discardBody}</Typography.Text>
+    </Modal>
+
+    <Modal
+      open={deletingHousehold !== null}
+      title={<span id="household-delete-title">{text.confirm}</span>}
+      aria-labelledby="household-delete-title"
+      aria-describedby="household-delete-description"
+      onCancel={closeDelete}
+      maskClosable={!deleting}
+      keyboard={!deleting}
+      footer={[
+        <Button key="cancel" disabled={deleting} onClick={closeDelete}>{text.cancel}</Button>,
+        <Button key="delete" danger type="primary" loading={deleting} disabled={!deletingHousehold} onClick={() => void remove()}>{deleting ? text.removing : text.delete}</Button>,
+      ]}
+    >
+      <Space orientation="vertical" size="small">
+        <Typography.Text id="household-delete-description">{text.confirmBody}</Typography.Text>
+        {deletingHousehold ? <Typography.Text strong>{deletingHousehold.name}</Typography.Text> : null}
+      </Space>
+    </Modal>
+  </section>;
 }
