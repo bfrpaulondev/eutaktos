@@ -174,6 +174,21 @@ try {
   await poll(async () => await evaluate(`Boolean(document.querySelector('#main')?.textContent?.includes('Legenda de grupos') && document.querySelector('#main')?.textContent?.includes('Grupo Norte: 1') && document.querySelector('#main')?.textContent?.includes('Sem grupo: 1'))`), 'Map group legend did not render from the authorized service-group projection');
   await poll(async () => await evaluate(`Boolean(document.querySelector('.leaflet-container'))`), 'Graphical Leaflet map did not render');
 
+  for (const width of [320, 375, 390, 430, 640, 768, 1024, 1280, 1440]) {
+    await cdp.send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width <= 430 });
+    await wait(100);
+    const layout = await evaluate(`({
+      noOverflow: document.documentElement.scrollWidth <= window.innerWidth,
+      hasFilter: Boolean([...document.querySelectorAll('[role="combobox"]')].find(node => node.getAttribute('aria-label') === 'Filtrar por grupo')),
+      hasList: Boolean(document.querySelector('#main')?.textContent?.includes('Lista de localizações aproximadas')),
+      hasMap: Boolean(document.querySelector('.leaflet-container'))
+    })`);
+    if (!layout.noOverflow || !layout.hasFilter || !layout.hasList || !layout.hasMap) {
+      throw new Error(`People Map responsive/reflow gate failed at ${width}px: ${JSON.stringify(layout)}`);
+    }
+  }
+  await cdp.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+
   await chooseSelectOption('Filtrar por grupo', 'Grupo Norte');
   await poll(async () => await evaluate(`(() => {
     const pressedPeople = [...document.querySelectorAll('button')].filter(node => ['Ana Runtime', 'Bruno Runtime'].includes((node.innerText || node.textContent || '').trim()));
@@ -241,7 +256,7 @@ try {
   if (!await clickExactButton('Tentar novamente')) throw new Error('Map error retry was not available');
   await poll(async () => await evaluate(`Boolean(document.querySelector('#main')?.textContent?.includes('Ana Runtime'))`), 'Map retry did not recover');
 
-  process.stdout.write('PX9.10/PX9.11 map runtime passed: dual capability gate, group filter/legend, visual map/list equivalence, normalized edit/refetch, 401/403/error retry, double-submit and URL/storage/tile privacy.\n');
+  process.stdout.write('PX9.10/PX9.11 map runtime passed: dual capability gate, group filter/legend, 320-1440 responsive matrix, 200%/400% equivalent reflow, visual map/list equivalence, normalized edit/refetch, 401/403/error retry, double-submit and URL/storage/tile privacy.\n');
 } finally {
   cdp?.close();
   if (browser && !browser.killed) browser.kill('SIGTERM');
