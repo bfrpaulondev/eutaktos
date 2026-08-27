@@ -11,26 +11,20 @@ body,
   min-height: 100dvh;
 }
 
-/*
- * The task shell gives desktop Content an explicit width plus horizontal
- * padding. Keep that padding inside the declared width and allow nested Ant
- * flex/layout surfaces to shrink instead of increasing document.scrollWidth.
- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 #root,
 .ant-layout,
 .ant-layout-content,
 #main {
-  box-sizing: border-box;
   min-width: 0;
   max-width: 100%;
 }
 
-/*
- * Recommendation cards can contain long localized evidence. Ant Card headers
- * normally keep title and extra on one flex row, which can create a minimum
- * width wider than a phone viewport. Scope wrapping to the PX7 picker only;
- * do not hide overflow or truncate evidence.
- */
 section[aria-labelledby^='recommendation-picker-'],
 section[aria-labelledby^='recommendation-picker-'] .ant-space,
 section[aria-labelledby^='recommendation-picker-'] .ant-card,
@@ -39,7 +33,6 @@ section[aria-labelledby^='recommendation-picker-'] .ant-card-head-wrapper,
 section[aria-labelledby^='recommendation-picker-'] .ant-card-head-title,
 section[aria-labelledby^='recommendation-picker-'] .ant-card-extra,
 section[aria-labelledby^='recommendation-picker-'] .ant-card-body {
-  box-sizing: border-box;
   min-width: 0;
   max-width: 100%;
 }
@@ -74,17 +67,11 @@ section[aria-labelledby^='recommendation-picker-'] .ant-card-extra {
   top: 12px;
 }
 
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .MuiPaper-root,
-  .MuiCard-root {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-  }
-}
-
 body {
   margin: 0;
   overflow-x: hidden;
+  background-color: var(--eutaktos-background, #F4F7F7);
+  color: var(--eutaktos-text, #20353A);
 }
 
 button,
@@ -94,47 +81,48 @@ a[href] {
 }
 
 :where(a[href], button, [role='button'], input, select, textarea, [tabindex]:not([tabindex='-1'])):focus-visible {
-  outline: 3px solid currentColor;
+  outline: 3px solid var(--eutaktos-focus, currentColor);
   outline-offset: 3px;
 }
 
 @media (max-width: 599px) {
-  .MuiButton-root {
+  .ant-btn {
     min-height: 44px;
   }
 
-  .MuiDialog-paper {
-    max-height: calc(100dvh - 16px);
-    margin: 8px !important;
+  .ant-modal {
+    max-width: calc(100vw - 16px);
+    margin: 8px auto;
   }
 
-  .MuiDialogContent-root {
+  .ant-modal-body {
     overscroll-behavior: contain;
   }
 
-  .MuiDialogActions-root {
+  .ant-modal-footer {
+    display: flex;
     flex-wrap: wrap;
     gap: 8px;
   }
 
-  .MuiDialogActions-root > .MuiButton-root {
+  .ant-modal-footer > .ant-btn {
     flex: 1 1 132px;
-    margin-left: 0 !important;
+    margin-inline-start: 0 !important;
   }
 
-  .MuiTypography-root,
-  .MuiChip-label {
+  .ant-typography,
+  .ant-tag,
+  .ant-descriptions-item-content {
     overflow-wrap: anywhere;
   }
 }
 
 @media (max-width: 359px) {
-  .MuiDialog-paper {
+  .ant-modal {
     width: calc(100% - 16px) !important;
-    margin: 8px !important;
   }
 
-  .MuiDialogActions-root > .MuiButton-root {
+  .ant-modal-footer > .ant-btn {
     flex-basis: 100%;
   }
 }
@@ -143,11 +131,20 @@ a[href] {
   html {
     scroll-behavior: auto;
   }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 @media (forced-colors: active) {
-  .MuiPaper-root,
-  .MuiCard-root {
+  .ant-card,
+  .ant-modal-content,
+  .ant-drawer-content {
     border: 1px solid CanvasText !important;
   }
 
