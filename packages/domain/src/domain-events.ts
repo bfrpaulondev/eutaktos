@@ -31,6 +31,7 @@ export type DomainEventType =
   | 'DutyCancelled'
   | 'DutyCompleted'
   | 'NotificationIntentQueued'
+  | 'MigrationPrepared'
   | 'MigrationApplied'
   | 'MigrationRolledBack'
   | 'MidweekMeetingCreated'
