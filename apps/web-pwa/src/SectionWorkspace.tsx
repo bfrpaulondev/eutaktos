@@ -1,5 +1,9 @@
+import Button from 'antd/es/button';
+import Card from 'antd/es/card';
+import Divider from 'antd/es/divider';
+import Space from 'antd/es/space';
+import Typography from 'antd/es/typography';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { Box, Button, Divider, Paper } from '@mui/material';
 import { AccessManagementDialog } from './AccessManagementDialog';
 import { AuditHistoryDialog } from './AuditHistoryDialog';
 import { HouseholdsSection } from './HouseholdsSection';
@@ -17,7 +21,6 @@ import {
   type PeopleWorkspaceView,
 } from './lib/peopleWorkspaceRoute';
 import { getWorkspaceCopy, type WorkspaceSection } from './lib/sectionData';
-import { Stack, Typography } from './ui/MuiCompat';
 
 interface SectionWorkspaceProps { locale: Locale; section: WorkspaceSection }
 type NavigablePeopleView = Exclude<PeopleWorkspaceView, 'profile'>;
@@ -70,6 +73,12 @@ function pushPersonProfile(personRef: string): void {
   pushPeopleSearch(peopleWorkspaceSearchForProfile(window.location.search, personRef), { peopleView: 'profile' });
 }
 
+function LoadingSurface({ label, compact = false }: { label: string; compact?: boolean }) {
+  return <section role="status" aria-live="polite" style={{ paddingBlock: compact ? 16 : 32 }}>
+    <Typography.Text type="secondary">{label}</Typography.Text>
+  </section>;
+}
+
 function OrganizationWorkspace({ locale }: { locale: Locale }) {
   const [view, setView] = useState<PeopleWorkspaceView>(peopleViewFromLocation);
   const [profileRef, setProfileRef] = useState<string | undefined>(profileRefFromLocation);
@@ -111,37 +120,49 @@ function OrganizationWorkspace({ locale }: { locale: Locale }) {
     window.requestAnimationFrame(() => setCreateRequest(current => current + 1));
   };
 
-  if (view === 'overview') return <Stack spacing={2}>
-    <Suspense fallback={<Box component="section" role="status" sx={{ py: 4 }}><Typography color="text.secondary">{text.overviewLoading}</Typography></Box>}>
+  if (view === 'overview') return <Space orientation="vertical" size="large" style={{ display: 'flex' }}>
+    <Suspense fallback={<LoadingSurface label={text.overviewLoading} />}>
       <PeopleOverview locale={locale} onOpenDirectory={() => selectView('directory')} onAddPerson={openCreate} />
     </Suspense>
-    <Suspense fallback={<Box component="section" role="status" sx={{ py: 2 }}><Typography color="text.secondary">{text.overviewLoading}</Typography></Box>}>
+    <Suspense fallback={<LoadingSurface label={text.overviewLoading} compact />}>
       <PeopleAssistancePanel locale={locale} />
     </Suspense>
-  </Stack>;
+  </Space>;
 
   const navView: NavigablePeopleView = view === 'profile' ? 'directory' : view;
 
-  return <Stack spacing={2}>
-    <Paper component="section" aria-labelledby="organization-title" sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3 }}>
-      <Stack spacing={2.25}>
-        <Stack direction={{ xs: 'column', lg: 'row' }} justifyContent="space-between" gap={2} alignItems={{ lg: 'flex-end' }}>
-          <Box sx={{ maxWidth: 760, minWidth: 0 }}><Typography variant="overline" color="primary.main">{text.organization}</Typography><Typography variant="h2" id="organization-title" sx={{ fontSize: { xs: '2rem', sm: '2.6rem' } }}>{text.organizationTitle}</Typography><Typography color="text.secondary" sx={{ mt: 1 }}>{text.organizationSubtitle}</Typography></Box>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} useFlexGap flexWrap="wrap" sx={{ flexShrink: 0 }}><Button variant="outlined" onClick={() => setHourglassOpen(true)}>{text.hourglass}</Button><Button ref={auditButtonRef} variant="outlined" onClick={() => setAuditOpen(true)}>{text.audit}</Button><Button ref={accessButtonRef} variant="outlined" onClick={() => setAccessOpen(true)}>{text.access}</Button></Stack>
-        </Stack>
-        <Divider />
-        <Stack component="nav" aria-label={text.organizationTitle} direction="row" gap={0.75} flexWrap="wrap" useFlexGap>{views.map(item => <Button key={item} variant={navView === item ? 'contained' : 'text'} aria-current={navView === item ? 'page' : undefined} onClick={() => selectView(item)}>{labels[item]}</Button>)}</Stack>
-      </Stack>
-    </Paper>
+  return <Space orientation="vertical" size="large" style={{ display: 'flex' }}>
+    <Card aria-labelledby="organization-title">
+      <Space orientation="vertical" size="large" style={{ display: 'flex' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
+          <div style={{ maxWidth: 760, minWidth: 0, flex: '1 1 420px' }}>
+            <Typography.Text type="secondary" strong style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 12 }}>{text.organization}</Typography.Text>
+            <Typography.Title level={2} id="organization-title" style={{ marginBlock: '4px 0' }}>{text.organizationTitle}</Typography.Title>
+            <Typography.Paragraph type="secondary" style={{ marginBlockEnd: 0 }}>{text.organizationSubtitle}</Typography.Paragraph>
+          </div>
+          <Space wrap>
+            <Button onClick={() => setHourglassOpen(true)}>{text.hourglass}</Button>
+            <Button ref={auditButtonRef} onClick={() => setAuditOpen(true)}>{text.audit}</Button>
+            <Button ref={accessButtonRef} onClick={() => setAccessOpen(true)}>{text.access}</Button>
+          </Space>
+        </div>
+        <Divider style={{ marginBlock: 0 }} />
+        <nav aria-label={text.organizationTitle}>
+          <Space wrap size="small">
+            {views.map(item => <Button key={item} type={navView === item ? 'primary' : 'text'} aria-current={navView === item ? 'page' : undefined} onClick={() => selectView(item)}>{labels[item]}</Button>)}
+          </Space>
+        </nav>
+      </Space>
+    </Card>
     {view === 'directory' ? <PeopleDirectory locale={locale} createRequest={createRequest} onOpenProfile={openProfile} /> : null}
-    {view === 'profile' && profileRef ? <Suspense fallback={<Box component="section" role="status" sx={{ py: 4 }}><Typography color="text.secondary">{text.profileLoading}</Typography></Box>}><Stack spacing={2}><PersonProfile personId={profileRef} locale={locale} onBack={() => selectView('directory')} /><PersonRecommendationInsight personId={profileRef} locale={locale} /></Stack></Suspense> : null}
+    {view === 'profile' && profileRef ? <Suspense fallback={<LoadingSurface label={text.profileLoading} />}><Space orientation="vertical" size="large" style={{ display: 'flex' }}><PersonProfile personId={profileRef} locale={locale} onBack={() => selectView('directory')} /><PersonRecommendationInsight personId={profileRef} locale={locale} /></Space></Suspense> : null}
     {view === 'households' ? <HouseholdsSection locale={locale} /> : null}
     {view === 'groups' ? <ServiceGroupsSection locale={locale} /> : null}
     {view === 'responsibilities' ? <ResponsibilitiesSection locale={locale} /> : null}
     <AuditHistoryDialog locale={locale} open={auditOpen} onClose={() => { setAuditOpen(false); window.requestAnimationFrame(() => auditButtonRef.current?.focus()); }} />
     <AccessManagementDialog locale={locale} open={accessOpen} onClose={() => { setAccessOpen(false); window.requestAnimationFrame(() => accessButtonRef.current?.focus()); }} />
     <HourglassImportInspector locale={locale} open={hourglassOpen} onClose={() => setHourglassOpen(false)} />
-  </Stack>;
+  </Space>;
 }
 
 export function SectionWorkspace({ locale, section }: SectionWorkspaceProps) {
@@ -149,11 +170,11 @@ export function SectionWorkspace({ locale, section }: SectionWorkspaceProps) {
   if (section === 'agenda' || section === 'assignments') return <MidweekWorkspace locale={locale} section={section} />;
 
   const content = getWorkspaceCopy(locale, section);
-  return <Box component="section" aria-labelledby={`section-${section}-title`}>
-    <Paper sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3 }}>
-      <Typography variant="overline" color="primary.main">{content.eyebrow}</Typography>
-      <Typography variant="h2" id={`section-${section}-title`} sx={{ fontSize: { xs: '2rem', sm: '2.6rem' } }}>{content.title}</Typography>
-      <Typography color="text.secondary" sx={{ mt: 1 }}>{content.subtitle}</Typography>
-    </Paper>
-  </Box>;
+  return <section aria-labelledby={`section-${section}-title`}>
+    <Card>
+      <Typography.Text type="secondary" strong style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 12 }}>{content.eyebrow}</Typography.Text>
+      <Typography.Title level={2} id={`section-${section}-title`} style={{ marginBlock: '4px 0' }}>{content.title}</Typography.Title>
+      <Typography.Paragraph type="secondary" style={{ marginBlockEnd: 0 }}>{content.subtitle}</Typography.Paragraph>
+    </Card>
+  </section>;
 }
