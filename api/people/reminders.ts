@@ -5,6 +5,7 @@ import {
   normalizeAssignmentResponse,
   type AssignmentReminderRecord,
   type AssignmentResponse,
+  type Capability,
   type CongregationPerson,
 } from '@eutaktos/domain';
 import { requireCapability, resolvePrincipal } from '../_auth';
@@ -37,7 +38,7 @@ export function assertReminderListRequest(request: Pick<ApiRequest, 'query' | 'b
 export function buildReminderListPayload(input: {
   readonly tenantId: string;
   readonly actorId: string;
-  readonly capabilities: readonly string[];
+  readonly capabilities: readonly Capability[];
   readonly people: readonly Readonly<CongregationPerson>[];
   readonly responses: readonly Readonly<AssignmentResponse>[];
   readonly reminders: readonly Readonly<AssignmentReminderRecord>[];
