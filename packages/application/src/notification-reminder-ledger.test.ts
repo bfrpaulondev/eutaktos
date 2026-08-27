@@ -63,6 +63,16 @@ describe('NotificationIntentService assignment reminder correlation', () => {
       deliveryId: 'delivery-1',
       queuedAt: '2026-08-27T06:30:00.000Z',
     });
+    expect(uow.changes[0]?.domainEvents[0]?.payload).toEqual({
+      deliveryId: 'delivery-1',
+      recipientId: 'person-1',
+      channel: 'in-app',
+      templateKey: 'assignment.reminder',
+      locale: 'pt-PT',
+    });
+    expect(Object.keys(uow.changes[0]?.domainEvents[0]?.payload ?? {}).sort()).toEqual([
+      'channel', 'deliveryId', 'locale', 'recipientId', 'templateKey',
+    ]);
   });
 
   it('does not create reminder ledger data for non-reminder intents', () => {
