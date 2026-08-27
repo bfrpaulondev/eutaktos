@@ -39,7 +39,7 @@ describe('People reminders API', () => {
   });
 
   it('uses a no-store same-origin GET, forwards AbortSignal and preserves HTTP status', async () => {
-    const fetcher = vi.fn(async () => new Response(JSON.stringify({ error: 'Forbidden' }), {
+    const fetcher = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit): Promise<Response> => new Response(JSON.stringify({ error: 'Forbidden' }), {
       status: 403,
       headers: { 'Content-Type': 'application/json' },
     }));
