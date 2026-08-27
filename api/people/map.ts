@@ -14,9 +14,9 @@ export function projectPeopleMap(points: readonly PeopleMapPoint[]) {
 
 const handler: ApiHandler = async (request, response) => {
   if (request.method !== 'GET') { methodNotAllowed(response, ['GET']); return; }
-  await runEndpoint(request, response, async () => {
+  await runEndpoint(request, response, async database => {
     if (Object.keys(request.query).length) throw new BadRequestError('People map does not accept query parameters');
-    const principal = await resolvePrincipal(request);
+    const principal = await resolvePrincipal(request, database);
     requireCapability(principal, 'people.read');
     requireCapability(principal, 'map.read');
     const points = await new PeopleMapDatabase().list(principal.tenantId);
