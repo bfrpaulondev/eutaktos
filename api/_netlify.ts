@@ -18,6 +18,7 @@ import peopleRecordCardsHandler from './people/record-cards';
 import peopleTransfersHandler from './people/transfers';
 import peopleTransferPreviewHandler from './people/transfers/preview';
 import peopleTransferClaimHandler from './people/transfers/claim';
+import peopleTransferCancelHandler from './people/transfers/[transferId]/cancel';
 import personHandler from './people/[personId]';
 import personArchiveHandler from './people/[personId]/archive';
 import eligibilityHandler from './people/[personId]/eligibility';
@@ -66,7 +67,7 @@ export interface NetlifyApiResult {
 
 type RouteKey =
   | 'health' | 'ready' | 'session' | 'logout' | 'logout-all' | 'rotate-session' | 'auth-otp' | 'auth-verify'
-  | 'people' | 'people-directory' | 'people-overview-evidence' | 'people-assistance' | 'people-recommendations' | 'people-reminders' | 'people-contact-list' | 'people-record-cards' | 'people-transfers' | 'people-transfer-preview' | 'people-transfer-claim' | 'person' | 'person-archive' | 'eligibility' | 'availability' | 'ordinary-contact' | 'availability-period'
+  | 'people' | 'people-directory' | 'people-overview-evidence' | 'people-assistance' | 'people-recommendations' | 'people-reminders' | 'people-contact-list' | 'people-record-cards' | 'people-transfers' | 'people-transfer-preview' | 'people-transfer-claim' | 'people-transfer-cancel' | 'person' | 'person-archive' | 'eligibility' | 'availability' | 'ordinary-contact' | 'availability-period'
   | 'hourglass-preview' | 'hourglass-prepare' | 'hourglass-execute' | 'hourglass-rollback'
   | 'households' | 'household' | 'service-groups' | 'service-group'
   | 'responsibilities' | 'responsibility' | 'end-responsibility' | 'congregation-settings' | 'audit-history'
@@ -97,6 +98,7 @@ const handlers: Readonly<Record<RouteKey, ApiHandler>> = Object.freeze({
   'people-transfers': peopleTransfersHandler,
   'people-transfer-preview': peopleTransferPreviewHandler,
   'people-transfer-claim': peopleTransferClaimHandler,
+  'people-transfer-cancel': peopleTransferCancelHandler,
   person: personHandler,
   'person-archive': personArchiveHandler,
   eligibility: eligibilityHandler,
@@ -184,6 +186,13 @@ export function matchNetlifyApiRoute(path: string): RouteMatch | undefined {
   });
   const exactKey = exact[path];
   if (exactKey) return Object.freeze({ key: exactKey, params: Object.freeze({}) });
+
+  const transferCancelMatch = /^\/people\/transfers\/([^/]+)\/cancel$/.exec(path);
+  if (transferCancelMatch) {
+    const transferId = decodeSegment(transferCancelMatch[1] ?? '');
+    if (!transferId) return undefined;
+    return Object.freeze({ key: 'people-transfer-cancel', params: Object.freeze({ transferId }) });
+  }
 
   const midweekMatch = /^\/midweek\/(.+)$/.exec(path);
   if (midweekMatch) {
