@@ -79,61 +79,59 @@ function renderPages(data: PeopleRecordCardsDto, locale: Locale, title: string):
   const margin = 80;
   const bottom = height - margin;
   const pages: JpegPage[] = [];
-  let canvas: HTMLCanvasElement;
-  let context: CanvasRenderingContext2D;
   let y = margin;
 
-  const begin = () => {
-    canvas = document.createElement('canvas');
+  const createPage = () => {
+    const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
-    const next = canvas.getContext('2d');
-    if (!next) throw new Error('Canvas is unavailable');
-    context = next;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Canvas is unavailable');
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, width, height);
     context.fillStyle = '#111111';
-    y = margin;
     context.font = '700 34px sans-serif';
-    context.fillText(title, margin, y);
-    y += 52;
+    context.fillText(title, margin, margin);
     context.font = '22px sans-serif';
-    context.fillText(`${data.period.from} — ${data.period.to}`, margin, y);
-    y += 52;
+    context.fillText(`${data.period.from} — ${data.period.to}`, margin, margin + 52);
+    y = margin + 104;
+    return { canvas, context };
   };
 
-  const finish = () => {
+  const finish = (canvas: HTMLCanvasElement) => {
     pages.push(Object.freeze({ bytes: jpegBytes(canvas.toDataURL('image/jpeg', 0.92)), width, height }));
   };
 
+  let page = createPage();
   const ensure = (heightNeeded: number) => {
     if (y + heightNeeded <= bottom) return;
-    finish();
-    begin();
+    finish(page.canvas);
+    page = createPage();
   };
 
-  begin();
   for (const card of data.cards) {
     ensure(88);
-    context.font = '700 25px sans-serif';
-    context.fillText(card.displayName, margin, y);
+    page.context.font = '700 25px sans-serif';
+    page.context.fillText(card.displayName, margin, y);
     y += 38;
-    context.font = '20px sans-serif';
+    page.context.font = '20px sans-serif';
     for (const record of card.records) {
       ensure(34);
       const date = new Date(`${record.meetingDate}T00:00:00`).toLocaleDateString(locale);
-      context.fillText(`${date} — ${record.partType}`, margin + 24, y);
+      page.context.fillText(`${date} — ${record.partType}`, margin + 24, y);
       y += 32;
     }
     y += 24;
   }
-  finish();
+  finish(page.canvas);
   return Object.freeze(pages);
 }
 
 export async function downloadPeopleRecordCardsPdf(data: PeopleRecordCardsDto, locale: Locale, title: string): Promise<void> {
   const pdf = buildPdfFromJpegPages(renderPages(data, locale, title));
-  const blob = new Blob([pdf], { type: 'application/pdf' });
+  const buffer = new ArrayBuffer(pdf.byteLength);
+  new Uint8Array(buffer).set(pdf);
+  const blob = new Blob([buffer], { type: 'application/pdf' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
