@@ -1,141 +1,124 @@
 # People technical closeout audit — 2026-08-27
 
-> Audit baseline: `main` `39d396c812a9db79f5c405b5b635d5bafe89b6ed`.
+> Final technical runtime baseline: `main` `743a7d7d3017aa4cf81a783b2e8bdcb1db241aac`.
 > Canonical production acceptance target: `https://eutakes.netlify.app/`.
 
-## Purpose
+## Verdict
 
-This audit separates four different states that older planning documents currently mix together:
+**PEOPLE IS TECHNICALLY COMPLETE.**
 
-1. technical work already integrated on `main`;
-2. the one active remaining People implementation slice;
-3. intentionally deferred/non-required product research;
-4. human acceptance that cannot be truthfully replaced by automated CI.
+There is no remaining approved People product/runtime implementation slice after integration of PX9.10/PX9.11 People Map. PX9.17 DOCX remains deliberately **DEFERRED / NOT REQUIRED** and is not a technical blocker.
 
-It is deliberately additive and does not rewrite the shared source-of-truth files while PX9.10/PX9.11 Map is being completed in parallel.
+Real screen-reader acceptance and write-capable real-user production walkthrough remain separate human acceptance activities. They are not represented as automated or technically complete by this document.
 
-## Technical baseline already integrated
+## Integrated technical scope
 
-The current `main` ancestry includes the reviewed People product work for:
+The `743a7d7d...` main ancestry includes the reviewed People product/runtime work for:
 
-- People core/profile, guided add/edit and organization/participation flows;
+- People Overview and Directory 2.0;
+- unified Person Profile;
+- guided Add/Edit Person;
+- ordinary Contact with least-privilege boundaries;
+- households, service groups and responsibilities context;
+- availability and explicit eligibility;
 - deterministic explainable recommendations and persistent manual exclusions;
 - responsible-person assistance;
 - Labels/tags;
 - Reminders;
 - Archive / “A não publicar”;
-- Hourglass source/preview plus authenticated prepare → confirm → execute and create-only rollback;
-- Contact List;
+- Hourglass import source/preview plus authenticated prepare → confirm → execute and create-only rollback;
+- configurable Contact List;
 - emergency mode/emergency contacts;
 - CSV export;
 - Record Cards/reports;
 - direct Record Cards PDF export;
 - secure People Transfers;
+- PX9.10/PX9.11 privacy-first People Map;
 - Ant Design 6 migration and MUI/Emotion runtime retirement;
 - automated responsive/keyboard/privacy and 200%/400% People reflow coverage;
 - stabilized Person Profile browser refresh regression.
 
-The privacy-first PX9.10/PX9.11 Map contract is also integrated on this baseline through PR #389 / main `39d396c812a9db79f5c405b5b635d5bafe89b6ed`.
+## PX9.10/PX9.11 People Map final evidence
 
-## Active technical implementation remaining
+PR #392 was independently reviewed and corrected by the Principal before integration.
 
-### PX9.10/PX9.11 People Map
+Worker submitted head: `35348bf4823d496ee59e994b110a8e0c8c204106`.
 
-This is the only active product implementation slice still required for People technical closeout.
+Principal-reviewed final PR head: `ad5b86bf9a40a9c75dafe7495e0ffdbc3b25ddfc`.
 
-The reviewed contract is `docs/PEOPLE_MAP_CONTRACT.md` and requires, among other things:
+Squash merge/main runtime SHA: `743a7d7d3017aa4cf81a783b2e8bdcb1db241aac`.
 
-- dedicated `map.read` / `map.write` sensitive capabilities;
-- separate tenant-scoped approximate-location persistence;
-- server-side coordinate validation/normalization to no more than two decimals;
-- explicit manual source only;
-- no automatic Contact-address geocoding, browser geolocation, IP/device geolocation or inferred location;
-- GET `/api/people/map` minimum-data projection;
-- PUT/DELETE `/api/people/:personId/map-location`;
+Final exact-head gates:
+
+- GitHub Actions run `33115570822` / run #986;
+- `quality`: PASS;
+- `browser-regression`: PASS;
+- canonical `netlify/eutakes/deploy-preview`: PASS;
+- noncanonical rainbow preview: PASS;
+- Vercel rate-limit statuses: NON-GATING.
+
+Principal corrections made before merge:
+
+1. mutation authorization was corrected from `map.write` alone to the canonical `people.write + map.write` boundary;
+2. PX9.11 group filter/legend was completed using the already-authorized Service Group projection, without widening the `people-map-v1` DTO;
+3. same-Person set/remove database mutations were serialized to preserve idempotent retry semantics under concurrency;
+4. browser runtime coverage was expanded for the dual write gate, group filter/legend and 320/375/390/430/640/768/1024/1280/1440 reflow matrix;
+5. the Ant Select test interaction was hardened without weakening product assertions.
+
+The resulting Map contract preserves:
+
+- server-derived tenant, actor and capabilities;
+- `people.read + map.read` for read;
+- `people.write + map.write` for set/remove;
+- `tenant.manage` does not imply Map access;
+- dedicated sensitive `map.read` and `map.write` capabilities;
+- tenant-scoped separate location persistence;
+- explicit manual approximate locations only;
+- server-side maximum two-decimal normalization before persistence;
+- no automatic Contact-address geocoding;
+- no browser/IP/device geolocation;
+- no location inference;
+- minimum-data GET DTO;
 - archived/non-publishable exclusion;
-- no coordinate values copied into general audit/event metadata;
-- Ant Design UI;
-- equivalent semantic list/table;
+- audit/outbox evidence without coordinates;
+- no browser persistence of Person coordinates;
+- no Person/group identity in tile-provider requests;
+- local graphical overlays;
+- semantic equivalent list;
+- group filter/legend;
+- keyboard selection;
 - pt-PT/en/es;
-- stale/double-submit ownership;
-- unit/integration/API/client/UI/privacy/accessibility/browser-regression coverage;
-- exact-head canonical `netlify/eutakes/deploy-preview` success before merge.
+- stale-response and double-submit protection;
+- mobile/desktop plus 200%/400% equivalent reflow coverage.
 
-Implementation is being completed in a separate worker lane. This audit intentionally does not edit that worker's files.
-
-## PX9 branch hygiene
-
-The repository still contains several historical `principal/px9-*` branches after their corresponding slices were integrated. They are not evidence that those features remain unfinished.
-
-Two Map branches require an explicit distinction:
-
-- `principal/px9-map-runtime` is the reviewed in-progress runtime base created from the current Map contract and is the only Principal Map branch that may be used as implementation input.
-- `principal/px9-people-map` is **HISTORICAL / QUARANTINED**. It predates the final contract and contains incompatible names such as `people-map.read` / `people-map.write` and an older precision shape. It must not be merged or reused as the authoritative Map implementation.
-
-Other historical PX9 branches should be treated as quarantined unless their exact diff/current purpose is re-verified. Their presence must not trigger duplicate implementation of already-integrated slices.
-
-## PX9.17 DOCX status
+## PX9.17 DOCX
 
 PX9.17 is **DEFERRED / NOT REQUIRED** for People technical closeout.
 
-The detailed decision is recorded in `docs/PEOPLE_DOCX_EXPORT_DECISION.md`.
+The detailed decision is in `docs/PEOPLE_DOCX_EXPORT_DECISION.md`.
 
-Reason: the repository consistently defines DOCX as conditional (“only if product need remains after user testing” / “where useful”), while approved CSV and PDF paths already cover the current export requirements. No open DOCX implementation issue establishes a contrary requirement.
+CSV and PDF satisfy the currently approved People export needs. DOCX is added only if later product/user evidence establishes a concrete need. It must not be implemented solely for competitor parity.
 
-Therefore PX9.17 must not be counted as unfinished technical work merely because an old checkbox remains unchecked.
+## Historical branch hygiene
 
-## Source-of-truth drift found
+Historical `principal/px9-*` branches are not evidence of unfinished product work.
 
-Several planning/inventory statements are stale relative to integrated `main` and must be synchronized during the final post-Map closeout. This drift is documentation debt, not missing runtime functionality.
+In particular, `principal/px9-people-map` is **HISTORICAL / QUARANTINED** because it predates the approved Map contract and contains incompatible capability/precision concepts. It must never be treated as authoritative.
 
-Examples found during this audit:
+## Human acceptance boundary
 
-- `docs/PRODUCT_EXPERIENCE_MASTER_PLAN.md` still leaves PX9.1/PX9.2 Transfers unchecked even though secure Transfers are integrated.
-- The same master plan still leaves PX9.5 Record Cards and PX9.16 PDF unchecked despite reviewed integrations.
-- `docs/AI_HANDOFF.md` and `docs/PEOPLE_PRODUCT_EXPERIENCE_CURRENT_STATUS.md` still describe Map as lacking an approved location/privacy contract even though PR #389 is now on `main`.
-- `docs/PRODUCT_EXPERIENCE_INVENTORY.md` is substantially older than the current People baseline and still describes multiple already-integrated PX7/PX9 slices as absent.
-
-These shared files should be reconciled only after the final Map PR lands, so the status update can be performed once against the actual final People `main` SHA without creating parallel-edit conflicts.
-
-## Open issue audit
-
-Repository issue search on 2026-08-27 found no open DOCX/PX9.17 implementation issue.
-
-Issue #318 was a stale duplicate C6 independent-acceptance handoff. The authoritative replacement #319 is already closed `completed` with the accepted C6 evidence, so #318 was closed as `duplicate` during this audit.
-
-Other open issues containing “People”, including #270, #268 and broad product epics, are historical/coordination/acceptance scopes. Their existence alone must not be interpreted as evidence of missing People runtime code; each issue's actual acceptance scope must be evaluated separately.
-
-The final closeout must not automatically close broad project epics merely because the People reference module is technically complete.
-
-## Human acceptance remains separate
-
-The following are not safe to declare complete from CI or sanitized browser fixtures:
+The following remain intentionally outside technical-completion claims:
 
 - real screen-reader acceptance;
-- write-capable real-user production walkthrough using approved disposable/real test data;
-- any physical-device evidence explicitly requiring an actual device.
+- write-capable real-user production walkthrough using approved disposable/real data;
+- physical-device evidence where an acceptance item explicitly requires an actual device.
 
-These are acceptance activities, not missing People implementation. They remain tracked separately and must be reported truthfully as human/manual evidence gaps where applicable.
+These are acceptance evidence tasks, not missing code.
 
-## Final technical closeout sequence
+## Final technical status
 
-After the Map worker returns:
+**Remaining People technical implementation: NONE.**
 
-1. principal reviews the complete Map diff against `docs/PEOPLE_MAP_CONTRACT.md`;
-2. correct any security/privacy/tenant/capability/API/UI/test defects;
-3. require exact-head `quality` and `browser-regression` success;
-4. require exact-head canonical `netlify/eutakes/deploy-preview` success;
-5. merge Map only with exact expected head;
-6. verify resulting `main` SHA;
-7. synchronize `AI_HANDOFF.md`, `PEOPLE_PRODUCT_EXPERIENCE_CURRENT_STATUS.md`, `PRODUCT_EXPERIENCE_MASTER_PLAN.md` and `PRODUCT_EXPERIENCE_INVENTORY.md` against that final SHA;
-8. record PX9.17 as non-blocking deferred rather than fabricating a DOCX implementation;
-9. run final People technical audit for TODO/placeholders/regressions and zero unresolved P0/P1 technical defects;
-10. keep real screen-reader/write-capable production acceptance explicitly separate.
+**Unresolved known People P0/P1 technical defects: 0 at the reviewed closeout baseline.**
 
-## Current verdict
-
-At this audit baseline, the remaining People technical path is:
-
-**Finish and integrate PX9.10/PX9.11 Map → synchronize stale documentation → final gates/technical closeout.**
-
-PX9.17 DOCX is not a technical blocker.
+The People reference module can now be used as the Ant Design 6 product-quality pattern for the next Eutaktos module. The recommended next product-experience target is Organization 2.0, reusing People contracts and interaction patterns instead of rebuilding parallel models.
