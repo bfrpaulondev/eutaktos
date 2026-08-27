@@ -132,7 +132,7 @@ describe('PX9.9 Hourglass real write handler boundary', () => {
     const fetchSpy = vi.fn<typeof fetch>();
     vi.stubGlobal('fetch', fetchSpy);
     const result = await mutationRequest('/import/hourglass/prepare', { source: 'json', payload: PAYLOAD, mutationId: 'mutation-12345678' }, false);
-    expect(result.statusCode).toBe(400);
+    expect(result.statusCode).toBe(403);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
