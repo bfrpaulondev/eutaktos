@@ -18,6 +18,23 @@
   gap: 10px;
 }
 
+/* Long localized action labels must reflow inside the People content column.
+   Ant Space items otherwise preserve an intrinsic child width, which can make
+   header actions exceed the usable 320 CSS px viewport at 400% desktop zoom. */
+section[aria-labelledby='people-directory-title'] .ant-space,
+section[aria-labelledby='people-directory-title'] .ant-space-item {
+  max-width: 100%;
+  min-width: 0;
+}
+
+section[aria-labelledby='people-directory-title'] .ant-btn {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  height: auto;
+  min-height: var(--ant-control-height, 32px);
+}
+
 @media (min-width: 600px) {
   .people-directory-filter-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
