@@ -22,6 +22,7 @@ const checks = [
   { label: 'lazy-route recovery', args: ['run', 'test:lazy-recovery'] },
   { label: 'sanitized visual regression', args: ['run', 'test:visual-sanitized'] },
   { label: 'Hourglass inspector runtime', args: ['run', 'test:hourglass-inspector'] },
+  { label: 'People Archive runtime', args: ['run', 'test:people-archive-runtime'] },
 ];
 
 function runCheck({ label, args }) {

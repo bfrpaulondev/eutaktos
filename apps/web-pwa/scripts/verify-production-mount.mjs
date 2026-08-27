@@ -1,4 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
@@ -39,6 +40,16 @@ async function verifyPwaAssets() {
     throw new Error(`O manifesto PWA não cumpre o contrato de instalação: ${JSON.stringify(manifest)}`);
   }
   for (const icon of manifest.icons) await requireProductionAsset(icon.src.replace(/^\.\//, ''));
+
+  const revisionResponse = await requireProductionAsset('build-revision.json');
+  const revision = await revisionResponse.json();
+  if (!revision || typeof revision !== 'object' || Array.isArray(revision) || Object.keys(revision).length !== 1 || !/^[0-9a-f]{40}$/.test(revision.revision ?? '')) {
+    throw new Error('O artefacto de revisão de produção deve conter apenas um SHA-40 hexadecimal.');
+  }
+  const headers = await readFile(resolve(process.cwd(), 'dist/_headers'), 'utf8');
+  if (!/\/build-revision\.json\s+Cache-Control:\s*no-store/m.test(headers)) {
+    throw new Error('O artefacto de revisão de produção deve ser publicado com Cache-Control: no-store.');
+  }
 
   const serviceWorker = await (await requireProductionAsset('sw.js')).text();
   const requiredWorkerRules = ["pathname.startsWith('/api/')", "pathname.startsWith('/auth/')", "request.headers.has('authorization')", 'url.search', 'isSafeStaticResponse(response)', "cache: 'no-store'", "Referrer-Policy': 'no-referrer'", "X-Content-Type-Options': 'nosniff'", 'cache.put(request, response.clone())'];
@@ -102,7 +113,7 @@ try {
     throw new Error(`A aplicação não montou no build de produção. DOM recebido: ${dom.slice(0, 500)}`);
   }
 
-  process.stdout.write('Production build mounted successfully and auth deep-link bundles resolve from absolute /assets paths with PWA safeguards.\n');
+  process.stdout.write('Production build mounted successfully; build revision artifact, auth deep-link bundles and PWA safeguards are available.\n');
 } finally {
   if (!preview.killed) preview.kill('SIGTERM');
 }

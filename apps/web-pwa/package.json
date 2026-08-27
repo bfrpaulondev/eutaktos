@@ -19,6 +19,7 @@
     "test:system-theme-runtime": "node scripts/verify-system-theme-runtime.mjs",
     "test:lazy-recovery": "node scripts/verify-lazy-recovery.mjs",
     "test:hourglass-inspector": "node scripts/verify-hourglass-inspector.mjs",
+    "test:people-archive-runtime": "node scripts/verify-people-archive-runtime.mjs",
     "test:people-directory-export-runtime": "node scripts/verify-people-directory-export-runtime.mjs",
     "test:people-labels-runtime": "node scripts/verify-people-labels-runtime.mjs",
     "test:people-labels-authority-runtime": "node scripts/verify-people-labels-authority-runtime.mjs",

@@ -225,7 +225,7 @@ function OrganizationWorkspace({ locale }: { locale: Locale }) {
     {view === 'responsibilities' ? <ResponsibilitiesSection locale={locale} /> : null}
     <PeopleTransfersDialog locale={locale} open={transfersOpen} onClose={() => { setTransfersOpen(false); restoreToolsFocus(); }} />
     <PeopleRemindersDialog locale={locale} open={remindersOpen} onClose={() => { setRemindersOpen(false); restoreToolsFocus(); }} />
-    <PeopleArchiveDialog locale={locale} open={archiveOpen} initialPersonId={view === 'profile' ? profileRef : undefined} onChanged={personId => { if (view === 'profile' && profileRef === personId) setProfileRefresh(current => current + 1); }} onClose={() => { setArchiveOpen(false); restoreToolsFocus(); }} />
+    <PeopleArchiveDialog locale={locale} open={archiveOpen} initialPersonId={view === 'profile' ? profileRef : undefined} onChanged={personId => { if (view === 'profile' && profileRef === personId) setProfileRefresh(current => current + 1); }} onClose={() => { setArchiveOpen(false); }} onAfterClose={restoreToolsFocus} />
     <PeopleContactListDialog locale={locale} open={contactListOpen} onClose={() => { setContactListOpen(false); restoreToolsFocus(); }} />
     <PeopleRecordCardsDialog locale={locale} open={recordCardsOpen} onClose={() => { setRecordCardsOpen(false); restoreToolsFocus(); }} />
     <AuditHistoryDialog locale={locale} open={auditOpen} onClose={() => { setAuditOpen(false); window.requestAnimationFrame(() => auditButtonRef.current?.focus()); }} />

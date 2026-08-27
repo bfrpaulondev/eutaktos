@@ -25,7 +25,7 @@ const copy = {
     confirmArchiveText: 'Esta ação deixa a pessoa inativa e regista o motivo no histórico. Confirme cuidadosamente o alvo antes de continuar.',
     confirmRestoreText: 'Esta ação restaura explicitamente o estado anterior permitido pelo contrato de arquivo. Confirme cuidadosamente o alvo antes de continuar.',
     cancel: 'Cancelar', working: 'A guardar…', saved: 'Estado de arquivo atualizado.', unauthenticated: 'A sessão terminou. Inicie sessão novamente.',
-    forbidden: 'Já não tem permissão para alterar este estado.', mutationError: 'Não foi possível concluir a alteração. Pode tentar novamente com segurança.',
+    forbidden: 'Já não tem permissão para alterar este estado.', mutationError: 'Não foi possível concluir a alteração. Pode tentar novamente com segurança.', targetChanged: 'A pessoa selecionada mudou ou já não está disponível. Reveja o alvo antes de continuar.',
     archivedAction: 'Arquivada', restoredAction: 'Restaurada', close: 'Fechar', readOnly: 'Pode consultar o arquivo, mas não tem permissão para o alterar.',
   },
   en: {
@@ -38,7 +38,7 @@ const copy = {
     confirmArchiveText: 'This action makes the person inactive and records the reason in history. Carefully confirm the target before continuing.',
     confirmRestoreText: 'This action explicitly restores the prior state allowed by the archive contract. Carefully confirm the target before continuing.',
     cancel: 'Cancel', working: 'Saving…', saved: 'Archive state updated.', unauthenticated: 'Your session ended. Sign in again.',
-    forbidden: 'You no longer have permission to change this state.', mutationError: 'The change could not be completed. You can retry safely.',
+    forbidden: 'You no longer have permission to change this state.', mutationError: 'The change could not be completed. You can retry safely.', targetChanged: 'The selected person changed or is no longer available. Review the target before continuing.',
     archivedAction: 'Archived', restoredAction: 'Restored', close: 'Close', readOnly: 'You can view archive state, but you do not have permission to change it.',
   },
   es: {
@@ -51,18 +51,19 @@ const copy = {
     confirmArchiveText: 'Esta acción deja a la persona inactiva y registra el motivo en el historial. Confirme cuidadosamente el objetivo antes de continuar.',
     confirmRestoreText: 'Esta acción restaura explícitamente el estado anterior permitido por el contrato de archivo. Confirme cuidadosamente el objetivo antes de continuar.',
     cancel: 'Cancelar', working: 'Guardando…', saved: 'Estado de archivo actualizado.', unauthenticated: 'La sesión terminó. Inicie sesión de nuevo.',
-    forbidden: 'Ya no tiene permiso para cambiar este estado.', mutationError: 'No se pudo completar el cambio. Puede volver a intentarlo con seguridad.',
+    forbidden: 'Ya no tiene permiso para cambiar este estado.', mutationError: 'No se pudo completar el cambio. Puede volver a intentarlo con seguridad.', targetChanged: 'La persona seleccionada cambió o ya no está disponible. Revise el objetivo antes de continuar.',
     archivedAction: 'Archivada', restoredAction: 'Restaurada', close: 'Cerrar', readOnly: 'Puede consultar el archivo, pero no tiene permiso para cambiarlo.',
   },
 } as const;
 
-type ErrorState = 'unauthenticated' | 'forbidden' | 'retryable' | null;
+type ErrorState = 'unauthenticated' | 'forbidden' | 'retryable' | 'target-changed' | null;
 type DirectoryClient = Pick<typeof peopleDirectoryApi, 'get'>;
 
 function errorState(error: unknown): Exclude<ErrorState, null> {
   const message = error instanceof Error ? error.message : '';
   if (/\(401\)$/.test(message)) return 'unauthenticated';
   if (/\(403\)$/.test(message)) return 'forbidden';
+  if (/\(404\)$/.test(message)) return 'target-changed';
   return 'retryable';
 }
 
@@ -76,10 +77,15 @@ export function chooseArchivePersonId(people: readonly Pick<PeopleDirectoryPerso
   return undefined;
 }
 
-export function PeopleArchiveDialog({ locale, open, onClose, initialPersonId, onChanged, archiveApi = peopleArchiveApi, directoryApi = peopleDirectoryApi }: {
+export function canMutateArchiveTarget(people: readonly Pick<PeopleDirectoryPersonDto, 'id'>[], selectedId: string | undefined, statePersonId: string | undefined, confirmationPersonId: string | undefined): boolean {
+  return Boolean(selectedId && statePersonId && confirmationPersonId && selectedId === statePersonId && statePersonId === confirmationPersonId && people.some(person => person.id === selectedId));
+}
+
+export function PeopleArchiveDialog({ locale, open, onClose, onAfterClose, initialPersonId, onChanged, archiveApi = peopleArchiveApi, directoryApi = peopleDirectoryApi }: {
   locale: Locale;
   open: boolean;
   onClose: () => void;
+  onAfterClose?: () => void;
   initialPersonId?: string;
   onChanged?: (personId: string) => void;
   archiveApi?: PeopleArchiveApi;
@@ -89,6 +95,7 @@ export function PeopleArchiveDialog({ locale, open, onClose, initialPersonId, on
   const [people, setPeople] = useState<readonly PeopleDirectoryPersonDto[]>([]);
   const [selectedId, setSelectedId] = useState<string>();
   const [state, setState] = useState<PeopleArchiveStateDto>();
+  const [statePersonId, setStatePersonId] = useState<string>();
   const [reason, setReason] = useState('');
   const [loadingPeople, setLoadingPeople] = useState(false);
   const [loadingState, setLoadingState] = useState(false);
@@ -101,6 +108,7 @@ export function PeopleArchiveDialog({ locale, open, onClose, initialPersonId, on
   const stateControllerRef = useRef<AbortController | null>(null);
   const mutationControllerRef = useRef<AbortController | null>(null);
   const mutationLockRef = useRef(false);
+  const selectedIdRef = useRef<string | undefined>(undefined);
 
   const selected = useMemo(() => people.find(person => person.id === selectedId), [people, selectedId]);
   const normalizedReason = reason.trim().replace(/\s+/g, ' ');
@@ -117,7 +125,11 @@ export function PeopleArchiveDialog({ locale, open, onClose, initialPersonId, on
       const directory = await directoryApi.get(controller.signal);
       if (controller.signal.aborted || version !== peopleRequestRef.current) return;
       setPeople(directory.people);
-      setSelectedId(current => chooseArchivePersonId(directory.people, current, initialPersonId));
+      setSelectedId(current => {
+        const next = chooseArchivePersonId(directory.people, current, initialPersonId);
+        selectedIdRef.current = next;
+        return next;
+      });
     } catch (caught) {
       if (controller.signal.aborted || version !== peopleRequestRef.current) return;
       setError(errorState(caught));
@@ -132,16 +144,20 @@ export function PeopleArchiveDialog({ locale, open, onClose, initialPersonId, on
     const controller = new AbortController();
     stateControllerRef.current = controller;
     setLoadingState(true);
+    setState(undefined);
+    setStatePersonId(undefined);
     setError(null);
     setSuccess(false);
     try {
       const value = await archiveApi.get(personId, controller.signal);
       if (controller.signal.aborted || version !== stateRequestRef.current) return;
       setState(value);
+      setStatePersonId(personId);
       setReason(value.current?.reason ?? '');
     } catch (caught) {
       if (controller.signal.aborted || version !== stateRequestRef.current) return;
       setState(undefined);
+      setStatePersonId(undefined);
       setError(errorState(caught));
     } finally {
       if (version === stateRequestRef.current) setLoadingState(false);
@@ -150,7 +166,7 @@ export function PeopleArchiveDialog({ locale, open, onClose, initialPersonId, on
 
   useEffect(() => {
     if (!open) return;
-    setPeople([]); setSelectedId(undefined); setState(undefined); setReason(''); setSuccess(false); setError(null);
+    setPeople([]); selectedIdRef.current = undefined; setSelectedId(undefined); setState(undefined); setStatePersonId(undefined); setReason(''); setSuccess(false); setError(null);
     void loadPeople();
     return () => {
       ++peopleRequestRef.current; ++stateRequestRef.current;
@@ -164,34 +180,46 @@ export function PeopleArchiveDialog({ locale, open, onClose, initialPersonId, on
     void loadState(selectedId);
   }, [open, selectedId]);
 
-  const mutate = async (action: 'archive' | 'restore') => {
-    if (!selectedId || !state?.capabilities.write || mutationLockRef.current || (action === 'archive' && !validReason)) return;
+  const mutate = async (action: 'archive' | 'restore', confirmationPersonId: string) => {
+    const ownerId = selectedIdRef.current;
+    if (!ownerId || !canMutateArchiveTarget(people, ownerId, statePersonId, confirmationPersonId)) { setError('target-changed'); return; }
+    if (!state?.capabilities.write || mutationLockRef.current || (action === 'archive' && !validReason)) return;
     mutationLockRef.current = true;
     mutationControllerRef.current?.abort();
     const controller = new AbortController();
     mutationControllerRef.current = controller;
-    const ownerId = selectedId;
     setMutating(true); setError(null); setSuccess(false);
     try {
+      const beforeMutation = await archiveApi.get(ownerId, controller.signal);
+      if (controller.signal.aborted || selectedIdRef.current !== ownerId) { setError('target-changed'); return; }
+      setState(beforeMutation);
+      setStatePersonId(ownerId);
+      if (!beforeMutation.capabilities.write) { setError('forbidden'); return; }
+      const expectedStatus = action === 'archive' ? 'active' : 'archived';
+      if (beforeMutation.status !== expectedStatus) { setError('target-changed'); return; }
       if (action === 'archive') await archiveApi.archive(ownerId, normalizedReason, controller.signal);
       else await archiveApi.restore(ownerId, controller.signal);
-      if (controller.signal.aborted || selectedId !== ownerId) return;
+      if (controller.signal.aborted || selectedIdRef.current !== ownerId) { setError('target-changed'); return; }
       const authoritative = await archiveApi.get(ownerId, controller.signal);
-      if (controller.signal.aborted || selectedId !== ownerId) return;
+      if (controller.signal.aborted || selectedIdRef.current !== ownerId) { setError('target-changed'); return; }
       setState(authoritative);
+      setStatePersonId(ownerId);
       setReason(authoritative.current?.reason ?? '');
       setSuccess(true);
       onChanged?.(ownerId);
       void loadPeople();
     } catch (caught) {
-      if (!controller.signal.aborted && selectedId === ownerId) setError(errorState(caught));
+      if (!controller.signal.aborted && selectedIdRef.current === ownerId) setError(errorState(caught));
     } finally {
-      if (selectedId === ownerId) setMutating(false);
+      if (selectedIdRef.current === ownerId) setMutating(false);
       mutationLockRef.current = false;
     }
   };
 
-  const confirm = (action: 'archive' | 'restore') => Modal.confirm({
+  const confirm = (action: 'archive' | 'restore') => {
+    const confirmationPersonId = selectedIdRef.current;
+    if (!confirmationPersonId || !canMutateArchiveTarget(people, confirmationPersonId, statePersonId, confirmationPersonId)) { setError('target-changed'); return; }
+    Modal.confirm({
     title: action === 'archive' ? text.confirmArchive : text.confirmRestore,
     content: <Space orientation="vertical" size="small">
       <Typography.Text>{action === 'archive' ? text.confirmArchiveText : text.confirmRestoreText}</Typography.Text>
@@ -200,18 +228,19 @@ export function PeopleArchiveDialog({ locale, open, onClose, initialPersonId, on
     okText: action === 'archive' ? text.archive : text.restore,
     cancelText: text.cancel,
     okButtonProps: action === 'archive' ? { danger: true } : undefined,
-    onOk: () => mutate(action),
-  });
+    onOk: () => mutate(action, confirmationPersonId),
+    });
+  };
 
-  const errorMessage = error === 'unauthenticated' ? text.unauthenticated : error === 'forbidden' ? text.forbidden : error === 'retryable' ? text.loadError : undefined;
+  const errorMessage = error === 'unauthenticated' ? text.unauthenticated : error === 'forbidden' ? text.forbidden : error === 'target-changed' ? text.targetChanged : error === 'retryable' ? text.loadError : undefined;
 
-  return <Modal open={open} title={text.title} onCancel={mutating ? undefined : onClose} footer={<Button onClick={onClose} disabled={mutating}>{text.close}</Button>} width={760} destroyOnHidden>
+  return <Modal open={open} title={text.title} onCancel={mutating ? undefined : onClose} afterOpenChange={visible => { if (!visible) onAfterClose?.(); }} footer={<Button onClick={onClose} disabled={mutating}>{text.close}</Button>} width={760} destroyOnHidden>
     <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       <Alert type="info" showIcon title={text.explanation} />
       {success ? <Alert type="success" showIcon title={text.saved} /> : null}
       {errorMessage ? <Alert type="error" showIcon title={errorMessage} action={error === 'retryable' ? <Button size="small" onClick={() => selectedId ? void loadState(selectedId) : void loadPeople()}>{text.retry}</Button> : undefined} /> : null}
       {loadingPeople ? <Skeleton active paragraph={{ rows: 2 }} /> : people.length === 0 ? <Empty description={text.noPeople} /> : <>
-        <div><Typography.Text strong>{text.person}</Typography.Text><Select aria-label={text.person} showSearch optionFilterProp="label" value={selectedId} onChange={setSelectedId} disabled={mutating} placeholder={text.choose} style={{ width: '100%', marginTop: 6 }} options={people.map(person => ({ value: person.id, label: person.displayName }))} /></div>
+        <div><Typography.Text strong>{text.person}</Typography.Text><Select aria-label={text.person} showSearch optionFilterProp="label" value={selectedId} onChange={next => { selectedIdRef.current = next; setSelectedId(next); }} disabled={mutating} placeholder={text.choose} style={{ width: '100%', marginTop: 6 }} options={people.map(person => ({ value: person.id, label: person.displayName }))} /></div>
         {loadingState ? <Skeleton active paragraph={{ rows: 4 }} /> : state && selected ? <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
           <Space wrap><Typography.Text strong>{selected.displayName}</Typography.Text><Tag color={state.status === 'archived' ? 'warning' : 'success'}>{state.status === 'archived' ? text.archived : text.active}</Tag></Space>
           {!state.capabilities.write ? <Alert type="warning" showIcon title={text.readOnly} /> : null}

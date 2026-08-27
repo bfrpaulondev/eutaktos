@@ -1,7 +1,9 @@
 import Form from 'antd/es/form';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { chooseArchivePersonId } from './PeopleArchiveDialog';
+import { canMutateArchiveTarget, chooseArchivePersonId } from './PeopleArchiveDialog';
+import { sanitizeHourglassFilename } from './HourglassImportInspector';
+import { transferErrorMessage } from './PeopleTransfersDialog';
 import { PersonWizardIdentityStep } from './PersonWizardIdentityStep';
 import { createPersonWizardDraft } from './PersonWizardModel';
 
@@ -13,6 +15,27 @@ describe('real-user People QA corrections', () => {
     expect(chooseArchivePersonId(people, undefined, 'missing-person')).toBeUndefined();
     expect(chooseArchivePersonId(people, undefined, undefined)).toBeUndefined();
     expect(chooseArchivePersonId(people, 'person-a', 'person-b')).toBe('person-a');
+  });
+
+  it('blocks archive mutation when a confirmed target no longer matches the selected authoritative state', () => {
+    expect(canMutateArchiveTarget(people, 'person-a', 'person-a', 'person-a')).toBe(true);
+    expect(canMutateArchiveTarget(people, 'person-a', 'person-a', 'person-b')).toBe(false);
+    expect(canMutateArchiveTarget(people, 'person-a', 'person-b', 'person-a')).toBe(false);
+    expect(canMutateArchiveTarget(people, 'missing-person', 'missing-person', 'missing-person')).toBe(false);
+  });
+
+  it('keeps a selected Hourglass filename safe for live feedback without retaining control characters', () => {
+    expect(sanitizeHourglassFilename('  qa\u0000 export\n.json  ')).toBe('qa export .json');
+    expect(sanitizeHourglassFilename('x'.repeat(200))).toHaveLength(120);
+  });
+
+  it('uses a distinct localized error for each transfer operation', () => {
+    for (const locale of ['pt-PT', 'en', 'es'] as const) {
+      const messages = ['load', 'send', 'cancel', 'preview', 'claim'].map(context => transferErrorMessage(locale, context as 'load' | 'send' | 'cancel' | 'preview' | 'claim'));
+      expect(new Set(messages).size).toBe(messages.length);
+    }
+    expect(transferErrorMessage('pt-PT', 'load')).toBe('Não foi possível carregar as transferências.');
+    expect(transferErrorMessage('pt-PT', 'preview')).toBe('Não foi possível pré-visualizar este código.');
   });
 
   it('marks the wizard display name as required for browser and assistive technology semantics', () => {

@@ -25,19 +25,28 @@ import type { Locale } from './lib/preferences';
 
 type Mode = 'send' | 'receive';
 type LoadState = 'idle' | 'loading' | 'ready' | 'error' | 'unauthenticated' | 'forbidden';
-type ErrorContext = 'load' | 'operation' | null;
+type ErrorContext = 'load' | 'send' | 'cancel' | 'preview' | 'claim' | null;
 
 const copy = {
   'pt-PT': {
-    title: 'Transferências', send: 'Enviar', receive: 'Receber', privacy: 'A transferência copia apenas nome, idioma preferido e contacto comum. Não transfere contactos de emergência, elegibilidade, ausências, etiquetas, grupos, responsabilidades, histórico ou IDs externos. A pessoa original não é removida automaticamente.', selectPeople: 'Selecionar pessoas', prepare: 'Preparar transferência', confirmSendTitle: 'Confirmar transferência', confirmSend: 'Criar código', cancel: 'Cancelar', codeTitle: 'Código de transferência', codeOnce: 'Guarde e partilhe este código por um canal apropriado. O Eutaktos mostra-o apenas nesta confirmação e ele expira em 72 horas.', expires: 'Expira', copy: 'Copiar código', copied: 'Código copiado.', history: 'Histórico de envios', noHistory: 'Ainda não existem transferências enviadas.', pending: 'Pendente', claimed: 'Recebida', expired: 'Expirada', cancelled: 'Cancelada', cancelTransfer: 'Cancelar transferência', cancelTransferTitle: 'Cancelar esta transferência?', cancelTransferHelp: 'O código deixa imediatamente de poder ser usado. As pessoas da congregação de origem não são alteradas.', receiveCode: 'Código', preview: 'Pré-visualizar', receiveHelp: 'Cole o código recebido. O código fica apenas nesta janela e não é guardado no browser.', invalidCode: 'Introduza um código de transferência válido.', confirmReceive: 'Confirmar receção', confirmReceiveTitle: 'Receber estas pessoas?', receiveSuccess: 'Transferência recebida.', alreadyReceived: 'Esta transferência já tinha sido recebida nesta congregação; o resultado anterior foi recuperado.', close: 'Fechar', loading: 'A carregar transferências…', retry: 'Tentar novamente', loadError: 'Não foi possível carregar as transferências.', operationError: 'Não foi possível concluir esta operação de transferência. Confirme o estado atual antes de repetir uma ação.', unauthenticated: 'A sessão terminou.', forbidden: 'Não tem permissão para usar transferências.', noPeople: 'Não existem pessoas disponíveis para transferir.', peopleCount: 'pessoas' },
+    title: 'Transferências', send: 'Enviar', receive: 'Receber', privacy: 'A transferência copia apenas nome, idioma preferido e contacto comum. Não transfere contactos de emergência, elegibilidade, ausências, etiquetas, grupos, responsabilidades, histórico ou IDs externos. A pessoa original não é removida automaticamente.', selectPeople: 'Selecionar pessoas', prepare: 'Preparar transferência', confirmSendTitle: 'Confirmar transferência', confirmSend: 'Criar código', cancel: 'Cancelar', codeTitle: 'Código de transferência', codeOnce: 'Guarde e partilhe este código por um canal apropriado. O Eutaktos mostra-o apenas nesta confirmação e ele expira em 72 horas.', expires: 'Expira', copy: 'Copiar código', copied: 'Código copiado.', history: 'Histórico de envios', noHistory: 'Ainda não existem transferências enviadas.', pending: 'Pendente', claimed: 'Recebida', expired: 'Expirada', cancelled: 'Cancelada', cancelTransfer: 'Cancelar transferência', cancelTransferTitle: 'Cancelar esta transferência?', cancelTransferHelp: 'O código deixa imediatamente de poder ser usado. As pessoas da congregação de origem não são alteradas.', receiveCode: 'Código', preview: 'Pré-visualizar', receiveHelp: 'Cole o código recebido. O código fica apenas nesta janela e não é guardado no browser.', invalidCode: 'Introduza um código de transferência válido.', confirmReceive: 'Confirmar receção', confirmReceiveTitle: 'Receber estas pessoas?', receiveSuccess: 'Transferência recebida.', alreadyReceived: 'Esta transferência já tinha sido recebida nesta congregação; o resultado anterior foi recuperado.', close: 'Fechar', loading: 'A carregar transferências…', retry: 'Tentar novamente', refreshState: 'Atualizar estado', loadError: 'Não foi possível carregar as transferências.', sendError: 'Não foi possível confirmar a criação da transferência. Atualize o estado antes de tentar novamente.', cancelError: 'Não foi possível confirmar o cancelamento desta transferência. Atualize o estado antes de tentar novamente.', previewError: 'Não foi possível pré-visualizar este código.', claimError: 'Não foi possível confirmar a receção desta transferência. Atualize o estado antes de tentar novamente.', unauthenticated: 'A sessão terminou.', forbidden: 'Não tem permissão para usar transferências.', noPeople: 'Não existem pessoas disponíveis para transferir.', peopleCount: 'pessoas' },
   en: {
-    title: 'Transfers', send: 'Send', receive: 'Receive', privacy: 'A transfer copies only name, preferred language and ordinary contact. It does not transfer emergency contacts, eligibility, away periods, labels, groups, responsibilities, history or external IDs. The original person is not removed automatically.', selectPeople: 'Select people', prepare: 'Prepare transfer', confirmSendTitle: 'Confirm transfer', confirmSend: 'Create code', cancel: 'Cancel', codeTitle: 'Transfer code', codeOnce: 'Keep and share this code through an appropriate channel. Eutaktos shows it only in this confirmation and it expires in 72 hours.', expires: 'Expires', copy: 'Copy code', copied: 'Code copied.', history: 'Send history', noHistory: 'No transfers have been sent yet.', pending: 'Pending', claimed: 'Received', expired: 'Expired', cancelled: 'Cancelled', cancelTransfer: 'Cancel transfer', cancelTransferTitle: 'Cancel this transfer?', cancelTransferHelp: 'The code immediately stops working. People in the source congregation are not changed.', receiveCode: 'Code', preview: 'Preview', receiveHelp: 'Paste the received code. The code stays only in this window and is not stored in the browser.', invalidCode: 'Enter a valid transfer code.', confirmReceive: 'Confirm receive', confirmReceiveTitle: 'Receive these people?', receiveSuccess: 'Transfer received.', alreadyReceived: 'This transfer had already been received by this congregation; the previous result was recovered.', close: 'Close', loading: 'Loading transfers…', retry: 'Try again', loadError: 'Transfers could not be loaded.', operationError: 'This transfer operation could not be completed. Confirm the current state before repeating an action.', unauthenticated: 'Your session ended.', forbidden: 'You do not have permission to use transfers.', noPeople: 'There are no people available to transfer.', peopleCount: 'people' },
+    title: 'Transfers', send: 'Send', receive: 'Receive', privacy: 'A transfer copies only name, preferred language and ordinary contact. It does not transfer emergency contacts, eligibility, away periods, labels, groups, responsibilities, history or external IDs. The original person is not removed automatically.', selectPeople: 'Select people', prepare: 'Prepare transfer', confirmSendTitle: 'Confirm transfer', confirmSend: 'Create code', cancel: 'Cancel', codeTitle: 'Transfer code', codeOnce: 'Keep and share this code through an appropriate channel. Eutaktos shows it only in this confirmation and it expires in 72 hours.', expires: 'Expires', copy: 'Copy code', copied: 'Code copied.', history: 'Send history', noHistory: 'No transfers have been sent yet.', pending: 'Pending', claimed: 'Received', expired: 'Expired', cancelled: 'Cancelled', cancelTransfer: 'Cancel transfer', cancelTransferTitle: 'Cancel this transfer?', cancelTransferHelp: 'The code immediately stops working. People in the source congregation are not changed.', receiveCode: 'Code', preview: 'Preview', receiveHelp: 'Paste the received code. The code stays only in this window and is not stored in the browser.', invalidCode: 'Enter a valid transfer code.', confirmReceive: 'Confirm receive', confirmReceiveTitle: 'Receive these people?', receiveSuccess: 'Transfer received.', alreadyReceived: 'This transfer had already been received by this congregation; the previous result was recovered.', close: 'Close', loading: 'Loading transfers…', retry: 'Try again', refreshState: 'Refresh status', loadError: 'Transfers could not be loaded.', sendError: 'The transfer creation could not be confirmed. Refresh the status before trying again.', cancelError: 'This transfer cancellation could not be confirmed. Refresh the status before trying again.', previewError: 'This code could not be previewed.', claimError: 'The transfer receipt could not be confirmed. Refresh the status before trying again.', unauthenticated: 'Your session ended.', forbidden: 'You do not have permission to use transfers.', noPeople: 'There are no people available to transfer.', peopleCount: 'people' },
   es: {
-    title: 'Transferencias', send: 'Enviar', receive: 'Recibir', privacy: 'La transferencia copia solo nombre, idioma preferido y contacto común. No transfiere contactos de emergencia, elegibilidad, ausencias, etiquetas, grupos, responsabilidades, historial ni IDs externos. La persona original no se elimina automáticamente.', selectPeople: 'Seleccionar personas', prepare: 'Preparar transferencia', confirmSendTitle: 'Confirmar transferencia', confirmSend: 'Crear código', cancel: 'Cancelar', codeTitle: 'Código de transferencia', codeOnce: 'Guarde y comparta este código por un canal apropiado. Eutaktos lo muestra solo en esta confirmación y caduca en 72 horas.', expires: 'Caduca', copy: 'Copiar código', copied: 'Código copiado.', history: 'Historial de envíos', noHistory: 'Todavía no hay transferencias enviadas.', pending: 'Pendiente', claimed: 'Recibida', expired: 'Caducada', cancelled: 'Cancelada', cancelTransfer: 'Cancelar transferencia', cancelTransferTitle: '¿Cancelar esta transferencia?', cancelTransferHelp: 'El código deja de funcionar inmediatamente. Las personas de la congregación de origen no se modifican.', receiveCode: 'Código', preview: 'Vista previa', receiveHelp: 'Pegue el código recibido. El código permanece solo en esta ventana y no se guarda en el navegador.', invalidCode: 'Introduzca un código de transferencia válido.', confirmReceive: 'Confirmar recepción', confirmReceiveTitle: '¿Recibir estas personas?', receiveSuccess: 'Transferencia recibida.', alreadyReceived: 'Esta transferencia ya había sido recibida por esta congregación; se recuperó el resultado anterior.', close: 'Cerrar', loading: 'Cargando transferencias…', retry: 'Intentar de nuevo', loadError: 'No se pudieron cargar las transferencias.', operationError: 'No se pudo completar esta operación de transferencia. Confirme el estado actual antes de repetir una acción.', unauthenticated: 'La sesión terminó.', forbidden: 'No tiene permiso para usar transferencias.', noPeople: 'No hay personas disponibles para transferir.', peopleCount: 'personas' },
+    title: 'Transferencias', send: 'Enviar', receive: 'Recibir', privacy: 'La transferencia copia solo nombre, idioma preferido y contacto común. No transfiere contactos de emergencia, elegibilidad, ausencias, etiquetas, grupos, responsabilidades, historial ni IDs externos. La persona original no se elimina automáticamente.', selectPeople: 'Seleccionar personas', prepare: 'Preparar transferencia', confirmSendTitle: 'Confirmar transferencia', confirmSend: 'Crear código', cancel: 'Cancelar', codeTitle: 'Código de transferencia', codeOnce: 'Guarde y comparta este código por un canal apropiado. Eutaktos lo muestra solo en esta confirmación y caduca en 72 horas.', expires: 'Caduca', copy: 'Copiar código', copied: 'Código copiado.', history: 'Historial de envíos', noHistory: 'Todavía no hay transferencias enviadas.', pending: 'Pendiente', claimed: 'Recibida', expired: 'Caducada', cancelled: 'Cancelada', cancelTransfer: 'Cancelar transferencia', cancelTransferTitle: '¿Cancelar esta transferencia?', cancelTransferHelp: 'El código deja de funcionar inmediatamente. Las personas de la congregación de origen no se modifican.', receiveCode: 'Código', preview: 'Vista previa', receiveHelp: 'Pegue el código recibido. El código permanece solo en esta ventana y no se guarda en el navegador.', invalidCode: 'Introduzca un código de transferencia válido.', confirmReceive: 'Confirmar recepción', confirmReceiveTitle: '¿Recibir estas personas?', receiveSuccess: 'Transferencia recibida.', alreadyReceived: 'Esta transferencia ya había sido recibida por esta congregación; se recuperó el resultado anterior.', close: 'Cerrar', loading: 'Cargando transferencias…', retry: 'Intentar de nuevo', refreshState: 'Actualizar estado', loadError: 'No se pudieron cargar las transferencias.', sendError: 'No se pudo confirmar la creación de la transferencia. Actualice el estado antes de intentarlo de nuevo.', cancelError: 'No se pudo confirmar la cancelación de esta transferencia. Actualice el estado antes de intentarlo de nuevo.', previewError: 'No se pudo previsualizar este código.', claimError: 'No se pudo confirmar la recepción de esta transferencia. Actualice el estado antes de intentarlo de nuevo.', unauthenticated: 'La sesión terminó.', forbidden: 'No tiene permiso para usar transferencias.', noPeople: 'No hay personas disponibles para transferir.', peopleCount: 'personas' },
 } as const;
 
 function statusLabel(status: PeopleTransferStatus, text: (typeof copy)[Locale]): string {
   return text[status];
+}
+
+export function transferErrorMessage(locale: Locale, context: Exclude<ErrorContext, null>): string {
+  const text = copy[locale];
+  if (context === 'load') return text.loadError;
+  if (context === 'send') return text.sendError;
+  if (context === 'cancel') return text.cancelError;
+  if (context === 'preview') return text.previewError;
+  return text.claimError;
 }
 
 export function PeopleTransfersDialog({ locale, open, onClose }: { locale: Locale; open: boolean; onClose: () => void }) {
@@ -119,11 +128,18 @@ export function PeopleTransfersDialog({ locale, open, onClose }: { locale: Local
   const selectedPeople = useMemo(() => selectedIds.map(id => people.find(person => person.id === id)).filter((person): person is PeopleDirectoryPersonDto => Boolean(person)), [people, selectedIds]);
   const validCode = /^[A-Za-z0-9_-]{43}$/.test(code.trim());
 
-  const operationFailed = (reason: unknown) => {
+  const operationFailed = (context: Exclude<ErrorContext, 'load' | null>, reason: unknown) => {
     if (reason instanceof PeopleTransfersApiError && reason.status === 401) setState('unauthenticated');
     else if (reason instanceof PeopleTransfersApiError && reason.status === 403) setState('forbidden');
-    else { setErrorContext('operation'); setState('error'); }
+    else { setErrorContext(context); setState('error'); }
   };
+
+  const errorMessage = transferErrorMessage(locale, errorContext ?? 'load');
+  const errorRecovery = errorContext === 'preview'
+    ? <Button size="small" onClick={() => void previewCode()}>{text.retry}</Button>
+    : errorContext
+      ? <Button size="small" onClick={() => void load()}>{text.refreshState}</Button>
+      : undefined;
 
   const send = async () => {
     if (!selectedIds.length || sending) return;
@@ -142,7 +158,8 @@ export function PeopleTransfersDialog({ locale, open, onClose }: { locale: Local
       setHistory(transfers.transfers);
     } catch (reason) {
       if (operation !== operationVersion.current) return;
-      operationFailed(reason);
+      setSendConfirmOpen(false);
+      operationFailed('send', reason);
     } finally {
       if (operation === operationVersion.current) setSending(false);
     }
@@ -162,8 +179,8 @@ export function PeopleTransfersDialog({ locale, open, onClose }: { locale: Local
       setHistory(transfers.transfers);
     } catch (reason) {
       if (operation !== operationVersion.current) return;
-      operationFailed(reason);
       setCancelTarget(null);
+      operationFailed('cancel', reason);
     } finally {
       if (operation === operationVersion.current) setCancelling(false);
     }
@@ -186,7 +203,7 @@ export function PeopleTransfersDialog({ locale, open, onClose }: { locale: Local
       setPreview(value);
     } catch (reason) {
       if (controller.signal.aborted || version !== requestVersion.current) return;
-      operationFailed(reason);
+      operationFailed('preview', reason);
     } finally {
       if (version === requestVersion.current) {
         controllerRef.current = null;
@@ -211,7 +228,8 @@ export function PeopleTransfersDialog({ locale, open, onClose }: { locale: Local
       await load();
     } catch (reason) {
       if (operation !== operationVersion.current) return;
-      operationFailed(reason);
+      setClaimConfirmOpen(false);
+      operationFailed('claim', reason);
     } finally {
       if (operation === operationVersion.current) setClaiming(false);
     }
@@ -245,7 +263,7 @@ export function PeopleTransfersDialog({ locale, open, onClose }: { locale: Local
       {state === 'loading' ? <div role="status" aria-label={text.loading}><Skeleton active paragraph={{ rows: 5 }} /></div> : null}
       {state === 'unauthenticated' ? <Alert type="error" showIcon title={text.unauthenticated} /> : null}
       {state === 'forbidden' ? <Alert type="warning" showIcon title={text.forbidden} /> : null}
-      {state === 'error' ? <Alert type="error" showIcon title={errorContext === 'load' ? text.loadError : text.operationError} action={errorContext === 'load' ? <Button size="small" onClick={() => void load()}>{text.retry}</Button> : undefined} /> : null}
+      {state === 'error' ? <Alert type="error" showIcon title={errorMessage} action={errorRecovery} /> : null}
       {state === 'ready' && mode === 'send' ? <Space orientation="vertical" size="large" style={{ width: '100%' }}>
         <Alert type="warning" showIcon title={text.privacy} />
         {people.length ? <Space orientation="vertical" size="small" style={{ width: '100%' }}>
