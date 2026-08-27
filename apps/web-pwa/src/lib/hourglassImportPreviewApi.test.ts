@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { createHourglassImportPreviewApi, HourglassPreviewApiError, parseHourglassPreviewResponse } from './hourglassImportPreviewApi';
 
 const response = {
@@ -13,13 +13,17 @@ const response = {
 
 describe('Hourglass import preview API', () => {
   it('posts only the explicit JSON preview contract to the same-origin endpoint', async () => {
-    const fetcher = vi.fn(async () => new Response(JSON.stringify(response), { status: 200, headers: { 'Content-Type': 'application/json' } }));
-    const api = createHourglassImportPreviewApi(fetcher as typeof fetch);
+    const calls: Array<{ input: RequestInfo | URL; init?: RequestInit }> = [];
+    const fetcher: typeof fetch = async (input, init) => {
+      calls.push({ input, init });
+      return new Response(JSON.stringify(response), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    };
+    const api = createHourglassImportPreviewApi(fetcher);
     await api.preview({ publishers: [] });
-    expect(fetcher).toHaveBeenCalledTimes(1);
-    expect(fetcher.mock.calls[0]?.[0]).toBe('/api/import/hourglass/preview');
-    expect(fetcher.mock.calls[0]?.[1]).toMatchObject({ method: 'POST', credentials: 'same-origin' });
-    expect(JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body))).toEqual({ source: 'json', payload: { publishers: [] } });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.input).toBe('/api/import/hourglass/preview');
+    expect(calls[0]?.init).toMatchObject({ method: 'POST', credentials: 'same-origin' });
+    expect(JSON.parse(String(calls[0]?.init?.body))).toEqual({ source: 'json', payload: { publishers: [] } });
   });
 
   it('keeps 401/403 distinguishable for the UI', async () => {
