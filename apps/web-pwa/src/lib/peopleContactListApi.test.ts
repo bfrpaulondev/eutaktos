@@ -23,7 +23,8 @@ describe('People Contact List API client', () => {
   });
 
   it('preserves authorization failures as explicit status errors', async () => {
-    const api = createPeopleContactListApi(vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 })));
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async () => new Response(JSON.stringify({ error: 'forbidden' }), { status: 403 }));
+    const api = createPeopleContactListApi(fetcher);
     await expect(api.get({ fields: ['phone'] })).rejects.toMatchObject({ name: 'PeopleContactListApiError', status: 403 });
     await expect(api.get({ fields: ['phone'] })).rejects.toBeInstanceOf(PeopleContactListApiError);
   });
