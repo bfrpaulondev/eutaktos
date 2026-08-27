@@ -84,6 +84,7 @@ function history(value: unknown): RecommendationHistoryDto {
   return Object.freeze({ kind: 'completed-history', lastCompletedMeetingDate: item.lastCompletedMeetingDate, daysSinceLastCompletedAssignment: nonNegativeInteger(item.daysSinceLastCompletedAssignment) });
 }
 function manualCodes(value: unknown): readonly 'MANUAL_EXCLUSION'[] {
+  if (value === undefined) return Object.freeze([]);
   if (!Array.isArray(value) || value.some(item => item !== 'MANUAL_EXCLUSION') || value.length > 1) throw new Error('Invalid recommendation response');
   return Object.freeze(value as 'MANUAL_EXCLUSION'[]);
 }
@@ -99,7 +100,8 @@ function person(value: unknown, expectedStatus: 'candidate' | 'excluded'): Recom
 
 export function parsePeopleRecommendationResponse(value: unknown): PeopleRecommendationDto {
   const root = record(value);
-  if (root.contractVersion !== 'people-recommendation-v1' || root.evidenceContractVersion !== 'px7-evidence-v1' || root.inputContractVersion !== 'px7-recommendation-input-v1' || typeof root.canManageManualConstraints !== 'boolean') throw new Error('Invalid recommendation response');
+  if (root.contractVersion !== 'people-recommendation-v1' || root.evidenceContractVersion !== 'px7-evidence-v1' || root.inputContractVersion !== 'px7-recommendation-input-v1') throw new Error('Invalid recommendation response');
+  if (root.canManageManualConstraints !== undefined && typeof root.canManageManualConstraints !== 'boolean') throw new Error('Invalid recommendation response');
   if (!Array.isArray(root.candidates) || !Array.isArray(root.excluded)) throw new Error('Invalid recommendation response');
   const target = record(root.target);
   const candidates = root.candidates.map(item => person(item, 'candidate'));
@@ -108,7 +110,7 @@ export function parsePeopleRecommendationResponse(value: unknown): PeopleRecomme
   const personIds = [...candidates, ...excluded].map(item => item.personId);
   if (new Set(personIds).size !== personIds.length) throw new Error('Invalid recommendation response');
   return Object.freeze({
-    contractVersion: 'people-recommendation-v1', evidenceContractVersion: 'px7-evidence-v1', inputContractVersion: 'px7-recommendation-input-v1', canManageManualConstraints: root.canManageManualConstraints,
+    contractVersion: 'people-recommendation-v1', evidenceContractVersion: 'px7-evidence-v1', inputContractVersion: 'px7-recommendation-input-v1', canManageManualConstraints: root.canManageManualConstraints === true,
     target: Object.freeze({ meetingId: nonEmptyString(target.meetingId), slotId: nonEmptyString(target.slotId), assignmentTypeId: nonEmptyString(target.assignmentTypeId), meetingDate: nonEmptyString(target.meetingDate), startsAt: nonEmptyString(target.startsAt), endsAt: nonEmptyString(target.endsAt) }),
     candidates: Object.freeze(candidates), excluded: Object.freeze(excluded),
   });
