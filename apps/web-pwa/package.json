@@ -20,6 +20,7 @@
     "test:lazy-recovery": "node scripts/verify-lazy-recovery.mjs",
     "test:hourglass-inspector": "node scripts/verify-hourglass-inspector.mjs",
     "test:people-directory-export-runtime": "node scripts/verify-people-directory-export-runtime.mjs",
+    "test:people-labels-runtime": "node scripts/verify-people-labels-runtime.mjs",
     "test:bundle-budget": "npm run build && node scripts/verify-bundle-budget.mjs",
     "test:pwa-privacy": "npm run build && node scripts/verify-pwa-privacy.mjs",
     "test:browser-regression": "node scripts/run-browser-regression.mjs",
