@@ -7,6 +7,7 @@ const expectedMuiConsumers = Object.freeze([
   'App.tsx',
   'AuditHistoryDialog.tsx',
   'AuthSignInPanel.tsx',
+  'AwayPeriodsSection.tsx',
   'CongregationSettingsDialog.tsx',
   'EligibilityDialog.tsx',
   'HourglassImportInspector.tsx',
@@ -15,13 +16,11 @@ const expectedMuiConsumers = Object.freeze([
   'MidweekAuthoringControls.tsx',
   'MidweekWorkspace.tsx',
   'ProductionDashboard.tsx',
-  'PwaUpdateRecovery.tsx',
   'ResponsibilitiesSection.tsx',
   'SectionWorkspace.tsx',
   'ServiceGroupsSection.tsx',
   'TaskShell.tsx',
   'ui/MuiCompat.tsx',
-  'AwayPeriodsSection.tsx',
 ].sort());
 
 function walk(directory: string): readonly string[] {
@@ -48,7 +47,7 @@ describe('PX11 MUI retirement boundary', () => {
 
   it('confirms migrated shell primitives no longer depend on MUI', () => {
     const root = join(process.cwd(), 'src');
-    for (const file of ['LogoutControl.tsx', 'PwaConnectionStatus.tsx']) {
+    for (const file of ['LogoutControl.tsx', 'PwaConnectionStatus.tsx', 'PwaUpdateRecovery.tsx']) {
       expect(readFileSync(join(root, file), 'utf8')).not.toContain('@mui/material');
     }
   });
