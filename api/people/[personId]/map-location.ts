@@ -6,6 +6,7 @@ import { PeopleSnapshotUnitOfWork } from '../../_uow';
 import { json, methodNotAllowed, queryValue, type ApiHandler } from '../../_types';
 
 export function requirePeopleMapWrite(principal: VerifiedPrincipal): void {
+  requireCapability(principal, 'people.write');
   requireCapability(principal, 'map.write');
 }
 
