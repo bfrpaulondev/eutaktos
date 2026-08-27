@@ -14,6 +14,7 @@ export interface PeopleTransfersDto { readonly contractVersion: 'people-transfer
 export interface PeopleTransferSendDto { readonly contractVersion: 'people-transfer-send-v1'; readonly transferId: string; readonly code: string; readonly expiresAt: string; readonly people: readonly Readonly<{ personId: string; displayName: string }>[] }
 export interface PeopleTransferPreviewDto { readonly contractVersion: 'people-transfer-preview-v1'; readonly transferId: string; readonly expiresAt: string; readonly people: readonly TransferPersonNameDto[] }
 export interface PeopleTransferClaimDto { readonly contractVersion: 'people-transfer-claim-v1'; readonly transferId: string; readonly outcome: 'claimed' | 'already-claimed'; readonly people: readonly Readonly<{ personId: string; displayName: string }>[] }
+export interface PeopleTransferCancelDto { readonly contractVersion: 'people-transfer-cancel-v1'; readonly transferId: string; readonly cancelled: true; readonly changed: boolean }
 
 export class PeopleTransfersApiError extends Error {
   readonly status: number;
@@ -84,6 +85,12 @@ export function parsePeopleTransferClaim(value: unknown): PeopleTransferClaimDto
   return Object.freeze({ contractVersion: 'people-transfer-claim-v1', transferId: text(root.transferId), outcome: root.outcome, people: array(root.people, createdPerson) });
 }
 
+export function parsePeopleTransferCancel(value: unknown): PeopleTransferCancelDto {
+  const root = record(value); exact(root, ['contractVersion', 'transferId', 'cancelled', 'changed']);
+  if (root.contractVersion !== 'people-transfer-cancel-v1' || root.cancelled !== true || typeof root.changed !== 'boolean') throw new Error('Invalid People Transfers API response');
+  return Object.freeze({ contractVersion: 'people-transfer-cancel-v1', transferId: text(root.transferId), cancelled: true, changed: root.changed });
+}
+
 async function responseJson(response: Response): Promise<unknown> {
   try { return await response.json(); } catch { throw new Error('Invalid API response'); }
 }
@@ -107,6 +114,9 @@ export function createPeopleTransfersApi(fetcher: typeof fetch = fetch) {
     },
     claim(code: string, signal?: AbortSignal): Promise<PeopleTransferClaimDto> {
       return request(fetcher, '/api/people/transfers/claim', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ code }), signal }, parsePeopleTransferClaim);
+    },
+    cancel(transferId: string, signal?: AbortSignal): Promise<PeopleTransferCancelDto> {
+      return request(fetcher, `/api/people/transfers/${encodeURIComponent(transferId)}/cancel`, { method: 'POST', headers: { Accept: 'application/json' }, signal }, parsePeopleTransferCancel);
     },
   });
 }
