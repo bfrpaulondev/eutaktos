@@ -10,28 +10,21 @@ function candidate(personId: string, rank: number): RecommendationPersonDto {
     rank,
     reasons: Object.freeze([{ code: 'ELIGIBLE' as const }, { code: 'AVAILABLE' as const }]),
     warnings: Object.freeze([]),
+    manualConstraintCodes: Object.freeze([]),
     history: Object.freeze({ kind: 'no-completed-history' as const }),
     sameWeekAssignmentCount: 0,
   });
 }
 
 describe('C5.6 recommendation picker projection', () => {
-  const candidates = [
-    candidate('a', 1),
-    candidate('b', 2),
-    candidate('c', 3),
-    candidate('d', 4),
-    candidate('e', 5),
-  ];
+  const candidates = [candidate('a', 1), candidate('b', 2), candidate('c', 3), candidate('d', 4), candidate('e', 5)];
 
   it('shows the first three candidates in the exact canonical server order', () => {
-    const result = topRecommendationCandidates(candidates);
-    expect(result.map(item => [item.personId, item.rank])).toEqual([['a', 1], ['b', 2], ['c', 3]]);
+    expect(topRecommendationCandidates(candidates).map(item => [item.personId, item.rank])).toEqual([['a', 1], ['b', 2], ['c', 3]]);
   });
 
   it('exposes every additional eligible candidate without recalculating rank', () => {
-    const result = additionalEligibleCandidates(candidates);
-    expect(result.map(item => [item.personId, item.rank])).toEqual([['d', 4], ['e', 5]]);
+    expect(additionalEligibleCandidates(candidates).map(item => [item.personId, item.rank])).toEqual([['d', 4], ['e', 5]]);
     expect(eligibleRecommendationCandidates(candidates).map(item => item.personId)).toEqual(['a', 'b', 'c', 'd', 'e']);
   });
 

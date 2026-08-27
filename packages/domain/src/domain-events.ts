@@ -15,6 +15,7 @@ export type DomainEventType =
   | 'EligibilityChanged'
   | 'EmergencyContactChanged'
   | 'ResponsibilityChanged'
+  | 'RecommendationConstraintChanged'
   | 'DelegationGranted'
   | 'DelegationRevoked'
   | 'CapabilityGranted'

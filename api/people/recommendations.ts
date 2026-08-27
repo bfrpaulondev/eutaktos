@@ -1,5 +1,6 @@
 import {
   createAccessContext,
+  findSlotById,
   type CongregationPerson,
   type MidweekMeeting,
   type NonStudentAssignment,
@@ -7,13 +8,14 @@ import {
 } from '@eutaktos/domain';
 import { requireCapability, resolvePrincipal } from '../_auth';
 import type { EntityRow } from '../_db';
-import { BadRequestError, runEndpoint } from '../_endpoint';
+import { assertTrustedMutation, BadRequestError, exactKeys, requestBody, requiredString, runEndpoint } from '../_endpoint';
 import { json, methodNotAllowed, type ApiHandler, type ApiRequest } from '../_types';
 import {
   buildAuthorizedMidweekRecommendation,
   RecommendationTargetError,
   type MidweekRecommendationTarget,
 } from './recommendation-adapter';
+import { changeManualRecommendationConstraint, loadManualRecommendationConstraints } from './recommendation-constraints';
 
 type TenantEntity = { readonly id: string; readonly tenantId: string };
 
@@ -30,53 +32,77 @@ function opaqueReference(value: string | string[] | undefined, field: string): s
   if (Array.isArray(value)) throw new BadRequestError(`${field} must be supplied once`);
   if (typeof value !== 'string') throw new BadRequestError(`${field} is required`);
   const normalized = value.trim();
-  if (!normalized || normalized.length > 200 || /[\s/?#&=\u0000-\u001f\u007f]/.test(normalized)) {
-    throw new BadRequestError(`${field} is invalid`);
-  }
+  if (!normalized || normalized.length > 200 || /[\s/?#&=\u0000-\u001f\u007f]/.test(normalized)) throw new BadRequestError(`${field} is invalid`);
   return normalized;
 }
 
-/**
- * The public request contract intentionally accepts resource identity only.
- * Authority-bearing or recommendation-fact fields are rejected instead of
- * ignored so a caller can never believe they influenced server evidence.
- */
 export function recommendationTargetFromRequest(request: Pick<ApiRequest, 'query' | 'body'>): MidweekRecommendationTarget {
   if (request.body !== undefined && request.body !== null) throw new BadRequestError('Recommendation GET does not accept a request body');
   const allowed = new Set(['meetingId', 'slotId']);
-  if (Object.keys(request.query).some(key => !allowed.has(key))) {
-    throw new BadRequestError('Unknown recommendation query field');
-  }
+  if (Object.keys(request.query).some(key => !allowed.has(key))) throw new BadRequestError('Unknown recommendation query field');
+  return Object.freeze({ meetingId: opaqueReference(request.query.meetingId, 'meetingId'), slotId: opaqueReference(request.query.slotId, 'slotId') });
+}
+
+function constraintMutationFromRequest(request: Pick<ApiRequest, 'query' | 'body'>): Readonly<{ meetingId: string; slotId: string; personId: string; action: 'exclude' | 'allow' }> {
+  if (Object.keys(request.query).length) throw new BadRequestError('Recommendation constraint mutation does not accept query fields');
+  const body = requestBody(request.body);
+  exactKeys(body, ['meetingId', 'slotId', 'personId', 'action']);
+  const action = requiredString(body, 'action', 10);
+  if (action !== 'exclude' && action !== 'allow') throw new BadRequestError('action is invalid');
   return Object.freeze({
-    meetingId: opaqueReference(request.query.meetingId, 'meetingId'),
-    slotId: opaqueReference(request.query.slotId, 'slotId'),
+    meetingId: opaqueReference(requiredString(body, 'meetingId', 200), 'meetingId'),
+    slotId: opaqueReference(requiredString(body, 'slotId', 200), 'slotId'),
+    personId: opaqueReference(requiredString(body, 'personId', 200), 'personId'),
+    action,
   });
 }
 
 const handler: ApiHandler = async (request, response) => {
-  if (request.method !== 'GET') { methodNotAllowed(response, ['GET']); return; }
+  if (!['GET', 'POST'].includes(request.method ?? '')) { methodNotAllowed(response, ['GET', 'POST']); return; }
   await runEndpoint(request, response, async database => {
-    const target = recommendationTargetFromRequest(request);
+    const target = request.method === 'GET' ? recommendationTargetFromRequest(request) : undefined;
     const principal = await resolvePrincipal(request, database);
-
-    // PX7 needs all four evidence families. Fail before loading any tenant data
-    // when one of them is not authorized.
     requireCapability(principal, 'people.read');
-    requireCapability(principal, 'eligibility.read');
-    requireCapability(principal, 'availability.read');
     requireCapability(principal, 'schedule.read');
 
-    const [peopleRows, meetingRows, studentRows, nonStudentRows] = await Promise.all([
+    if (request.method === 'POST') {
+      assertTrustedMutation(request);
+      requireCapability(principal, 'schedule.write');
+      const input = constraintMutationFromRequest(request);
+      const [meetingRow, personRow] = await Promise.all([
+        database.entity(principal.tenantId, 'midweek-meeting', input.meetingId),
+        database.entity(principal.tenantId, 'person', input.personId),
+      ]);
+      if (!meetingRow) throw new BadRequestError('Recommendation target meeting was not found');
+      if (!personRow) throw new BadRequestError('Recommendation constraint person was not found');
+      const meeting = storedEntity<MidweekMeeting>(meetingRow, principal.tenantId);
+      if (meeting.state !== 'draft' && meeting.state !== 'published') throw new BadRequestError('Recommendation target meeting is not assignable');
+      const slot = findSlotById(meeting, input.slotId);
+      const assignmentTypeId = slot?.partDefinitionId?.trim();
+      if (!slot || !assignmentTypeId) throw new BadRequestError('Recommendation target slot has no explicit assignment type');
+      const context = createAccessContext({ tenantId: principal.tenantId, actorId: principal.actorId, capabilities: principal.capabilities });
+      const result = await changeManualRecommendationConstraint(database, context, input.personId, assignmentTypeId, input.action);
+      json(response, 200, Object.freeze({
+        contractVersion: 'people-manual-constraint-v1',
+        target: Object.freeze({ meetingId: meeting.id, slotId: slot.id, assignmentTypeId }),
+        personId: input.personId,
+        excluded: result.excluded,
+        changed: result.changed,
+      }));
+      return;
+    }
+
+    if (!target) throw new Error('Recommendation target was not resolved');
+    requireCapability(principal, 'eligibility.read');
+    requireCapability(principal, 'availability.read');
+    const [peopleRows, meetingRows, studentRows, nonStudentRows, manualConstraints] = await Promise.all([
       database.entities(principal.tenantId, 'person'),
       database.entities(principal.tenantId, 'midweek-meeting'),
       database.entities(principal.tenantId, 'student-assignment'),
       database.entities(principal.tenantId, 'non-student-assignment'),
+      loadManualRecommendationConstraints(database, principal.tenantId),
     ]);
-    const context = createAccessContext({
-      tenantId: principal.tenantId,
-      actorId: principal.actorId,
-      capabilities: principal.capabilities,
-    });
+    const context = createAccessContext({ tenantId: principal.tenantId, actorId: principal.actorId, capabilities: principal.capabilities });
 
     try {
       const recommendation = buildAuthorizedMidweekRecommendation(context, target, {
@@ -84,8 +110,9 @@ const handler: ApiHandler = async (request, response) => {
         meetings: Object.freeze(meetingRows.map(row => storedEntity<MidweekMeeting>(row, principal.tenantId))),
         studentAssignments: Object.freeze(studentRows.map(row => storedEntity<StudentAssignment>(row, principal.tenantId))),
         nonStudentAssignments: Object.freeze(nonStudentRows.map(row => storedEntity<NonStudentAssignment>(row, principal.tenantId))),
+        manualConstraints,
       });
-      json(response, 200, recommendation);
+      json(response, 200, Object.freeze({ ...recommendation, canManageManualConstraints: principal.capabilities.includes('schedule.write') }));
     } catch (error) {
       if (error instanceof RecommendationTargetError) throw new BadRequestError(error.message);
       throw error;
