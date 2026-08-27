@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createPeopleTransfersApi, parsePeopleTransferPreview, parsePeopleTransferSend, parsePeopleTransfers, PeopleTransfersApiError } from './peopleTransfersApi';
+import { createPeopleTransfersApi, parsePeopleTransferCancel, parsePeopleTransferPreview, parsePeopleTransferSend, parsePeopleTransfers, PeopleTransfersApiError } from './peopleTransfersApi';
 
 const code = 'A'.repeat(43);
 
@@ -27,6 +27,16 @@ describe('People Transfers API client', () => {
     expect(String(fetcher.mock.calls[0]?.[1]?.body)).toBe(JSON.stringify({ code }));
     expect(fetcher.mock.calls[1]?.[0]).toBe('/api/people/transfers/claim');
     expect(String(fetcher.mock.calls[1]?.[1]?.body)).toBe(JSON.stringify({ code }));
+  });
+
+  it('cancels by encoded transfer identity without sending a transfer code', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ contractVersion: 'people-transfer-cancel-v1', transferId: 'people-transfer-1', cancelled: true, changed: true }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    const api = createPeopleTransfersApi(fetcher);
+    expect(parsePeopleTransferCancel({ contractVersion: 'people-transfer-cancel-v1', transferId: 'people-transfer-1', cancelled: true, changed: false })).toMatchObject({ cancelled: true, changed: false });
+    await api.cancel('people-transfer-1');
+    expect(fetcher.mock.calls[0]?.[0]).toBe('/api/people/transfers/people-transfer-1/cancel');
+    expect(fetcher.mock.calls[0]?.[1]?.method).toBe('POST');
+    expect(fetcher.mock.calls[0]?.[1]?.body).toBeUndefined();
   });
 
   it('preserves authorization status without exposing server error detail', async () => {
