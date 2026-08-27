@@ -13,8 +13,22 @@ export interface PeopleRemindersDto {
   readonly items: readonly PeopleReminderItemDto[];
 }
 
+export type PeopleReminderSendInput = Readonly<{
+  responseId: string;
+  mutationId: string;
+  locale: 'pt-PT' | 'en' | 'es';
+}>;
+
+export type PeopleReminderSendDto = Readonly<{
+  contractVersion: 'people-reminder-send-v1';
+  state: 'queued';
+  deliveryId: string;
+  channel: 'in-app' | 'push' | 'email' | 'whatsapp';
+}>;
+
 export interface PeopleRemindersApi {
   get(signal?: AbortSignal): Promise<PeopleRemindersDto>;
+  send(input: PeopleReminderSendInput, signal?: AbortSignal): Promise<PeopleReminderSendDto>;
 }
 
 const INVALID = 'Invalid People reminders response';
@@ -67,9 +81,27 @@ export function parsePeopleReminders(value: unknown): PeopleRemindersDto {
   });
 }
 
+export function parsePeopleReminderSend(value: unknown): PeopleReminderSendDto {
+  const candidate = record(value);
+  if (candidate.contractVersion !== 'people-reminder-send-v1' || candidate.state !== 'queued') throw new Error(INVALID);
+  const channel = candidate.channel;
+  if (channel !== 'in-app' && channel !== 'push' && channel !== 'email' && channel !== 'whatsapp') throw new Error(INVALID);
+  return Object.freeze({
+    contractVersion: 'people-reminder-send-v1',
+    state: 'queued',
+    deliveryId: opaqueId(candidate.deliveryId),
+    channel,
+  });
+}
+
 async function readJson(response: Response): Promise<unknown> {
   try { return await response.json(); }
   catch { throw new Error('Invalid API response'); }
+}
+
+function failureMessage(body: unknown, fallback: string, status: number): Error {
+  const message = body && typeof body === 'object' ? (body as { error?: unknown }).error : undefined;
+  return new Error(`${typeof message === 'string' ? message : fallback} (${status})`);
 }
 
 export function createPeopleRemindersApi(fetcher: typeof fetch = fetch): PeopleRemindersApi {
@@ -83,11 +115,21 @@ export function createPeopleRemindersApi(fetcher: typeof fetch = fetch): PeopleR
         signal,
       });
       const body = await readJson(response);
-      if (!response.ok) {
-        const message = body && typeof body === 'object' ? (body as { error?: unknown }).error : undefined;
-        throw new Error(`${typeof message === 'string' ? message : 'People reminders request failed'} (${response.status})`);
-      }
+      if (!response.ok) throw failureMessage(body, 'People reminders request failed', response.status);
       return parsePeopleReminders(body);
+    },
+    async send(input, signal) {
+      const response = await fetcher('/api/people/reminders', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        cache: 'no-store',
+        body: JSON.stringify(input),
+        signal,
+      });
+      const body = await readJson(response);
+      if (!response.ok) throw failureMessage(body, 'People reminder send failed', response.status);
+      return parsePeopleReminderSend(body);
     },
   };
 }
