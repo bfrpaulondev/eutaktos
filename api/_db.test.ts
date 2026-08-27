@@ -131,6 +131,38 @@ describe('SupabaseRestDatabase', () => {
     })).rejects.toMatchObject({ status: 502 });
   });
 
+  it('uses one database RPC for atomic create-only Hourglass rollback', async () => {
+    const fetcher = vi.fn<typeof fetch>(async (input, init) => {
+      expect(String(input)).toBe('https://example.supabase.co/rest/v1/rpc/eutaktos_rollback_hourglass_create_migration');
+      expect(init?.method).toBe('POST');
+      const body = JSON.parse(String(init?.body));
+      expect(body.p_tenant_id).toBe('tenant-a');
+      expect(body.p_migration_id).toBe('migration-1');
+      return jsonResponse({ outcome: 'rolled-back', log: { migrationId: 'migration-1', status: 'rolled-back' } });
+    });
+    await expect(new SupabaseRestDatabase(config, fetcher).rollbackHourglassCreateMigration({
+      p_tenant_id: 'tenant-a',
+      p_migration_id: 'migration-1',
+      p_audit: { tenantId: 'tenant-a' },
+      p_event: { tenantId: 'tenant-a' },
+    })).resolves.toEqual({ outcome: 'rolled-back' });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it('accepts an idempotent already-rolled-back outcome', async () => {
+    const fetcher = vi.fn<typeof fetch>(async () => jsonResponse({ outcome: 'already-rolled-back' }));
+    await expect(new SupabaseRestDatabase(config, fetcher).rollbackHourglassCreateMigration({
+      p_tenant_id: 'tenant-a', p_migration_id: 'migration-1', p_audit: {}, p_event: {},
+    })).resolves.toEqual({ outcome: 'already-rolled-back' });
+  });
+
+  it('rejects an unrecognized rollback outcome from the database', async () => {
+    const fetcher = vi.fn<typeof fetch>(async () => jsonResponse({ outcome: 'partial' }));
+    await expect(new SupabaseRestDatabase(config, fetcher).rollbackHourglassCreateMigration({
+      p_tenant_id: 'tenant-a', p_migration_id: 'migration-1', p_audit: {}, p_event: {},
+    })).rejects.toMatchObject({ status: 502 });
+  });
+
   it('reports readiness false when the database schema is unavailable', async () => {
     const fetcher = vi.fn<typeof fetch>(async () => new Response('{}',{status:500,headers:{'content-type':'application/json'}}));
     await expect(new SupabaseRestDatabase(config,fetcher).ready()).resolves.toBe(false);
