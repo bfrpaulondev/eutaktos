@@ -11,8 +11,10 @@ import Tag from 'antd/es/tag';
 import Typography from 'antd/es/typography';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { peopleApi, type PersonProfileDto } from './lib/peopleApi';
+import { filterPeopleMapPoints, PEOPLE_MAP_UNGROUPED, peopleMapGroupLegend, peopleMapUngroupedCount } from './lib/peopleMapGroups';
 import { peopleMapApi, PeopleMapApiError, type PeopleMapPointDto } from './lib/peopleMapApi';
 import type { Locale } from './lib/preferences';
+import { serviceGroupsApi, type ServiceGroupDto } from './lib/serviceGroupsApi';
 import { sessionApi } from './lib/sessionApi';
 
 const PeopleMapCanvas = lazy(async () => {
@@ -20,7 +22,10 @@ const PeopleMapCanvas = lazy(async () => {
   return { default: module.PeopleMapCanvas };
 });
 
+const ALL_GROUPS = '__eutaktos_all_groups__';
+
 type LoadState = 'idle' | 'loading' | 'ready' | 'error' | 'unauthenticated' | 'forbidden';
+type GroupLoadState = 'idle' | 'loading' | 'ready' | 'error';
 type EditorState = 'closed' | 'open';
 
 const copy = {
@@ -58,9 +63,17 @@ const copy = {
     removeError: 'Não foi possível remover a localização. Tente novamente.',
     updateSuccess: 'Localização aproximada atualizada.',
     removeSuccess: 'Localização aproximada removida.',
-    readOnly: 'Tem acesso de consulta. A edição de localizações exige a permissão explícita de mapa.',
+    readOnly: 'Tem acesso de consulta. A edição exige as permissões explícitas para editar Pessoas e gerir localizações do mapa.',
     location: 'Localização aproximada',
     locations: 'localizações',
+    groupFilter: 'Filtrar por grupo',
+    allGroups: 'Todas as localizações',
+    groupLegend: 'Legenda de grupos',
+    ungrouped: 'Sem grupo',
+    groupLoading: 'A carregar grupos…',
+    groupError: 'Não foi possível carregar os grupos. O mapa continua disponível sem filtro.',
+    groupRetry: 'Carregar grupos novamente',
+    filterEmpty: 'Não existem localizações aproximadas para este grupo.',
   },
   en: {
     title: 'People map',
@@ -96,9 +109,17 @@ const copy = {
     removeError: 'The location could not be removed. Try again.',
     updateSuccess: 'Approximate location updated.',
     removeSuccess: 'Approximate location removed.',
-    readOnly: 'You have view access. Editing locations requires the explicit Map permission.',
+    readOnly: 'You have view access. Editing requires the explicit permissions to edit People and manage map locations.',
     location: 'Approximate location',
     locations: 'locations',
+    groupFilter: 'Filter by group',
+    allGroups: 'All locations',
+    groupLegend: 'Group legend',
+    ungrouped: 'No group',
+    groupLoading: 'Loading groups…',
+    groupError: 'Groups could not be loaded. The map remains available without a filter.',
+    groupRetry: 'Load groups again',
+    filterEmpty: 'There are no approximate locations for this group.',
   },
   es: {
     title: 'Mapa de personas',
@@ -134,9 +155,17 @@ const copy = {
     removeError: 'No se pudo eliminar la ubicación. Inténtelo de nuevo.',
     updateSuccess: 'Ubicación aproximada actualizada.',
     removeSuccess: 'Ubicación aproximada eliminada.',
-    readOnly: 'Tiene acceso de consulta. Editar ubicaciones exige el permiso explícito de mapa.',
+    readOnly: 'Tiene acceso de consulta. Editar exige los permisos explícitos para editar Personas y gestionar ubicaciones del mapa.',
     location: 'Ubicación aproximada',
     locations: 'ubicaciones',
+    groupFilter: 'Filtrar por grupo',
+    allGroups: 'Todas las ubicaciones',
+    groupLegend: 'Leyenda de grupos',
+    ungrouped: 'Sin grupo',
+    groupLoading: 'Cargando grupos…',
+    groupError: 'No se pudieron cargar los grupos. El mapa sigue disponible sin filtro.',
+    groupRetry: 'Cargar grupos de nuevo',
+    filterEmpty: 'No hay ubicaciones aproximadas para este grupo.',
   },
 } as const;
 
@@ -160,11 +189,16 @@ export function PeopleMapSection({ locale }: { locale: Locale }) {
   const text = copy[locale];
   const requestControllerRef = useRef<AbortController | null>(null);
   const requestVersionRef = useRef(0);
+  const groupControllerRef = useRef<AbortController | null>(null);
+  const groupRequestVersionRef = useRef(0);
   const mutationVersionRef = useRef(0);
   const mutationInFlightRef = useRef(false);
   const mountedRef = useRef(true);
   const [state, setState] = useState<LoadState>('idle');
   const [points, setPoints] = useState<readonly PeopleMapPointDto[]>([]);
+  const [groups, setGroups] = useState<readonly ServiceGroupDto[]>([]);
+  const [groupState, setGroupState] = useState<GroupLoadState>('idle');
+  const [groupFilter, setGroupFilter] = useState<string | undefined>();
   const [selectedPersonId, setSelectedPersonId] = useState<string | undefined>();
   const [canWrite, setCanWrite] = useState(false);
   const [editor, setEditor] = useState<EditorState>('closed');
@@ -179,10 +213,9 @@ export function PeopleMapSection({ locale }: { locale: Locale }) {
   const [mutationError, setMutationError] = useState<'save' | 'remove' | null>(null);
   const [notice, setNotice] = useState<'save' | 'remove' | null>(null);
 
-  const selected = useMemo(
-    () => points.find(point => point.personId === selectedPersonId),
-    [points, selectedPersonId],
-  );
+  const groupLegend = useMemo(() => peopleMapGroupLegend(points, groups), [groups, points]);
+  const ungroupedCount = useMemo(() => peopleMapUngroupedCount(points, groups), [groups, points]);
+  const visiblePoints = useMemo(() => filterPeopleMapPoints(points, groups, groupFilter), [groupFilter, groups, points]);
 
   const load = useCallback(async () => {
     const version = ++requestVersionRef.current;
@@ -207,13 +240,36 @@ export function PeopleMapSection({ locale }: { locale: Locale }) {
     }
   }, []);
 
+  const loadGroups = useCallback(async () => {
+    const version = ++groupRequestVersionRef.current;
+    groupControllerRef.current?.abort();
+    const controller = new AbortController();
+    groupControllerRef.current = controller;
+    setGroupState('loading');
+    try {
+      const result = await serviceGroupsApi.list(controller.signal);
+      if (controller.signal.aborted || version !== groupRequestVersionRef.current || !mountedRef.current) return;
+      setGroups(Object.freeze([...result].sort((left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id))));
+      setGroupState('ready');
+    } catch {
+      if (controller.signal.aborted || version !== groupRequestVersionRef.current || !mountedRef.current) return;
+      setGroups([]);
+      setGroupFilter(undefined);
+      setGroupState('error');
+    } finally {
+      if (version === groupRequestVersionRef.current) groupControllerRef.current = null;
+    }
+  }, []);
+
   useEffect(() => {
     mountedRef.current = true;
     void load();
+    void loadGroups();
     const controller = new AbortController();
     void sessionApi.current(controller.signal).then(session => {
       if (!controller.signal.aborted && mountedRef.current) {
-        setCanWrite(session.capabilities.includes('map.write'));
+        const capabilities = new Set(session.capabilities);
+        setCanWrite(capabilities.has('people.write') && capabilities.has('map.write'));
       }
     }).catch(() => {
       if (!controller.signal.aborted && mountedRef.current) setCanWrite(false);
@@ -221,11 +277,28 @@ export function PeopleMapSection({ locale }: { locale: Locale }) {
     return () => {
       mountedRef.current = false;
       requestVersionRef.current += 1;
+      groupRequestVersionRef.current += 1;
       mutationVersionRef.current += 1;
       requestControllerRef.current?.abort();
+      groupControllerRef.current?.abort();
       controller.abort();
     };
-  }, [load]);
+  }, [load, loadGroups]);
+
+  useEffect(() => {
+    if (selectedPersonId && !visiblePoints.some(point => point.personId === selectedPersonId)) {
+      setSelectedPersonId(undefined);
+    }
+  }, [selectedPersonId, visiblePoints]);
+
+  useEffect(() => {
+    if (!groupFilter) return;
+    if (groupFilter === PEOPLE_MAP_UNGROUPED) {
+      if (groupState === 'ready' && ungroupedCount === 0) setGroupFilter(undefined);
+      return;
+    }
+    if (groupState === 'ready' && !groupLegend.some(entry => entry.id === groupFilter)) setGroupFilter(undefined);
+  }, [groupFilter, groupLegend, groupState, ungroupedCount]);
 
   useEffect(() => {
     if (editor !== 'open') return;
@@ -329,6 +402,11 @@ export function PeopleMapSection({ locale }: { locale: Locale }) {
 
   const hasExistingLocation = Boolean(editorPersonId && points.some(point => point.personId === editorPersonId));
   const personOptions = people.map(person => ({ value: person.id, label: person.displayName }));
+  const groupOptions = [
+    { value: ALL_GROUPS, label: text.allGroups },
+    ...groupLegend.map(entry => ({ value: entry.id, label: `${entry.name} (${entry.count})` })),
+    ...(ungroupedCount > 0 ? [{ value: PEOPLE_MAP_UNGROUPED, label: `${text.ungrouped} (${ungroupedCount})` }] : []),
+  ];
 
   return <section aria-labelledby="people-map-title">
     <Space orientation="vertical" size="large" style={{ display: 'flex' }}>
@@ -349,31 +427,55 @@ export function PeopleMapSection({ locale }: { locale: Locale }) {
         {notice ? <Alert type="success" showIcon closable onClose={() => setNotice(null)} title={notice === 'save' ? text.updateSuccess : text.removeSuccess} /> : null}
         {canWrite ? <Button type="primary" onClick={() => openEditor()}>{text.addLocation}</Button> : <Alert type="info" showIcon title={text.readOnly} />}
         {!points.length ? <Card><Empty description={text.empty} /></Card> : <>
-          <Card>
-            <Suspense fallback={<div role="status" aria-label={text.canvasLoading}><Skeleton active paragraph={{ rows: 7 }} /></div>}>
-              <PeopleMapCanvas points={points} selectedPersonId={selectedPersonId} onSelect={setSelectedPersonId} label={text.mapLabel} />
-            </Suspense>
+          <Card title={text.groupFilter}>
+            <Space orientation="vertical" size="middle" style={{ display: 'flex' }}>
+              <Select
+                aria-label={text.groupFilter}
+                style={{ width: '100%', maxWidth: 440 }}
+                value={groupFilter ?? ALL_GROUPS}
+                options={groupOptions}
+                loading={groupState === 'loading'}
+                disabled={groupState === 'loading' || groupState === 'error'}
+                onChange={value => setGroupFilter(value === ALL_GROUPS ? undefined : value)}
+              />
+              {groupState === 'loading' ? <Typography.Text type="secondary" role="status">{text.groupLoading}</Typography.Text> : null}
+              {groupState === 'error' ? <Alert type="warning" showIcon title={text.groupError} action={<Button size="small" onClick={() => void loadGroups()}>{text.groupRetry}</Button>} /> : null}
+              {groupState === 'ready' ? <div aria-label={text.groupLegend}>
+                <Typography.Text strong>{text.groupLegend}</Typography.Text>
+                <Space wrap style={{ marginTop: 8 }}>
+                  {groupLegend.map(entry => <Tag key={entry.id}>{entry.name}: {entry.count}</Tag>)}
+                  {ungroupedCount > 0 ? <Tag>{text.ungrouped}: {ungroupedCount}</Tag> : null}
+                </Space>
+              </div> : null}
+            </Space>
           </Card>
-          <Card title={text.listTitle} extra={<Tag>{points.length} {text.locations}</Tag>}>
-            <List
-              dataSource={[...points]}
-              renderItem={point => {
-                const isSelected = point.personId === selectedPersonId;
-                return <List.Item key={point.personId}>
-                  <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
-                    <Button type={isSelected ? 'primary' : 'default'} aria-pressed={isSelected} onClick={() => setSelectedPersonId(point.personId)}>
-                      {point.displayName}
-                    </Button>
-                    <Space wrap>
-                      <Typography.Text>{text.location}: {locationText(point)}</Typography.Text>
-                      {isSelected ? <Tag color="blue">{text.selected}</Tag> : null}
-                      {canWrite ? <Button onClick={() => openEditor(point.personId)}>{text.editLocation}</Button> : null}
+          {!visiblePoints.length ? <Card><Empty description={text.filterEmpty} /></Card> : <>
+            <Card>
+              <Suspense fallback={<div role="status" aria-label={text.canvasLoading}><Skeleton active paragraph={{ rows: 7 }} /></div>}>
+                <PeopleMapCanvas points={visiblePoints} selectedPersonId={selectedPersonId} onSelect={setSelectedPersonId} label={text.mapLabel} />
+              </Suspense>
+            </Card>
+            <Card title={text.listTitle} extra={<Tag>{visiblePoints.length} {text.locations}</Tag>}>
+              <List
+                dataSource={[...visiblePoints]}
+                renderItem={point => {
+                  const isSelected = point.personId === selectedPersonId;
+                  return <List.Item key={point.personId}>
+                    <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
+                      <Button type={isSelected ? 'primary' : 'default'} aria-pressed={isSelected} onClick={() => setSelectedPersonId(point.personId)}>
+                        {point.displayName}
+                      </Button>
+                      <Space wrap>
+                        <Typography.Text>{text.location}: {locationText(point)}</Typography.Text>
+                        {isSelected ? <Tag color="blue">{text.selected}</Tag> : null}
+                        {canWrite ? <Button onClick={() => openEditor(point.personId)}>{text.editLocation}</Button> : null}
+                      </Space>
                     </Space>
-                  </Space>
-                </List.Item>;
-              }}
-            />
-          </Card>
+                  </List.Item>;
+                }}
+              />
+            </Card>
+          </>}
         </>}
       </> : null}
 
