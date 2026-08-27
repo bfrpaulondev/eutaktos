@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { canSubmitEmergencyContact, emergencyContactAccess, hasUnsavedEmergencyContactDraft } from './EmergencyContactsDialog';
 
+// Keep these guards deterministic; browser acceptance separately covers the mounted emergency surface.
 describe('EmergencyContactsDialog submission guard', () => {
   it('requires a non-blank name and phone before a sensitive contact can be saved', () => {
     expect(canSubmitEmergencyContact('', '', false)).toBe(false);
