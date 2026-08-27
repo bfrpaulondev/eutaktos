@@ -60,6 +60,7 @@ function constraintMutationFromRequest(request: Pick<ApiRequest, 'query' | 'body
 const handler: ApiHandler = async (request, response) => {
   if (!['GET', 'POST'].includes(request.method ?? '')) { methodNotAllowed(response, ['GET', 'POST']); return; }
   await runEndpoint(request, response, async database => {
+    const target = request.method === 'GET' ? recommendationTargetFromRequest(request) : undefined;
     const principal = await resolvePrincipal(request, database);
     requireCapability(principal, 'people.read');
     requireCapability(principal, 'schedule.read');
@@ -91,7 +92,7 @@ const handler: ApiHandler = async (request, response) => {
       return;
     }
 
-    const target = recommendationTargetFromRequest(request);
+    if (!target) throw new Error('Recommendation target was not resolved');
     requireCapability(principal, 'eligibility.read');
     requireCapability(principal, 'availability.read');
     const [peopleRows, meetingRows, studentRows, nonStudentRows, manualConstraints] = await Promise.all([
