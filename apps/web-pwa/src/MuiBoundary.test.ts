@@ -17,6 +17,7 @@ const expectedMuiConsumers = Object.freeze([
   'SectionWorkspace.tsx',
   'ServiceGroupsSection.tsx',
   'TaskShell.tsx',
+  'theme.ts',
   'ui/MuiCompat.tsx',
 ].sort());
 
