@@ -18,12 +18,19 @@
   gap: 10px;
 }
 
-/* Long localized action labels must reflow inside the mobile content column.
-   Ant buttons otherwise keep a single-line intrinsic width that can exceed the
-   usable 320 CSS px viewport at 400% zoom. */
-.people-directory-mobile .ant-btn {
+/* Long localized action labels must reflow inside the People content column.
+   Ant Space items otherwise preserve an intrinsic child width, which can make
+   header actions exceed the usable 320 CSS px viewport at 400% desktop zoom. */
+section[aria-labelledby='people-directory-title'] .ant-space,
+section[aria-labelledby='people-directory-title'] .ant-space-item {
+  max-width: 100%;
+  min-width: 0;
+}
+
+section[aria-labelledby='people-directory-title'] .ant-btn {
   max-width: 100%;
   white-space: normal;
+  overflow-wrap: anywhere;
   height: auto;
   min-height: var(--ant-control-height, 32px);
 }
