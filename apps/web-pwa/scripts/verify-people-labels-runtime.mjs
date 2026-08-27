@@ -100,7 +100,7 @@ try {
 
   await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => {
     localStorage.setItem('eutaktos.preferences.v4', JSON.stringify({ paletteId: 'classic', colorMode: 'light', density: 'comfortable', locale: 'pt-PT', textSize: 'default', reducedMotion: false, reducedTransparency: false, highContrast: false }));
-    window.__labelsHarness = { labels: [], patchCount: 0, mode: 'write' };
+    window.__labelsHarness = { labels: [], patchCount: 0, mode: localStorage.getItem('eutaktos-labels-test-mode') ?? 'write' };
     const ok = value => new Response(JSON.stringify(value), { status: 200, headers: { 'Content-Type': 'application/json' } });
     const failure = (status, message) => new Response(JSON.stringify({ error: message }), { status, headers: { 'Content-Type': 'application/json' } });
     window.fetch = async (input, init) => {
@@ -152,7 +152,7 @@ try {
   const postSave = await evaluate(`({ patchCount: window.__labelsHarness.patchCount, href: location.href, stored: Object.entries(localStorage) })`);
   if (postSave.patchCount !== 1) throw new Error(`Double-submit guard failed: PATCH count=${postSave.patchCount}`);
   if (postSave.href.includes('Visita')) throw new Error('Label value leaked into the URL after save');
-  if (postSave.stored.some(([key, value]) => key !== 'eutaktos.preferences.v4' && String(value).includes('Visita'))) throw new Error('Label value leaked into localStorage');
+  if (postSave.stored.some(([key, value]) => !['eutaktos.preferences.v4', 'eutaktos-labels-test-mode'].includes(key) && String(value).includes('Visita'))) throw new Error('Label value leaked into localStorage');
 
   if (!await clickExactButton('Mais filtros')) throw new Error('Advanced filters did not open');
   await poll(async () => await evaluate(`Boolean([...document.querySelectorAll('.ant-select')].find(node => node.textContent?.includes('Todas as etiquetas')))`), 'Label filter was not rendered');
@@ -170,7 +170,7 @@ try {
   await poll(async () => await evaluate(`Boolean(document.querySelector('#main')?.textContent?.includes('1 resultado'))`), 'Local label filter did not keep the matching person');
   if (await evaluate(`location.href.includes('Visita')`)) throw new Error('Local label filter serialized the label into the URL');
 
-  await evaluate(`window.__labelsHarness.mode = 'readonly'; true`);
+  await evaluate(`localStorage.setItem('eutaktos-labels-test-mode', 'readonly'); true`);
   await cdp.send('Page.navigate', { url: new URL('/pessoas?view=directory', appUrl).toString() });
   await poll(async () => await evaluate(`Boolean(document.querySelector('#main')?.textContent?.includes('Runtime person'))`), 'Read-only Directory did not load');
   if (!await clickExactButton('Etiquetas')) throw new Error('Read-only labels viewer did not open');
@@ -181,7 +181,7 @@ try {
   })()`), 'Read-only labels dialog did not open');
   if (readonlyDialog.hasEdit || !readonlyDialog.text.includes('não tem permissão para as alterar')) throw new Error(`Read-only label authority was not enforced: ${JSON.stringify(readonlyDialog)}`);
 
-  await evaluate(`window.__labelsHarness.mode = 'unauthorized'; true`);
+  await evaluate(`localStorage.setItem('eutaktos-labels-test-mode', 'unauthorized'); true`);
   await cdp.send('Page.navigate', { url: new URL('/pessoas?view=directory', appUrl).toString() });
   await poll(async () => await evaluate(`Boolean(document.querySelector('#main')?.textContent?.includes('É necessário iniciar sessão para consultar Pessoas.'))`), 'Directory 401 state was not rendered distinctly');
 
