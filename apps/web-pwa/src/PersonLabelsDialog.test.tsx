@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { labelsDraftValid, persistPersonLabels } from './PersonLabelsDialog';
+import { labelSaveErrorState, labelsDraftValid, persistPersonLabels } from './PersonLabelsDialog';
 import type { PeopleApi, PersonProfileDto } from './lib/peopleApi';
 
 describe('PersonLabelsDialog', () => {
@@ -12,6 +12,12 @@ describe('PersonLabelsDialog', () => {
     expect(labelsDraftValid(['x'.repeat(41)])).toBe(false);
     expect(labelsDraftValid(['bad\u0000label'])).toBe(false);
     expect(labelsDraftValid(Array.from({ length: 21 }, (_, index) => `Label ${index}`))).toBe(false);
+  });
+
+  it('classifies 401 and 403 separately from retryable save failures', () => {
+    expect(labelSaveErrorState(new Error('Unauthorized (401)'))).toBe('unauthenticated');
+    expect(labelSaveErrorState(new Error('Forbidden (403)'))).toBe('forbidden');
+    expect(labelSaveErrorState(new Error('People API request failed (503)'))).toBe('retryable');
   });
 
   it('does not repeat PATCH when a retry observes the desired labels already persisted', async () => {
