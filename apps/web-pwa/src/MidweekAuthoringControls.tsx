@@ -22,6 +22,7 @@ import {
 import { RecommendationPicker } from './RecommendationPicker';
 
 export { BUILTIN_PARTS, slotAllowsStudentAssignment };
+export { StudentAssignmentControls, NonStudentAssignmentControls } from './MidweekAssignmentControls';
 
 const copy = {
   'pt-PT': { createMeeting:'Nova reunião', meetingTitle:'Criar reunião', date:'Data', time:'Hora', timezone:'Fuso horário', location:'Local (opcional)', addPart:'Adicionar parte', partTitle:'Nova parte', titleKey:'Título / chave da parte', duration:'Duração (min)', partDefinition:'Tipo de parte', customPart:'Parte personalizada / função', assignStudent:'Designar estudante', assignRole:'Designar função', student:'Estudante', assistant:'Ajudante (opcional)', assistantRequired:'Ajudante (obrigatório)', person:'Pessoa', role:'Função', chooseRole:'Seleciona uma função', customRole:'Outra função personalizada…', customRoleId:'Identificador da função personalizada', none:'Sem ajudante', publish:'Publicar', removePart:'Remover parte', replace:'Substituir', cancelAssignment:'Cancelar designação', save:'Guardar', cancel:'Cancelar', working:'A guardar…', error:'Não foi possível concluir a operação.', publishConfirm:'Publicar esta reunião? Depois de publicada, as alterações ficam mais restritas.', confirm:'Confirmar', noPeople:'Não existem pessoas ativas disponíveis.', manualStudent:'Selecionar manualmente', hideManualStudent:'Ocultar seleção manual', manualStudentHint:'A seleção manual mostra pessoas ativas. Não afirma que estejam elegíveis, disponíveis ou sem conflitos para esta parte.' },
