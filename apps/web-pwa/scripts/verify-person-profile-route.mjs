@@ -94,6 +94,7 @@ try {
   await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => {
     localStorage.setItem('eutaktos.preferences.v4', JSON.stringify({ paletteId: 'classic', colorMode: 'light', density: 'comfortable', locale: 'pt-PT', textSize: 'default', reducedMotion: false, reducedTransparency: false, highContrast: false }));
     window.__profileRecommendationRequests = [];
+    window.__profileRouteDocumentMarker = Date.now().toString() + '-' + Math.random().toString();
     const json = value => new Response(JSON.stringify(value), { status: 200, headers: { 'Content-Type': 'application/json' } });
     const meeting = {
       id: 'meeting-profile', date: '2032-06-10', localTime: '19:30', timezone: 'Europe/Lisbon', state: 'draft',
@@ -153,7 +154,9 @@ try {
   if (state.href.includes('Runtime%20person') || state.href.includes('Runtime person') || state.href.includes('@')) throw new Error(`Human-readable PII leaked into profile URL: ${state.href}`);
   if (!state.main.includes('Empenhe-se na leitura e no ensino') || !state.main.includes('Sem histórico de designações concluídas')) throw new Error('Profile insight did not localize approved PX7 evidence');
 
+  const documentMarkerBeforeReload = await evaluate('window.__profileRouteDocumentMarker');
   await cdp.send('Page.reload', { ignoreCache: true });
+  await poll(async () => (await evaluate('window.__profileRouteDocumentMarker')) !== documentMarkerBeforeReload, 'Profile document did not change after refresh');
   await poll(async () => {
     const current = await locationState();
     return current.search.includes('view=profile')
