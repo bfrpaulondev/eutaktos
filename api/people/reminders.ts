@@ -11,6 +11,7 @@ import {
 import { requireCapability, resolvePrincipal } from '../_auth';
 import type { EntityRow } from '../_db';
 import { BadRequestError, runEndpoint } from '../_endpoint';
+import { PeopleSnapshotUnitOfWork } from '../_uow';
 import { json, methodNotAllowed, type ApiHandler, type ApiRequest } from '../_types';
 
 type TenantEntity = { readonly id: string; readonly tenantId: string };
@@ -96,10 +97,13 @@ const handler: ApiHandler = async (request, response) => {
       database.entities(principal.tenantId, 'assignment-response'),
       database.entities(principal.tenantId, 'assignment-reminder'),
     ]);
+    const context = createAccessContext({
+      tenantId: principal.tenantId,
+      actorId: principal.actorId,
+      capabilities: principal.capabilities,
+    });
 
-    const people = Object.freeze(
-      peopleRows.map(row => storedEntity<CongregationPerson>(row, principal.tenantId, 'person')),
-    );
+    const people = new PeopleSnapshotUnitOfWork(principal.tenantId, peopleRows).list(context);
     const responses = Object.freeze(
       responseRows.map(row => normalizeAssignmentResponse(
         storedEntity<AssignmentResponse>(row, principal.tenantId, 'assignment response') as AssignmentResponse,
