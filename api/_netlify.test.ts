@@ -6,6 +6,8 @@ describe('Netlify API adapter', () => {
     expect(normalizeNetlifyApiPath({ path: '/api/people' })).toBe('/people');
     expect(normalizeNetlifyApiPath({ path: '/api/people/recommendations' })).toBe('/people/recommendations');
     expect(normalizeNetlifyApiPath({ path: '/api/people/assistance' })).toBe('/people/assistance');
+    expect(normalizeNetlifyApiPath({ path: '/api/import/hourglass/preview' })).toBe('/import/hourglass/preview');
+    expect(normalizeNetlifyApiPath({ path: '/.netlify/functions/api/import/hourglass/preview' })).toBe('/import/hourglass/preview');
     expect(normalizeNetlifyApiPath({ path: '/.netlify/functions/api/people/recommendations' })).toBe('/people/recommendations');
     expect(normalizeNetlifyApiPath({ path: '/.netlify/functions/api/people/person-1' })).toBe('/people/person-1');
     expect(normalizeNetlifyApiPath({ rawUrl: 'https://example.netlify.app/api/health?x=1' })).toBe('/health');
@@ -14,11 +16,12 @@ describe('Netlify API adapter', () => {
     expect(normalizeNetlifyApiPath({ path: '/api/congregation/settings' })).toBe('/congregation/settings');
   });
 
-  it('matches People projections and dynamic identifiers from the path', () => {
+  it('matches People projections, Hourglass preview and dynamic identifiers from the path', () => {
     expect(matchNetlifyApiRoute('/people/directory')).toEqual({ key: 'people-directory', params: {} });
     expect(matchNetlifyApiRoute('/people/overview-evidence')).toEqual({ key: 'people-overview-evidence', params: {} });
     expect(matchNetlifyApiRoute('/people/assistance')).toEqual({ key: 'people-assistance', params: {} });
     expect(matchNetlifyApiRoute('/people/recommendations')).toEqual({ key: 'people-recommendations', params: {} });
+    expect(matchNetlifyApiRoute('/import/hourglass/preview')).toEqual({ key: 'hourglass-preview', params: {} });
     expect(matchNetlifyApiRoute('/people/person-1')).toEqual({ key: 'person', params: { personId: 'person-1' } });
     expect(matchNetlifyApiRoute('/people/person-1/eligibility')).toEqual({ key: 'eligibility', params: { personId: 'person-1' } });
     expect(matchNetlifyApiRoute('/people/person-1/availability')).toEqual({ key: 'availability', params: { personId: 'person-1' } });
@@ -51,21 +54,21 @@ describe('Netlify API adapter', () => {
   });
 
   it('dispatches People recommendations to the real handler instead of returning router 404', async () => {
-    const result = await handleNetlifyApiEvent({
-      httpMethod: 'GET',
-      path: '/api/people/recommendations',
-      headers: {},
-      queryStringParameters: {},
-    });
+    const result = await handleNetlifyApiEvent({ httpMethod: 'GET', path: '/api/people/recommendations', headers: {}, queryStringParameters: {} });
     expect(result.statusCode).toBe(400);
     expect(JSON.parse(result.body)).toEqual({ error: 'meetingId is required' });
   });
 
   it('dispatches People assistance to the real authenticated handler instead of returning router 404', async () => {
+    const result = await handleNetlifyApiEvent({ httpMethod: 'GET', path: '/api/people/assistance', headers: {} });
+    expect(result.statusCode).toBe(401);
+    expect(JSON.parse(result.body)).toEqual({ error: 'Unauthorized' });
+  });
+
+  it('dispatches Hourglass preview to the authenticated server handler without exposing a public anonymous preview', async () => {
     const result = await handleNetlifyApiEvent({
-      httpMethod: 'GET',
-      path: '/api/people/assistance',
-      headers: {},
+      httpMethod: 'POST', path: '/api/import/hourglass/preview', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ source: 'json', payload: { publishers: [], fsGroups: [], privileges: {} } }),
     });
     expect(result.statusCode).toBe(401);
     expect(JSON.parse(result.body)).toEqual({ error: 'Unauthorized' });
@@ -76,12 +79,7 @@ describe('Netlify API adapter', () => {
     expect(missing.statusCode).toBe(404);
     expect(JSON.parse(missing.body)).toEqual({ error: 'Not found' });
 
-    const malformed = await handleNetlifyApiEvent({
-      httpMethod: 'POST',
-      path: '/api/people',
-      headers: { 'content-type': 'application/json' },
-      body: '{',
-    });
+    const malformed = await handleNetlifyApiEvent({ httpMethod: 'POST', path: '/api/people', headers: { 'content-type': 'application/json' }, body: '{' });
     expect(malformed.statusCode).toBe(400);
     expect(JSON.parse(malformed.body)).toEqual({ error: 'Invalid JSON body' });
   });
