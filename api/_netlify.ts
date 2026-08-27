@@ -17,6 +17,7 @@ import eligibilityHandler from './people/[personId]/eligibility';
 import availabilityHandler from './people/[personId]/availability';
 import ordinaryContactHandler from './people/[personId]/contact';
 import availabilityPeriodHandler from './people/[personId]/availability/[availabilityPeriodId]';
+import hourglassPreviewHandler from './import/hourglass/preview';
 import householdsHandler from './households';
 import householdHandler from './households/[householdId]';
 import serviceGroupsHandler from './service-groups';
@@ -56,6 +57,7 @@ export interface NetlifyApiResult {
 type RouteKey =
   | 'health' | 'ready' | 'session' | 'logout' | 'logout-all' | 'rotate-session' | 'auth-otp' | 'auth-verify'
   | 'people' | 'people-directory' | 'people-overview-evidence' | 'people-assistance' | 'people-recommendations' | 'person' | 'eligibility' | 'availability' | 'ordinary-contact' | 'availability-period'
+  | 'hourglass-preview'
   | 'households' | 'household' | 'service-groups' | 'service-group'
   | 'responsibilities' | 'responsibility' | 'end-responsibility' | 'congregation-settings' | 'audit-history'
   | 'access-grants' | 'subject-grants' | 'revoke-grant' | 'midweek' | 'midweek-route' | 'outbox-worker' | 'agent-respond';
@@ -84,6 +86,7 @@ const handlers: Readonly<Record<RouteKey, ApiHandler>> = Object.freeze({
   availability: availabilityHandler,
   'ordinary-contact': ordinaryContactHandler,
   'availability-period': availabilityPeriodHandler,
+  'hourglass-preview': hourglassPreviewHandler,
   households: householdsHandler,
   household: householdHandler,
   'service-groups': serviceGroupsHandler,
@@ -139,6 +142,7 @@ export function matchNetlifyApiRoute(path: string): RouteMatch | undefined {
     '/people/overview-evidence': 'people-overview-evidence',
     '/people/assistance': 'people-assistance',
     '/people/recommendations': 'people-recommendations',
+    '/import/hourglass/preview': 'hourglass-preview',
     '/households': 'households',
     '/service-groups': 'service-groups',
     '/responsibilities': 'responsibilities',
