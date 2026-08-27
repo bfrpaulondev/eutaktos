@@ -13,6 +13,7 @@ export interface PersonArchiveCurrent {
   actorId: PersonId;
   archivedAt: string;
   reason: string;
+  previousActive: boolean;
 }
 
 export interface PersonArchiveState {
@@ -62,7 +63,7 @@ export function archivePersonPublication(
   const occurredAt = instant(input.occurredAt);
   const reason = normalizePersonArchiveReason(input.reason);
   const entry: PersonArchiveHistoryEntry = Object.freeze({ action: 'archived', actorId, occurredAt, reason });
-  const current: PersonArchiveCurrent = Object.freeze({ actorId, archivedAt: occurredAt, reason });
+  const current: PersonArchiveCurrent = Object.freeze({ actorId, archivedAt: occurredAt, reason, previousActive: person.active });
   return {
     ...person,
     active: false,
@@ -81,7 +82,7 @@ export function restorePersonPublication(
   const entry: PersonArchiveHistoryEntry = Object.freeze({ action: 'restored', actorId, occurredAt });
   return {
     ...person,
-    active: true,
+    active: state.current.previousActive,
     publicationArchive: Object.freeze({ history: Object.freeze([...state.history, entry]) }),
   };
 }
