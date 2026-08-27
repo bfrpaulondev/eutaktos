@@ -24,11 +24,25 @@ describe('C5.5 People recommendation API client', () => {
     expect(parsed.candidates[0]?.reasons.map(item => item.code)).toEqual(['ELIGIBLE', 'AVAILABLE', 'NO_MEETING_CONFLICT', 'LONGER_SINCE_LAST_ASSIGNMENT']);
   });
 
+  it('defaults additive manual-constraint fields safely for existing people-recommendation-v1 responses', () => {
+    const legacy = {
+      ...valid,
+      canManageManualConstraints: undefined,
+      candidates: valid.candidates.map(({ manualConstraintCodes: _manualConstraintCodes, ...candidate }) => candidate),
+      excluded: valid.excluded.map(({ manualConstraintCodes: _manualConstraintCodes, ...candidate }) => candidate),
+    };
+    const parsed = parsePeopleRecommendationResponse(legacy);
+    expect(parsed.canManageManualConstraints).toBe(false);
+    expect(parsed.candidates[0]?.manualConstraintCodes).toEqual([]);
+    expect(parsed.excluded[0]?.manualConstraintCodes).toEqual([]);
+  });
+
   it.each([
     ['unknown reason code', { ...valid, candidates: [{ ...validCandidate, reasons: [{ code: 'MADE_UP_REASON' }] }] }],
     ['unknown warning code', { ...valid, candidates: [{ ...validCandidate, warnings: [{ code: 'MADE_UP_WARNING' }] }] }],
     ['manual exclusion on candidate', { ...valid, candidates: [{ ...validCandidate, manualConstraintCodes: ['MANUAL_EXCLUSION'] }] }],
     ['unknown manual constraint', { ...valid, excluded: [{ ...valid.excluded[0], manualConstraintCodes: ['OTHER'] }] }],
+    ['invalid management capability marker', { ...valid, canManageManualConstraints: 'yes' }],
     ['candidate without rank', { ...valid, candidates: [{ ...validCandidate, rank: undefined }] }],
     ['excluded candidate with rank', { ...valid, excluded: [{ ...valid.excluded[0], rank: 9 }] }],
     ['negative workload', { ...valid, candidates: [{ ...validCandidate, sameWeekAssignmentCount: -1 }] }],
