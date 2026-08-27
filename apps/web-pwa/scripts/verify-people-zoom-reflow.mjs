@@ -132,7 +132,7 @@ try {
         contractVersion: 'people-directory-v1', generatedAt: '2032-06-10T12:00:00.000Z',
         capabilities: { writePeople: true, availability: true, eligibility: true, responsibilities: true, schedule: true },
         filters: { groups: [], responsibilityKeys: [], assignmentTypeIds: [] },
-        people: people.map(person => ({ ...person, groups: [], availability: { status: 'ready', current: 'available' }, eligibility: { status: 'ready', enabledAssignmentTypeIds: [] }, responsibilities: { status: 'ready', keys: [] }, assignmentHistory: { status: 'ready' } })),
+        people: people.map(person => ({ ...person, groups: [], availability: { status: 'ready', current: 'available', currentReasonCodes: [] }, eligibility: { status: 'ready', enabledAssignmentTypeIds: [] }, responsibilities: { status: 'ready', keys: [] }, assignmentHistory: { status: 'ready' } })),
       });
       if (url.pathname.startsWith('/api/people/') && url.pathname.endsWith('/contact') && method === 'GET') return json({ email: 'ana@example.test' });
       if (url.pathname === '/api/households' && method === 'GET') return json([]);
