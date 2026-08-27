@@ -140,6 +140,10 @@ export class SupabaseRestDatabase {
   }
   async markOutboxDelivered(tenantId:string,id:string,deliveredAt:string):Promise<void>{ await this.#request('/rest/v1/rpc/eutaktos_mark_outbox_delivered',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({p_tenant_id:tenantId,p_id:id,p_delivered_at:deliveredAt})}); }
   async markOutboxFailed(tenantId:string,id:string,errorCode:'provider-unconfigured'|'provider-unavailable'|'provider-rejected'|'invalid-event'):Promise<void>{ await this.#request('/rest/v1/rpc/eutaktos_mark_outbox_failed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({p_tenant_id:tenantId,p_id:id,p_error_code:errorCode})}); }
+  async commitNotificationIntent(input: Readonly<Record<string, unknown>>): Promise<Readonly<Record<string, unknown>>> {
+    const value = await this.#request('/rest/v1/rpc/eutaktos_commit_notification_intent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+    return objectRecord(value);
+  }
   async applyEntityChange(input: Readonly<Record<string, unknown>>): Promise<void> { await this.#request('/rest/v1/rpc/eutaktos_apply_entity_change', { method: 'POST', headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify(input) }); }
   async deleteEntityChange(input: Readonly<Record<string, unknown>>): Promise<void> { await this.#request('/rest/v1/rpc/eutaktos_delete_entity_change', { method: 'POST', headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify(input) }); }
   async createGrantChange(input: Readonly<Record<string, unknown>>): Promise<void> { await this.#request('/rest/v1/rpc/eutaktos_apply_grant_change', { method: 'POST', headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify(input) }); }
