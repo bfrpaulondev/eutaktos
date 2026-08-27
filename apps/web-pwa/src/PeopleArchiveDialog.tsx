@@ -11,7 +11,7 @@ import Timeline from 'antd/es/timeline';
 import Typography from 'antd/es/typography';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { peopleArchiveApi, type PeopleArchiveApi, type PeopleArchiveStateDto } from './lib/peopleArchiveApi';
-import { peopleDirectoryApi, type PeopleDirectoryApi, type PeopleDirectoryPersonDto } from './lib/peopleDirectoryApi';
+import { peopleDirectoryApi, type PeopleDirectoryPersonDto } from './lib/peopleDirectoryApi';
 import type { Locale } from './lib/preferences';
 
 const copy = {
@@ -57,6 +57,7 @@ const copy = {
 } as const;
 
 type ErrorState = 'unauthenticated' | 'forbidden' | 'retryable' | null;
+type DirectoryClient = Pick<typeof peopleDirectoryApi, 'get'>;
 
 function errorState(error: unknown): Exclude<ErrorState, null> {
   const message = error instanceof Error ? error.message : '';
@@ -74,7 +75,7 @@ export function PeopleArchiveDialog({ locale, open, onClose, archiveApi = people
   open: boolean;
   onClose: () => void;
   archiveApi?: PeopleArchiveApi;
-  directoryApi?: PeopleDirectoryApi;
+  directoryApi?: DirectoryClient;
 }) {
   const text = copy[locale];
   const [people, setPeople] = useState<readonly PeopleDirectoryPersonDto[]>([]);
