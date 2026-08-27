@@ -45,6 +45,41 @@ describe('PX7.8 manual recommendation constraint persistence', () => {
     vi.useRealTimers();
   });
 
+  it('recovers an exact concurrent exclusion when another request wins the create race', async () => {
+    let storedRow: EntityRow | undefined;
+    let initialReads = 0;
+    let writes = 0;
+    const database = {
+      entities: async () => Object.freeze(storedRow ? [storedRow] : []),
+      entity: async () => {
+        initialReads += 1;
+        if (initialReads <= 2) return undefined;
+        return storedRow;
+      },
+      applyEntityChange: async (input: Readonly<Record<string, unknown>>) => {
+        writes += 1;
+        if (writes > 1) throw new Error('conflict');
+        storedRow = {
+          tenant_id: String(input.p_tenant_id),
+          entity_type: String(input.p_entity_type),
+          entity_id: String(input.p_entity_id),
+          data: input.p_data,
+          version: 1,
+        };
+      },
+      deleteEntityChange: async () => undefined,
+    };
+
+    const [first, second] = await Promise.all([
+      changeManualRecommendationConstraint(database, context(), 'person-1', 'reading', 'exclude'),
+      changeManualRecommendationConstraint(database, context(), 'person-1', 'reading', 'exclude'),
+    ]);
+
+    expect([first, second]).toContainEqual({ excluded: true, changed: true });
+    expect([first, second]).toContainEqual({ excluded: true, changed: false });
+    expect(writes).toBe(2);
+  });
+
   it('separates tenant and assignment type identities', async () => {
     const one = await manualRecommendationConstraintId('tenant-a', 'person-1', 'reading');
     const two = await manualRecommendationConstraintId('tenant-b', 'person-1', 'reading');
