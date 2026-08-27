@@ -126,6 +126,13 @@ export class NotificationIntentService {
       occurredAt: at,
       schemaVersion: 1,
       ...eventCorrelation(metadata),
+      payload: {
+        deliveryId: delivery.id,
+        recipientId: delivery.recipientId,
+        channel: delivery.channel,
+        templateKey: delivery.templateKey,
+        locale: delivery.locale,
+      },
     });
     this.#uow.commit(context, {
       delivery,
