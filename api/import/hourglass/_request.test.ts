@@ -21,6 +21,6 @@ describe('PX9.9 Hourglass execution request parsing', () => {
   it('rejects unproven sources, malformed ids and missing confirmation proof', () => {
     expect(() => parseHourglassPrepareRequest({ query: {}, body: { source: 'contacts-csv', payload, mutationId: 'mutation-12345678' } })).toThrow('Only the proven Hourglass JSON source');
     expect(() => parseHourglassExecuteRequest({ query: {}, body: { source: 'json', payload, executionId: '../migration', confirmationDigest } })).toThrow('executionId is invalid');
-    expect(() => parseHourglassExecuteRequest({ query: {}, body: { source: 'json', payload, executionId } })).toThrow('confirmationDigest is required');
+    expect(() => parseHourglassExecuteRequest({ query: {}, body: { source: 'json', payload, executionId } })).toThrow('confirmationDigest must be a string');
   });
 });
