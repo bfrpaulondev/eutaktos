@@ -28,6 +28,7 @@ export interface HourglassExecutionPreparation {
   readonly attempt: Readonly<HourglassExecutionAttempt>;
   readonly confirmationDigest: string;
   readonly counts: Readonly<Record<'create' | 'unchanged' | 'conflict', number>>;
+  readonly preview: Readonly<HourglassMigrationPreview>;
 }
 
 export interface HourglassExecutionResult {
@@ -68,6 +69,13 @@ async function sha256(value: string): Promise<string> {
 async function stableId(scope: string, context: AccessContext, attempt: Readonly<HourglassExecutionAttempt>, discriminator = ''): Promise<string> {
   const digest = await sha256(`${context.tenantId}\u001f${attempt.executionId}\u001f${scope}\u001f${discriminator}`);
   return `${scope}-${digest.slice(0, 32)}`;
+}
+
+export async function hourglassMigrationIdForAttempt(
+  context: AccessContext,
+  attemptInput: Readonly<HourglassExecutionAttempt>,
+): Promise<string> {
+  return stableId('hourglass-migration', context, normalizeAttempt(attemptInput));
 }
 
 function storedPerson(row: EntityRow, tenantId: string): Readonly<CongregationPerson> {
@@ -160,6 +168,7 @@ export async function prepareHourglassExecution(
     attempt: normalizedAttempt,
     confirmationDigest: await confirmationDigest(preview),
     counts: preview.counts,
+    preview,
   });
 }
 
@@ -208,7 +217,7 @@ export async function executeHourglassImport(
   assertExecutionCapabilities(context);
   const attempt = normalizeAttempt(attemptInput);
   const expectedConfirmation = normalizeConfirmationDigest(confirmationDigestInput);
-  const migrationId = await stableId('hourglass-migration', context, attempt);
+  const migrationId = await hourglassMigrationIdForAttempt(context, attempt);
   const [rows, storedMigration] = await Promise.all([
     database.entities(context.tenantId, 'person'),
     database.entity(context.tenantId, 'hourglass-migration', migrationId),

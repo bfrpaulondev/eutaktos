@@ -20,6 +20,9 @@ import availabilityHandler from './people/[personId]/availability';
 import ordinaryContactHandler from './people/[personId]/contact';
 import availabilityPeriodHandler from './people/[personId]/availability/[availabilityPeriodId]';
 import hourglassPreviewHandler from './import/hourglass/preview';
+import hourglassPrepareHandler from './import/hourglass/prepare';
+import hourglassExecuteHandler from './import/hourglass/execute';
+import hourglassRollbackHandler from './import/hourglass/rollback';
 import householdsHandler from './households';
 import householdHandler from './households/[householdId]';
 import serviceGroupsHandler from './service-groups';
@@ -59,7 +62,7 @@ export interface NetlifyApiResult {
 type RouteKey =
   | 'health' | 'ready' | 'session' | 'logout' | 'logout-all' | 'rotate-session' | 'auth-otp' | 'auth-verify'
   | 'people' | 'people-directory' | 'people-overview-evidence' | 'people-assistance' | 'people-recommendations' | 'people-reminders' | 'person' | 'person-archive' | 'eligibility' | 'availability' | 'ordinary-contact' | 'availability-period'
-  | 'hourglass-preview'
+  | 'hourglass-preview' | 'hourglass-prepare' | 'hourglass-execute' | 'hourglass-rollback'
   | 'households' | 'household' | 'service-groups' | 'service-group'
   | 'responsibilities' | 'responsibility' | 'end-responsibility' | 'congregation-settings' | 'audit-history'
   | 'access-grants' | 'subject-grants' | 'revoke-grant' | 'midweek' | 'midweek-route' | 'outbox-worker' | 'agent-respond';
@@ -91,6 +94,9 @@ const handlers: Readonly<Record<RouteKey, ApiHandler>> = Object.freeze({
   'ordinary-contact': ordinaryContactHandler,
   'availability-period': availabilityPeriodHandler,
   'hourglass-preview': hourglassPreviewHandler,
+  'hourglass-prepare': hourglassPrepareHandler,
+  'hourglass-execute': hourglassExecuteHandler,
+  'hourglass-rollback': hourglassRollbackHandler,
   households: householdsHandler,
   household: householdHandler,
   'service-groups': serviceGroupsHandler,
@@ -148,6 +154,9 @@ export function matchNetlifyApiRoute(path: string): RouteMatch | undefined {
     '/people/recommendations': 'people-recommendations',
     '/people/reminders': 'people-reminders',
     '/import/hourglass/preview': 'hourglass-preview',
+    '/import/hourglass/prepare': 'hourglass-prepare',
+    '/import/hourglass/execute': 'hourglass-execute',
+    '/import/hourglass/rollback': 'hourglass-rollback',
     '/households': 'households',
     '/service-groups': 'service-groups',
     '/responsibilities': 'responsibilities',
