@@ -9,7 +9,10 @@ export class BadRequestError extends Error {}
 export class CsrfError extends Error {}
 export class PayloadTooLargeError extends Error {}
 
-const MAX_BODY_BYTES = 64 * 1024;
+const DEFAULT_MAX_BODY_BYTES = 64 * 1024;
+const ABSOLUTE_MAX_BODY_BYTES = 6 * 1024 * 1024;
+
+export interface RequestEnvelopeOptions { readonly maxBodyBytes?: number }
 
 function bodyBytes(value: unknown): number {
   if (value === undefined || value === null) return 0;
@@ -18,15 +21,22 @@ function bodyBytes(value: unknown): number {
   catch { throw new BadRequestError('Invalid request body'); }
 }
 
-export function assertRequestEnvelope(request: ApiRequest): void {
+function bodyLimit(options: RequestEnvelopeOptions): number {
+  const value = options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES;
+  if (!Number.isSafeInteger(value) || value <= 0 || value > ABSOLUTE_MAX_BODY_BYTES) throw new Error('Invalid request body limit');
+  return value;
+}
+
+export function assertRequestEnvelope(request: ApiRequest, options: RequestEnvelopeOptions = {}): void {
+  const maxBodyBytes = bodyLimit(options);
   const rawLength = header(request, 'content-length');
   if (rawLength !== undefined) {
     if (!/^\d{1,10}$/.test(rawLength)) throw new BadRequestError('Invalid Content-Length');
     const contentLength = Number(rawLength);
     if (!Number.isSafeInteger(contentLength)) throw new BadRequestError('Invalid Content-Length');
-    if (contentLength > MAX_BODY_BYTES) throw new PayloadTooLargeError('Request body too large');
+    if (contentLength > maxBodyBytes) throw new PayloadTooLargeError('Request body too large');
   }
-  if (bodyBytes(request.body) > MAX_BODY_BYTES) throw new PayloadTooLargeError('Request body too large');
+  if (bodyBytes(request.body) > maxBodyBytes) throw new PayloadTooLargeError('Request body too large');
 }
 
 export function requestBody(value: unknown): Readonly<Record<string, unknown>> {
@@ -92,12 +102,13 @@ export async function runEndpoint(
   request: ApiRequest,
   response: ApiResponse,
   operation: (database: SupabaseRestDatabase) => Promise<void>,
+  options: RequestEnvelopeOptions = {},
 ): Promise<void> {
   const startedAt = Date.now();
   const correlationId = attachCorrelationId(request, response);
   const database = new SupabaseRestDatabase();
   try {
-    assertRequestEnvelope(request);
+    assertRequestEnvelope(request, options);
     await operation(database);
     logRequestSuccess(request, correlationId, startedAt);
   } catch (error) {
