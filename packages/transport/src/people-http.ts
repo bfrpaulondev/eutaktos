@@ -35,7 +35,7 @@ export interface PersonProfileDto {
   displayName: string;
   preferredLocale?: string;
   active: boolean;
-  labels: readonly string[];
+  labels?: readonly string[];
 }
 
 export interface PeopleDirectoryPort {
@@ -77,12 +77,13 @@ function metadata(request: TransportRequest): RequestMetadata {
  * `people.read`; they are never inferred from sensitive attributes.
  */
 export function toPersonProfileDto(person: CongregationPerson): PersonProfileDto {
+  const labels = person.labels ?? [];
   return {
     id: person.id,
     displayName: person.displayName,
     ...(person.preferredLocale ? { preferredLocale: person.preferredLocale } : {}),
     active: person.active,
-    labels: person.labels ?? [],
+    ...(labels.length ? { labels } : {}),
   };
 }
 
