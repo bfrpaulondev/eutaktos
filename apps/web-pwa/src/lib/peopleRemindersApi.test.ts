@@ -42,8 +42,8 @@ describe('People reminders API', () => {
     const fetcher = vi.fn(async () => new Response(JSON.stringify({ error: 'Forbidden' }), {
       status: 403,
       headers: { 'Content-Type': 'application/json' },
-    })) as unknown as typeof fetch;
-    const api = createPeopleRemindersApi(fetcher);
+    }));
+    const api = createPeopleRemindersApi(fetcher as unknown as typeof fetch);
     const controller = new AbortController();
 
     await expect(api.get(controller.signal)).rejects.toThrow('Forbidden (403)');
