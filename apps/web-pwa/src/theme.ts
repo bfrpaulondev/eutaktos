@@ -61,6 +61,10 @@ export function contrastRatio(first: string, second: string): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
+export function readableTextColor(candidate: string, surfaces: readonly string[], fallback: string, minimum = 4.5): string {
+  return surfaces.every(surface => contrastRatio(candidate, surface) >= minimum) ? candidate : fallback;
+}
+
 export function statusColor(paletteId: PaletteId, status: EutaktosStatusKey): string {
   return EUTAKTOS_PALETTES[paletteId].status[status];
 }
