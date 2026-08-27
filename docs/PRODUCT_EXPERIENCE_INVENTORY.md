@@ -1,169 +1,160 @@
 # Eutaktos Product Experience — Current Inventory
 
-> Principal inventory refreshed on 2026-08-27 after PX9.3 Labels and full Ant Design 6/MUI retirement.
+> Principal inventory refreshed 2026-08-27 after final PX9.10/PX9.11 People Map integration.
 >
-> Current baseline: `main` `4d6f0cd09f4567cf4ca8870f782308c144e7345e`.
-> Active product source of truth: `docs/PRODUCT_EXPERIENCE_MASTER_PLAN.md` plus `docs/PEOPLE_PRODUCT_EXPERIENCE_CURRENT_STATUS.md` for the current integrated state.
-> Canonical production: `https://eutakes.netlify.app/`.
+> Current People technical runtime baseline: `main` `743a7d7d3017aa4cf81a783b2e8bdcb1db241aac`.
+> Canonical production acceptance target: `https://eutakes.netlify.app/`.
+> Active product source of truth: `docs/PRODUCT_EXPERIENCE_MASTER_PLAN.md` plus `docs/PEOPLE_PRODUCT_EXPERIENCE_CURRENT_STATUS.md`.
 
-This inventory records what already exists so Product Experience work reuses current contracts instead of creating parallel models or reimplementing completed work.
+This inventory records current integrated contracts so future Product Experience work reuses them instead of creating parallel models.
 
 ## 1. UI foundation
 
 Ant Design 6 is the authoritative runtime component system.
 
-- Runtime MUI/Emotion consumers have been retired.
-- `@mui/material` and Emotion runtime dependencies have been removed from the web PWA.
-- Regression coverage prevents accidental reintroduction of the retired framework.
-- New Product Experience work must use the existing Ant foundation and semantic Eutaktos tokens.
+- Runtime MUI/Emotion consumers are retired.
+- New Product Experience surfaces must use the existing Ant foundation and semantic Eutaktos tokens.
+- Light/Dark/System, pt-PT/en/es, keyboard, responsive/reflow and PWA privacy patterns established in People are the reference for later modules.
 
-## 2. People core and profile contracts
+## 2. People core/profile contracts
 
-### People core
+Integrated:
 
-Current People API/application behavior covers:
+- People list/create/update with server authority;
+- Directory 2.0 and People Overview;
+- unified Person Profile;
+- five-step guided Add/Edit Person;
+- normalized labels/tags;
+- dedicated ordinary Contact GET/PUT;
+- availability/away periods;
+- explicit eligibility decisions;
+- households;
+- service groups;
+- responsibility assignments with `[startsAt, endsAt)` semantics;
+- emergency contacts under dedicated sensitive capabilities;
+- appropriate audit/history views.
 
-- list people;
-- create person;
-- update person;
-- `id`, `displayName`, optional `preferredLocale`, `active`;
-- explicit normalized **labels/tags** through the canonical People contract.
+Ordinary Contact values remain excluded from the general Directory DTO, URLs, browser storage, service-worker caches and general audit/event values.
 
-Labels are server-owned data. The Directory can manage and locally filter the authorized returned labels, with privacy and authority regression coverage. Do not create a second label store.
+## 3. Recommendation and assistance contracts
 
-### Ordinary Contact
+PX7/PX8 are integrated:
 
-Dedicated per-person ordinary Contact contract:
+- deterministic server-owned recommendations;
+- explicit eligibility, availability, conflicts and completed-history evidence;
+- structured reason/warning codes;
+- deterministic tie-breaking;
+- narrow persistent manual exclusions by tenant/Person/assignment type;
+- no subjective positive preference scoring;
+- human decision remains final;
+- affected-assignment, incomplete-meeting, factual load/rotation and long-interval assistance.
 
-- `GET /api/people/:personId/contact`;
-- `PUT /api/people/:personId/contact` as full replacement;
-- optional phone/email/address;
-- `people.read` for read and `people.read + people.write` plus trusted same-origin mutation guard for write;
-- Contact values remain excluded from the general Directory DTO, URL, browser storage, service-worker cache and audit/event values.
+Do not duplicate recommendation logic in the browser or generative AI.
 
-### Availability / away periods
+## 4. PX9 People tools
 
-Current `availabilityApi` exposes per-person:
+Integrated:
 
-- list periods;
-- add a period;
-- remove a period;
-- explicit `startsAt`, `endsAt`, optional `reasonCode` (`away`, `unavailable`, `other`).
+| Capability | Current integrated contract |
+| --- | --- |
+| Transfers | Secure server-owned send/receive lifecycle; one-time expiring secret; minimum-data payload; no automatic source deletion. |
+| Labels/tags | Canonical explicit labels with management/filtering. |
+| Reminders | Server-authoritative reminder evidence and queued send intent semantics. |
+| Record Cards/reports | Dedicated minimum-data period/year projection with preview. |
+| Archive / A não publicar | Explicit reason/date/history and separate restore. |
+| Import | Source + preview/validation/duplicate/conflict analysis + authenticated prepare/confirm/execute + create-only rollback/recovery. |
+| People Map | Privacy-first approximate manual locations with `map.read`/`map.write`, minimum Map DTO, graphical map + semantic list, group filter/legend. |
+| Contact List | Dedicated least-privilege configurable projection/export. |
+| Emergency mode | Authorized mobile-first emergency workflow and separate emergency-contact boundary. |
+| CSV | Capability-aware export with spreadsheet formula-injection protection. |
+| PDF | Direct Record Cards PDF from the already-authorized projection only. |
+| DOCX | Deferred/not required unless later user/product evidence establishes a need beyond CSV/PDF. |
 
-Any period covering the relevant time is operational unavailability; `reasonCode` is descriptive and must not be reinterpreted as permission to ignore a period.
+## 5. People Map contract inventory
 
-### Eligibility
+Integrated through PR #392 / main `743a7d7d3017aa4cf81a783b2e8bdcb1db241aac`.
 
-Current `eligibilityApi` exposes per-person:
+Authority:
 
-- list explicit assignment-type decisions;
-- set `assignmentTypeId` + `enabled`;
-- `decidedAt` evidence.
+- read: `people.read + map.read`;
+- set/remove: `people.write + map.write`;
+- `map.read` and `map.write` are sensitive;
+- no implicit grant from `tenant.manage`, Contact access or browser state.
 
-Missing eligibility data must never be treated as positive eligibility.
+Data model:
 
-### Households
+- tenant-scoped dedicated location persistence;
+- one location per tenant + Person;
+- `precision = approximate`;
+- `source = manual`;
+- server validation and normalization to at most two decimal places before persistence;
+- no raw higher-precision persistence;
+- same-Person mutations serialized for concurrent idempotency.
 
-Current `householdsApi` exposes list/get/create/update/delete with `id`, `name`, `memberIds`.
+Privacy:
 
-### Service groups
+- no automatic postal-address geocoding;
+- no browser/IP/device geolocation;
+- no inferred location;
+- no Map coordinates added to Directory/Profile/Contact List/Transfers/Record Cards generic DTOs;
+- GET Map returns only Person ID, displayName and approximate normalized coordinates;
+- archived/non-publishable People excluded;
+- no coordinates in general audit/outbox payload metadata;
+- no Person/group identity in map tile-provider requests;
+- no browser persistence of Map person data.
 
-Current `serviceGroupsApi` exposes list/get/create/update/delete with `id`, `name`, `memberIds`, optional `overseerId`, optional `assistantId`.
+UI:
 
-### Responsibilities
+- Ant Design 6 People Map entry behind `map.read`;
+- Leaflet/OpenStreetMap graphical enhancement lazy-loaded;
+- local overlays;
+- semantic equivalent list;
+- keyboard point/list equivalence;
+- locally joined Service Group filter/legend using the existing authorized service-group projection without widening the Map DTO;
+- pt-PT/en/es;
+- loading/empty/error/retry/401/403/read-only states;
+- stale/double-submit guards;
+- 320/375/390/430/640/768/1024/1280/1440 responsive/reflow runtime coverage.
 
-Current `responsibilitiesApi` exposes:
+## 6. Export/import inventory
 
-- list/get assignments;
-- assign responsibility;
-- end responsibility;
-- `personId`, `responsibilityKey`, `startsAt`, optional `endsAt`;
-- canonical `[startsAt, endsAt)` semantics.
+Approved People export paths:
 
-### Emergency contacts
+- safe CSV where required;
+- Record Cards PDF;
+- controlled Contact List export.
 
-Current `emergencyContactsApi` exposes per-person list/create/update/delete with `name`, `phone`, optional `relationship`.
+DOCX is not required for People technical completion. See `docs/PEOPLE_DOCX_EXPORT_DECISION.md`.
 
-This remains sensitive data behind `emergency-contacts.read/write`; it must not become a default Directory or AI payload.
-
-### Assignment evidence and recommendations
-
-Current meeting/assignment contracts plus the PX7 server adapter provide:
-
-- current and completed assignment evidence;
-- explicit eligibility, availability and conflict facts;
-- deterministic candidate ranking with reasons/warnings;
-- tenant/capability isolation;
-- human-final-decision semantics.
-
-PX7.8 persistent manual exclusions/preferences remain absent and must not be invented in browser state.
-
-## 3. Operational assistance
-
-PX8 is implemented from authoritative operational facts, including affected assignment by absence, incomplete meeting attention, workload/rotation facts and long-interval insight. Assistance remains advisory, dismissible/navigable and does not autonomously assign.
-
-## 4. Import / recovery inventory
-
-Implemented:
-
-- supported import source selection;
-- server-authoritative preview and validation;
-- duplicate/conflict analysis;
-- dry-run/recovery boundary.
-
-Not implemented intentionally:
-
-- durable execute/rollback, because the current architecture still lacks the required atomic transaction + migration log + persisted rollback plan. Do not expose execute/rollback routes until that architecture exists.
-
-## 5. Notification/reminder inventory
-
-`NotificationIntentService` already supports `kind: 'reminder'` for assignment notification intents and provides:
-
-- server capability enforcement via `schedule.write`;
-- server-derived tenant/actor context;
-- recipient notification preferences;
-- deterministic idempotency key per source event/recipient/channel;
-- audit and domain-event emission;
-- no duplicate intent when the idempotency key already exists.
-
-Missing for PX9.4:
-
-- an authoritative read model/repository query for **who needs a reminder**;
-- an explicit operational **reason** contract;
-- authoritative **last reminder date/status** derived from delivery history;
-- a read API consumed by the UI before the send action.
-
-The UI must not infer these from browser-local history.
-
-## 6. Remaining PX9 contracts/gaps
-
-| Target capability | Current status | Required next action |
-| --- | --- | --- |
-| Transfers send/receive | No complete People transfer contract | Define tenant-safe transfer aggregate/persistence, explicit selected-person scope, secure one-time/expiring receive token lifecycle, status/history, audit and replay protections before UI. |
-| Labels/tags | **Integrated** | Reuse canonical People labels contract and Directory UI; do not create a parallel label model. |
-| Reminders | Notification send intent exists; read model missing | Build authoritative reminder-needed/reason/last-reminder read contract, then UI and send confirmation using existing notification intent path. |
-| Archive / do-not-publish | `active` flag exists but is insufficient | Define reason/date/audit/restore persistence and visibility semantics before UI. |
-| Record cards/reports | No approved report schema | Define permitted fields, year/period semantics, preview and export privacy contract. |
-| People map | No approved location model | Define precision, consent/authority, capabilities, retention and group projection before map UI. |
-| Configurable Contact List | Ordinary Contact exists but is least-privilege per-person | Define dedicated server projection/export contract; never widen general Directory DTO with contact PII for convenience. |
-| CSV export | Directory CSV exists with formula-injection protection | Reuse where sufficient; add fields only after privacy/authority review. |
-| PDF export | No approved general People report contract | Implement only against a reviewed report/contact-list projection. |
-| DOCX export | Product need not established | Defer unless user testing confirms a real need. |
+User-provided import data follows server-authoritative preview/validation and authenticated execution boundaries. Real personal data must never be committed as repository fixtures or CI evidence.
 
 ## 7. Security/privacy invariants
 
 - Tenant, actor and capabilities are server-derived.
-- Do not trust frontend authority assertions.
-- Do not put PII in URL/search, browser storage, analytics, logs, audit values, domain-event values or service-worker cache.
-- Private authenticated API responses are not PWA-cached.
-- Sensitive projections use least privilege rather than widening general People DTOs.
-- Retry/double-submit/stale-response ownership must be explicit for every new async mutation surface.
-- pt-PT/en/es and WCAG 2.2 AA remain release requirements.
+- Frontend authority assertions are untrusted.
+- Cross-tenant access is rejected before projection/persistence.
+- Sensitive responses use no-store.
+- PII is not placed in URLs, browser storage, analytics, general logs, service-worker caches or unapproved event/audit values.
+- Sensitive projections use least privilege instead of widening generic People DTOs.
+- Async mutation surfaces require retry/double-submit/stale-response ownership.
+- No inference of spiritual qualification or personal worth.
 
-## 8. Safe next engineering order
+## 8. Accessibility/acceptance boundary
 
-1. Preserve current green People/PX baseline.
-2. Build PX9.4 authoritative reminder read model before adding reminder UI; reuse existing notification intent send path.
-3. Design remaining PX9 server/domain/privacy contracts one slice at a time, starting with the smallest independently reviewable aggregate/query.
-4. Keep PX7.8 blocked until a persistent manual-constraint model is approved.
-5. Leave real-user production writes and real screen-reader acceptance to `docs/PEOPLE_REAL_USER_PRODUCTION_E2E_PENDING.md`.
+Automated technical coverage includes responsive/reflow, keyboard semantics where supported, themes/locales and privacy/browser regressions.
+
+Still human/manual:
+
+- real screen-reader acceptance;
+- write-capable real-user production walkthrough using approved disposable/real data;
+- physical-device evidence when explicitly required.
+
+These are acceptance evidence gaps, not missing People implementation.
+
+## 9. Current engineering direction
+
+People is technically complete and is the Product Experience reference module.
+
+Next recommended module: **Organization 2.0**.
+
+Reuse the existing People households, service groups, responsibilities, session/capability and Ant Design interaction patterns. Do not create competing organization stores or rebuild working People contracts.
