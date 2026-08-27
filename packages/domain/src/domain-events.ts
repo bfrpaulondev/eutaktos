@@ -43,6 +43,9 @@ export type DomainEventType =
   | 'ExportCreated'
   | 'SensitiveRecordAccessed';
 
+export type DomainEventPayloadValue = string | number | boolean | null;
+export type DomainEventPayload = Readonly<Record<string, DomainEventPayloadValue>>;
+
 export interface DomainEvent {
   id: string;
   tenantId: TenantId;
@@ -52,6 +55,7 @@ export interface DomainEvent {
   occurredAt: string;
   schemaVersion: 1;
   correlationId?: string;
+  payload?: DomainEventPayload;
 }
 
 function required(value: string, field: string): string {
@@ -65,6 +69,29 @@ function validateInstant(value: string): string {
   return value;
 }
 
+function normalizePayload(payload: DomainEventPayload | undefined): DomainEventPayload | undefined {
+  if (payload === undefined) return undefined;
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('Domain event payload must be an object');
+  const entries = Object.entries(payload);
+  if (entries.length > 20) throw new Error('Domain event payload has too many fields');
+  const normalized: Record<string, DomainEventPayloadValue> = {};
+  for (const [rawKey, value] of entries) {
+    const key = required(rawKey, 'payload key');
+    if (key.length > 100) throw new Error('Domain event payload key is too long');
+    if (typeof value === 'string') {
+      if (value.length > 500) throw new Error(`Domain event payload value is too long: ${key}`);
+      normalized[key] = value;
+      continue;
+    }
+    if (value === null || typeof value === 'boolean' || (typeof value === 'number' && Number.isFinite(value))) {
+      normalized[key] = value;
+      continue;
+    }
+    throw new Error(`Invalid domain event payload value: ${key}`);
+  }
+  return Object.freeze(normalized);
+}
+
 export function createDomainEvent(input: DomainEvent): Readonly<DomainEvent> {
   required(input.id, 'eventId');
   required(input.tenantId, 'tenantId');
@@ -73,14 +100,19 @@ export function createDomainEvent(input: DomainEvent): Readonly<DomainEvent> {
   validateInstant(input.occurredAt);
   if (input.schemaVersion !== 1) throw new Error('Unsupported domain event schema version');
 
-  if (input.correlationId) {
-    return Object.freeze({
-      ...input,
-      correlationId: required(input.correlationId, 'correlationId'),
-    });
-  }
-
-  const { correlationId: _omitted, ...event } = input;
+  const payload = normalizePayload(input.payload);
+  const correlationId = input.correlationId ? required(input.correlationId, 'correlationId') : undefined;
+  const event: DomainEvent = {
+    id: input.id,
+    tenantId: input.tenantId,
+    type: input.type,
+    aggregateId: input.aggregateId,
+    actorId: input.actorId,
+    occurredAt: input.occurredAt,
+    schemaVersion: input.schemaVersion,
+    ...(correlationId ? { correlationId } : {}),
+    ...(payload ? { payload } : {}),
+  };
   return Object.freeze(event);
 }
 
