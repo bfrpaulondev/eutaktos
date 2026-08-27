@@ -4,7 +4,7 @@
 
 PX9.8 provides the currently safe production-supported Hourglass reconciliation operation: an authenticated, server-authoritative **read-only dry-run** through `POST /api/import/hourglass/preview`.
 
-PX9.9 is **not complete**. The repository contains application-layer migration/rollback primitives, but the production persistence adapter does not currently expose an atomic migration commit plus durable rollback-plan/log contract. A production Hourglass execute/rollback endpoint must not be added by composing independent per-person writes.
+PX9.9 is **not complete**. Durable atomic apply and a deliberately create-only rollback primitive now exist internally, but no authenticated execute/rollback HTTP surface is exposed. A production Hourglass execute/rollback flow must not be added by composing independent per-person writes or by binding the older generic migration workflow without reconciling it with the current Hourglass-specific explicit-eligibility contract.
 
 ## What is safe today
 
@@ -15,50 +15,64 @@ PX9.9 is **not complete**. The repository contains application-layer migration/r
 - The preview returns `create`, `unchanged` and `conflict` outcomes without exposing internal person IDs, tenant IDs or Hourglass external IDs to the UI.
 - The preview performs no People, eligibility, external-reference, migration-log, audit or outbox mutation.
 
-This is the supported PX9 dry-run boundary until the write architecture below exists.
+This remains the supported user-facing PX9 boundary until the server execution composition below is completed and independently accepted.
 
 ## Existing reusable application foundation
 
-`packages/application/src/migration-workflow-service.ts` already models important invariants that a future Hourglass write adapter must preserve:
+`packages/application/src/migration-workflow-service.ts` models useful invariants that future Hourglass write composition should preserve:
 
 - prepare before execute;
 - stale-confirmation rejection;
 - explicit conflict/error rejection;
-- rollback plans containing delete-new / restore-before semantics;
 - tenant isolation and `people.write` capability enforcement;
 - migration audit and domain events;
 - explicit rollback state.
 
-These application primitives are not evidence that production rollback exists. The production database adapter currently exposes entity-level mutation RPCs but no single durable transaction that atomically commits the imported People changes together with a migration log and rollback plan.
+It is **not** the authoritative Hourglass write contract by itself. Its generic row/update model predates the current Hourglass projection, which includes explicit eligibility evidence and currently treats differences to existing People as conflicts rather than silent updates. Do not bind it blindly to production persistence.
 
-### Migration commit persistence foundation (2026-08-27)
+### Atomic migration commit foundation (2026-08-27)
 
-The required durable transaction *primitive* now exists as an internal persistence contract: `eutaktos_apply_hourglass_migration_commit` (see `supabase/migrations/20260827110000_hourglass_migration_commit_atomic.sql`) applies all supported person changes together with the migration log, complete rollback plan, audit row and outbox event in one atomic transaction, records post-commit versions for future stale/concurrent-change protection during rollback, rejects cross-tenant payloads, duplicate change identities and concurrent entity modifications, and treats an identical retry under the same migration identity as `already-applied`.
+`eutaktos_apply_hourglass_migration_commit` provides the durable atomic apply primitive. It applies all supported person changes together with the migration log, complete rollback plan, audit row and outbox event in one database transaction, records post-commit versions, rejects cross-tenant payloads, duplicate change identities and concurrent entity modifications, and uses a complete commit fingerprint for replay identity.
 
-This does **not** expose execute or rollback anywhere:
+Migration `20260827114500_hourglass_migration_apply_replay_lock.sql` additionally serializes apply attempts for the same tenant + migration identity with a transaction-scoped advisory lock before the existing fingerprint replay guard executes. This closes the concurrent-retry race where two identical requests could previously pass the pre-insert replay lookup at the same time. The internal unlocked function is no longer executable by `service_role`; callers must use the serialized wrapper.
 
-- no authenticated execute/rollback endpoint consumes it yet;
-- the production unit-of-work binding between `MigrationWorkflowService` and this RPC still has to be implemented and reviewed;
-- rollback application using the persisted plan remains intentionally unimplemented until its own reviewed stale-protection contract exists;
-- the canonical import surface therefore remains the read-only dry-run preview documented above.
+### Create-only rollback foundation (2026-08-27)
+
+`eutaktos_rollback_hourglass_create_migration` provides a deliberately narrow atomic rollback primitive for the shape the authoritative Hourglass preview can currently accept safely: created People only. It:
+
+- locks the persisted migration and every created Person before deletion;
+- requires exact post-commit entity versions;
+- aborts the whole rollback if any created Person changed or disappeared;
+- marks the migration `rolled-back` and persists audit/outbox evidence atomically;
+- treats an exact retry as `already-rolled-back`;
+- rejects update/restore migration shapes instead of pretending the older partial restore snapshot is sufficient for explicit eligibility or richer People state.
+
+These persistence primitives still do **not** expose execute or rollback to a user:
+
+- no authenticated execute endpoint consumes the apply primitive;
+- no authenticated rollback endpoint consumes the create-only rollback primitive;
+- no browser Apply/Rollback action is authorized yet;
+- the next safe implementation is an Hourglass-specific server execution composition built from fresh authoritative inspection/preview evidence, not a blind generic `MigrationWorkflowService` binding;
+- the canonical user-facing import surface therefore remains the read-only dry-run preview.
 
 ## Required production contract before PX9.9 can be completed
 
-A future implementation must provide one server-owned transaction boundary that:
+A future implementation must provide one server-owned execution boundary that:
 
 1. resolves tenant, actor and capabilities from the verified session;
-2. re-runs validation and reconciliation against fresh authoritative state;
+2. re-runs Hourglass validation and reconciliation against fresh authoritative People + explicit eligibility state;
 3. rejects stale confirmation and unresolved conflicts before mutation;
-4. atomically applies all supported changes or applies none;
-5. persists a migration identifier, operation log and complete rollback plan in the same durable transaction;
-6. records minimum-necessary audit/domain-event metadata without imported PII values;
-7. supports idempotent retry after ambiguous network outcomes;
-8. supports tenant-isolated rollback using the persisted plan, with stale/concurrent-change protection;
-9. verifies the resulting authoritative state after execute and rollback;
-10. never places source payload, contact values, names or other imported PII in URLs, browser storage, analytics, logs or service-worker caches.
+4. maps only the currently approved Hourglass create shape into complete canonical Person data and explicit eligibility data;
+5. atomically applies all supported changes or applies none;
+6. persists a migration identifier, operation log and complete rollback evidence in the same durable transaction;
+7. records minimum-necessary audit/domain-event metadata without imported PII values;
+8. supports idempotent retry after ambiguous network outcomes, including simultaneous retries for the same migration identity;
+9. exposes rollback only for migration shapes whose persisted rollback evidence is complete enough to restore safely;
+10. verifies the resulting authoritative state after execute and rollback;
+11. never places source payload, contact values, names or other imported PII in URLs, browser storage, analytics, logs or service-worker caches.
 
-If the underlying data model cannot guarantee an atomic execute/rollback contract, the product must keep the import read-only rather than display a misleading Apply or Rollback action.
+If the underlying data model cannot guarantee the relevant atomic execute/rollback contract for a migration shape, the product must keep that shape read-only rather than display a misleading Apply or Rollback action.
 
 ## Acceptance boundary
 
-PX9.9 remains unchecked until the production transaction/persistence contract above exists, automated failure/retry/tenant/privacy tests pass, and the write-capable real-user production walkthrough is performed by the independent acceptance agent. The existing preview must not be described as a completed rollback-capable import.
+PX9.9 remains unchecked until the authenticated Hourglass-specific execution composition exists, automated failure/retry/concurrency/tenant/privacy tests pass, and the write-capable real-user production walkthrough is performed by the independent acceptance agent. Internal persistence primitives or a green preview alone are not evidence of a completed rollback-capable import workflow.
