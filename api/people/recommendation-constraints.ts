@@ -81,25 +81,39 @@ export async function changeManualRecommendationConstraint(
 
   if (action === 'exclude') {
     const constraint = normalizeManualRecommendationConstraint({ id, tenantId: context.tenantId, personId, assignmentTypeId, kind: 'exclude', createdAt: occurredAt });
-    await database.applyEntityChange({
+    try {
+      await database.applyEntityChange({
+        p_tenant_id: context.tenantId,
+        p_entity_type: ENTITY_TYPE,
+        p_entity_id: id,
+        p_data: constraint,
+        p_expected_version: null,
+        p_audit: audit,
+        p_event: event,
+      });
+      return Object.freeze({ excluded: true, changed: true });
+    } catch (error) {
+      const persistedRow = await database.entity(context.tenantId, ENTITY_TYPE, id);
+      if (!persistedRow) throw error;
+      const persisted = stored(persistedRow, context.tenantId);
+      if (persisted.personId !== personId || persisted.assignmentTypeId !== assignmentTypeId || persisted.kind !== 'exclude') throw error;
+      return Object.freeze({ excluded: true, changed: false });
+    }
+  }
+
+  try {
+    await database.deleteEntityChange({
       p_tenant_id: context.tenantId,
       p_entity_type: ENTITY_TYPE,
       p_entity_id: id,
-      p_data: constraint,
-      p_expected_version: null,
+      p_expected_version: currentRow!.version,
       p_audit: audit,
       p_event: event,
     });
-    return Object.freeze({ excluded: true, changed: true });
+    return Object.freeze({ excluded: false, changed: true });
+  } catch (error) {
+    const persistedRow = await database.entity(context.tenantId, ENTITY_TYPE, id);
+    if (persistedRow) throw error;
+    return Object.freeze({ excluded: false, changed: false });
   }
-
-  await database.deleteEntityChange({
-    p_tenant_id: context.tenantId,
-    p_entity_type: ENTITY_TYPE,
-    p_entity_id: id,
-    p_expected_version: currentRow!.version,
-    p_audit: audit,
-    p_event: event,
-  });
-  return Object.freeze({ excluded: false, changed: true });
 }
