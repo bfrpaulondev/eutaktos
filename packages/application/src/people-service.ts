@@ -104,8 +104,8 @@ export class PeopleDirectoryService {
     if (input.labels !== undefined) { const next = normalizePersonLabels(input.labels); if (!labelsEqual(next, labels)) { labels = next; changedFields.push('labels'); } }
     if (input.ordinaryContact !== undefined) { const normalized = input.ordinaryContact === null ? undefined : normalizeOrdinaryContact(input.ordinaryContact); const next = normalized && Object.keys(normalized).length ? normalized : undefined; if (!ordinaryContactsEqual(next, ordinaryContact)) { ordinaryContact = next; changedFields.push('ordinaryContact'); } }
     if (changedFields.length === 0) return existing;
-    const { ordinaryContact: _previousOrdinaryContact, ...personWithoutOrdinaryContact } = existing;
-    const person: CongregationPerson = { ...personWithoutOrdinaryContact, displayName, ...(preferredLocale ? { preferredLocale } : { preferredLocale: undefined }), active, labels: labels ?? [], ...(ordinaryContact ? { ordinaryContact } : {}), availability: existing.availability, eligibility: existing.eligibility, emergencyContacts: existing.emergencyContacts };
+    const { ordinaryContact: _previousOrdinaryContact, labels: _previousLabels, ...personBase } = existing;
+    const person: CongregationPerson = { ...personBase, displayName, ...(preferredLocale ? { preferredLocale } : { preferredLocale: undefined }), active, ...(labels?.length ? { labels } : {}), ...(ordinaryContact ? { ordinaryContact } : {}), availability: existing.availability, eligibility: existing.eligibility, emergencyContacts: existing.emergencyContacts };
     const occurredAt = this.#runtime.now();
     return this.#unitOfWork.commitUpdate(context, { person, auditEvent: createAuditEvent({ id: this.#runtime.nextId('audit'), tenantId: context.tenantId, resourceType: 'person', resourceId: person.id, action: 'update', actorId: context.actorId, occurredAt, changedFields }), domainEvent: createDomainEvent({ id: this.#runtime.nextId('event'), tenantId: context.tenantId, type: 'PersonUpdated', aggregateId: person.id, actorId: context.actorId, occurredAt, schemaVersion: 1, ...eventCorrelation(metadata) }) });
   }
@@ -115,7 +115,7 @@ export class PeopleDirectoryService {
     const occurredAt = this.#runtime.now();
     const personId = this.#runtime.nextId('person');
     const preferredLocale = input.preferredLocale ? normalizeLocale(input.preferredLocale) : undefined;
-    const person: CongregationPerson = { id: personId, tenantId: context.tenantId, displayName: normalizeDisplayName(input.displayName), ...(preferredLocale ? { preferredLocale } : {}), active: input.active ?? true, labels: [], availability: [], eligibility: [], emergencyContacts: [], ...(externalIds.length ? { externalIds: Object.freeze([...externalIds]) } : {}) };
+    const person: CongregationPerson = { id: personId, tenantId: context.tenantId, displayName: normalizeDisplayName(input.displayName), ...(preferredLocale ? { preferredLocale } : {}), active: input.active ?? true, availability: [], eligibility: [], emergencyContacts: [], ...(externalIds.length ? { externalIds: Object.freeze([...externalIds]) } : {}) };
     const changedFields = [ 'active', 'displayName', ...(preferredLocale ? ['preferredLocale'] : []), ...(externalIds.length ? ['externalReferences'] : []) ];
     return this.#unitOfWork.commitCreate(context, { person, auditEvent: createAuditEvent({ id: this.#runtime.nextId('audit'), tenantId: context.tenantId, resourceType: 'person', resourceId: personId, action: 'create', actorId: context.actorId, occurredAt, changedFields }), domainEvent: createDomainEvent({ id: this.#runtime.nextId('event'), tenantId: context.tenantId, type: 'PersonCreated', aggregateId: personId, actorId: context.actorId, occurredAt, schemaVersion: 1, ...eventCorrelation(metadata) }) });
   }
