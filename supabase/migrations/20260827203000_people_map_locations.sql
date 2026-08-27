@@ -65,7 +65,7 @@ create or replace function public.eutaktos_set_people_map_location(
   changed boolean,
   latitude numeric,
   longitude numeric,
-  precision text,
+  "precision" text,
   source text,
   updated_at timestamptz
 )
