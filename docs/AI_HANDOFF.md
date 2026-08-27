@@ -1,137 +1,158 @@
 # AI HANDOFF — CURRENT SOURCE OF TRUTH
 
-> Updated 2026-08-27 after PX9.16 direct Record Cards PDF export and PX9.1/PX9.2 secure People Transfers integration. Historical worker reports and older acceptance summaries may be stale. Always fetch current `main` first.
+> Updated 2026-08-27 after final Principal review and integration of PX9.10/PX9.11 People Map. Historical worker reports and older acceptance summaries may be stale. Always fetch current `main` first.
 
 ## Mandatory reading order
 
 Before coding, every Principal or worker agent MUST read, in this order:
 
 1. `docs/AI_HANDOFF.md` — current project/priority rules.
-2. `docs/PEOPLE_PRODUCT_EXPERIENCE_CURRENT_STATUS.md` — what is actually integrated now and what remains blocked/deferred.
-3. `docs/PRODUCT_EXPERIENCE_MASTER_PLAN.md` — Product Experience requirements/task IDs; checkbox synchronization can lag integrated code and must be reconciled against current status and `main` evidence before starting duplicate work.
-4. `docs/PRODUCT_EXPERIENCE_INVENTORY.md` — capability/API/migration inventory.
+2. `docs/PEOPLE_PRODUCT_EXPERIENCE_CURRENT_STATUS.md` — current integrated People reference-module status.
+3. `docs/PRODUCT_EXPERIENCE_MASTER_PLAN.md` — Product Experience requirements/task IDs.
+4. `docs/PRODUCT_EXPERIENCE_INVENTORY.md` — capability/API/integration inventory.
 5. The domain/security document directly relevant to the selected task.
 6. For administrator-AI work, `docs/AI_AGENT_PRODUCT_SPEC.md`.
 
-No agent may invent a competing DTO/domain model, client-only authority or UI direction merely to clear an unchecked task.
+No agent may invent a competing DTO/domain model, client-only authority or UI direction merely to clear an old unchecked task.
 
 ## Canonical project
 
-- Repository: `bfrpaulondev/eutaktos`
-- Canonical production: `https://eutakes.netlify.app/`
-- `https://rainbow-zuccutto-00d981.netlify.app/` is not the production acceptance target.
-- Vercel statuses are not Eutaktos acceptance evidence.
-- Current People/PX technical baseline: `550ff297c7937b11ee6be69600df28afb2712ea6`.
-- Earlier independently accepted People-core baseline `f013f72722c18a6df06ad7c6390be668ed239dbf` remains historical evidence, but substantial approved work has been integrated since then.
+- Repository: `bfrpaulondev/eutaktos`.
+- Canonical production acceptance target: `https://eutakes.netlify.app/`.
+- `rainbow-zuccutto-00d981` is not the canonical acceptance target.
+- Vercel rate-limit/build-limit statuses are not Eutaktos acceptance evidence.
+- Current People technical runtime baseline: `743a7d7d3017aa4cf81a783b2e8bdcb1db241aac`.
+- Earlier C6 People-core baseline remains historical acceptance evidence but does not replace the later integrated People composition.
 
-## Current product state
+## People reference module — technical status
 
-Technically integrated on `main`:
+**People is technically complete.**
 
-- PX5 ordinary Contact profile flow, participation explanation/filtering and profile regressions;
-- PX6 complete guided Identity → Contact → Organization → Participation → Review workflow using canonical Contact/responsibility/availability contracts and partial-persistence-safe retries;
-- PX7 deterministic explainable recommendations including persistent explicit manual exclusions (PX7.8), while human choice remains final;
-- PX8 operational assistance from explicit reviewed facts only;
-- PX9 secure send/receive Transfers, Labels/tags, Reminders, Record Cards/reports, Archive / “A não publicar”, import source selection/preview, authenticated Hourglass prepare → confirm → execute + create-only rollback, emergency mode, configurable Contact List, safe CSV export and direct Record Cards PDF export;
-- PX10 automated 200%/400% People zoom/reflow coverage plus existing responsive/theme/keyboard/privacy gates;
+Integrated on `main`:
+
+- People Overview and Directory 2.0;
+- unified Person Profile;
+- complete guided Add/Edit Person workflow;
+- ordinary Contact under a dedicated least-privilege boundary;
+- households, service groups and responsibilities context;
+- availability and explicit eligibility;
+- PX7 deterministic explainable recommendations including persistent explicit manual exclusions;
+- PX8 factual responsible-person assistance;
+- secure People Transfers;
+- Labels/tags;
+- Reminders;
+- Record Cards/reports;
+- Archive / “A não publicar”;
+- Hourglass import source/preview plus authenticated prepare → confirm → execute and create-only rollback/recovery;
+- configurable Contact List;
+- emergency mode/emergency contacts;
+- safe CSV export;
+- direct Record Cards PDF export;
+- PX9.10/PX9.11 privacy-first People Map;
+- PX10 automated responsive/keyboard/privacy and 200%/400% reflow evidence;
 - PX11 Ant Design 6 migration and MUI/Emotion runtime retirement.
 
-Read `docs/PEOPLE_PRODUCT_EXPERIENCE_CURRENT_STATUS.md` for exact boundaries and evidence.
+See `docs/PEOPLE_PRODUCT_EXPERIENCE_CURRENT_STATUS.md` and `docs/PEOPLE_TECHNICAL_CLOSEOUT_AUDIT_2026-08-27.md` for exact evidence.
 
-## Important remaining boundaries
+## People Map authoritative boundary
 
-### PX7
+PR #392 was Principal-reviewed/corrected and squash-integrated as main `743a7d7d3017aa4cf81a783b2e8bdcb1db241aac`.
 
-PX7.8 is no longer blocked. PR #382 introduced a persistent tenant/person/assignment-type manual-exclusion contract and server-authoritative mutation/read path. Do not create a second exclusion implementation or add subjective preference/boost scoring without a separately approved product rule.
+Final reviewed PR head: `ad5b86bf9a40a9c75dafe7495e0ffdbc3b25ddfc`.
 
-### PX9 Transfers now integrated
+Final exact-head gates: GitHub Actions `33115570822` / #986, `quality` PASS, `browser-regression` PASS, canonical `netlify/eutakes/deploy-preview` PASS.
 
-PR #387 implements the reviewed People transfer lifecycle. Do not replace it with browser-owned transfer state or predictable codes.
+Do not rebuild or fork the Map contract.
 
-Authoritative boundary:
+Authoritative rules:
 
-- sender selects explicit active People and confirms the privacy/minimum-data transfer scope;
-- transfer secret is 256-bit URL-safe random material; only its SHA-256 digest is persisted;
-- transfer expires after 72 hours and may be claimed once atomically;
-- same-destination exact claim retries recover idempotently;
-- sender may cancel a pending transfer, including recovery after an ambiguous/lost send response;
-- source People are never deleted automatically;
-- destination People receive new Person IDs;
-- transferred data is minimum-data only: display name, preferred locale and ordinary Contact;
-- emergency contacts, eligibility, availability, labels, groups, responsibilities, assignment history and external IDs are excluded;
-- tenant, actor and capabilities remain server-derived;
-- history never returns the raw transfer secret or ordinary Contact values.
+- read requires server-derived `people.read + map.read`;
+- set/remove require server-derived `people.write + map.write`;
+- `map.read` / `map.write` are sensitive capabilities;
+- `tenant.manage`, People-only capabilities, Contact access and browser claims do not imply Map access;
+- tenant/actor/capabilities remain server-derived;
+- dedicated tenant-scoped location persistence;
+- explicit manual approximate coordinates only;
+- server normalizes to at most two decimals before persistence;
+- no automatic ordinary-Contact geocoding;
+- no browser/IP/device geolocation;
+- no inferred location;
+- `GET /api/people/map` remains minimum-data: Person ID, display name and normalized approximate coordinates only;
+- archived/non-publishable People are excluded;
+- no coordinates in general audit/outbox payload metadata;
+- same-Person mutations are serialized to preserve concurrent retry idempotency;
+- Leaflet/OpenStreetMap is lazy-loaded;
+- Person/group overlays are local and identity is never included in tile requests;
+- graphical map has an equivalent semantic list;
+- PX9.11 group filter/legend is derived locally from the existing authorized Service Group projection and does not widen `people-map-v1`;
+- pt-PT/en/es, keyboard selection, loading/empty/error/retry/401/403, stale ownership and double-submit protection are required;
+- responsive/reflow coverage includes 320/375/390/430/640/768/1024/1280/1440.
 
-### PX9 Record Cards/PDF now integrated
+Historical `principal/px9-people-map` is quarantined and must not be reused; it predates the final contract.
 
-PX9.5 uses a purpose-built minimum-data report projection with annual/bounded civil-date period semantics and explicit report capability checks. PX9.16 renders direct binary PDF only from the current successful authorized preview and adds no wider DTO/PII boundary.
+## PX9.17 DOCX
 
-Do not widen Directory, Contact List or private DTOs to support reports/PDF.
+PX9.17 is **DEFERRED / NOT REQUIRED** for People technical completion.
 
-### Remaining PX9
+CSV and PDF cover the currently approved People export needs. Do not implement DOCX solely for competitor parity. Add it only if later user/product evidence establishes a concrete need. See `docs/PEOPLE_DOCX_EXPORT_DECISION.md`.
 
-The only unresolved PX9 product slices are:
+## Human production/accessibility acceptance
 
-- **PX9.10/PX9.11 Map** — blocked because no approved Person/group geolocation model, precision policy, source-of-truth for coordinates or least-privilege map capability boundary exists. Ordinary Contact postal address is not authorization to geocode, persist or expose precise coordinates.
-- **PX9.17 DOCX** — intentionally research-deferred; not required solely for competitor parity while CSV/PDF already cover approved export needs.
+Real screen-reader acceptance and write-capable real-user production walkthroughs cannot be replaced by mocked/sanitized browser fixtures.
 
-Do not invent a location model or collect/geocode new location data merely to clear a checkbox.
+They remain separate acceptance tasks in `docs/PEOPLE_REAL_USER_PRODUCTION_E2E_PENDING.md`.
 
-### Hourglass import boundary already integrated
+Do not mark them complete from CI, previews, static inspection or automated semantics alone.
 
-The authoritative Hourglass path is now:
+## Next Product Experience priority
 
-- local supported-source inspection;
-- read-only server reconciliation preview;
-- `POST /api/import/hourglass/prepare` creating/recovering a server-owned execution attempt bound to the exact preview digest;
-- explicit browser confirmation;
-- `POST /api/import/hourglass/execute` re-validating the source/attempt and committing atomically under server-derived authority;
-- optional `POST /api/import/hourglass/rollback` for the proven create-only migration shape;
-- exact retry/replay protection, stale confirmation rejection and authoritative state verification.
+The next reference-quality rebuild target is **Organization 2.0**.
 
-Do not reintroduce browser-owned timestamps, tenant/actor/capabilities, per-row writes or name-based identity matching.
+Use People as the design/engineering pattern rather than starting a new design language.
 
-### Contact List boundary already integrated
+Organization 2.0 should reuse existing authoritative contracts for:
 
-PX9.12 uses a dedicated least-privilege Contact List server projection and export path. Ordinary Contact remains excluded from the general Directory DTO. Do not widen Directory merely to expose bulk phone/email/address data.
+- People identities/profile navigation;
+- households/families;
+- service groups and memberships;
+- responsibility assignments;
+- congregation settings where applicable;
+- session/capability enforcement;
+- audit/history;
+- Ant Design 6 interaction and responsive patterns.
 
-### Human production/accessibility acceptance
+Do not create duplicate organization stores merely because older UI screens are fragmented.
 
-Real screen-reader acceptance and write-capable real-user production walkthroughs cannot be replaced with mocked browser fixtures. Required scenarios are kept in `docs/PEOPLE_REAL_USER_PRODUCTION_E2E_PENDING.md` for a later independent agent with approved credentials/data.
+Recommended module sequence after People:
 
-Do not mark those human scenarios complete from CI, sanitized fixtures, preview deployments or static inspection.
+`Organization 2.0 → Prepare Meeting 2.0 → Planning 2.0 → global Home/Dashboard refinement → Administration refinement`.
 
 ## Product direction
 
-Eutaktos is an organization assistant, not generic CRUD. It must:
+Eutaktos is an organization assistant, not generic CRUD. It should:
 
 - show what needs attention;
 - explain why;
 - guide the next action;
-- provide deterministic, explainable candidate suggestions;
+- provide deterministic/explainable assistance;
 - preserve human decision-making;
-- make useful Hourglass People capabilities simpler and safer.
+- make operational workflows simpler and safer.
 
 Recommendation evidence is advisory. Never auto-assign solely because somebody ranks first.
 
 ## UI direction
 
-Ant Design 6 is the authoritative runtime component foundation. MUI/Emotion runtime dependencies have been retired from the web PWA and a regression boundary prevents reintroduction.
+Ant Design 6 is the authoritative runtime component foundation.
+
+MUI/Emotion runtime dependencies are retired and guarded from reintroduction.
 
 Do not add new MUI runtime dependencies or create a second design system.
 
-## Current priority order
-
-1. Preserve the green People/PX baseline and canonical security/privacy boundaries.
-2. Reconcile stale source-of-truth checkboxes/documentation against actual integrated evidence; never reimplement completed slices because an old checkbox was not synchronized.
-3. Keep PX9.10/PX9.11 Map blocked until a reviewed geolocation model, precision/privacy policy and least-privilege capability boundary exist; do not infer permission from ordinary Contact address data.
-4. Keep PX9.17 DOCX research-deferred until product evidence shows a need beyond CSV/PDF.
-5. Leave destructive/write real-user production acceptance and real screen-reader acceptance for the documented independent acceptance pass.
-6. When no safe technical work remains beyond intentionally deferred product research/human acceptance, stop autonomous implementation rather than fabricate completion.
+Reuse the People reference patterns for headers, attention cards, lists/tables, drawers/modals, async states, permission gating, responsive behavior and accessibility.
 
 ## Administrator AI
 
-The server core is advisory/read-only and must follow `docs/AI_AGENT_PRODUCT_SPEC.md`:
+The server core remains advisory/read-only and must follow `docs/AI_AGENT_PRODUCT_SPEC.md`:
 
 - `OPENAI_KEY_AGENT` server-side only;
 - tenant/actor/capabilities from authenticated server session;
@@ -147,42 +168,43 @@ The server core is advisory/read-only and must follow `docs/AI_AGENT_PRODUCT_SPE
 
 Normal engineering sequence:
 
-`ASSIGNED → IN PROGRESS → PR/REVIEW → INTEGRATED MAIN → RELEVANT GATES GREEN → REQUIRED UX/PRODUCTION EVIDENCE → DONE`
+`ASSIGNED → IN PROGRESS → PR/REVIEW → INTEGRATED MAIN → EXACT-HEAD GATES GREEN → REQUIRED UX/PRODUCTION EVIDENCE → DONE`
 
-A branch, commit, screenshot, preview deployment or green local test alone is not `DONE`.
+A branch, commit, worker report, screenshot, preview deployment or green local test alone is not `DONE`.
 
-For behavior that explicitly requires human real-user production or assistive-technology acceptance, automated evidence may prove technical readiness but not final human acceptance.
+For behavior explicitly requiring human production or assistive-technology acceptance, automated evidence may prove technical readiness but not final human acceptance.
 
 ## Ownership and branch discipline
 
-- Principal: source of truth, architecture, review/correction, integration, acceptance evidence and status synchronization.
-- Workers: only explicitly scoped tasks; one branch per task/tightly coupled slice; no direct main commits, merges or force-push.
-- Workers must report exact PX ID and base main SHA.
-- Parallel workers must not edit the same product slice unless Principal explicitly coordinates it.
+- Principal: source of truth, architecture, worker review/correction, integration, acceptance evidence and status synchronization.
+- Workers: explicitly scoped tasks only; one branch per task/tightly coupled slice; no direct main commits, merges or force-push.
+- Workers report exact task ID, base SHA, final head, changed files, tests and limitations.
+- Parallel workers do not edit the same product slice unless Principal coordinates it.
 
 ## Non-negotiable engineering rules
 
 - Preserve tenant isolation, capabilities, audit and domain events.
 - Tenant/actor/capabilities are server-derived; never trust frontend values.
+- Cross-tenant denial occurs before projection/persistence.
 - No unnecessary PII in logs, audit summaries, analytics, URLs, domain events or client storage.
-- Private authenticated API responses must not be cached by the PWA/service worker.
+- Private authenticated API responses are not PWA/service-worker cached.
 - Every async UI surface owns loading/empty/error/retry states where applicable.
 - Prevent duplicate submissions and stale-response overwrites.
 - Preserve pt-PT/en/es.
 - WCAG 2.2 AA is the minimum accessibility release floor.
 - New Product Experience surfaces use Ant Design 6.
-- Reuse existing People/organization/application contracts before creating backend behavior.
+- Reuse current application/domain contracts before adding backend behavior.
 - Human choice remains final for recommendation-driven workflows.
 
 ## Starting any new task
 
 1. Fetch current `main` and record SHA.
-2. Read this file plus current People status/master/inventory.
-3. Inspect `main` implementation/tests before assuming the feature is missing.
-4. Confirm no open PR owns the same slice.
-5. Confirm the required server/domain/privacy contract exists; if not, design/review it before UI.
+2. Read this file plus relevant current-status/master/inventory docs.
+3. Inspect current implementation/tests before assuming a feature is missing.
+4. Confirm no active PR owns the same slice.
+5. Confirm server/domain/privacy contract before UI.
 6. Branch from current `main`.
-7. Implement production behavior, tests and error/retry ownership.
+7. Implement real behavior plus tests and async/error ownership.
 8. Run relevant quality/browser/privacy/build gates and canonical Netlify preview.
 9. Merge only after exact-head gates are green.
-10. Update current-status/source-of-truth documentation without claiming deferred human acceptance.
+10. Synchronize source-of-truth documentation without claiming deferred human acceptance.
