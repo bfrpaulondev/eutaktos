@@ -1,10 +1,14 @@
 import { useMemo, useState } from 'react';
-import { Alert, Box, Button, CircularProgress, Paper } from '@mui/material';
-import { Stack, Typography } from './ui/MuiCompat';
+import Alert from 'antd/es/alert';
+import Button from 'antd/es/button';
+import Card from 'antd/es/card';
+import Space from 'antd/es/space';
+import Typography from 'antd/es/typography';
 import { AuthenticationApiError, authenticationApi } from './lib/authApi';
 
 type Locale = 'pt-PT' | 'en' | 'es';
 type ConfirmationState = 'ready' | 'submitting' | 'error';
+const { Paragraph, Text, Title } = Typography;
 
 const copy = {
   'pt-PT': {
@@ -73,22 +77,23 @@ export function MagicLinkConfirmationPanel({
     }
   };
 
+  const submitting = state === 'submitting';
   return (
-    <Box component="main" sx={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', px: 2, py: 4, bgcolor: 'background.default', boxSizing: 'border-box' }}>
-      <Paper elevation={2} sx={{ width: '100%', maxWidth: 480, boxSizing: 'border-box', p: { xs: 2.5, sm: 4 }, borderRadius: 4 }}>
-        <Stack spacing={2.5}>
-          <Box>
-            <Typography variant="overline" color="primary.main" fontWeight={800}>{text.eyebrow}</Typography>
-            <Typography component="h1" variant="h4" fontWeight={800}>{text.title}</Typography>
-          </Box>
-          <Typography>{text.intro}</Typography>
-          {state === 'error' ? <Alert severity="error">{serviceFailure ? text.serviceError : text.error}</Alert> : null}
-          <Button type="button" variant="contained" size="large" disabled={state === 'submitting'} onClick={() => void confirm()}>
-            {state === 'submitting' ? <><CircularProgress size={20} sx={{ mr: 1 }} />{text.working}</> : text.confirm}
+    <main style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', padding: '32px 16px', boxSizing: 'border-box' }}>
+      <Card style={{ width: '100%', maxWidth: 480 }} styles={{ body: { padding: 'clamp(20px, 5vw, 32px)' } }}>
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          <div>
+            <Text strong type="secondary">{text.eyebrow}</Text>
+            <Title level={1} style={{ margin: '4px 0 0', fontSize: 'clamp(28px, 6vw, 36px)' }}>{text.title}</Title>
+          </div>
+          <Paragraph style={{ margin: 0 }}>{text.intro}</Paragraph>
+          {state === 'error' ? <Alert type="error" showIcon title={serviceFailure ? text.serviceError : text.error} /> : null}
+          <Button type="primary" size="large" block loading={submitting} disabled={submitting} onClick={() => void confirm()}>
+            {submitting ? text.working : text.confirm}
           </Button>
-          <Button type="button" variant="text" disabled={state === 'submitting'} onClick={onCancel}>{text.cancel}</Button>
-        </Stack>
-      </Paper>
-    </Box>
+          <Button type="text" block disabled={submitting} onClick={onCancel}>{text.cancel}</Button>
+        </Space>
+      </Card>
+    </main>
   );
 }
