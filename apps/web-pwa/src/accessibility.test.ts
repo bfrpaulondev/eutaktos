@@ -32,10 +32,14 @@ describe('Accessibility: production confirmation dialogs are named and described
 });
 
 describe('Accessibility: destructive confirmation semantics stay explicit', () => {
-  it('delete/remove actions keep error emphasis on the real components', () => {
-    for (const component of [householdSource, serviceGroupsSource, awaySource, emergencySource, accessSource]) {
+  it('keeps error emphasis on existing MUI destructive actions', () => {
+    for (const component of [householdSource, serviceGroupsSource, awaySource, accessSource]) {
       expect(component).toContain('color="error"');
     }
+  });
+
+  it('keeps Ant danger semantics on emergency destructive actions', () => {
+    expect(emergencySource).toContain('<Button danger');
   });
 
   it('discard/finish actions keep warning emphasis on the real components', () => {
