@@ -40,7 +40,7 @@ describe('Accessibility: destructive confirmation semantics stay explicit', () =
 
   it('keeps Ant danger semantics on migrated destructive actions', () => {
     for (const component of [accessSource, emergencySource, settingsSource]) {
-      expect(component).toContain('<Button danger');
+      expect(component).toMatch(/<Button\b[^>]*\bdanger(?:\s|=|>)/);
     }
   });
 
