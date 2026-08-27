@@ -44,7 +44,7 @@ const copy = {
     codeHint: 'Si el correo contiene un código de 6 dígitos en lugar de un enlace, también puedes introducirlo abajo.',
     pilotHint: 'Acceso temporal de prueba: si ya tienes un código de 6 dígitos, puedes entrar directamente sin solicitar un enlace.',
     error: 'No se pudo completar el acceso. El código o enlace puede ser incorrecto, haber caducado o haberse usado ya.',
-    serviceError: 'El servicio de autenticação não está disponível temporalmente. Inténtalo de nuevo sin cambiar el código.',
+    serviceError: 'El servicio de autenticación no está disponible temporalmente. Inténtalo de nuevo sin cambiar el código.',
     privacy: 'El enlace se intercambia por una sesión en una cookie segura. No almacenamos tokens de autenticación en el navegador.',
   },
 } as const;
