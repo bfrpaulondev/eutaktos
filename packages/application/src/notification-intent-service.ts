@@ -1,11 +1,13 @@
 import {
   assertCapability,
   assertDeliveryTenant,
+  createAssignmentReminderRecord,
   createAuditEvent,
   createDeliveryAttempt,
   createDomainEvent,
   resolvePreferredChannel,
   type AccessContext,
+  type AssignmentReminderRecord,
   type AuditEvent,
   type DeliveryAttempt,
   type DomainEvent,
@@ -17,6 +19,7 @@ export type AssignmentNotificationKind = 'created' | 'updated' | 'cancelled' | '
 
 export interface NotificationIntentChange {
   readonly delivery: Readonly<DeliveryAttempt>;
+  readonly reminderRecord?: Readonly<AssignmentReminderRecord>;
   readonly auditEvents: readonly Readonly<AuditEvent>[];
   readonly domainEvents: readonly Readonly<DomainEvent>[];
 }
@@ -52,7 +55,8 @@ export class NotificationIntentService {
   readonly #runtime: NotificationIntentRuntime;
 
   constructor(uow: NotificationIntentUnitOfWork, runtime: NotificationIntentRuntime) {
-    this.#uow = uow; this.#runtime = runtime;
+    this.#uow = uow;
+    this.#runtime = runtime;
   }
 
   queueAssignmentIntent(
@@ -67,7 +71,9 @@ export class NotificationIntentService {
     const locale = required(input.locale, 'locale');
     const preferences = this.#uow.findPreferences(context, recipientId);
     if (!preferences) throw new Error('Notification preferences not found');
-    if (preferences.tenantId !== context.tenantId || preferences.personId !== recipientId) throw new Error('Cross-tenant notification preferences access denied');
+    if (preferences.tenantId !== context.tenantId || preferences.personId !== recipientId) {
+      throw new Error('Cross-tenant notification preferences access denied');
+    }
 
     const channel = resolvePreferredChannel(preferences);
     if (!channel) return undefined;
@@ -81,22 +87,52 @@ export class NotificationIntentService {
 
     const at = this.#runtime.now();
     const delivery = createDeliveryAttempt({
-      id: this.#runtime.nextId('delivery'), tenantId: context.tenantId, idempotencyKey,
-      notificationPreferenceId: preferences.id, recipientId, channel,
-      templateKey: TEMPLATE_BY_KIND[input.kind], locale, now: at,
+      id: this.#runtime.nextId('delivery'),
+      tenantId: context.tenantId,
+      idempotencyKey,
+      notificationPreferenceId: preferences.id,
+      recipientId,
+      channel,
+      templateKey: TEMPLATE_BY_KIND[input.kind],
+      locale,
+      now: at,
     });
+    const reminderRecord = input.kind === 'reminder'
+      ? createAssignmentReminderRecord({
+          id: delivery.id,
+          tenantId: context.tenantId,
+          assignmentId,
+          recipientId,
+          deliveryId: delivery.id,
+          queuedAt: at,
+        })
+      : undefined;
     const audit = createAuditEvent({
-      id: this.#runtime.nextId('audit'), tenantId: context.tenantId,
-      resourceType: 'notification-intent', resourceId: delivery.id, action: 'create',
-      actorId: context.actorId, occurredAt: at,
+      id: this.#runtime.nextId('audit'),
+      tenantId: context.tenantId,
+      resourceType: 'notification-intent',
+      resourceId: delivery.id,
+      action: 'create',
+      actorId: context.actorId,
+      occurredAt: at,
       changedFields: ['recipientId', 'channel', 'templateKey'],
     });
     const event = createDomainEvent({
-      id: this.#runtime.nextId('event'), tenantId: context.tenantId,
-      type: 'NotificationIntentQueued', aggregateId: assignmentId, actorId: context.actorId,
-      occurredAt: at, schemaVersion: 1, ...eventCorrelation(metadata),
+      id: this.#runtime.nextId('event'),
+      tenantId: context.tenantId,
+      type: 'NotificationIntentQueued',
+      aggregateId: assignmentId,
+      actorId: context.actorId,
+      occurredAt: at,
+      schemaVersion: 1,
+      ...eventCorrelation(metadata),
     });
-    this.#uow.commit(context, { delivery, auditEvents: [audit], domainEvents: [event] });
+    this.#uow.commit(context, {
+      delivery,
+      ...(reminderRecord ? { reminderRecord } : {}),
+      auditEvents: [audit],
+      domainEvents: [event],
+    });
     return delivery;
   }
 }
