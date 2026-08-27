@@ -1,13 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Box, Button, Card, CardContent, Chip, CircularProgress } from '@mui/material';
+import Alert from 'antd/es/alert';
+import Button from 'antd/es/button';
+import Card from 'antd/es/card';
+import Col from 'antd/es/col';
+import Row from 'antd/es/row';
+import Skeleton from 'antd/es/skeleton';
+import Space from 'antd/es/space';
+import Tag from 'antd/es/tag';
+import Typography from 'antd/es/typography';
 import { midweekApi, type MidweekOverviewDto } from './lib/midweekApi';
 import { peopleApi, type PersonProfileDto } from './lib/peopleApi';
 import { responsibilitiesApi, type ResponsibilityDto } from './lib/responsibilitiesApi';
 import type { Preferences } from './lib/preferences';
-import { Stack, Typography } from './ui/MuiCompat';
 
 type Locale = Preferences['locale'];
 type QueryState<T> = { status: 'loading' } | { status: 'ready'; value: T } | { status: 'error' };
+const { Text, Title } = Typography;
 
 export interface ProductionDashboardSummary {
   activePeople: number;
@@ -104,29 +112,59 @@ export function ProductionDashboard({ locale }: { locale: Locale }) {
   }, [midweek, people, responsibilities]);
 
   if (loading && !summary) {
-    return <Card><CardContent><Stack direction="row" spacing={1.5} alignItems="center" role="status" aria-live="polite"><CircularProgress size={22} /><Typography>{text.loading}</Typography></Stack></CardContent></Card>;
+    return <Card>
+      <Space role="status" aria-live="polite" align="center" size="middle">
+        <Skeleton.Avatar active size="small" shape="circle" />
+        <Text>{text.loading}</Text>
+      </Space>
+    </Card>;
   }
 
   if (!summary) {
-    return <Alert severity="warning" action={<Button color="inherit" size="small" disabled={loading} onClick={() => void load()}>{text.retry}</Button>}><Typography fontWeight={700}>{text.degraded}</Typography></Alert>;
+    return <Alert
+      type="warning"
+      showIcon
+      title={text.degraded}
+      action={<Button size="small" disabled={loading} onClick={() => void load()}>{text.retry}</Button>}
+    />;
   }
 
   const meeting = summary.nextMeeting;
-  return <Stack spacing={2}>
-    <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1} alignItems={{ sm: 'center' }}>
-      <Typography variant="h3">{text.ready}</Typography>
-      <Chip label={failed === 0 ? text.ready : text.degraded} color={failed === 0 ? 'success' : 'warning'} variant="outlined" />
-    </Stack>
-    {failed > 0 ? <Alert severity="warning" action={<Button color="inherit" size="small" disabled={loading} onClick={() => void load()}>{text.retry}</Button>}>{text.degraded}</Alert> : null}
-    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0,1fr))', lg: 'repeat(4, minmax(0,1fr))' }, gap: 1.5 }}>
-      <MetricCard label={text.people} value={summary.activePeople} />
-      <MetricCard label={text.responsibilities} value={summary.activeResponsibilities} />
-      <MetricCard label={text.assignments} value={summary.assignedParts} />
-      <Card><CardContent><Typography variant="overline" color="text.secondary">{text.nextMeeting}</Typography>{meeting ? <><Typography variant="h5">{meeting.date} · {meeting.localTime}</Typography><Typography variant="body2" color="text.secondary">{meeting.state === 'published' ? text.published : text.draft}</Typography></> : <Typography variant="h6">{text.noMeeting}</Typography>}</CardContent></Card>
-    </Box>
-  </Stack>;
+  return <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
+      <Title level={3} style={{ margin: 0 }}>{text.ready}</Title>
+      <Tag color={failed === 0 ? 'success' : 'warning'}>{failed === 0 ? text.ready : text.degraded}</Tag>
+    </Space>
+    {failed > 0 ? <Alert
+      type="warning"
+      showIcon
+      title={text.degraded}
+      action={<Button size="small" disabled={loading} onClick={() => void load()}>{text.retry}</Button>}
+    /> : null}
+    <Row gutter={[12, 12]}>
+      <Col xs={24} sm={12} lg={6}><MetricCard label={text.people} value={summary.activePeople} /></Col>
+      <Col xs={24} sm={12} lg={6}><MetricCard label={text.responsibilities} value={summary.activeResponsibilities} /></Col>
+      <Col xs={24} sm={12} lg={6}><MetricCard label={text.assignments} value={summary.assignedParts} /></Col>
+      <Col xs={24} sm={12} lg={6}>
+        <Card size="small" style={{ height: '100%' }}>
+          <Space direction="vertical" size={2}>
+            <Text type="secondary">{text.nextMeeting}</Text>
+            {meeting ? <>
+              <Title level={4} style={{ margin: 0 }}>{meeting.date} · {meeting.localTime}</Title>
+              <Text type="secondary">{meeting.state === 'published' ? text.published : text.draft}</Text>
+            </> : <Title level={5} style={{ margin: 0 }}>{text.noMeeting}</Title>}
+          </Space>
+        </Card>
+      </Col>
+    </Row>
+  </Space>;
 }
 
 function MetricCard({ label, value }: { label: string; value: number }) {
-  return <Card><CardContent><Typography variant="overline" color="text.secondary">{label}</Typography><Typography variant="h3">{value}</Typography></CardContent></Card>;
+  return <Card size="small" style={{ height: '100%' }}>
+    <Space direction="vertical" size={2}>
+      <Text type="secondary">{label}</Text>
+      <Title level={2} style={{ margin: 0 }}>{value}</Title>
+    </Space>
+  </Card>;
 }
