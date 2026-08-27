@@ -134,7 +134,7 @@ export async function preparePersistedHourglassExecutionAttempt(
   const auditEvent = createAuditEvent({
     id: `audit-${crypto.randomUUID()}`,
     tenantId: context.tenantId,
-    resourceType: 'migration-execution',
+    resourceType: 'migration',
     resourceId: executionId,
     action: 'create',
     actorId: context.actorId,
