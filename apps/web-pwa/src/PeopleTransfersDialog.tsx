@@ -42,6 +42,7 @@ function statusLabel(status: PeopleTransferStatus, text: (typeof copy)[Locale]):
 export function PeopleTransfersDialog({ locale, open, onClose }: { locale: Locale; open: boolean; onClose: () => void }) {
   const text = copy[locale];
   const requestVersion = useRef(0);
+  const operationVersion = useRef(0);
   const controllerRef = useRef<AbortController | null>(null);
   const [mode, setMode] = useState<Mode>('send');
   const [state, setState] = useState<LoadState>('idle');
@@ -61,6 +62,7 @@ export function PeopleTransfersDialog({ locale, open, onClose }: { locale: Local
 
   const cancelRequests = () => {
     requestVersion.current += 1;
+    operationVersion.current += 1;
     controllerRef.current?.abort();
     controllerRef.current = null;
   };
@@ -89,12 +91,18 @@ export function PeopleTransfersDialog({ locale, open, onClose }: { locale: Local
 
   useEffect(() => {
     if (!open) { cancelRequests(); return; }
+    cancelRequests();
     setMode('send');
     setSelectedIds([]);
+    setSendConfirmOpen(false);
+    setSending(false);
     setSent(null);
     setCopyNotice(false);
     setCode('');
     setPreview(null);
+    setPreviewing(false);
+    setClaimConfirmOpen(false);
+    setClaiming(false);
     setReceiveNotice(null);
     void load();
     return cancelRequests;
@@ -105,20 +113,26 @@ export function PeopleTransfersDialog({ locale, open, onClose }: { locale: Local
 
   const send = async () => {
     if (!selectedIds.length || sending) return;
+    const operation = ++operationVersion.current;
     setSending(true);
     setState('ready');
     try {
       const result = await peopleTransfersApi.send(selectedIds);
+      if (operation !== operationVersion.current) return;
       setSent(result);
       setSelectedIds([]);
       setSendConfirmOpen(false);
       const transfers = await peopleTransfersApi.list();
+      if (operation !== operationVersion.current) return;
       setHistory(transfers.transfers);
     } catch (reason) {
+      if (operation !== operationVersion.current) return;
       if (reason instanceof PeopleTransfersApiError && reason.status === 401) setState('unauthenticated');
       else if (reason instanceof PeopleTransfersApiError && reason.status === 403) setState('forbidden');
       else setState('error');
-    } finally { setSending(false); }
+    } finally {
+      if (operation === operationVersion.current) setSending(false);
+    }
   };
 
   const previewCode = async () => {
@@ -141,27 +155,34 @@ export function PeopleTransfersDialog({ locale, open, onClose }: { locale: Local
       else if (reason instanceof PeopleTransfersApiError && reason.status === 403) setState('forbidden');
       else setState('error');
     } finally {
-      if (version === requestVersion.current) controllerRef.current = null;
-      setPreviewing(false);
+      if (version === requestVersion.current) {
+        controllerRef.current = null;
+        setPreviewing(false);
+      }
     }
   };
 
   const claim = async () => {
     const normalized = code.trim();
     if (!preview || !/^[A-Za-z0-9_-]{43}$/.test(normalized) || claiming) return;
+    const operation = ++operationVersion.current;
     setClaiming(true);
     try {
       const result = await peopleTransfersApi.claim(normalized);
+      if (operation !== operationVersion.current) return;
       setReceiveNotice(result.outcome === 'already-claimed' ? text.alreadyReceived : text.receiveSuccess);
       setCode('');
       setPreview(null);
       setClaimConfirmOpen(false);
       await load();
     } catch (reason) {
+      if (operation !== operationVersion.current) return;
       if (reason instanceof PeopleTransfersApiError && reason.status === 401) setState('unauthenticated');
       else if (reason instanceof PeopleTransfersApiError && reason.status === 403) setState('forbidden');
       else setState('error');
-    } finally { setClaiming(false); }
+    } finally {
+      if (operation === operationVersion.current) setClaiming(false);
+    }
   };
 
   const changeCode = (value: string) => {
@@ -177,6 +198,8 @@ export function PeopleTransfersDialog({ locale, open, onClose }: { locale: Local
     setCode('');
     setSent(null);
     setPreview(null);
+    setSendConfirmOpen(false);
+    setClaimConfirmOpen(false);
     onClose();
   };
 
