@@ -1,11 +1,20 @@
+import Alert from 'antd/es/alert';
+import Button from 'antd/es/button';
+import Card from 'antd/es/card';
+import Col from 'antd/es/col';
+import Divider from 'antd/es/divider';
+import Empty from 'antd/es/empty';
+import Row from 'antd/es/row';
+import Space from 'antd/es/space';
+import Spin from 'antd/es/spin';
+import Tag from 'antd/es/tag';
+import Typography from 'antd/es/typography';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Divider, Paper } from '@mui/material';
 import { midweekApi, type MidweekMeetingDto, type MidweekOverviewDto } from './lib/midweekApi';
 import { authenticationApi } from './lib/authApi';
 import { peopleApi, type PersonProfileDto } from './lib/peopleApi';
 import type { Locale } from './lib/preferences';
 import { CreateMidweekMeetingControl, MidweekMeetingControls, NonStudentAssignmentControls, StudentAssignmentControls } from './MidweekAuthoringControls';
-import { Stack, Typography } from './ui/MuiCompat';
 
 export type MidweekWorkspaceSection = 'agenda' | 'assignments';
 
@@ -53,7 +62,8 @@ export function MidweekWorkspace({ locale, section }: { locale: Locale; section:
 
   const load = async (signal?: AbortSignal) => {
     const requestVersion = ++requestVersionRef.current;
-    setLoading(true); setLoadError(false);
+    setLoading(true);
+    setLoadError(false);
     try {
       const nextOverview = await midweekApi.overview(signal);
       if (requestVersion === requestVersionRef.current && !signal?.aborted) setOverview(nextOverview);
@@ -74,7 +84,9 @@ export function MidweekWorkspace({ locale, section }: { locale: Locale; section:
       try {
         const nextPeople = await peopleApi.list(controller.signal);
         if (!controller.signal.aborted) setPeople(nextPeople);
-      } catch { /* writing controls remain available; person-dependent actions stay disabled */ }
+      } catch {
+        // Writing controls remain available; person-dependent actions stay disabled.
+      }
     });
     return () => controller.abort();
   }, []);
@@ -95,34 +107,74 @@ export function MidweekWorkspace({ locale, section }: { locale: Locale; section:
     return section === 'assignments' ? text.cancelledAssignment : text.cancelled;
   };
 
-  return <Box component="section" aria-labelledby={`midweek-${section}-title`}>
-    <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 2, borderRadius: 3 }}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={2} alignItems={{ sm: 'flex-start' }}>
-        <Box sx={{ maxWidth: 760 }}><Typography variant="overline" color="primary.main">{text.realData}</Typography><Typography variant="h2" id={`midweek-${section}-title`} sx={{ fontSize: { xs: '2rem', sm: '2.6rem' } }}>{title}</Typography><Typography color="text.secondary" sx={{ mt: 1 }}>{subtitle}</Typography></Box>
-        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>{!loading && !loadError && overview ? <Chip label={section === 'agenda' ? String(overview.meetings.length) : String(assignmentCount)} variant="outlined" color="info" /> : null}{canWrite && section === 'agenda' ? <CreateMidweekMeetingControl locale={locale} onChanged={refresh} /> : null}</Stack>
-      </Stack>
-    </Paper>
+  const stateColor = (state: string): string | undefined => {
+    if (state === 'published' || state === 'completed') return 'success';
+    if (state === 'cancelled') return 'warning';
+    if (state === 'assigned') return 'processing';
+    return undefined;
+  };
 
-    {loadError ? <Alert severity="warning" action={<Button color="inherit" size="small" disabled={loading} onClick={() => void load()}>{text.retry}</Button>}>{text.unavailable}</Alert> : null}
-    {loading ? <Stack direction="row" alignItems="center" justifyContent="center" spacing={1.5} sx={{ py: 7 }} role="status" aria-live="polite"><CircularProgress size={24} /><Typography color="text.secondary">{loadingText}</Typography></Stack> : null}
+  return <section aria-labelledby={`midweek-${section}-title`}>
+    <Space orientation="vertical" size="large" style={{ display: 'flex' }}>
+      <Card>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
+          <div style={{ maxWidth: 760, flex: '1 1 420px' }}>
+            <Typography.Text type="secondary" strong style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 12 }}>{text.realData}</Typography.Text>
+            <Typography.Title level={2} id={`midweek-${section}-title`} style={{ marginBlock: '4px 0' }}>{title}</Typography.Title>
+            <Typography.Paragraph type="secondary" style={{ marginBlockEnd: 0 }}>{subtitle}</Typography.Paragraph>
+          </div>
+          <Space wrap>
+            {!loading && !loadError && overview ? <Tag>{section === 'agenda' ? overview.meetings.length : assignmentCount}</Tag> : null}
+            {canWrite && section === 'agenda' ? <CreateMidweekMeetingControl locale={locale} onChanged={refresh} /> : null}
+          </Space>
+        </div>
+      </Card>
 
-    {!loading && !loadError && overview && section === 'agenda' && overview.meetings.length === 0 ? <Paper variant="outlined" sx={{ p: 5, textAlign: 'center', borderRadius: 3, boxShadow: 'none', bgcolor: 'transparent' }}><Stack spacing={2} alignItems="center"><Typography color="text.secondary">{text.emptyAgenda}</Typography>{canWrite ? <CreateMidweekMeetingControl locale={locale} onChanged={refresh} /> : null}</Stack></Paper> : null}
-    {!loading && !loadError && overview && section === 'agenda' && overview.meetings.length > 0 ? <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5 }}>{overview.meetings.map(meeting => <Card component="article" key={meeting.id}><CardContent><Stack spacing={1.5}>
-      <Stack direction="row" justifyContent="space-between" gap={1.5} alignItems="flex-start"><Box><Typography variant="h5" fontWeight={750}>{dateLabel(meeting, locale)}</Typography><Typography variant="body2" color="text.secondary">{meeting.timezone}</Typography></Box><Chip size="small" variant="outlined" label={stateLabel(meeting.state)} color={meeting.state === 'published' ? 'success' : meeting.state === 'cancelled' ? 'warning' : 'default'} /></Stack>
-      <Divider /><Typography variant="body2" color="text.secondary">{meeting.slots.length} {meeting.slots.length === 1 ? text.slot : text.slots}</Typography>
-      {canWrite ? <MidweekMeetingControls locale={locale} meeting={meeting} people={people} onChanged={refresh} /> : meeting.slots.length ? <Stack spacing={.75}>{meeting.slots.map(slot => <Typography key={slot.id} variant="body2">{slot.position + 1}. {slot.titleKey} · {slot.durationMinutes} min</Typography>)}</Stack> : null}
-    </Stack></CardContent></Card>)}</Box> : null}
+      {loadError ? <Alert type="warning" showIcon title={text.unavailable} action={<Button size="small" disabled={loading} onClick={() => void load()}>{text.retry}</Button>} /> : null}
+      {loading ? <div role="status" aria-live="polite" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, paddingBlock: 56 }}><Spin size="small" /><Typography.Text type="secondary">{loadingText}</Typography.Text></div> : null}
 
-    {!loading && !loadError && overview && section === 'assignments' && assignmentCount === 0 ? <Paper variant="outlined" sx={{ p: 5, textAlign: 'center', borderRadius: 3, boxShadow: 'none', bgcolor: 'transparent' }}><Typography color="text.secondary">{text.emptyAssignments}</Typography></Paper> : null}
-    {!loading && !loadError && overview && section === 'assignments' && assignmentCount > 0 ? <Stack spacing={1.25}>
-      {overview.studentAssignments.map(assignment => { const meeting = meetingsById.get(assignment.meetingId); return <Card component="article" key={`student-${assignment.id}`}><CardContent><Stack spacing={1.25}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={1}><Box><Typography variant="h5" fontWeight={750}>{assignment.studentDisplayName}</Typography><Typography variant="body2" color="text.secondary">{text.student}{assignment.assistantDisplayName ? ` · ${text.assistant}: ${assignment.assistantDisplayName}` : ` · ${text.noAssistant}`}</Typography></Box><Chip size="small" variant="outlined" label={stateLabel(assignment.state)} color={assignment.state === 'assigned' ? 'info' : assignment.state === 'completed' ? 'success' : 'default'} /></Stack>
-        {meeting ? <Typography variant="body2" color="text.secondary">{text.meeting}: {dateLabel(meeting, locale)}</Typography> : null}{canWrite ? <StudentAssignmentControls locale={locale} assignment={assignment} people={people} onChanged={refresh} /> : null}
-      </Stack></CardContent></Card>; })}
-      {overview.nonStudentAssignments.map(assignment => { const meeting = meetingsById.get(assignment.meetingId); return <Card component="article" key={`role-${assignment.id}`}><CardContent><Stack spacing={1.25}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={1}><Box><Typography variant="h5" fontWeight={750}>{assignment.personDisplayName}</Typography><Typography variant="body2" color="text.secondary">{text.role}: {assignment.role}</Typography></Box><Chip size="small" variant="outlined" label={stateLabel(assignment.state)} color={assignment.state === 'assigned' ? 'info' : assignment.state === 'completed' ? 'success' : 'default'} /></Stack>
-        {meeting ? <Typography variant="body2" color="text.secondary">{text.meeting}: {dateLabel(meeting, locale)}</Typography> : null}{canWrite ? <NonStudentAssignmentControls locale={locale} assignment={assignment} people={people} onChanged={refresh} /> : null}
-      </Stack></CardContent></Card>; })}
-    </Stack> : null}
-  </Box>;
+      {!loading && !loadError && overview && section === 'agenda' && overview.meetings.length === 0 ? <Card><Empty description={text.emptyAgenda}>{canWrite ? <CreateMidweekMeetingControl locale={locale} onChanged={refresh} /> : null}</Empty></Card> : null}
+      {!loading && !loadError && overview && section === 'agenda' && overview.meetings.length > 0 ? <Row gutter={[16, 16]}>{overview.meetings.map(meeting => <Col xs={24} md={12} xl={8} key={meeting.id}><Card style={{ height: '100%' }}>
+        <Space orientation="vertical" size="middle" style={{ display: 'flex' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
+            <div><Typography.Title level={4} style={{ marginBlock: 0 }}>{dateLabel(meeting, locale)}</Typography.Title><Typography.Text type="secondary">{meeting.timezone}</Typography.Text></div>
+            <Tag color={stateColor(meeting.state)}>{stateLabel(meeting.state)}</Tag>
+          </div>
+          <Divider style={{ marginBlock: 0 }} />
+          <Typography.Text type="secondary">{meeting.slots.length} {meeting.slots.length === 1 ? text.slot : text.slots}</Typography.Text>
+          {canWrite ? <MidweekMeetingControls locale={locale} meeting={meeting} people={people} onChanged={refresh} /> : meeting.slots.length ? <Space orientation="vertical" size="small">{meeting.slots.map(slot => <Typography.Text key={slot.id}>{slot.position + 1}. {slot.titleKey} · {slot.durationMinutes} min</Typography.Text>)}</Space> : null}
+        </Space>
+      </Card></Col>)}</Row> : null}
+
+      {!loading && !loadError && overview && section === 'assignments' && assignmentCount === 0 ? <Card><Empty description={text.emptyAssignments} /></Card> : null}
+      {!loading && !loadError && overview && section === 'assignments' && assignmentCount > 0 ? <Space orientation="vertical" size="middle" style={{ display: 'flex' }}>
+        {overview.studentAssignments.map(assignment => {
+          const meeting = meetingsById.get(assignment.meetingId);
+          return <Card key={`student-${assignment.id}`}>
+            <Space orientation="vertical" size="small" style={{ display: 'flex' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                <div><Typography.Title level={4} style={{ marginBlock: 0 }}>{assignment.studentDisplayName}</Typography.Title><Typography.Text type="secondary">{text.student}{assignment.assistantDisplayName ? ` · ${text.assistant}: ${assignment.assistantDisplayName}` : ` · ${text.noAssistant}`}</Typography.Text></div>
+                <Tag color={stateColor(assignment.state)}>{stateLabel(assignment.state)}</Tag>
+              </div>
+              {meeting ? <Typography.Text type="secondary">{text.meeting}: {dateLabel(meeting, locale)}</Typography.Text> : null}
+              {canWrite ? <StudentAssignmentControls locale={locale} assignment={assignment} people={people} onChanged={refresh} /> : null}
+            </Space>
+          </Card>;
+        })}
+        {overview.nonStudentAssignments.map(assignment => {
+          const meeting = meetingsById.get(assignment.meetingId);
+          return <Card key={`role-${assignment.id}`}>
+            <Space orientation="vertical" size="small" style={{ display: 'flex' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                <div><Typography.Title level={4} style={{ marginBlock: 0 }}>{assignment.personDisplayName}</Typography.Title><Typography.Text type="secondary">{text.role}: {assignment.role}</Typography.Text></div>
+                <Tag color={stateColor(assignment.state)}>{stateLabel(assignment.state)}</Tag>
+              </div>
+              {meeting ? <Typography.Text type="secondary">{text.meeting}: {dateLabel(meeting, locale)}</Typography.Text> : null}
+              {canWrite ? <NonStudentAssignmentControls locale={locale} assignment={assignment} people={people} onChanged={refresh} /> : null}
+            </Space>
+          </Card>;
+        })}
+      </Space> : null}
+    </Space>
+  </section>;
 }
