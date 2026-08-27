@@ -1,5 +1,4 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
-import { CssBaseline, ThemeProvider } from '@mui/material';
 import { AppRecoveryBoundary } from './AppRecoveryBoundary';
 import { PwaConnectionStatus } from './PwaConnectionStatus';
 import { PwaUpdateRecovery } from './PwaUpdateRecovery';
@@ -11,6 +10,7 @@ import {
 } from './lib/preferences';
 import { useSystemPrefersDark } from './lib/systemColorMode';
 import { buildEutaktosTheme } from './theme';
+import { LegacyMuiThemeBridge } from './ui/MuiCompat';
 
 const TaskShell = lazy(async () => {
   const module = await import('./TaskShell');
@@ -48,8 +48,7 @@ export default function App() {
     document.documentElement.style.colorScheme = theme.palette.mode;
   }, [effectivePalette, preferences, theme.palette.mode]);
 
-  return <ThemeProvider theme={theme}>
-    <CssBaseline />
+  return <LegacyMuiThemeBridge theme={theme}>
     <AppRecoveryBoundary locale={preferences.locale}>
       <Suspense fallback={<main id="main" tabIndex={-1} style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', padding: 24 }}><p role="status">A carregar área…</p></main>}>
         <TaskShell preferences={preferences} setPreferences={setPreferences} />
@@ -57,5 +56,5 @@ export default function App() {
     </AppRecoveryBoundary>
     <PwaConnectionStatus locale={preferences.locale} />
     <PwaUpdateRecovery />
-  </ThemeProvider>;
+  </LegacyMuiThemeBridge>;
 }
