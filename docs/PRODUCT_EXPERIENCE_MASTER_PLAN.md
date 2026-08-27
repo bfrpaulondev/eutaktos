@@ -649,9 +649,9 @@ Evidence PX8: integrated commit `98e68ccfe13d1ff14b02dedf7f1ffa2bd9a426fb` plus 
 - [x] **PX9.8** Import wizard: preview + validation + duplicate/conflict report.
 - [x] **PX9.9** Import wizard: dry-run and rollback/recovery where supported by current import architecture.
 - [ ] **PX9.10** Map: capability-controlled people/group visualization.  
-  Remaining gap: no approved Person/group location model or precision/privacy capability policy.
+  Principal action pending: review PR #392, which implements the approved dedicated approximate-manual location contract, tenant-scoped persistence, explicit `people.read + map.read`/`map.write` boundaries and minimum-data projection. CI quality, CI browser-regression and canonical `netlify/eutakes` preview passed on People Map implementation commit `7259c5daf3d4f835739825beed6f7f817e782ac8`; the checkbox remains the Principal's integration decision.
 - [ ] **PX9.11** Map: group filter/legend and responsive mobile behavior.  
-  Blocked by PX9.10 location/privacy contract.
+  Principal action pending: PR #392 provides the approved responsive People Map with Leaflet as a local overlay enhancement and a semantic equivalent list. No group data is introduced into the minimum-data v1 projection; a future group filter requires a separately approved least-privilege projection.
 - [x] **PX9.12** Contact list: configurable fields, filters and safe export.
 - [x] **PX9.13** Emergency mode: mobile-first quick access for authorized users.
 - [x] **PX9.14** Emergency mode: family/emergency contacts and organization contacts with least privilege.
@@ -723,7 +723,7 @@ PX9
 **Wave E — hardening and expansion**  
 PX10 → PX11
 
-Current post-`c407c9a5...` priority: preserve the green People baseline; implement Transfers only after secure server-owned lifecycle review; implement reports/PDF against a purpose-built minimum-data projection; keep Map blocked until a location/privacy contract exists; keep DOCX research-deferred; then complete the documented real-user/screen-reader acceptance without substituting mocked evidence.
+Current post-`c407c9a5...` priority: preserve the green People baseline; protect approved server-owned Transfer, report/PDF and Map contracts; keep DOCX research-deferred; then complete the documented real-user/screen-reader acceptance without substituting mocked evidence.
 
 ---
 

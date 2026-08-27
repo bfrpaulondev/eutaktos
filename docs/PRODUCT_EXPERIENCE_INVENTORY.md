@@ -144,7 +144,7 @@ The UI must not infer these from browser-local history.
 | Reminders | Notification send intent exists; read model missing | Build authoritative reminder-needed/reason/last-reminder read contract, then UI and send confirmation using existing notification intent path. |
 | Archive / do-not-publish | `active` flag exists but is insufficient | Define reason/date/audit/restore persistence and visibility semantics before UI. |
 | Record cards/reports | No approved report schema | Define permitted fields, year/period semantics, preview and export privacy contract. |
-| People map | No approved location model | Define precision, consent/authority, capabilities, retention and group projection before map UI. |
+| People map | Technically ready for Principal review on PR #392 | Reuse `docs/PEOPLE_MAP_CONTRACT.md`, dedicated `people-map-v1` approximate manual location persistence, `GET /api/people/map`, `PUT`/`DELETE /api/people/:personId/map-location`, `people.read + map.read` for read and `map.write` for mutation. CI quality/browser-regression and canonical `netlify/eutakes` preview passed on People Map implementation commit `7259c5daf3d4f835739825beed6f7f817e782ac8`; Principal integration and human acceptance remain separate. |
 | Configurable Contact List | Ordinary Contact exists but is least-privilege per-person | Define dedicated server projection/export contract; never widen general Directory DTO with contact PII for convenience. |
 | CSV export | Directory CSV exists with formula-injection protection | Reuse where sufficient; add fields only after privacy/authority review. |
 | PDF export | No approved general People report contract | Implement only against a reviewed report/contact-list projection. |
@@ -164,6 +164,6 @@ The UI must not infer these from browser-local history.
 
 1. Preserve current green People/PX baseline.
 2. Build PX9.4 authoritative reminder read model before adding reminder UI; reuse existing notification intent send path.
-3. Design remaining PX9 server/domain/privacy contracts one slice at a time, starting with the smallest independently reviewable aggregate/query.
-4. Keep PX7.8 blocked until a persistent manual-constraint model is approved.
+3. Preserve the approved People Map privacy boundary: no ordinary Contact geocoding, browser/IP location, raw-coordinate logging or implicit map privileges.
+4. Keep PX9.17 DOCX research-deferred until product evidence demonstrates a need beyond CSV/PDF.
 5. Leave real-user production writes and real screen-reader acceptance to `docs/PEOPLE_REAL_USER_PRODUCTION_E2E_PENDING.md`.
