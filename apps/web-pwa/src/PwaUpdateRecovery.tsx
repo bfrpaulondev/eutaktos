@@ -1,35 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Button, Snackbar } from '@mui/material';
+import Alert from 'antd/es/alert';
+import Button from 'antd/es/button';
 import type { Locale } from './lib/preferences';
 import { registerPwaUpdateController, type PwaUpdateController } from './lib/pwaUpdate';
 import { resolvePwaScriptUrl } from './lib/pwaUrl';
 
-
 const copy = {
-  'pt-PT': {
-    available: 'Existe uma nova versão do Eutaktos pronta a instalar.',
-    update: 'Atualizar agora',
-    later: 'Mais tarde',
-    activating: 'A aplicar a atualização…',
-    error: 'Não foi possível verificar atualizações neste momento.',
-    retry: 'Tentar novamente',
-  },
-  en: {
-    available: 'A new version of Eutaktos is ready to install.',
-    update: 'Update now',
-    later: 'Later',
-    activating: 'Applying the update…',
-    error: 'Updates could not be checked right now.',
-    retry: 'Try again',
-  },
-  es: {
-    available: 'Hay una nueva versión de Eutaktos lista para instalar.',
-    update: 'Actualizar ahora',
-    later: 'Más tarde',
-    activating: 'Aplicando la actualización…',
-    error: 'No se pudieron comprobar las actualizaciones en este momento.',
-    retry: 'Intentar de nuevo',
-  },
+  'pt-PT': { available: 'Existe uma nova versão do Eutaktos pronta a instalar.', update: 'Atualizar agora', activating: 'A aplicar a atualização…', error: 'Não foi possível verificar atualizações neste momento.', retry: 'Tentar novamente' },
+  en: { available: 'A new version of Eutaktos is ready to install.', update: 'Update now', activating: 'Applying the update…', error: 'Updates could not be checked right now.', retry: 'Try again' },
+  es: { available: 'Hay una nueva versión de Eutaktos lista para instalar.', update: 'Actualizar ahora', activating: 'Aplicando la actualización…', error: 'No se pudieron comprobar las actualizaciones en este momento.', retry: 'Intentar de nuevo' },
 } as const;
 
 function currentLocale(): Locale {
@@ -55,7 +34,6 @@ export function PwaUpdateRecovery() {
 
   useEffect(() => {
     if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
-
     let disposed = false;
     const scriptUrl = resolvePwaScriptUrl(import.meta.env.BASE_URL, window.location.origin);
 
@@ -73,27 +51,17 @@ export function PwaUpdateRecovery() {
         setActivating(true);
       },
     }).then(controller => {
-      if (disposed) {
-        controller.dispose();
-        return;
-      }
+      if (disposed) { controller.dispose(); return; }
       controllerRef.current = controller;
-    }).catch(() => {
-      if (!disposed) setError(true);
-    });
+    }).catch(() => { if (!disposed) setError(true); });
 
     const check = () => {
       if (document.visibilityState === 'hidden') return;
-      void controllerRef.current?.check().catch(() => {
-        if (!disposed) setError(true);
-      });
+      void controllerRef.current?.check().catch(() => { if (!disposed) setError(true); });
     };
-    const onVisibilityChange = () => {
-      if (document.visibilityState === 'visible') check();
-    };
+    const onVisibilityChange = () => { if (document.visibilityState === 'visible') check(); };
     window.addEventListener('online', check);
     document.addEventListener('visibilitychange', onVisibilityChange);
-
     return () => {
       disposed = true;
       window.removeEventListener('online', check);
@@ -110,41 +78,30 @@ export function PwaUpdateRecovery() {
       setError(true);
     }
   };
-
   const retry = () => {
     setError(false);
     void controllerRef.current?.check().catch(() => setError(true));
   };
 
+  if (!available && !activating && !error) return null;
   return (
-      <Snackbar
-        open={available || activating || error}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-        sx={{ mb: { xs: 9, md: 2 }, maxWidth: 'min(94vw, 640px)' }}
-      >
-        {error ? (
-          <Alert
-            severity="warning"
-            variant="filled"
-            role="status"
-            action={<Button color="inherit" size="small" onClick={retry}>{text.retry}</Button>}
-          >
-            {text.error}
-          </Alert>
-        ) : (
-          <Alert
-            severity="info"
-            variant="filled"
-            role="status"
-            aria-live="polite"
-            onClose={activating ? undefined : () => setAvailable(false)}
-            action={activating ? undefined : (
-              <Button color="inherit" size="small" onClick={applyUpdate}>{text.update}</Button>
-            )}
-          >
-            {activating ? text.activating : text.available}
-          </Alert>
-        )}
-      </Snackbar>
+    <div
+      role="status"
+      aria-live="polite"
+      style={{ position: 'fixed', left: '50%', bottom: 'max(16px, env(safe-area-inset-bottom))', transform: 'translateX(-50%)', zIndex: 41, width: 'min(94vw, 640px)' }}
+    >
+      {error ? (
+        <Alert type="warning" showIcon title={text.error} action={<Button size="small" onClick={retry}>{text.retry}</Button>} />
+      ) : (
+        <Alert
+          type="info"
+          showIcon
+          closable={!activating}
+          onClose={activating ? undefined : () => setAvailable(false)}
+          title={activating ? text.activating : text.available}
+          action={activating ? undefined : <Button size="small" onClick={applyUpdate}>{text.update}</Button>}
+        />
+      )}
+    </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Snackbar } from '@mui/material';
+import Alert from 'antd/es/alert';
 import type { Locale } from './lib/preferences';
 
 const copy = {
@@ -17,5 +17,22 @@ export function PwaConnectionStatus({ locale }: { locale: Locale }) {
     window.addEventListener('offline', disconnected);
     return () => { window.removeEventListener('online', online); window.removeEventListener('offline', disconnected); };
   }, []);
-  return <Snackbar open={offline} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }} sx={{ mb: { xs: 9, md: 2 }, maxWidth: 'min(94vw, 640px)' }}><Alert severity="warning" role="status" aria-live="polite">{copy[locale]}</Alert></Snackbar>;
+
+  if (!offline) return null;
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      style={{
+        position: 'fixed',
+        left: '50%',
+        bottom: 'max(16px, env(safe-area-inset-bottom))',
+        transform: 'translateX(-50%)',
+        zIndex: 40,
+        width: 'min(94vw, 640px)',
+      }}
+    >
+      <Alert type="warning" showIcon title={copy[locale]} />
+    </div>
+  );
 }
