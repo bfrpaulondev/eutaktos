@@ -25,8 +25,8 @@ class FakePeopleUnitOfWork implements PeopleUnitOfWork {
   }
 }
 
-function person(): CongregationPerson {
-  return { id: 'person-1', tenantId: 'tenant-a', displayName: 'Ana Costa', active: true, availability: [], eligibility: [], emergencyContacts: [] };
+function person(overrides: Partial<CongregationPerson> = {}): CongregationPerson {
+  return { id: 'person-1', tenantId: 'tenant-a', displayName: 'Ana Costa', active: true, availability: [], eligibility: [], emergencyContacts: [], ...overrides };
 }
 function context(capabilities: AccessContext['capabilities']): Readonly<AccessContext> {
   return createAccessContext({ tenantId: 'tenant-a', actorId: 'elder-1', capabilities });
@@ -43,7 +43,7 @@ describe('PersonArchiveService', () => {
     const archived = service.archive(context(['people.read', 'people.write']), { personId: 'person-1', reason: '  A não publicar   temporariamente ' }, { correlationId: 'request-1' });
     expect(archived.active).toBe(false);
     expect(isPersonPublicationArchived(archived)).toBe(true);
-    expect(personArchiveState(archived).current).toEqual({ actorId: 'elder-1', archivedAt: '2026-08-27T10:30:00.000Z', reason: 'A não publicar temporariamente' });
+    expect(personArchiveState(archived).current).toEqual({ actorId: 'elder-1', archivedAt: '2026-08-27T10:30:00.000Z', reason: 'A não publicar temporariamente', previousActive: true });
     expect(personArchiveState(archived).history).toEqual([{ action: 'archived', actorId: 'elder-1', occurredAt: '2026-08-27T10:30:00.000Z', reason: 'A não publicar temporariamente' }]);
     expect(unitOfWork.updates[0]?.auditEvent.changedFields).toEqual(['active', 'publicationArchive']);
     expect(JSON.stringify({ audit: unitOfWork.updates[0]?.auditEvent, event: unitOfWork.updates[0]?.domainEvent })).not.toContain('A não publicar temporariamente');
@@ -59,6 +59,15 @@ describe('PersonArchiveService', () => {
     expect(restored.active).toBe(true);
     expect(isPersonPublicationArchived(restored)).toBe(false);
     expect(personArchiveState(restored).history.map(entry => entry.action)).toEqual(['archived', 'restored']);
+  });
+
+  it('does not activate a person who was already inactive before archive', () => {
+    const unitOfWork = new FakePeopleUnitOfWork([person({ active: false })]);
+    const service = new PersonArchiveService(unitOfWork, runtime());
+    const access = context(['people.read', 'people.write']);
+    service.archive(access, { personId: 'person-1', reason: 'Conservar registo sem publicar' });
+    expect(personArchiveState(unitOfWork.findById(access, 'person-1')!).current?.previousActive).toBe(false);
+    expect(service.restore(access, { personId: 'person-1' }).active).toBe(false);
   });
 
   it('rejects duplicate archive, restore without archive, invalid reasons and missing capabilities', () => {
