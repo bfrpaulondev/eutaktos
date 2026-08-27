@@ -1,7 +1,11 @@
-import type { HourglassImportInspection } from '@eutaktos/application';
+import type { HourglassImportInspection, HourglassMigrationPreview } from '@eutaktos/application';
 import { createAuditEvent, createDomainEvent, type AccessContext } from '@eutaktos/domain';
 import type { EntityRow, SupabaseRestDatabase } from '../../_db';
-import { prepareHourglassExecution, type HourglassExecutionAttempt } from './_execution';
+import {
+  hourglassMigrationIdForAttempt,
+  prepareHourglassExecution,
+  type HourglassExecutionAttempt,
+} from './_execution';
 
 const ENTITY_TYPE = 'hourglass-execution-attempt';
 const MAX_AGE_MS = 30 * 60 * 1000;
@@ -13,6 +17,11 @@ export interface PersistedHourglassExecutionAttempt extends HourglassExecutionAt
   readonly confirmationDigest: string;
   readonly expiresAt: string;
   readonly counts: Readonly<Record<'create' | 'unchanged' | 'conflict', number>>;
+}
+
+export interface PreparedPersistedHourglassExecutionAttempt {
+  readonly attempt: Readonly<PersistedHourglassExecutionAttempt>;
+  readonly preview: Readonly<HourglassMigrationPreview>;
 }
 
 type AttemptDatabase = Pick<SupabaseRestDatabase, 'entity' | 'applyEntityChange'> & Parameters<typeof prepareHourglassExecution>[0];
@@ -82,6 +91,12 @@ function assertAttemptOwner(attempt: Readonly<PersistedHourglassExecutionAttempt
   if (attempt.sourceDigest !== sourceDigest) throw new Error('Hourglass execution attempt source mismatch');
 }
 
+function normalizeConfirmationDigest(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(normalized)) throw new Error('Invalid Hourglass confirmation digest');
+  return normalized;
+}
+
 function assertNotExpired(attempt: Readonly<PersistedHourglassExecutionAttempt>, now = Date.now()): void {
   if (Date.parse(attempt.expiresAt) < now) throw new Error('Hourglass execution confirmation expired');
 }
@@ -91,14 +106,15 @@ async function existingAttempt(database: AttemptDatabase, context: AccessContext
   return row ? parseAttempt(row, context.tenantId) : undefined;
 }
 
-async function assertCurrentConfirmation(
+async function currentPreparation(
   database: AttemptDatabase,
   context: AccessContext,
   inspection: Readonly<HourglassImportInspection>,
   attempt: Readonly<PersistedHourglassExecutionAttempt>,
-): Promise<void> {
+) {
   const prepared = await prepareHourglassExecution(database, context, inspection, attempt);
   if (prepared.confirmationDigest !== attempt.confirmationDigest) throw new Error('Hourglass preparation is stale; start a new comparison');
+  return prepared;
 }
 
 export async function preparePersistedHourglassExecutionAttempt(
@@ -106,15 +122,15 @@ export async function preparePersistedHourglassExecutionAttempt(
   context: AccessContext,
   inspection: Readonly<HourglassImportInspection>,
   mutationId: string,
-): Promise<Readonly<PersistedHourglassExecutionAttempt>> {
+): Promise<Readonly<PreparedPersistedHourglassExecutionAttempt>> {
   const sourceDigest = await hourglassInspectionDigest(inspection);
   const executionId = await hourglassExecutionId(context, mutationId);
   const existing = await existingAttempt(database, context, executionId);
   if (existing) {
     assertAttemptOwner(existing, context, sourceDigest);
     assertNotExpired(existing);
-    await assertCurrentConfirmation(database, context, inspection, existing);
-    return existing;
+    const prepared = await currentPreparation(database, context, inspection, existing);
+    return Object.freeze({ attempt: existing, preview: prepared.preview });
   }
 
   const initiatedAt = new Date().toISOString();
@@ -161,14 +177,15 @@ export async function preparePersistedHourglassExecutionAttempt(
       p_audit: auditEvent,
       p_event: domainEvent,
     });
-    return Object.freeze({ executionId, tenantId: context.tenantId, actorId: context.actorId, sourceDigest, confirmationDigest: prepared.confirmationDigest, counts: prepared.counts, initiatedAt, expiresAt });
+    const attempt = Object.freeze({ executionId, tenantId: context.tenantId, actorId: context.actorId, sourceDigest, confirmationDigest: prepared.confirmationDigest, counts: prepared.counts, initiatedAt, expiresAt });
+    return Object.freeze({ attempt, preview: prepared.preview });
   } catch (error) {
     const raced = await existingAttempt(database, context, executionId);
     if (!raced) throw error;
     assertAttemptOwner(raced, context, sourceDigest);
     assertNotExpired(raced);
-    await assertCurrentConfirmation(database, context, inspection, raced);
-    return raced;
+    const racedPreparation = await currentPreparation(database, context, inspection, raced);
+    return Object.freeze({ attempt: raced, preview: racedPreparation.preview });
   }
 }
 
@@ -177,6 +194,7 @@ export async function loadPersistedHourglassExecutionAttempt(
   context: AccessContext,
   inspection: Readonly<HourglassImportInspection>,
   executionIdInput: string,
+  confirmationDigestInput: string,
 ): Promise<Readonly<PersistedHourglassExecutionAttempt>> {
   const executionId = executionIdInput.trim();
   if (!/^hourglass-execution-[0-9a-f]{32}$/.test(executionId)) throw new Error('Invalid Hourglass execution identity');
@@ -184,6 +202,14 @@ export async function loadPersistedHourglassExecutionAttempt(
   const attempt = await existingAttempt(database, context, executionId);
   if (!attempt) throw new Error('Hourglass execution attempt not found');
   assertAttemptOwner(attempt, context, sourceDigest);
-  assertNotExpired(attempt);
+  if (normalizeConfirmationDigest(confirmationDigestInput) !== attempt.confirmationDigest) {
+    throw new Error('Hourglass confirmation does not match the prepared comparison');
+  }
+
+  if (Date.parse(attempt.expiresAt) < Date.now()) {
+    const migrationId = await hourglassMigrationIdForAttempt(context, attempt);
+    const committed = await database.entity(context.tenantId, 'hourglass-migration', migrationId);
+    if (!committed) throw new Error('Hourglass execution confirmation expired');
+  }
   return attempt;
 }
