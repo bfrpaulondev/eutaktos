@@ -7,7 +7,7 @@ import Modal from 'antd/es/modal';
 import Select from 'antd/es/select';
 import Space from 'antd/es/space';
 import Typography from 'antd/es/typography';
-import { useRef, useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { midweekApi, type MidweekMeetingDto, type NonStudentAssignmentDto, type StudentAssignmentDto } from './lib/midweekApi';
 import type { PersonProfileDto } from './lib/peopleApi';
 import type { Locale } from './lib/preferences';
@@ -26,7 +26,7 @@ export { BUILTIN_PARTS, slotAllowsStudentAssignment };
 const copy = {
   'pt-PT': { createMeeting:'Nova reunião', meetingTitle:'Criar reunião', date:'Data', time:'Hora', timezone:'Fuso horário', location:'Local (opcional)', addPart:'Adicionar parte', partTitle:'Nova parte', titleKey:'Título / chave da parte', duration:'Duração (min)', partDefinition:'Tipo de parte', customPart:'Parte personalizada / função', assignStudent:'Designar estudante', assignRole:'Designar função', student:'Estudante', assistant:'Ajudante (opcional)', assistantRequired:'Ajudante (obrigatório)', person:'Pessoa', role:'Função', chooseRole:'Seleciona uma função', customRole:'Outra função personalizada…', customRoleId:'Identificador da função personalizada', none:'Sem ajudante', publish:'Publicar', removePart:'Remover parte', replace:'Substituir', cancelAssignment:'Cancelar designação', save:'Guardar', cancel:'Cancelar', working:'A guardar…', error:'Não foi possível concluir a operação.', publishConfirm:'Publicar esta reunião? Depois de publicada, as alterações ficam mais restritas.', confirm:'Confirmar', noPeople:'Não existem pessoas ativas disponíveis.', manualStudent:'Selecionar manualmente', hideManualStudent:'Ocultar seleção manual', manualStudentHint:'A seleção manual mostra pessoas ativas. Não afirma que estejam elegíveis, disponíveis ou sem conflitos para esta parte.' },
   en: { createMeeting:'New meeting', meetingTitle:'Create meeting', date:'Date', time:'Time', timezone:'Timezone', location:'Location (optional)', addPart:'Add part', partTitle:'New part', titleKey:'Part title / key', duration:'Duration (min)', partDefinition:'Part type', customPart:'Custom part / role', assignStudent:'Assign student', assignRole:'Assign role', student:'Student', assistant:'Assistant (optional)', assistantRequired:'Assistant (required)', person:'Person', role:'Role', chooseRole:'Select a role', customRole:'Another custom role…', customRoleId:'Custom role identifier', none:'No assistant', publish:'Publish', removePart:'Remove part', replace:'Replace', cancelAssignment:'Cancel assignment', save:'Save', cancel:'Cancel', working:'Saving…', error:'The operation could not be completed.', publishConfirm:'Publish this meeting? Changes become more restricted after publishing.', confirm:'Confirm', noPeople:'No active people are available.', manualStudent:'Select manually', hideManualStudent:'Hide manual selection', manualStudentHint:'Manual selection shows active people. It does not claim they are eligible, available or conflict-free for this part.' },
-  es: { createMeeting:'Nueva reunión', meetingTitle:'Crear reunión', date:'Fecha', time:'Hora', timezone:'Zona horaria', location:'Lugar (opcional)', addPart:'Añadir parte', partTitle:'Nueva parte', titleKey:'Título / clave de la parte', duration:'Duración (min)', partDefinition:'Tipo de parte', customPart:'Parte personalizada / función', assignStudent:'Asignar estudiante', assignRole:'Asignar función', student:'Estudiante', assistant:'Ayudante (opcional)', assistantRequired:'Ayudante (obligatorio)', person:'Persona', role:'Función', chooseRole:'Selecciona una función', customRole:'Otra función personalizada…', customRoleId:'Identificador de la función personalizada', none:'Sin ayudante', publish:'Publicar', removePart:'Eliminar parte', replace:'Sustituir', cancelAssignment:'Cancelar asignación', save:'Guardar', cancel:'Cancelar', working:'Guardando…', error:'No se pudo completar la operación.', publishConfirm:'¿Publicar esta reunión? Después de publicarla, los cambios estarán más restringidos.', confirm:'Confirmar', noPeople:'No hay personas activas disponibles.', manualStudent:'Seleccionar manualmente', hideManualStudent:'Ocultar selección manual', manualStudentHint:'La selección manual muestra personas activas. No afirma que sean elegibles, estén disponibles o no tengan conflictos para esta parte.' },
+  es: { createMeeting:'Nueva reunión', meetingTitle:'Crear reunión', date:'Fecha', time:'Hora', timezone:'Zona horaria', location:'Lugar (opcional)', addPart:'Añadir parte', partTitle:'Nueva parte', titleKey:'Título / clave de la parte', duration:'Duración (min)', partDefinition:'Tipo de parte', customPart:'Parte personalizada / función', assignStudent:'Asignar estudiante', assignRole:'Asignar función', student:'Estudiante', assistant:'Ayudante (opcional)', assistantRequired:'Ayudante (obligatório)', person:'Persona', role:'Función', chooseRole:'Selecciona una función', customRole:'Otra función personalizada…', customRoleId:'Identificador de la función personalizada', none:'Sin ayudante', publish:'Publicar', removePart:'Eliminar parte', replace:'Sustituir', cancelAssignment:'Cancelar asignación', save:'Guardar', cancel:'Cancelar', working:'Guardando…', error:'No se pudo completar la operación.', publishConfirm:'¿Publicar esta reunión? Después de publicarla, los cambios estarán más restringidos.', confirm:'Confirmar', noPeople:'No hay personas activas disponibles.', manualStudent:'Seleccionar manualmente', hideManualStudent:'Ocultar selección manual', manualStudentHint:'La selección manual muestra personas activas. No afirma que sean elegibles, estén disponibles o no tengan conflictos para esta parte.' },
 } as const;
 
 function localTimezone(): string {
@@ -38,7 +38,7 @@ function personOptions(people: readonly PersonProfileDto[], excludedId?: string)
   return people.filter(person => person.active && person.id !== excludedId).map(person => ({ value: person.id, label: person.displayName }));
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return <Form.Item label={label} style={{ marginBottom: 12 }}>{children}</Form.Item>;
 }
 
@@ -221,95 +221,13 @@ export function MidweekMeetingControls({ locale, meeting, people, onChanged }: {
       </form>
     </Modal>
 
-    <Modal open={publishOpen} title={text.publish} onCancel={() => { if (!workingRef.current) setPublishOpen(false); }} footer={<Space><Button onClick={() => setPublishOpen(false)} disabled={working}>{text.cancel}</Button><Button type="primary" loading={working} disabled={working} onClick={async () => { const ok = await run(() => midweekApi.publishMeeting(meeting.id)); if (ok) setPublishOpen(false); }}>{working ? text.working : text.confirm}</Button></Space>}>
+    <Modal open={publishOpen} title={<span id="midweek-publish-title">{text.publish}</span>} aria-labelledby="midweek-publish-title" aria-describedby="midweek-publish-description" onCancel={() => { if (!workingRef.current) setPublishOpen(false); }} footer={<Space><Button onClick={() => setPublishOpen(false)} disabled={working}>{text.cancel}</Button><Button danger type="primary" loading={working} disabled={working} onClick={async () => { const ok = await run(() => midweekApi.publishMeeting(meeting.id)); if (ok) setPublishOpen(false); }}>{working ? text.working : text.confirm}</Button></Space>}>
       <Typography.Paragraph id="midweek-publish-description">{text.publishConfirm}</Typography.Paragraph>
       {error ? <Alert type="error" showIcon title={text.error} /> : null}
     </Modal>
   </Space>;
 }
 
-export function StudentAssignmentControls({ locale, assignment, people, onChanged }: { locale: Locale; assignment: StudentAssignmentDto; people: readonly PersonProfileDto[]; onChanged: () => Promise<void> | void }) {
-  const text = copy[locale];
-  const [open, setOpen] = useState(false);
-  const [studentId, setStudentId] = useState(assignment.studentId);
-  const [assistantId, setAssistantId] = useState(assignment.assistantId ?? '');
-  const [manualStudentSelection, setManualStudentSelection] = useState(false);
-  const [working, setWorking] = useState(false);
-  const [error, setError] = useState(false);
-  const workingRef = useRef(false);
-  const active = people.filter(person => person.active);
-  if (assignment.state !== 'assigned') return null;
-
-  const run = async (operation: () => Promise<void>) => {
-    if (workingRef.current) return false;
-    workingRef.current = true;
-    setWorking(true);
-    setError(false);
-    try {
-      await operation();
-      await onChanged();
-      return true;
-    } catch {
-      setError(true);
-      return false;
-    } finally {
-      workingRef.current = false;
-      setWorking(false);
-    }
-  };
-  const close = () => { if (!workingRef.current) { setOpen(false); setManualStudentSelection(false); } };
-
-  return <>
-    <Space wrap size="small"><Button size="small" onClick={() => { setManualStudentSelection(false); setOpen(true); }}>{text.replace}</Button><Button size="small" danger disabled={working} onClick={() => void run(() => midweekApi.cancelStudent(assignment.id))}>{text.cancelAssignment}</Button></Space>
-    <Modal open={open} title={text.replace} footer={null} onCancel={close} destroyOnHidden>
-      <Space orientation="vertical" size="middle" style={{ display: 'flex' }}>
-        {open ? <RecommendationPicker locale={locale} meetingId={assignment.meetingId} slotId={assignment.slotId} selectedPersonId={studentId || undefined} onSelect={setStudentId} disabled={working} /> : null}
-        <Button size="small" type="text" disabled={working} onClick={() => setManualStudentSelection(value => !value)} aria-expanded={manualStudentSelection}>{manualStudentSelection ? text.hideManualStudent : text.manualStudent}</Button>
-        {manualStudentSelection ? <><Typography.Text type="secondary">{text.manualStudentHint}</Typography.Text><Field label={text.student}><Select aria-label={text.student} value={studentId || undefined} onChange={setStudentId} options={personOptions(active)} style={{ width: '100%' }} /></Field></> : null}
-        <Field label={text.assistant}><Select aria-label={text.assistant} value={assistantId || undefined} onChange={value => setAssistantId(value ?? '')} allowClear options={[{ value: '', label: text.none }, ...personOptions(active, studentId)]} style={{ width: '100%' }} /></Field>
-        {error ? <Alert type="error" showIcon title={text.error} /> : null}
-        <Space style={{ display: 'flex', justifyContent: 'flex-end' }}><Button onClick={close} disabled={working}>{text.cancel}</Button><Button type="primary" loading={working} disabled={working || !studentId} onClick={async () => { const ok = await run(() => midweekApi.replaceStudent(assignment.id, { studentId, assistantId: assistantId || null })); if (ok) { setOpen(false); setManualStudentSelection(false); } }}>{working ? text.working : text.save}</Button></Space>
-      </Space>
-    </Modal>
-  </>;
-}
-
-export function NonStudentAssignmentControls({ locale, assignment, people, onChanged }: { locale: Locale; assignment: NonStudentAssignmentDto; people: readonly PersonProfileDto[]; onChanged: () => Promise<void> | void }) {
-  const text = copy[locale];
-  const [open, setOpen] = useState(false);
-  const [personId, setPersonId] = useState(assignment.personId);
-  const [working, setWorking] = useState(false);
-  const [error, setError] = useState(false);
-  const workingRef = useRef(false);
-  const active = people.filter(person => person.active);
-  if (assignment.state !== 'assigned') return null;
-
-  const run = async (operation: () => Promise<void>) => {
-    if (workingRef.current) return false;
-    workingRef.current = true;
-    setWorking(true);
-    setError(false);
-    try {
-      await operation();
-      await onChanged();
-      return true;
-    } catch {
-      setError(true);
-      return false;
-    } finally {
-      workingRef.current = false;
-      setWorking(false);
-    }
-  };
-
-  return <>
-    <Space wrap size="small"><Button size="small" onClick={() => setOpen(true)}>{text.replace}</Button><Button size="small" danger disabled={working} onClick={() => void run(() => midweekApi.cancelNonStudent(assignment.id))}>{text.cancelAssignment}</Button></Space>
-    <Modal open={open} title={text.replace} footer={null} onCancel={() => { if (!workingRef.current) setOpen(false); }} destroyOnHidden>
-      <Space orientation="vertical" size="middle" style={{ display: 'flex' }}>
-        <Field label={text.person}><Select aria-label={text.person} value={personId || undefined} onChange={setPersonId} options={personOptions(active)} style={{ width: '100%' }} /></Field>
-        {error ? <Alert type="error" showIcon title={text.error} /> : null}
-        <Space style={{ display: 'flex', justifyContent: 'flex-end' }}><Button onClick={() => setOpen(false)} disabled={working}>{text.cancel}</Button><Button type="primary" loading={working} disabled={working || !personId} onClick={async () => { const ok = await run(() => midweekApi.replaceNonStudent(assignment.id, personId)); if (ok) setOpen(false); }}>{working ? text.working : text.save}</Button></Space>
-      </Space>
-    </Modal>
-  </>;
+export function assignmentLabel(assignment: StudentAssignmentDto | NonStudentAssignmentDto): string {
+  return 'studentId' in assignment ? assignment.studentId : `${assignment.role}: ${assignment.personId}`;
 }
