@@ -21,9 +21,9 @@ const copy = {
     loadError: 'Não foi possível carregar o estado de arquivo.', noPeople: 'Não existem pessoas disponíveis.', active: 'Ativa', archived: 'Arquivada',
     currentReason: 'Motivo atual', archivedAt: 'Arquivada em', history: 'Histórico', noHistory: 'Ainda não existe histórico de arquivo.',
     reason: 'Motivo do arquivo', reasonPlaceholder: 'Indique o motivo administrativo desta decisão', reasonHelp: 'Obrigatório, até 240 caracteres.',
-    archive: 'Arquivar pessoa', restore: 'Restaurar pessoa', confirmArchive: 'Confirmar arquivo', confirmRestore: 'Confirmar restauro',
-    confirmArchiveText: 'Esta ação deixa a pessoa inativa e regista o motivo no histórico. Pretende continuar?',
-    confirmRestoreText: 'Esta ação restaura explicitamente o estado anterior permitido pelo contrato de arquivo. Pretende continuar?',
+    archive: 'Arquivar pessoa', restore: 'Restaurar pessoa', confirmArchive: 'Confirmar arquivo', confirmRestore: 'Confirmar restauro', target: 'Pessoa selecionada',
+    confirmArchiveText: 'Esta ação deixa a pessoa inativa e regista o motivo no histórico. Confirme cuidadosamente o alvo antes de continuar.',
+    confirmRestoreText: 'Esta ação restaura explicitamente o estado anterior permitido pelo contrato de arquivo. Confirme cuidadosamente o alvo antes de continuar.',
     cancel: 'Cancelar', working: 'A guardar…', saved: 'Estado de arquivo atualizado.', unauthenticated: 'A sessão terminou. Inicie sessão novamente.',
     forbidden: 'Já não tem permissão para alterar este estado.', mutationError: 'Não foi possível concluir a alteração. Pode tentar novamente com segurança.',
     archivedAction: 'Arquivada', restoredAction: 'Restaurada', close: 'Fechar', readOnly: 'Pode consultar o arquivo, mas não tem permissão para o alterar.',
@@ -34,9 +34,9 @@ const copy = {
     loadError: 'The archive state could not be loaded.', noPeople: 'There are no people available.', active: 'Active', archived: 'Archived',
     currentReason: 'Current reason', archivedAt: 'Archived at', history: 'History', noHistory: 'There is no archive history yet.',
     reason: 'Archive reason', reasonPlaceholder: 'State the administrative reason for this decision', reasonHelp: 'Required, up to 240 characters.',
-    archive: 'Archive person', restore: 'Restore person', confirmArchive: 'Confirm archive', confirmRestore: 'Confirm restore',
-    confirmArchiveText: 'This action makes the person inactive and records the reason in history. Continue?',
-    confirmRestoreText: 'This action explicitly restores the prior state allowed by the archive contract. Continue?',
+    archive: 'Archive person', restore: 'Restore person', confirmArchive: 'Confirm archive', confirmRestore: 'Confirm restore', target: 'Selected person',
+    confirmArchiveText: 'This action makes the person inactive and records the reason in history. Carefully confirm the target before continuing.',
+    confirmRestoreText: 'This action explicitly restores the prior state allowed by the archive contract. Carefully confirm the target before continuing.',
     cancel: 'Cancel', working: 'Saving…', saved: 'Archive state updated.', unauthenticated: 'Your session ended. Sign in again.',
     forbidden: 'You no longer have permission to change this state.', mutationError: 'The change could not be completed. You can retry safely.',
     archivedAction: 'Archived', restoredAction: 'Restored', close: 'Close', readOnly: 'You can view archive state, but you do not have permission to change it.',
@@ -47,9 +47,9 @@ const copy = {
     loadError: 'No se pudo cargar el estado de archivo.', noPeople: 'No hay personas disponibles.', active: 'Activa', archived: 'Archivada',
     currentReason: 'Motivo actual', archivedAt: 'Archivada el', history: 'Historial', noHistory: 'Todavía no existe historial de archivo.',
     reason: 'Motivo del archivo', reasonPlaceholder: 'Indique el motivo administrativo de esta decisión', reasonHelp: 'Obligatorio, hasta 240 caracteres.',
-    archive: 'Archivar persona', restore: 'Restaurar persona', confirmArchive: 'Confirmar archivo', confirmRestore: 'Confirmar restauración',
-    confirmArchiveText: 'Esta acción deja a la persona inactiva y registra el motivo en el historial. ¿Continuar?',
-    confirmRestoreText: 'Esta acción restaura explícitamente el estado anterior permitido por el contrato de archivo. ¿Continuar?',
+    archive: 'Archivar persona', restore: 'Restaurar persona', confirmArchive: 'Confirmar archivo', confirmRestore: 'Confirmar restauración', target: 'Persona seleccionada',
+    confirmArchiveText: 'Esta acción deja a la persona inactiva y registra el motivo en el historial. Confirme cuidadosamente el objetivo antes de continuar.',
+    confirmRestoreText: 'Esta acción restaura explícitamente el estado anterior permitido por el contrato de archivo. Confirme cuidadosamente el objetivo antes de continuar.',
     cancel: 'Cancelar', working: 'Guardando…', saved: 'Estado de archivo actualizado.', unauthenticated: 'La sesión terminó. Inicie sesión de nuevo.',
     forbidden: 'Ya no tiene permiso para cambiar este estado.', mutationError: 'No se pudo completar el cambio. Puede volver a intentarlo con seguridad.',
     archivedAction: 'Archivada', restoredAction: 'Restaurada', close: 'Cerrar', readOnly: 'Puede consultar el archivo, pero no tiene permiso para cambiarlo.',
@@ -70,10 +70,18 @@ function formatInstant(value: string, locale: Locale): string {
   return new Intl.DateTimeFormat(locale === 'en' ? 'en-GB' : locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
 }
 
-export function PeopleArchiveDialog({ locale, open, onClose, archiveApi = peopleArchiveApi, directoryApi = peopleDirectoryApi }: {
+export function chooseArchivePersonId(people: readonly Pick<PeopleDirectoryPersonDto, 'id'>[], currentId?: string, initialPersonId?: string): string | undefined {
+  if (currentId && people.some(person => person.id === currentId)) return currentId;
+  if (initialPersonId && people.some(person => person.id === initialPersonId)) return initialPersonId;
+  return undefined;
+}
+
+export function PeopleArchiveDialog({ locale, open, onClose, initialPersonId, onChanged, archiveApi = peopleArchiveApi, directoryApi = peopleDirectoryApi }: {
   locale: Locale;
   open: boolean;
   onClose: () => void;
+  initialPersonId?: string;
+  onChanged?: (personId: string) => void;
   archiveApi?: PeopleArchiveApi;
   directoryApi?: DirectoryClient;
 }) {
@@ -109,7 +117,7 @@ export function PeopleArchiveDialog({ locale, open, onClose, archiveApi = people
       const directory = await directoryApi.get(controller.signal);
       if (controller.signal.aborted || version !== peopleRequestRef.current) return;
       setPeople(directory.people);
-      setSelectedId(current => current && directory.people.some(person => person.id === current) ? current : directory.people[0]?.id);
+      setSelectedId(current => chooseArchivePersonId(directory.people, current, initialPersonId));
     } catch (caught) {
       if (controller.signal.aborted || version !== peopleRequestRef.current) return;
       setError(errorState(caught));
@@ -149,7 +157,7 @@ export function PeopleArchiveDialog({ locale, open, onClose, archiveApi = people
       peopleControllerRef.current?.abort(); stateControllerRef.current?.abort(); mutationControllerRef.current?.abort();
       mutationLockRef.current = false;
     };
-  }, [open]);
+  }, [open, initialPersonId]);
 
   useEffect(() => {
     if (!open || !selectedId) { setState(undefined); return; }
@@ -173,6 +181,7 @@ export function PeopleArchiveDialog({ locale, open, onClose, archiveApi = people
       setState(authoritative);
       setReason(authoritative.current?.reason ?? '');
       setSuccess(true);
+      onChanged?.(ownerId);
       void loadPeople();
     } catch (caught) {
       if (!controller.signal.aborted && selectedId === ownerId) setError(errorState(caught));
@@ -184,7 +193,10 @@ export function PeopleArchiveDialog({ locale, open, onClose, archiveApi = people
 
   const confirm = (action: 'archive' | 'restore') => Modal.confirm({
     title: action === 'archive' ? text.confirmArchive : text.confirmRestore,
-    content: action === 'archive' ? text.confirmArchiveText : text.confirmRestoreText,
+    content: <Space orientation="vertical" size="small">
+      <Typography.Text>{action === 'archive' ? text.confirmArchiveText : text.confirmRestoreText}</Typography.Text>
+      <Typography.Text strong>{text.target}: {selected?.displayName ?? text.choose}</Typography.Text>
+    </Space>,
     okText: action === 'archive' ? text.archive : text.restore,
     cancelText: text.cancel,
     okButtonProps: action === 'archive' ? { danger: true } : undefined,
