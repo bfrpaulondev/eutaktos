@@ -91,6 +91,7 @@ function OrganizationWorkspace({ locale }: { locale: Locale }) {
   const [accessOpen, setAccessOpen] = useState(false);
   const [hourglassOpen, setHourglassOpen] = useState(false);
   const toolsButtonRef = useRef<HTMLButtonElement | null>(null);
+  const hourglassButtonRef = useRef<HTMLButtonElement | null>(null);
   const auditButtonRef = useRef<HTMLButtonElement | null>(null);
   const accessButtonRef = useRef<HTMLButtonElement | null>(null);
   const text = copy[locale];
@@ -153,16 +154,15 @@ function OrganizationWorkspace({ locale }: { locale: Locale }) {
               menu={{
                 items: [
                   { key: 'reminders', icon: <BellOutlined />, label: text.reminders },
-                  { key: 'hourglass', label: text.hourglass },
                 ],
                 onClick: ({ key }) => {
                   if (key === 'reminders') setRemindersOpen(true);
-                  if (key === 'hourglass') setHourglassOpen(true);
                 },
               }}
             >
               <Button ref={toolsButtonRef}>{text.tools}</Button>
             </Dropdown>
+            <Button ref={hourglassButtonRef} onClick={() => setHourglassOpen(true)}>{text.hourglass}</Button>
             <Button ref={auditButtonRef} onClick={() => setAuditOpen(true)}>{text.audit}</Button>
             <Button ref={accessButtonRef} onClick={() => setAccessOpen(true)}>{text.access}</Button>
           </Space>
@@ -183,7 +183,7 @@ function OrganizationWorkspace({ locale }: { locale: Locale }) {
     <PeopleRemindersDialog locale={locale} open={remindersOpen} onClose={() => { setRemindersOpen(false); restoreToolsFocus(); }} />
     <AuditHistoryDialog locale={locale} open={auditOpen} onClose={() => { setAuditOpen(false); window.requestAnimationFrame(() => auditButtonRef.current?.focus()); }} />
     <AccessManagementDialog locale={locale} open={accessOpen} onClose={() => { setAccessOpen(false); window.requestAnimationFrame(() => accessButtonRef.current?.focus()); }} />
-    <HourglassImportInspector locale={locale} open={hourglassOpen} onClose={() => { setHourglassOpen(false); restoreToolsFocus(); }} />
+    <HourglassImportInspector locale={locale} open={hourglassOpen} onClose={() => { setHourglassOpen(false); window.requestAnimationFrame(() => hourglassButtonRef.current?.focus()); }} />
   </Space>;
 }
 
