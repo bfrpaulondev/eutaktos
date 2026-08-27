@@ -1,5 +1,6 @@
 import {
   HOURGLASS_EXTERNAL_ID_PREFIX,
+  HOURGLASS_IMPORT_LIMITS,
   inspectHourglassJsonExport,
   previewHourglassImport,
   type ExistingHourglassPerson,
@@ -112,7 +113,7 @@ const handler: ApiHandler = async (request, response) => {
     const rows = await database.entities(principal.tenantId, 'person');
     const people = Object.freeze(rows.map(row => storedPerson(row, principal.tenantId)));
     json(response, 200, buildHourglassPreviewResponse(inspection, principal.tenantId, people));
-  });
+  }, { maxBodyBytes: HOURGLASS_IMPORT_LIMITS.maxJsonBytes + 1024 });
 };
 
 export default handler;

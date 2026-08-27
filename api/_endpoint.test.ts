@@ -36,4 +36,12 @@ describe('request envelope limits',()=>{
   it('accepts a normal small JSON payload',()=>{
     expect(()=>assertRequestEnvelope(request({'content-length':'17'}, {name:'Example'}))).not.toThrow();
   });
+  it('allows an explicitly larger endpoint limit without weakening the default limit',()=>{
+    const body={value:'x'.repeat(128*1024)};
+    expect(()=>assertRequestEnvelope(request({},body))).toThrow(PayloadTooLargeError);
+    expect(()=>assertRequestEnvelope(request({},body),{maxBodyBytes:256*1024})).not.toThrow();
+  });
+  it('never permits endpoint limits above the absolute server safety ceiling',()=>{
+    expect(()=>assertRequestEnvelope(request({}),{maxBodyBytes:7*1024*1024})).toThrow('Invalid request body limit');
+  });
 });
