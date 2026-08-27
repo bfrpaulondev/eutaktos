@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { contrastRatio, EUTAKTOS_PALETTES, EUTAKTOS_STATUS_KEYS, readableTextColor, statusColor } from './theme';
 
 const paletteIds = Object.keys(EUTAKTOS_PALETTES) as Array<keyof typeof EUTAKTOS_PALETTES>;
+const rawThemeModules = import.meta.glob('./theme.ts', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 
 describe('Eutaktos design system', () => {
   it('keeps the six coherent user presets in their approved order', () => {
@@ -42,8 +43,8 @@ describe('Eutaktos design system', () => {
     expect(dark.primary).toBe('#6BC7C4');
   });
 
-  it('keeps the palette catalog framework-neutral after MUI retirement', async () => {
-    const source = await import('./theme?raw').then(module => module.default as string);
+  it('keeps the palette catalog framework-neutral after MUI retirement', () => {
+    const source = rawThemeModules['./theme.ts'];
     expect(source).not.toContain('@mui/material');
     expect(source).not.toContain('@emotion/');
   });
