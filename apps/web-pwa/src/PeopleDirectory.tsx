@@ -46,6 +46,7 @@ import { PersonWizard } from './PersonWizard';
 import './PeopleDirectory.css';
 
 const { Paragraph, Text, Title } = Typography;
+
 type LoadState = 'loading' | 'ready' | 'error';
 type WizardIntent = Readonly<{ mode: 'create' }> | Readonly<{ mode: 'edit'; person: PersonProfileDto }>;
 
@@ -106,6 +107,7 @@ const copy = {
   },
 } as const;
 
+/** Legacy pure helper retained for regression coverage while Directory 2.0 consumes the projection API. */
 export function filterPeople(people: readonly PersonProfileDto[], query: string, status: 'all' | 'active' | 'inactive', locale: Locale): readonly PersonProfileDto[] {
   const needle = query.trim().toLocaleLowerCase(locale);
   return people.filter(person => (!needle || person.displayName.toLocaleLowerCase(locale).includes(needle) || person.preferredLocale?.toLocaleLowerCase(locale).includes(needle)) && (status === 'all' || person.active === (status === 'active')));
@@ -113,15 +115,53 @@ export function filterPeople(people: readonly PersonProfileDto[], query: string,
 
 export function directoryPersonForWizard(person: PeopleDirectoryPersonDto): PersonProfileDto {
   const labels = person.labels ?? [];
-  return Object.freeze({ id: person.id, displayName: person.displayName, ...(person.preferredLocale !== undefined ? { preferredLocale: person.preferredLocale } : {}), active: person.active, ...(labels.length ? { labels } : {}) });
+  return Object.freeze({
+    id: person.id,
+    displayName: person.displayName,
+    ...(person.preferredLocale !== undefined ? { preferredLocale: person.preferredLocale } : {}),
+    active: person.active,
+    ...(labels.length ? { labels } : {}),
+  });
 }
-export function canOpenPersonWizard(writePeople: boolean, capabilities: readonly Capability[] | undefined): boolean { return Boolean(writePeople && capabilities?.includes('people.read') && capabilities.includes('people.write')); }
-function formatCivilDate(value: string, locale: Locale): string { const normalizedLocale = locale === 'en' ? 'en-GB' : locale; const date = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T12:00:00Z`) : new Date(value); if (!Number.isFinite(date.getTime())) return value; return new Intl.DateTimeFormat(normalizedLocale, { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(date); }
-function errorStatus(error: unknown): number | undefined { const match = /\((\d{3})\)$/.exec(error instanceof Error ? error.message : ''); return match ? Number(match[1]) : undefined; }
-function responsibilityLabel(value: string): string { return value.replace(/[-_]+/g, ' ').replace(/^./, first => first.toLocaleUpperCase()); }
-function downloadCsv(content: string, filename: string): void { const blob = new Blob(['\uFEFF', content], { type: 'text/csv;charset=utf-8' }); const objectUrl = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = objectUrl; anchor.download = filename; anchor.hidden = true; document.body.append(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(objectUrl); }
 
-export interface PeopleDirectoryProps { readonly locale: Locale; readonly createRequest?: number; readonly onOpenProfile?: (personId: string) => void; }
+export function canOpenPersonWizard(writePeople: boolean, capabilities: readonly Capability[] | undefined): boolean {
+  return Boolean(writePeople && capabilities?.includes('people.read') && capabilities.includes('people.write'));
+}
+
+function formatCivilDate(value: string, locale: Locale): string {
+  const normalizedLocale = locale === 'en' ? 'en-GB' : locale;
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T12:00:00Z`) : new Date(value);
+  if (!Number.isFinite(date.getTime())) return value;
+  return new Intl.DateTimeFormat(normalizedLocale, { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(date);
+}
+
+function errorStatus(error: unknown): number | undefined {
+  const match = /\((\d{3})\)$/.exec(error instanceof Error ? error.message : '');
+  return match ? Number(match[1]) : undefined;
+}
+
+function responsibilityLabel(value: string): string {
+  return value.replace(/[-_]+/g, ' ').replace(/^./, first => first.toLocaleUpperCase());
+}
+
+function downloadCsv(content: string, filename: string): void {
+  const blob = new Blob(['\uFEFF', content], { type: 'text/csv;charset=utf-8' });
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = objectUrl;
+  anchor.download = filename;
+  anchor.hidden = true;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(objectUrl);
+}
+
+export interface PeopleDirectoryProps {
+  readonly locale: Locale;
+  readonly createRequest?: number;
+  readonly onOpenProfile?: (personId: string) => void;
+}
 
 export function PeopleDirectory({ locale, createRequest = 0, onOpenProfile }: PeopleDirectoryProps) {
   const text = copy[locale];
@@ -156,60 +196,172 @@ export function PeopleDirectory({ locale, createRequest = 0, onOpenProfile }: Pe
   };
 
   const load = async () => {
-    const requestVersion = requestVersionRef.current + 1; requestVersionRef.current = requestVersion; controllerRef.current?.abort(); const controller = new AbortController(); controllerRef.current = controller;
-    if (!directory) setLoadState('loading'); setLoadError(null);
+    const requestVersion = requestVersionRef.current + 1;
+    requestVersionRef.current = requestVersion;
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    if (!directory) setLoadState('loading');
+    setLoadError(null);
     try {
       const value = await peopleDirectoryApi.get(controller.signal);
       if (controller.signal.aborted || requestVersion !== requestVersionRef.current) return;
-      setDirectory(value); setLoadState('ready');
+      setDirectory(value);
+      setLoadState('ready');
       setFilters(current => {
         const fromUrl = peopleDirectoryFiltersFromSearch(window.location.search);
-        const sanitized = sanitizePeopleDirectoryFilters(Object.freeze({ ...fromUrl, ...(current.label ? { label: current.label } : {}) }), value);
+        const sanitized = sanitizePeopleDirectoryFilters(
+          Object.freeze({ ...fromUrl, ...(current.label ? { label: current.label } : {}) }),
+          value,
+        );
         const search = peopleDirectorySearchWithFilters(window.location.search, sanitized);
         const target = `${window.location.pathname}${search}${window.location.hash}`;
         const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
         if (target !== currentUrl) window.history.replaceState(window.history.state, '', target);
         return sanitized;
       });
-    } catch (error) { if (controller.signal.aborted || requestVersion !== requestVersionRef.current) return; setLoadError(error); setLoadState('error'); }
+    } catch (error) {
+      if (controller.signal.aborted || requestVersion !== requestVersionRef.current) return;
+      setLoadError(error);
+      setLoadState('error');
+    }
   };
 
   const loadSession = async () => {
-    const requestVersion = sessionRequestRef.current + 1; sessionRequestRef.current = requestVersion; sessionControllerRef.current?.abort(); const controller = new AbortController(); sessionControllerRef.current = controller; setSessionState('loading');
-    try { const value = await sessionApi.current(controller.signal); if (controller.signal.aborted || requestVersion !== sessionRequestRef.current) return; setSession(value); setSessionState('ready'); }
-    catch { if (controller.signal.aborted || requestVersion !== sessionRequestRef.current) return; setSession(null); setSessionState('error'); }
+    const requestVersion = sessionRequestRef.current + 1;
+    sessionRequestRef.current = requestVersion;
+    sessionControllerRef.current?.abort();
+    const controller = new AbortController();
+    sessionControllerRef.current = controller;
+    setSessionState('loading');
+    try {
+      const value = await sessionApi.current(controller.signal);
+      if (controller.signal.aborted || requestVersion !== sessionRequestRef.current) return;
+      setSession(value);
+      setSessionState('ready');
+    } catch {
+      if (controller.signal.aborted || requestVersion !== sessionRequestRef.current) return;
+      setSession(null);
+      setSessionState('error');
+    }
   };
 
-  useEffect(() => { void load(); void loadSession(); return () => { requestVersionRef.current += 1; sessionRequestRef.current += 1; controllerRef.current?.abort(); sessionControllerRef.current?.abort(); }; }, []);
-  useEffect(() => { const onPopState = () => setFilters(current => Object.freeze({ ...peopleDirectoryFiltersFromSearch(window.location.search), ...(current.label ? { label: current.label } : {}) })); window.addEventListener('popstate', onPopState); return () => window.removeEventListener('popstate', onPopState); }, []);
+  useEffect(() => {
+    void load();
+    void loadSession();
+    return () => {
+      requestVersionRef.current += 1;
+      sessionRequestRef.current += 1;
+      controllerRef.current?.abort();
+      sessionControllerRef.current?.abort();
+    };
+  }, []);
+
+  useEffect(() => {
+    const onPopState = () => setFilters(current => Object.freeze({
+      ...peopleDirectoryFiltersFromSearch(window.location.search),
+      ...(current.label ? { label: current.label } : {}),
+    }));
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
   const editorAllowed = canOpenPersonWizard(Boolean(directory?.capabilities.writePeople), session?.capabilities);
-  const openCreate = () => { if (!editorAllowed) return; setNotice(null); setWizardIntent({ mode: 'create' }); };
-  const beginEdit = (person: PeopleDirectoryPersonDto) => { if (!editorAllowed) return; setNotice(null); setWizardIntent({ mode: 'edit', person: directoryPersonForWizard(person) }); };
-  useEffect(() => { if (handledCreateRequestRef.current === createRequest || !directory) return; if (sessionState === 'loading' || sessionState === 'error') return; handledCreateRequestRef.current = createRequest; if (editorAllowed) openCreate(); }, [createRequest, directory, editorAllowed, sessionState]);
+  const openCreate = () => {
+    if (!editorAllowed) return;
+    setNotice(null);
+    setWizardIntent({ mode: 'create' });
+  };
+  const beginEdit = (person: PeopleDirectoryPersonDto) => {
+    if (!editorAllowed) return;
+    setNotice(null);
+    setWizardIntent({ mode: 'edit', person: directoryPersonForWizard(person) });
+  };
 
-  const handleWizardSaved = (person: PersonProfileDto) => { const mode = wizardIntent?.mode; setWizardIntent(null); setNotice(mode === 'create' ? 'created' : 'updated'); void load(); if (mode === 'edit' && onOpenProfile && person.id) { /* Directory remains post-save owner. */ } };
+  useEffect(() => {
+    if (handledCreateRequestRef.current === createRequest || !directory) return;
+    if (sessionState === 'loading' || sessionState === 'error') return;
+    handledCreateRequestRef.current = createRequest;
+    if (editorAllowed) openCreate();
+  }, [createRequest, directory, editorAllowed, sessionState]);
+
+  const handleWizardSaved = (person: PersonProfileDto) => {
+    const mode = wizardIntent?.mode;
+    setWizardIntent(null);
+    setNotice(mode === 'create' ? 'created' : 'updated');
+    void load();
+    if (mode === 'edit' && onOpenProfile && person.id) {
+      // Directory remains post-save owner. Profile navigation remains an explicit user action.
+    }
+  };
 
   const effectiveFilters = directory ? sanitizePeopleDirectoryFilters(filters, directory) : DEFAULT_PEOPLE_DIRECTORY_FILTERS;
   const filtered = useMemo(() => directory ? filterPeopleDirectory(directory.people, query, effectiveFilters, locale) : [], [directory, effectiveFilters, locale, query]);
   const selectedPeople = useMemo(() => filtered.filter(person => selectedPersonIds.includes(person.id)), [filtered, selectedPersonIds]);
   const hasFilters = hasPeopleDirectoryFilters(query, effectiveFilters);
-  const advancedCount = Number(Boolean(effectiveFilters.eligibilityTypeId)) + Number(Boolean(effectiveFilters.responsibilityKey)) + Number(Boolean(effectiveFilters.label));
+  const advancedCount = Number(Boolean(effectiveFilters.eligibilityTypeId))
+    + Number(Boolean(effectiveFilters.responsibilityKey))
+    + Number(Boolean(effectiveFilters.label));
   const clearFilters = () => { setQuery(''); syncFilters(DEFAULT_PEOPLE_DIRECTORY_FILTERS); };
   const updateFilter = <K extends keyof PeopleDirectoryFilters>(key: K, value: PeopleDirectoryFilters[K]) => syncFilters(Object.freeze({ ...effectiveFilters, [key]: value || undefined }));
 
-  useEffect(() => { if (!selectionMode) return; const visibleIds = new Set(filtered.map(person => person.id)); setSelectedPersonIds(current => current.filter(id => visibleIds.has(id))); }, [filtered, selectionMode]);
-  const toggleSelection = (personId: string, checked: boolean) => { setSelectedPersonIds(current => checked ? current.includes(personId) ? current : Object.freeze([...current, personId]) : Object.freeze(current.filter(id => id !== personId))); };
-  const finishSelection = () => { setSelectionMode(false); setSelectedPersonIds([]); };
-  const exportRows = (people: readonly PeopleDirectoryPersonDto[]) => { if (!directory || people.length === 0) return; downloadCsv(exportPeopleDirectoryCsv(people, directory.capabilities, locale), peopleDirectoryExportFilename()); };
-  const beginSelection = () => { if (filtered.length === 0) return; setSelectionMode(true); setSelectedPersonIds([]); };
+  useEffect(() => {
+    if (!selectionMode) return;
+    const visibleIds = new Set(filtered.map(person => person.id));
+    setSelectedPersonIds(current => current.filter(id => visibleIds.has(id)));
+  }, [filtered, selectionMode]);
 
-  const availabilityNode = (person: PeopleDirectoryPersonDto) => person.availability.status !== 'ready' ? <Text type="secondary">{text.unknown}</Text> : <Space direction="vertical" size={2}><Tag color={person.availability.current === 'available' ? 'success' : 'warning'}>{person.availability.current === 'available' ? text.available : text.unavailableNow}</Tag><Text type="secondary" style={{ fontSize: 12 }}>{person.availability.nextPeriod ? `${text.nextUnavailable}: ${formatCivilDate(person.availability.nextPeriod.startsAt, locale)}` : text.noNextUnavailable}</Text></Space>;
-  const eligibilityNode = (person: PeopleDirectoryPersonDto) => person.eligibility.status !== 'ready' ? <Text type="secondary">{text.unknown}</Text> : !person.eligibility.enabledAssignmentTypeIds.length ? <Text type="secondary">{text.noEligibility}</Text> : <Text>{person.eligibility.enabledAssignmentTypeIds.length} {text.eligibleTypes}</Text>;
-  const responsibilitiesNode = (person: PeopleDirectoryPersonDto) => person.responsibilities.status !== 'ready' ? <Text type="secondary">{text.unknown}</Text> : !person.responsibilities.keys.length ? <Text type="secondary">{text.noResponsibilities}</Text> : <Space size={[4, 4]} wrap>{person.responsibilities.keys.slice(0, 3).map(key => <Tag key={key}>{responsibilityLabel(key)}</Tag>)}</Space>;
-  const labelsNode = (person: PeopleDirectoryPersonDto) => { const labels = person.labels ?? []; return labels.length ? <Space size={[4, 4]} wrap>{labels.slice(0, 3).map(label => <Tag key={label}>{label}</Tag>)}</Space> : <Text type="secondary">{text.noLabels}</Text>; };
-  const historyNode = (person: PeopleDirectoryPersonDto) => person.assignmentHistory.status !== 'ready' ? <Text type="secondary">{text.unknown}</Text> : <Text>{person.assignmentHistory.lastCompletedMeetingDate ? formatCivilDate(person.assignmentHistory.lastCompletedMeetingDate, locale) : text.noAssignmentHistory}</Text>;
-  const actionsNode = (person: PeopleDirectoryPersonDto) => <Space size={4} wrap><Button type="link" size="small" onClick={() => onOpenProfile?.(person.id)}>{text.profile}</Button>{editorAllowed ? <Button type="link" size="small" icon={<EditOutlined />} onClick={() => beginEdit(person)}>{text.edit}</Button> : null}<Button type="link" size="small" onClick={() => setLabelsPerson(person)}>{text.labels}</Button><Button type="link" size="small" onClick={() => setAwayPerson(person)}>{text.away}</Button>{directory?.capabilities.eligibility ? <Button type="link" size="small" onClick={() => setEligibilityPerson(person)}>{text.eligibility}</Button> : null}<Button type="link" size="small" onClick={() => setContactsPerson(person)}>{text.contacts}</Button></Space>;
+  const toggleSelection = (personId: string, checked: boolean) => {
+    setSelectedPersonIds(current => checked
+      ? current.includes(personId) ? current : Object.freeze([...current, personId])
+      : Object.freeze(current.filter(id => id !== personId)));
+  };
+  const finishSelection = () => { setSelectionMode(false); setSelectedPersonIds([]); };
+  const exportRows = (people: readonly PeopleDirectoryPersonDto[]) => {
+    if (!directory || people.length === 0) return;
+    downloadCsv(exportPeopleDirectoryCsv(people, directory.capabilities, locale), peopleDirectoryExportFilename());
+  };
+  const beginSelection = () => {
+    if (filtered.length === 0) return;
+    setSelectionMode(true);
+    setSelectedPersonIds([]);
+  };
+
+  const availabilityNode = (person: PeopleDirectoryPersonDto) => {
+    if (person.availability.status !== 'ready') return <Text type="secondary">{text.unknown}</Text>;
+    return <Space direction="vertical" size={2}>
+      <Tag color={person.availability.current === 'available' ? 'success' : 'warning'}>{person.availability.current === 'available' ? text.available : text.unavailableNow}</Tag>
+      <Text type="secondary" style={{ fontSize: 12 }}>{person.availability.nextPeriod ? `${text.nextUnavailable}: ${formatCivilDate(person.availability.nextPeriod.startsAt, locale)}` : text.noNextUnavailable}</Text>
+    </Space>;
+  };
+  const eligibilityNode = (person: PeopleDirectoryPersonDto) => {
+    if (person.eligibility.status !== 'ready') return <Text type="secondary">{text.unknown}</Text>;
+    if (!person.eligibility.enabledAssignmentTypeIds.length) return <Text type="secondary">{text.noEligibility}</Text>;
+    return <Text>{person.eligibility.enabledAssignmentTypeIds.length} {text.eligibleTypes}</Text>;
+  };
+  const responsibilitiesNode = (person: PeopleDirectoryPersonDto) => {
+    if (person.responsibilities.status !== 'ready') return <Text type="secondary">{text.unknown}</Text>;
+    if (!person.responsibilities.keys.length) return <Text type="secondary">{text.noResponsibilities}</Text>;
+    return <Space size={[4, 4]} wrap>{person.responsibilities.keys.slice(0, 3).map(key => <Tag key={key}>{responsibilityLabel(key)}</Tag>)}</Space>;
+  };
+  const labelsNode = (person: PeopleDirectoryPersonDto) => {
+    const labels = person.labels ?? [];
+    return labels.length
+      ? <Space size={[4, 4]} wrap>{labels.slice(0, 3).map(label => <Tag key={label}>{label}</Tag>)}</Space>
+      : <Text type="secondary">{text.noLabels}</Text>;
+  };
+  const historyNode = (person: PeopleDirectoryPersonDto) => {
+    if (person.assignmentHistory.status !== 'ready') return <Text type="secondary">{text.unknown}</Text>;
+    return <Text>{person.assignmentHistory.lastCompletedMeetingDate ? formatCivilDate(person.assignmentHistory.lastCompletedMeetingDate, locale) : text.noAssignmentHistory}</Text>;
+  };
+  const actionsNode = (person: PeopleDirectoryPersonDto) => <Space size={4} wrap>
+    <Button type="link" size="small" onClick={() => onOpenProfile?.(person.id)}>{text.profile}</Button>
+    {editorAllowed ? <Button type="link" size="small" icon={<EditOutlined />} onClick={() => beginEdit(person)}>{text.edit}</Button> : null}
+    <Button type="link" size="small" onClick={() => setLabelsPerson(person)}>{text.labels}</Button>
+    <Button type="link" size="small" onClick={() => setAwayPerson(person)}>{text.away}</Button>
+    {directory?.capabilities.eligibility ? <Button type="link" size="small" onClick={() => setEligibilityPerson(person)}>{text.eligibility}</Button> : null}
+    <Button type="link" size="small" onClick={() => setContactsPerson(person)}>{text.contacts}</Button>
+  </Space>;
 
   const columns: ColumnsType<PeopleDirectoryPersonDto> = [
     { title: text.title, key: 'person', width: 230, sorter: (left, right) => left.displayName.localeCompare(right.displayName, locale), render: (_, person) => <Space><Avatar>{person.displayName.slice(0, 1).toLocaleUpperCase(locale)}</Avatar><span><Text strong>{person.displayName}</Text>{person.preferredLocale ? <><br /><Text type="secondary" style={{ fontSize: 12 }}>{text.locale}: {person.preferredLocale}</Text></> : null}</span></Space> },
@@ -225,7 +377,20 @@ export function PeopleDirectory({ locale, createRequest = 0, onOpenProfile }: Pe
 
   const error = errorStatus(loadError);
   const partial = directory && [directory.capabilities.availability, directory.capabilities.eligibility, directory.capabilities.responsibilities, directory.capabilities.schedule].some(value => !value);
-  const advancedFilters = directory ? <Space direction="vertical" size="middle" style={{ width: 280 }}><div><Text strong>{text.labels}</Text><Select aria-label={text.labels} style={{ width: '100%', marginTop: 6 }} value={effectiveFilters.label ?? ''} onChange={value => updateFilter('label', value || undefined)} options={[{ value: '', label: text.allLabels }, ...(directory.filters.labels ?? []).map(label => ({ value: label, label }))]} /></div><div><Text strong>{text.eligibility}</Text><Select aria-label={text.eligibility} style={{ width: '100%', marginTop: 6 }} value={effectiveFilters.eligibilityTypeId ?? ''} disabled={!directory.capabilities.eligibility} onChange={value => updateFilter('eligibilityTypeId', value || undefined)} options={[{ value: '', label: text.allEligibility }, ...directory.filters.assignmentTypeIds.map(id => ({ value: id, label: assignmentTypeLabel(id, locale) }))]} /></div><div><Text strong>{text.responsibility}</Text><Select aria-label={text.responsibility} style={{ width: '100%', marginTop: 6 }} value={effectiveFilters.responsibilityKey ?? ''} disabled={!directory.capabilities.responsibilities} onChange={value => updateFilter('responsibilityKey', value || undefined)} options={[{ value: '', label: text.allResponsibilities }, ...directory.filters.responsibilityKeys.map(key => ({ value: key, label: responsibilityLabel(key) }))]} /></div></Space> : null;
+  const advancedFilters = directory ? <Space direction="vertical" size="middle" style={{ width: 280 }}>
+    <div>
+      <Text strong>{text.labels}</Text>
+      <Select aria-label={text.labels} style={{ width: '100%', marginTop: 6 }} value={effectiveFilters.label ?? ''} onChange={value => updateFilter('label', value || undefined)} options={[{ value: '', label: text.allLabels }, ...(directory.filters.labels ?? []).map(label => ({ value: label, label }))]} />
+    </div>
+    <div>
+      <Text strong>{text.eligibility}</Text>
+      <Select aria-label={text.eligibility} style={{ width: '100%', marginTop: 6 }} value={effectiveFilters.eligibilityTypeId ?? ''} disabled={!directory.capabilities.eligibility} onChange={value => updateFilter('eligibilityTypeId', value || undefined)} options={[{ value: '', label: text.allEligibility }, ...directory.filters.assignmentTypeIds.map(id => ({ value: id, label: assignmentTypeLabel(id, locale) }))]} />
+    </div>
+    <div>
+      <Text strong>{text.responsibility}</Text>
+      <Select aria-label={text.responsibility} style={{ width: '100%', marginTop: 6 }} value={effectiveFilters.responsibilityKey ?? ''} disabled={!directory.capabilities.responsibilities} onChange={value => updateFilter('responsibilityKey', value || undefined)} options={[{ value: '', label: text.allResponsibilities }, ...directory.filters.responsibilityKeys.map(key => ({ value: key, label: responsibilityLabel(key) }))]} />
+    </div>
+  </Space> : null;
 
   return <section aria-labelledby="people-directory-title">
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
