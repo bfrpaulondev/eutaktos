@@ -51,6 +51,29 @@ Use an approved disposable Person fixture only. Do not archive real congregation
 
 Automated CI and PR #377 prove technical readiness of the browser/server composition, but they do not complete this production-destructive acceptance scenario.
 
+## PX9.9 — Hourglass prepare → execute → create-only rollback
+
+Use an approved sanitized Hourglass JSON fixture containing only disposable publisher identities/data. The fixture must be designed so the reviewed preview contains only `create` and, if useful, `unchanged` rows; do not execute against unresolved conflicts or real congregation People merely to produce acceptance evidence.
+
+1. Prove canonical production alignment to the exact integrated SHA before any write.
+2. Open Pessoas → Ferramentas → Importar and select the supported Hourglass JSON source.
+3. Load the approved fixture and verify it remains in-memory only: no source payload in URL, localStorage, sessionStorage or Cache Storage.
+4. Run **Comparar com Eutaktos** and verify the read-only preview counts and per-person actions match the disposable fixture; names must not be used as identity keys.
+5. Verify any deliberately introduced conflict blocks the write path. Remove that conflict from the disposable fixture and compare again before continuing.
+6. Choose **Preparar importação** and verify the server-bound preview shown after prepare still matches what the user is being asked to confirm. Do not expose tenant, actor, capabilities, attempt timestamp or external IDs in browser-visible authority fields.
+7. Confirm the import exactly once. Verify only the expected new disposable People are created, they start in the supported inactive state, only explicitly represented Hourglass eligibility is imported, and no ordinary/emergency Contact data appears.
+8. Refresh/reopen People and verify the created authoritative records persist with no duplicate import.
+9. If the environment supports a controlled ambiguous-response test, retry the same prepared execution after the response is interrupted and prove the result is recovered as the same migration rather than creating duplicate People.
+10. Verify a changed/stale prepared state is rejected rather than silently executed if the controlled environment can safely modify the relevant authoritative fixture between prepare and execute.
+11. Use the explicit **Reverter importação** action once and verify only People created by this create-only migration are removed. Confirm unrelated People remain untouched.
+12. Retry rollback once only if a controlled network ambiguity can be introduced safely; verify the same migration reports/reconstructs `already-rolled-back` rather than applying a second destructive operation.
+13. Verify a created Person changed after import cannot be silently removed by rollback; the whole rollback must fail closed under the supported version guard. Only exercise this with a disposable fixture and restore/cleanup it afterward.
+14. With reduced-capability users, verify prepare/execute/rollback fail closed according to their server-derived permissions and that browser-supplied tenant/actor/capability fields cannot grant authority.
+15. Inspect network requests, URL, storage and service-worker caches for source payload/Contact PII/tenant/actor/capability leakage. Record only opaque migration/execution identities required by the acceptance report.
+16. Complete the approved cleanup plan and confirm no disposable imported People or test migration side effects remain where safe cleanup is supported.
+
+PR #379 and PR #380 plus CI/preview browser evidence prove technical readiness only. This checklist is the missing destructive real-user production acceptance and must be reported independently.
+
 ## PX7/PX8/PX9/PX10 follow-up
 
 As later People capabilities are integrated, append the exact production-only scenarios that require a real authenticated user, real deployment and/or safe write-capable fixture. Automated/browser-sanitized evidence may support but must not replace this acceptance category.
