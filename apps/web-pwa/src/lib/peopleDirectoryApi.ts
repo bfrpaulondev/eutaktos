@@ -6,6 +6,7 @@ export type DirectoryAssignmentHistory = Readonly<{ status: 'ready'; lastComplet
 
 export interface PeopleDirectoryPersonDto {
   readonly id: string; readonly displayName: string; readonly preferredLocale?: string; readonly active: boolean;
+  readonly labels: readonly string[];
   readonly groups: readonly Readonly<{ id: string; name: string }>[];
   readonly availability: DirectoryAvailability; readonly eligibility: DirectoryEligibility;
   readonly responsibilities: DirectoryResponsibilities; readonly assignmentHistory: DirectoryAssignmentHistory;
@@ -14,7 +15,7 @@ export interface PeopleDirectoryPersonDto {
 export interface PeopleDirectoryDto {
   readonly contractVersion: 'people-directory-v1'; readonly generatedAt: string;
   readonly capabilities: Readonly<{ writePeople: boolean; availability: boolean; eligibility: boolean; responsibilities: boolean; schedule: boolean }>;
-  readonly filters: Readonly<{ groups: readonly Readonly<{ id: string; name: string }>[]; responsibilityKeys: readonly string[]; assignmentTypeIds: readonly string[] }>;
+  readonly filters: Readonly<{ groups: readonly Readonly<{ id: string; name: string }>[]; responsibilityKeys: readonly string[]; assignmentTypeIds: readonly string[]; labels: readonly string[] }>;
   readonly people: readonly PeopleDirectoryPersonDto[];
 }
 
@@ -35,13 +36,13 @@ function availability(value: unknown): DirectoryAvailability {
 function eligibility(value: unknown): DirectoryEligibility { const item = record(value); if (item.status === 'unavailable') return Object.freeze({ status: 'unavailable' }); if (item.status !== 'ready') throw new Error('Invalid People directory response'); return Object.freeze({ status: 'ready', enabledAssignmentTypeIds: stringArray(item.enabledAssignmentTypeIds) }); }
 function responsibilities(value: unknown): DirectoryResponsibilities { const item = record(value); if (item.status === 'unavailable') return Object.freeze({ status: 'unavailable' }); if (item.status !== 'ready') throw new Error('Invalid People directory response'); return Object.freeze({ status: 'ready', keys: stringArray(item.keys) }); }
 function assignmentHistory(value: unknown): DirectoryAssignmentHistory { const item = record(value); if (item.status === 'unavailable') return Object.freeze({ status: 'unavailable' }); if (item.status !== 'ready' || (item.lastCompletedMeetingDate !== undefined && typeof item.lastCompletedMeetingDate !== 'string')) throw new Error('Invalid People directory response'); return Object.freeze({ status: 'ready', ...(typeof item.lastCompletedMeetingDate === 'string' ? { lastCompletedMeetingDate: item.lastCompletedMeetingDate } : {}) }); }
-function person(value: unknown): PeopleDirectoryPersonDto { const item = record(value); if (typeof item.active !== 'boolean' || !Array.isArray(item.groups)) throw new Error('Invalid People directory response'); if (item.preferredLocale !== undefined && typeof item.preferredLocale !== 'string') throw new Error('Invalid People directory response'); return Object.freeze({ id: stringValue(item.id), displayName: stringValue(item.displayName), ...(typeof item.preferredLocale === 'string' ? { preferredLocale: item.preferredLocale } : {}), active: item.active, groups: Object.freeze(item.groups.map(group)), availability: availability(item.availability), eligibility: eligibility(item.eligibility), responsibilities: responsibilities(item.responsibilities), assignmentHistory: assignmentHistory(item.assignmentHistory) }); }
+function person(value: unknown): PeopleDirectoryPersonDto { const item = record(value); if (typeof item.active !== 'boolean' || !Array.isArray(item.groups)) throw new Error('Invalid People directory response'); if (item.preferredLocale !== undefined && typeof item.preferredLocale !== 'string') throw new Error('Invalid People directory response'); return Object.freeze({ id: stringValue(item.id), displayName: stringValue(item.displayName), ...(typeof item.preferredLocale === 'string' ? { preferredLocale: item.preferredLocale } : {}), active: item.active, labels: stringArray(item.labels ?? []), groups: Object.freeze(item.groups.map(group)), availability: availability(item.availability), eligibility: eligibility(item.eligibility), responsibilities: responsibilities(item.responsibilities), assignmentHistory: assignmentHistory(item.assignmentHistory) }); }
 
 export function parsePeopleDirectoryResponse(value: unknown): PeopleDirectoryDto {
   const root = record(value); if (root.contractVersion !== 'people-directory-v1' || typeof root.generatedAt !== 'string' || !Array.isArray(root.people)) throw new Error('Invalid People directory response');
   const capabilities = record(root.capabilities); if (!['writePeople', 'availability', 'eligibility', 'responsibilities', 'schedule'].every(key => typeof capabilities[key] === 'boolean')) throw new Error('Invalid People directory response');
   const filters = record(root.filters); if (!Array.isArray(filters.groups)) throw new Error('Invalid People directory response');
-  return Object.freeze({ contractVersion: 'people-directory-v1', generatedAt: root.generatedAt, capabilities: Object.freeze({ writePeople: capabilities.writePeople as boolean, availability: capabilities.availability as boolean, eligibility: capabilities.eligibility as boolean, responsibilities: capabilities.responsibilities as boolean, schedule: capabilities.schedule as boolean }), filters: Object.freeze({ groups: Object.freeze(filters.groups.map(group)), responsibilityKeys: stringArray(filters.responsibilityKeys), assignmentTypeIds: stringArray(filters.assignmentTypeIds) }), people: Object.freeze(root.people.map(person)) });
+  return Object.freeze({ contractVersion: 'people-directory-v1', generatedAt: root.generatedAt, capabilities: Object.freeze({ writePeople: capabilities.writePeople as boolean, availability: capabilities.availability as boolean, eligibility: capabilities.eligibility as boolean, responsibilities: capabilities.responsibilities as boolean, schedule: capabilities.schedule as boolean }), filters: Object.freeze({ groups: Object.freeze(filters.groups.map(group)), responsibilityKeys: stringArray(filters.responsibilityKeys), assignmentTypeIds: stringArray(filters.assignmentTypeIds), labels: stringArray(filters.labels ?? []) }), people: Object.freeze(root.people.map(person)) });
 }
 
 async function readJson(response: Response): Promise<unknown> { try { return await response.json(); } catch { throw new Error('Invalid API response'); } }
