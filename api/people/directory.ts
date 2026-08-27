@@ -141,6 +141,7 @@ const handler: ApiHandler = async (request, response) => {
           displayName: person.displayName,
           ...(person.preferredLocale ? { preferredLocale: person.preferredLocale } : {}),
           active: person.active,
+          labels: Object.freeze([...(person.labels ?? [])]),
           groups: Object.freeze(groupMemberships),
           availability: canReadAvailability ? availabilityFor(person, now.getTime()) : unavailable(),
           eligibility: canReadEligibility ? eligibilityFor(person) : unavailable(),
@@ -158,6 +159,8 @@ const handler: ApiHandler = async (request, response) => {
     const assignmentTypeIds = canReadEligibility
       ? [...new Set(people.flatMap(person => eligibilityFor(person).enabledAssignmentTypeIds))].sort()
       : [];
+    const labels = [...new Set(people.flatMap(person => person.labels ?? []))]
+      .sort((left, right) => left.localeCompare(right));
 
     json(response, 200, Object.freeze({
       contractVersion: 'people-directory-v1',
@@ -173,6 +176,7 @@ const handler: ApiHandler = async (request, response) => {
         groups: Object.freeze(groups.map(group => Object.freeze({ id: group.id, name: group.name })).sort((left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id))),
         responsibilityKeys: Object.freeze(responsibilityKeys),
         assignmentTypeIds: Object.freeze(assignmentTypeIds),
+        labels: Object.freeze(labels),
       }),
       people: Object.freeze(peopleProjection),
     }));

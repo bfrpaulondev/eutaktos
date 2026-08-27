@@ -10,6 +10,8 @@ export interface PeopleDirectoryFilters {
   readonly groupId?: string;
   readonly eligibilityTypeId?: string;
   readonly responsibilityKey?: string;
+  /** Label names are deliberately local-only and are never serialized into the URL. */
+  readonly label?: string;
 }
 
 export const DEFAULT_PEOPLE_DIRECTORY_FILTERS: PeopleDirectoryFilters = Object.freeze({
@@ -59,6 +61,7 @@ export function sanitizePeopleDirectoryFilters(filters: PeopleDirectoryFilters, 
   const validGroupIds = new Set(directory.filters.groups.map(group => group.id));
   const validEligibility = new Set(directory.filters.assignmentTypeIds);
   const validResponsibilities = new Set(directory.filters.responsibilityKeys);
+  const validLabels = new Set(directory.filters.labels ?? []);
   const sanitized = Object.freeze({
     status: filters.status,
     availability: directory.capabilities.availability ? filters.availability : 'all',
@@ -69,12 +72,14 @@ export function sanitizePeopleDirectoryFilters(filters: PeopleDirectoryFilters, 
     ...(directory.capabilities.responsibilities && filters.responsibilityKey && validResponsibilities.has(filters.responsibilityKey)
       ? { responsibilityKey: filters.responsibilityKey }
       : {}),
+    ...(filters.label && validLabels.has(filters.label) ? { label: filters.label } : {}),
   });
   const unchanged = sanitized.status === filters.status
     && sanitized.availability === filters.availability
     && sanitized.groupId === filters.groupId
     && sanitized.eligibilityTypeId === filters.eligibilityTypeId
-    && sanitized.responsibilityKey === filters.responsibilityKey;
+    && sanitized.responsibilityKey === filters.responsibilityKey
+    && sanitized.label === filters.label;
   return unchanged && Object.isFrozen(filters) ? filters : sanitized;
 }
 
@@ -90,6 +95,7 @@ export function filterPeopleDirectory(
     if (filters.status === 'active' && !person.active) return false;
     if (filters.status === 'inactive' && person.active) return false;
     if (filters.groupId && !person.groups.some(group => group.id === filters.groupId)) return false;
+    if (filters.label && !(person.labels ?? []).includes(filters.label)) return false;
     if (filters.availability !== 'all') {
       if (person.availability.status !== 'ready' || person.availability.current !== filters.availability) return false;
     }
@@ -104,5 +110,8 @@ export function filterPeopleDirectory(
 }
 
 export function hasPeopleDirectoryFilters(query: string, filters: PeopleDirectoryFilters): boolean {
-  return Boolean(query.trim()) || filters.status !== 'all' || filters.availability !== 'all' || Boolean(filters.groupId || filters.eligibilityTypeId || filters.responsibilityKey);
+  return Boolean(query.trim())
+    || filters.status !== 'all'
+    || filters.availability !== 'all'
+    || Boolean(filters.groupId || filters.eligibilityTypeId || filters.responsibilityKey || filters.label);
 }
