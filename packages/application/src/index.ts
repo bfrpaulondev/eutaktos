@@ -12,6 +12,7 @@ export * from './midweek-scheduling-service';
 export * from './student-assignment-replacement-service';
 export * from './duty-scheduling-service';
 export * from './assignment-response-service';
+export * from './assignment-reminder-review-service';
 export * from './notification-intent-service';
 export * from './migration-workflow-service';
 export * from './migration-schema';
