@@ -15,6 +15,7 @@
     "test:person-wizard-directory": "node scripts/verify-person-wizard-directory.mjs",
     "test:recommendation-picker": "node scripts/verify-recommendation-picker-runtime.mjs",
     "test:c6-responsive-overflow": "node scripts/verify-c6-responsive-overflow.mjs",
+    "test:px10-zoom-reflow": "node scripts/verify-people-zoom-reflow.mjs",
     "test:system-theme-runtime": "node scripts/verify-system-theme-runtime.mjs",
     "test:lazy-recovery": "node scripts/verify-lazy-recovery.mjs",
     "test:hourglass-inspector": "node scripts/verify-hourglass-inspector.mjs",
