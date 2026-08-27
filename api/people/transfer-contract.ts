@@ -85,6 +85,12 @@ function base64UrlDecode(value: string): Uint8Array {
   return output;
 }
 
+function exactArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  return buffer;
+}
+
 function hexDigest(value: ArrayBuffer): string {
   return Array.from(new Uint8Array(value), byte => byte.toString(16).padStart(2, '0')).join('');
 }
@@ -92,11 +98,11 @@ function hexDigest(value: ArrayBuffer): string {
 export function createPeopleTransferSecret(): Readonly<{ code: string; tokenHash: Promise<string> }> {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
   const code = base64UrlEncode(bytes);
-  const tokenHash = crypto.subtle.digest('SHA-256', bytes).then(hexDigest);
+  const tokenHash = crypto.subtle.digest('SHA-256', exactArrayBuffer(bytes)).then(hexDigest);
   return Object.freeze({ code, tokenHash });
 }
 
 export async function hashPeopleTransferCode(code: string): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', base64UrlDecode(code));
+  const digest = await crypto.subtle.digest('SHA-256', exactArrayBuffer(base64UrlDecode(code)));
   return hexDigest(digest);
 }
