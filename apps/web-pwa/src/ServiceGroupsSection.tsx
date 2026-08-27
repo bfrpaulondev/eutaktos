@@ -1,8 +1,18 @@
+import Alert from 'antd/es/alert';
+import Button from 'antd/es/button';
+import Card from 'antd/es/card';
+import Col from 'antd/es/col';
+import Empty from 'antd/es/empty';
+import Input from 'antd/es/input';
+import Modal from 'antd/es/modal';
+import Row from 'antd/es/row';
+import Skeleton from 'antd/es/skeleton';
+import Space from 'antd/es/space';
+import Tag from 'antd/es/tag';
+import Typography from 'antd/es/typography';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, LinearProgress, Paper, TextField } from '@mui/material';
 import type { Locale } from './lib/preferences';
 import { serviceGroupsApi, type ServiceGroupDto, type ServiceGroupsApi } from './lib/serviceGroupsApi';
-import { Stack, Typography } from './ui/MuiCompat';
 
 const copy = {
   'pt-PT': { title: 'Grupos de serviço', subtitle: 'Consulta grupos, membros e responsáveis conforme os dados já autorizados pela API.', create: 'Criar grupo', name: 'Nome do grupo', members: 'IDs dos membros', overseer: 'ID do responsável', assistant: 'ID do ajudante', edit: 'Editar', delete: 'Eliminar', save: 'Guardar', saving: 'A guardar…', cancel: 'Cancelar', confirm: 'Eliminar grupo de serviço?', confirmBody: 'Esta ação elimina o grupo, mas não elimina pessoas nem altera outras responsabilidades.', removing: 'A eliminar…', empty: 'Ainda não existem grupos de serviço.', loading: 'A carregar grupos de serviço…', error: 'Não foi possível carregar os grupos. Tenta novamente.', saveError: 'Não foi possível guardar o grupo. Tenta novamente.', deleteError: 'Não foi possível eliminar o grupo. Tenta novamente.', retry: 'Tentar novamente', hint: 'Separa IDs por vírgulas. Apenas IDs já fornecidos pela API são guardados.', member: 'membro', membersCount: 'membros', responsible: 'Responsável', helper: 'Ajudante', successCreate: 'Grupo criado com sucesso.', successUpdate: 'Grupo atualizado com sucesso.', successDelete: 'Grupo eliminado com sucesso.', actions: 'Ações do grupo', discardTitle: 'Descartar alterações?', discardBody: 'As alterações não guardadas a este grupo serão perdidas.', keepEditing: 'Continuar a editar', discard: 'Descartar alterações' },
@@ -21,7 +31,10 @@ export function canSubmitServiceGroup(name: string, saving: boolean): boolean {
 export function hasUnsavedServiceGroupDraft(name: string, members: string, overseer: string, assistant: string, editing: Pick<ServiceGroupDto, 'name' | 'memberIds' | 'overseerId' | 'assistantId'> | null): boolean {
   const normalized = { name: name.trim(), memberIds: parseServiceGroupMemberIds(members), overseer: overseer.trim(), assistant: assistant.trim() };
   if (!editing) return normalized.name.length > 0 || normalized.memberIds.length > 0 || normalized.overseer.length > 0 || normalized.assistant.length > 0;
-  return normalized.name !== editing.name || normalized.memberIds.join('\u0000') !== editing.memberIds.join('\u0000') || normalized.overseer !== (editing.overseerId ?? '') || normalized.assistant !== (editing.assistantId ?? '');
+  return normalized.name !== editing.name
+    || normalized.memberIds.join('\u0000') !== editing.memberIds.join('\u0000')
+    || normalized.overseer !== (editing.overseerId ?? '')
+    || normalized.assistant !== (editing.assistantId ?? '');
 }
 
 export function ServiceGroupsSection({ locale, api = serviceGroupsApi }: { locale: Locale; api?: ServiceGroupsApi }) {
@@ -41,27 +54,52 @@ export function ServiceGroupsSection({ locale, api = serviceGroupsApi }: { local
   const [members, setMembers] = useState('');
   const [overseer, setOverseer] = useState('');
   const [assistant, setAssistant] = useState('');
-  const createButtonRef = useRef<HTMLButtonElement | null>(null);
-  const actionTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const actionTriggerRef = useRef<HTMLElement | null>(null);
   const savingRef = useRef(false);
   const deletingRef = useRef(false);
 
   const load = async (signal?: AbortSignal) => {
     setLoading(true);
     setLoadError(false);
-    try { setItems(await api.list(signal)); }
-    catch (error) { if (error instanceof DOMException && error.name === 'AbortError') return; setLoadError(true); }
-    finally { if (!signal?.aborted) setLoading(false); }
+    try {
+      setItems(await api.list(signal));
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      setLoadError(true);
+    } finally {
+      if (!signal?.aborted) setLoading(false);
+    }
   };
-  useEffect(() => { const controller = new AbortController(); void load(controller.signal); return () => controller.abort(); }, [api]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void load(controller.signal);
+    return () => controller.abort();
+  }, [api]);
 
   const sorted = useMemo(() => [...items].sort((first, second) => first.name.localeCompare(second.name, locale)), [items, locale]);
   const deletingGroup = sorted.find(item => item.id === deleteId) ?? null;
-  const restoreEditorTrigger = (wasEditing: boolean) => window.requestAnimationFrame(() => (wasEditing ? actionTriggerRef.current : createButtonRef.current)?.focus());
-  const begin = (item?: ServiceGroupDto, trigger?: HTMLButtonElement) => {
-    if (trigger) actionTriggerRef.current = trigger;
-    setNotice(null); setOperationError(null); setDiscardOpen(false); setEditing(item ?? null); setName(item?.name ?? ''); setMembers(item?.memberIds.join(', ') ?? ''); setOverseer(item?.overseerId ?? ''); setAssistant(item?.assistantId ?? ''); setOpen(true);
+
+  const restoreEditorTrigger = (wasEditing: boolean) => {
+    window.requestAnimationFrame(() => {
+      if (wasEditing) actionTriggerRef.current?.focus();
+      else document.getElementById('service-groups-create-button')?.focus();
+    });
   };
+
+  const begin = (item?: ServiceGroupDto, trigger?: HTMLElement) => {
+    if (trigger) actionTriggerRef.current = trigger;
+    setNotice(null);
+    setOperationError(null);
+    setDiscardOpen(false);
+    setEditing(item ?? null);
+    setName(item?.name ?? '');
+    setMembers(item?.memberIds.join(', ') ?? '');
+    setOverseer(item?.overseerId ?? '');
+    setAssistant(item?.assistantId ?? '');
+    setOpen(true);
+  };
+
   const closeEditor = () => {
     if (saving) return;
     if (hasUnsavedServiceGroupDraft(name, members, overseer, assistant, editing)) {
@@ -69,52 +107,198 @@ export function ServiceGroupsSection({ locale, api = serviceGroupsApi }: { local
       return;
     }
     const wasEditing = editing !== null;
-    setOpen(false); setOperationError(null);
+    setOpen(false);
+    setOperationError(null);
     restoreEditorTrigger(wasEditing);
   };
+
   const discardEditor = () => {
     const wasEditing = editing !== null;
-    setDiscardOpen(false); setOpen(false); setEditing(null); setName(''); setMembers(''); setOverseer(''); setAssistant(''); setOperationError(null);
+    setDiscardOpen(false);
+    setOpen(false);
+    setEditing(null);
+    setName('');
+    setMembers('');
+    setOverseer('');
+    setAssistant('');
+    setOperationError(null);
     restoreEditorTrigger(wasEditing);
   };
+
   const closeDelete = () => {
     if (deleting) return;
     setDeleteId(null);
     window.requestAnimationFrame(() => actionTriggerRef.current?.focus());
   };
+
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!canSubmitServiceGroup(name, saving) || savingRef.current) return;
-    savingRef.current = true; setSaving(true); setOperationError(null); setNotice(null);
-    const payload = { name: name.trim(), memberIds: parseServiceGroupMemberIds(members), overseerId: overseer.trim() || undefined, assistantId: assistant.trim() || undefined };
+    savingRef.current = true;
+    setSaving(true);
+    setOperationError(null);
+    setNotice(null);
+    const payload = {
+      name: name.trim(),
+      memberIds: parseServiceGroupMemberIds(members),
+      overseerId: overseer.trim() || undefined,
+      assistantId: assistant.trim() || undefined,
+    };
     try {
       const saved = editing ? await api.update(editing.id, payload) : await api.create(payload);
       const wasEditing = editing !== null;
       setItems(current => wasEditing ? current.map(item => item.id === saved.id ? saved : item) : [...current, saved]);
-      setOpen(false); setDiscardOpen(false); setEditing(null); setName(''); setMembers(''); setOverseer(''); setAssistant(''); setNotice(wasEditing ? 'update' : 'create');
-      window.requestAnimationFrame(() => (wasEditing ? actionTriggerRef.current : createButtonRef.current)?.focus());
-    } catch { setOperationError('save'); }
-    finally { savingRef.current = false; setSaving(false); }
+      setOpen(false);
+      setDiscardOpen(false);
+      setEditing(null);
+      setName('');
+      setMembers('');
+      setOverseer('');
+      setAssistant('');
+      setNotice(wasEditing ? 'update' : 'create');
+      restoreEditorTrigger(wasEditing);
+    } catch {
+      setOperationError('save');
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
   };
+
   const remove = async () => {
     if (!deletingGroup || deletingRef.current) return;
-    deletingRef.current = true; setDeleting(true); setOperationError(null); setNotice(null);
-    try { await api.delete(deletingGroup.id); setItems(current => current.filter(item => item.id !== deletingGroup.id)); setDeleteId(null); setNotice('delete'); window.requestAnimationFrame(() => actionTriggerRef.current?.focus()); }
-    catch { setOperationError('delete'); }
-    finally { deletingRef.current = false; setDeleting(false); }
+    deletingRef.current = true;
+    setDeleting(true);
+    setOperationError(null);
+    setNotice(null);
+    try {
+      await api.delete(deletingGroup.id);
+      setItems(current => current.filter(item => item.id !== deletingGroup.id));
+      setDeleteId(null);
+      setNotice('delete');
+      window.requestAnimationFrame(() => actionTriggerRef.current?.focus());
+    } catch {
+      setOperationError('delete');
+    } finally {
+      deletingRef.current = false;
+      setDeleting(false);
+    }
   };
+
   const noticeText = notice === 'create' ? text.successCreate : notice === 'update' ? text.successUpdate : text.successDelete;
 
-  return <Box component="section" aria-labelledby="service-groups-title">
-    <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 2, borderRadius: 3 }}><Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" gap={2} alignItems={{ md: 'flex-end' }}><Box sx={{ maxWidth: 720 }}><Typography variant="overline" color="primary.main">{text.title}</Typography><Typography variant="h2" id="service-groups-title" sx={{ fontSize: { xs: '2rem', sm: '2.6rem' } }}>{text.title}</Typography><Typography color="text.secondary" sx={{ mt: 1 }}>{text.subtitle}</Typography></Box><Button ref={createButtonRef} variant="contained" onClick={() => begin()}>{text.create}</Button></Stack></Paper>
-    {notice ? <Alert severity="success" onClose={() => setNotice(null)} sx={{ mb: 2 }}>{noticeText}</Alert> : null}
-    {operationError ? <Alert severity="error" sx={{ mb: 2 }}>{operationError === 'save' ? text.saveError : text.deleteError}</Alert> : null}
-    {loadError ? <Alert severity="warning" action={<Button color="inherit" size="small" disabled={loading} onClick={() => void load()}>{text.retry}</Button>} sx={{ mb: 2 }}>{text.error}</Alert> : null}
-    {loading ? <Box role="status" aria-live="polite" sx={{ py: 2 }}><LinearProgress aria-label={text.loading} /><Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>{text.loading}</Typography></Box> : null}
-    {!loading && !loadError && sorted.length === 0 ? <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderRadius: 2.5, boxShadow: 'none', bgcolor: 'transparent' }}><Typography color="text.secondary">{text.empty}</Typography></Paper> : null}
-    {!loading && !loadError && sorted.length > 0 ? <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5, mt: 2 }}>{sorted.map(item => <Card component="article" key={item.id}><CardContent><Stack spacing={1.5}><Stack direction="row" justifyContent="space-between" gap={1.25} alignItems="flex-start"><Typography variant="h6" fontWeight={700} sx={{ overflowWrap: 'anywhere' }}>{item.name}</Typography><Chip label={`${item.memberIds.length} ${item.memberIds.length === 1 ? text.member : text.membersCount}`} size="small" variant="outlined" /></Stack><Divider />{item.memberIds.length > 0 ? <Stack direction="row" flexWrap="wrap" gap={0.5} useFlexGap aria-label={text.members}>{item.memberIds.slice(0, 4).map(memberId => <Chip key={memberId} label={memberId} size="small" variant="outlined" />)}{item.memberIds.length > 4 ? <Chip label={`+${item.memberIds.length - 4}`} size="small" /> : null}</Stack> : null}<Stack spacing={0.5}>{item.overseerId ? <Typography variant="body2"><Typography component="span" fontWeight={700}>{text.responsible}: </Typography>{item.overseerId}</Typography> : null}{item.assistantId ? <Typography variant="body2"><Typography component="span" fontWeight={700}>{text.helper}: </Typography>{item.assistantId}</Typography> : null}</Stack><Stack direction={{ xs: 'column', sm: 'row' }} spacing={0.75} aria-label={`${text.actions} — ${item.name}`}><Button size="small" variant="outlined" onClick={event => begin(item, event.currentTarget)}>{text.edit}</Button><Button size="small" color="error" variant="outlined" disabled={deleting} onClick={event => { actionTriggerRef.current = event.currentTarget; setOperationError(null); setDeleteId(item.id); }}>{text.delete}</Button></Stack></Stack></CardContent></Card>)}</Box> : null}
-    <Dialog open={open} onClose={closeEditor} fullWidth maxWidth="sm" aria-describedby="service-group-form-error"><Box component="form" onSubmit={submit}><DialogTitle>{editing ? text.edit : text.create}</DialogTitle><DialogContent><Stack spacing={2} sx={{ pt: 1 }}><TextField label={text.name} value={name} onChange={event => setName(event.target.value)} required autoFocus slotProps={{ htmlInput: { maxLength: 120 } }} /><TextField label={text.members} value={members} onChange={event => setMembers(event.target.value)} helperText={text.hint} multiline minRows={2} /><TextField label={text.overseer} value={overseer} onChange={event => setOverseer(event.target.value)} /><TextField label={text.assistant} value={assistant} onChange={event => setAssistant(event.target.value)} />{operationError === 'save' ? <Alert id="service-group-form-error" severity="error">{text.saveError}</Alert> : null}</Stack></DialogContent><DialogActions><Button onClick={closeEditor} disabled={saving}>{text.cancel}</Button><Button type="submit" variant="contained" disabled={!canSubmitServiceGroup(name, saving)}>{saving ? text.saving : text.save}</Button></DialogActions></Box></Dialog>
-    <Dialog open={discardOpen} onClose={() => setDiscardOpen(false)} aria-labelledby="service-group-discard-title" aria-describedby="service-group-discard-description"><DialogTitle id="service-group-discard-title">{text.discardTitle}</DialogTitle><DialogContent><Typography id="service-group-discard-description">{text.discardBody}</Typography></DialogContent><DialogActions><Button autoFocus onClick={() => setDiscardOpen(false)}>{text.keepEditing}</Button><Button color="warning" variant="contained" onClick={discardEditor}>{text.discard}</Button></DialogActions></Dialog>
-    <Dialog open={deletingGroup !== null} onClose={closeDelete} fullWidth maxWidth="xs" aria-labelledby="service-group-delete-title" aria-describedby="service-group-delete-description"><DialogTitle id="service-group-delete-title">{text.confirm}</DialogTitle><DialogContent><Typography id="service-group-delete-description">{text.confirmBody}</Typography>{deletingGroup ? <Typography sx={{ mt: 1 }} fontWeight={700}>{deletingGroup.name}</Typography> : null}</DialogContent><DialogActions><Button disabled={deleting} onClick={closeDelete}>{text.cancel}</Button><Button color="error" variant="contained" disabled={deleting} onClick={() => void remove()}>{deleting ? text.removing : text.delete}</Button></DialogActions></Dialog>
-  </Box>;
+  return <section aria-labelledby="service-groups-title">
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+      <Card>
+        <Row gutter={[16, 16]} align="bottom" justify="space-between">
+          <Col xs={24} md={18}>
+            <Typography.Text type="secondary">{text.title}</Typography.Text>
+            <Typography.Title level={2} id="service-groups-title" style={{ marginTop: 4, marginBottom: 8 }}>{text.title}</Typography.Title>
+            <Typography.Text type="secondary">{text.subtitle}</Typography.Text>
+          </Col>
+          <Col xs={24} md={6} style={{ textAlign: 'right' }}>
+            <Button id="service-groups-create-button" type="primary" onClick={() => begin()}>{text.create}</Button>
+          </Col>
+        </Row>
+      </Card>
+
+      {notice ? <Alert type="success" showIcon closable title={noticeText} onClose={() => setNotice(null)} /> : null}
+      {operationError ? <Alert type="error" showIcon title={operationError === 'save' ? text.saveError : text.deleteError} /> : null}
+      {loadError ? <Alert type="warning" showIcon title={text.error} action={<Button size="small" disabled={loading} onClick={() => void load()}>{text.retry}</Button>} /> : null}
+      {loading ? <Card role="status" aria-live="polite" aria-label={text.loading}><Skeleton active paragraph={{ rows: 3 }} /><Typography.Text type="secondary">{text.loading}</Typography.Text></Card> : null}
+      {!loading && !loadError && sorted.length === 0 ? <Card><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={text.empty} /></Card> : null}
+
+      {!loading && !loadError && sorted.length > 0 ? <Row gutter={[16, 16]}>
+        {sorted.map(item => <Col key={item.id} xs={24} sm={12} xl={8}>
+          <Card title={item.name} extra={<Tag>{item.memberIds.length} {item.memberIds.length === 1 ? text.member : text.membersCount}</Tag>} style={{ height: '100%' }}>
+            <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+              {item.memberIds.length > 0 ? <Space wrap aria-label={text.members}>
+                {item.memberIds.slice(0, 4).map(memberId => <Tag key={memberId}>{memberId}</Tag>)}
+                {item.memberIds.length > 4 ? <Tag>+{item.memberIds.length - 4}</Tag> : null}
+              </Space> : null}
+              <Space orientation="vertical" size="small">
+                {item.overseerId ? <Typography.Text><strong>{text.responsible}:</strong> {item.overseerId}</Typography.Text> : null}
+                {item.assistantId ? <Typography.Text><strong>{text.helper}:</strong> {item.assistantId}</Typography.Text> : null}
+              </Space>
+              <Space wrap aria-label={`${text.actions} — ${item.name}`}>
+                <Button size="small" onClick={event => begin(item, event.currentTarget)}>{text.edit}</Button>
+                <Button size="small" danger disabled={deleting} onClick={event => { actionTriggerRef.current = event.currentTarget; setOperationError(null); setDeleteId(item.id); }}>{text.delete}</Button>
+              </Space>
+            </Space>
+          </Card>
+        </Col>)}
+      </Row> : null}
+    </Space>
+
+    <Modal
+      open={open}
+      title={<span id="service-group-editor-title">{editing ? text.edit : text.create}</span>}
+      aria-labelledby="service-group-editor-title"
+      aria-describedby={operationError === 'save' ? 'service-group-form-error' : undefined}
+      onCancel={closeEditor}
+      maskClosable={!saving}
+      keyboard={!saving}
+      footer={null}
+      destroyOnHidden
+    >
+      <form onSubmit={submit}>
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+          <label>
+            <Typography.Text strong>{text.name}</Typography.Text>
+            <Input autoFocus required maxLength={120} value={name} onChange={event => setName(event.target.value)} aria-label={text.name} />
+          </label>
+          <label>
+            <Typography.Text strong>{text.members}</Typography.Text>
+            <Input.TextArea rows={3} value={members} onChange={event => setMembers(event.target.value)} aria-label={text.members} placeholder={text.hint} />
+          </label>
+          <label>
+            <Typography.Text strong>{text.overseer}</Typography.Text>
+            <Input value={overseer} onChange={event => setOverseer(event.target.value)} aria-label={text.overseer} />
+          </label>
+          <label>
+            <Typography.Text strong>{text.assistant}</Typography.Text>
+            <Input value={assistant} onChange={event => setAssistant(event.target.value)} aria-label={text.assistant} />
+          </label>
+          {operationError === 'save' ? <Alert id="service-group-form-error" type="error" showIcon title={text.saveError} /> : null}
+          <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+            <Button onClick={closeEditor} disabled={saving}>{text.cancel}</Button>
+            <Button htmlType="submit" type="primary" loading={saving} disabled={!canSubmitServiceGroup(name, saving)}>{saving ? text.saving : text.save}</Button>
+          </Space>
+        </Space>
+      </form>
+    </Modal>
+
+    <Modal
+      open={discardOpen}
+      title={<span id="service-group-discard-title">{text.discardTitle}</span>}
+      aria-labelledby="service-group-discard-title"
+      aria-describedby="service-group-discard-description"
+      onCancel={() => setDiscardOpen(false)}
+      footer={[
+        <Button key="keep" autoFocus onClick={() => setDiscardOpen(false)}>{text.keepEditing}</Button>,
+        <Button key="discard" danger type="primary" onClick={discardEditor}>{text.discard}</Button>,
+      ]}
+    >
+      <Typography.Text id="service-group-discard-description">{text.discardBody}</Typography.Text>
+    </Modal>
+
+    <Modal
+      open={deletingGroup !== null}
+      title={<span id="service-group-delete-title">{text.confirm}</span>}
+      aria-labelledby="service-group-delete-title"
+      aria-describedby="service-group-delete-description"
+      onCancel={closeDelete}
+      maskClosable={!deleting}
+      keyboard={!deleting}
+      footer={[
+        <Button key="cancel" disabled={deleting} onClick={closeDelete}>{text.cancel}</Button>,
+        <Button key="delete" danger type="primary" loading={deleting} disabled={!deletingGroup} onClick={() => void remove()}>{deleting ? text.removing : text.delete}</Button>,
+      ]}
+    >
+      <Space orientation="vertical" size="small">
+        <Typography.Text id="service-group-delete-description">{text.confirmBody}</Typography.Text>
+        {deletingGroup ? <Typography.Text strong>{deletingGroup.name}</Typography.Text> : null}
+      </Space>
+    </Modal>
+  </section>;
 }
