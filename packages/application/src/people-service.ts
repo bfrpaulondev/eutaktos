@@ -5,6 +5,7 @@ import {
   createDomainEvent,
   normalizeDisplayName,
   normalizeOrdinaryContact,
+  normalizePersonLabels,
   type AccessContext,
   type AuditEvent,
   type CongregationPerson,
@@ -17,7 +18,7 @@ export interface RequestMetadata { correlationId?: string; }
 export interface CreatePersonInput { displayName: string; preferredLocale?: string; active?: boolean; }
 export interface CreateImportedPersonInput { externalId: string; displayName: string; preferredLocale?: string; }
 export interface LinkExternalPersonReferenceInput { personId: PersonId; externalId: string; }
-export interface UpdatePersonProfileInput { personId: PersonId; displayName?: string; preferredLocale?: string | null; active?: boolean; ordinaryContact?: { phone?: string; email?: string; address?: string } | null; }
+export interface UpdatePersonProfileInput { personId: PersonId; displayName?: string; preferredLocale?: string | null; active?: boolean; labels?: readonly string[]; ordinaryContact?: { phone?: string; email?: string; address?: string } | null; }
 export interface PersonChange { person: CongregationPerson; auditEvent: Readonly<AuditEvent>; domainEvent: Readonly<DomainEvent>; }
 
 /** This boundary commits the person, audit row and outbox event atomically. */
@@ -47,6 +48,11 @@ function normalizeExternalId(value: string): string {
 function externalIdsOf(person: CongregationPerson): readonly string[] { return person.externalIds ?? []; }
 function ordinaryContactsEqual(left: OrdinaryContact | undefined, right: OrdinaryContact | undefined): boolean {
   return left?.phone === right?.phone && left?.email === right?.email && left?.address === right?.address;
+}
+function labelsEqual(left: readonly string[] | undefined, right: readonly string[] | undefined): boolean {
+  const a = left ?? [];
+  const b = right ?? [];
+  return a.length === b.length && a.every((value, index) => value === b[index]);
 }
 export function eventCorrelation(metadata: RequestMetadata): Pick<DomainEvent, 'correlationId'> | Record<string, never> { return metadata.correlationId ? { correlationId: metadata.correlationId } : {}; }
 
@@ -90,15 +96,16 @@ export class PeopleDirectoryService {
     const existing = this.#unitOfWork.findById(context, input.personId);
     if (!existing) throw new Error('Person not found');
     assertResourceTenant(context, existing);
-    let displayName = existing.displayName; let preferredLocale = existing.preferredLocale; let active = existing.active; let ordinaryContact = existing.ordinaryContact;
+    let displayName = existing.displayName; let preferredLocale = existing.preferredLocale; let active = existing.active; let labels = existing.labels; let ordinaryContact = existing.ordinaryContact;
     const changedFields: string[] = [];
     if (input.displayName !== undefined) { const next = normalizeDisplayName(input.displayName); if (next !== displayName) { displayName = next; changedFields.push('displayName'); } }
     if (input.preferredLocale !== undefined) { const next = input.preferredLocale === null ? undefined : normalizeLocale(input.preferredLocale); if (next !== preferredLocale) { preferredLocale = next; changedFields.push('preferredLocale'); } }
     if (input.active !== undefined && input.active !== active) { active = input.active; changedFields.push('active'); }
+    if (input.labels !== undefined) { const next = normalizePersonLabels(input.labels); if (!labelsEqual(next, labels)) { labels = next; changedFields.push('labels'); } }
     if (input.ordinaryContact !== undefined) { const normalized = input.ordinaryContact === null ? undefined : normalizeOrdinaryContact(input.ordinaryContact); const next = normalized && Object.keys(normalized).length ? normalized : undefined; if (!ordinaryContactsEqual(next, ordinaryContact)) { ordinaryContact = next; changedFields.push('ordinaryContact'); } }
     if (changedFields.length === 0) return existing;
     const { ordinaryContact: _previousOrdinaryContact, ...personWithoutOrdinaryContact } = existing;
-    const person: CongregationPerson = { ...personWithoutOrdinaryContact, displayName, ...(preferredLocale ? { preferredLocale } : { preferredLocale: undefined }), active, ...(ordinaryContact ? { ordinaryContact } : {}), availability: existing.availability, eligibility: existing.eligibility, emergencyContacts: existing.emergencyContacts };
+    const person: CongregationPerson = { ...personWithoutOrdinaryContact, displayName, ...(preferredLocale ? { preferredLocale } : { preferredLocale: undefined }), active, labels: labels ?? [], ...(ordinaryContact ? { ordinaryContact } : {}), availability: existing.availability, eligibility: existing.eligibility, emergencyContacts: existing.emergencyContacts };
     const occurredAt = this.#runtime.now();
     return this.#unitOfWork.commitUpdate(context, { person, auditEvent: createAuditEvent({ id: this.#runtime.nextId('audit'), tenantId: context.tenantId, resourceType: 'person', resourceId: person.id, action: 'update', actorId: context.actorId, occurredAt, changedFields }), domainEvent: createDomainEvent({ id: this.#runtime.nextId('event'), tenantId: context.tenantId, type: 'PersonUpdated', aggregateId: person.id, actorId: context.actorId, occurredAt, schemaVersion: 1, ...eventCorrelation(metadata) }) });
   }
@@ -108,7 +115,7 @@ export class PeopleDirectoryService {
     const occurredAt = this.#runtime.now();
     const personId = this.#runtime.nextId('person');
     const preferredLocale = input.preferredLocale ? normalizeLocale(input.preferredLocale) : undefined;
-    const person: CongregationPerson = { id: personId, tenantId: context.tenantId, displayName: normalizeDisplayName(input.displayName), ...(preferredLocale ? { preferredLocale } : {}), active: input.active ?? true, availability: [], eligibility: [], emergencyContacts: [], ...(externalIds.length ? { externalIds: Object.freeze([...externalIds]) } : {}) };
+    const person: CongregationPerson = { id: personId, tenantId: context.tenantId, displayName: normalizeDisplayName(input.displayName), ...(preferredLocale ? { preferredLocale } : {}), active: input.active ?? true, labels: [], availability: [], eligibility: [], emergencyContacts: [], ...(externalIds.length ? { externalIds: Object.freeze([...externalIds]) } : {}) };
     const changedFields = [ 'active', 'displayName', ...(preferredLocale ? ['preferredLocale'] : []), ...(externalIds.length ? ['externalReferences'] : []) ];
     return this.#unitOfWork.commitCreate(context, { person, auditEvent: createAuditEvent({ id: this.#runtime.nextId('audit'), tenantId: context.tenantId, resourceType: 'person', resourceId: personId, action: 'create', actorId: context.actorId, occurredAt, changedFields }), domainEvent: createDomainEvent({ id: this.#runtime.nextId('event'), tenantId: context.tenantId, type: 'PersonCreated', aggregateId: personId, actorId: context.actorId, occurredAt, schemaVersion: 1, ...eventCorrelation(metadata) }) });
   }
