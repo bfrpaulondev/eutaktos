@@ -11,7 +11,7 @@ interface PeopleMapCanvasProps {
 
 const DEFAULT_CENTER: [number, number] = [39.5, -8];
 const DEFAULT_ZOOM = 6;
-const TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
 type LeafletModule = typeof import('leaflet');
@@ -35,7 +35,6 @@ export function PeopleMapCanvas({ points, selectedPersonId, onSelect, label }: P
         attribution: TILE_ATTRIBUTION,
         maxZoom: 19,
         crossOrigin: 'anonymous',
-        referrerPolicy: 'no-referrer',
       }).addTo(map);
       leafletRef.current = module;
       mapRef.current = map;
@@ -78,8 +77,6 @@ export function PeopleMapCanvas({ points, selectedPersonId, onSelect, label }: P
       marker.bindTooltip(point.displayName, { direction: 'top', opacity: 0.9 });
       marker.on('click', selectPoint);
       marker.addTo(markers);
-      // Leaflet exposes a focusable marker element but does not consistently emit
-      // a layer click for Enter/Space across browsers and headless Chromium.
       marker.getElement()?.addEventListener('keydown', event => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();

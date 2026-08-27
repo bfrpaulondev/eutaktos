@@ -2,6 +2,7 @@ import Alert from 'antd/es/alert';
 import Button from 'antd/es/button';
 import Card from 'antd/es/card';
 import Empty from 'antd/es/empty';
+import Input from 'antd/es/input';
 import InputNumber from 'antd/es/input-number';
 import List from 'antd/es/list';
 import Select from 'antd/es/select';
@@ -12,7 +13,7 @@ import Typography from 'antd/es/typography';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { peopleApi, type PersonProfileDto } from './lib/peopleApi';
 import { filterPeopleMapPoints, PEOPLE_MAP_UNGROUPED, peopleMapGroupLegend, peopleMapUngroupedCount } from './lib/peopleMapGroups';
-import { peopleMapApi, PeopleMapApiError, type PeopleMapPointDto } from './lib/peopleMapApi';
+import { peopleMapApi, PeopleMapApiError, type PeopleMapPointDto, type PeopleMapSearchResultDto } from './lib/peopleMapApi';
 import type { Locale } from './lib/preferences';
 import { serviceGroupsApi, type ServiceGroupDto } from './lib/serviceGroupsApi';
 import { sessionApi } from './lib/sessionApi';
@@ -22,18 +23,24 @@ const PeopleMapCanvas = lazy(async () => {
   return { default: module.PeopleMapCanvas };
 });
 
+const PeopleMapLocationPicker = lazy(async () => {
+  const module = await import('./PeopleMapLocationPicker');
+  return { default: module.PeopleMapLocationPicker };
+});
+
 const ALL_GROUPS = '__eutaktos_all_groups__';
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'error' | 'unauthenticated' | 'forbidden';
 type GroupLoadState = 'idle' | 'loading' | 'ready' | 'error';
 type EditorState = 'closed' | 'open';
+type PlaceSearchState = 'idle' | 'loading' | 'ready' | 'empty' | 'error' | 'invalid';
 
 const copy = {
   'pt-PT': {
     title: 'Mapa de pessoas',
-    intro: 'Veja somente localizações aproximadas fornecidas manualmente. O mapa não usa moradas, geolocalização do dispositivo nem inferências de perfil.',
+    intro: 'Veja localizações aproximadas escolhidas explicitamente. O Eutaktos nunca copia automaticamente a morada de Contactos nem usa a geolocalização do dispositivo.',
     approximate: 'Localização aproximada',
-    manual: 'Esta localização é aproximada e fornecida manualmente.',
+    manual: 'A localização guardada é sempre aproximada e confirmada manualmente.',
     loading: 'A carregar localizações aproximadas…',
     canvasLoading: 'A preparar mapa…',
     empty: 'Ainda não existem localizações aproximadas no mapa.',
@@ -49,11 +56,29 @@ const copy = {
     addLocation: 'Adicionar localização aproximada',
     noActivePeople: 'Não foi possível preparar a lista de pessoas ativas para edição.',
     person: 'Pessoa',
+    searchTitle: 'Encontrar uma zona no mapa',
+    searchLabel: 'Pesquisar rua, código postal, localidade ou endereço',
+    searchPlaceholder: 'Ex.: Rua do Comércio, Setúbal',
+    search: 'Pesquisar',
+    searching: 'A pesquisar…',
+    searchPrivacy: 'A pesquisa só é enviada quando carregar em Pesquisar. A morada guardada em Contactos nunca é lida nem enviada automaticamente.',
+    searchProvider: 'A pesquisa de lugares usa Photon com dados OpenStreetMap. O texto pesquisado não é guardado pelo Eutaktos nem associado à pessoa.',
+    searchInvalid: 'Escreva pelo menos 2 caracteres para pesquisar.',
+    searchError: 'Não foi possível pesquisar este local agora. Tente novamente.',
+    searchEmpty: 'Não encontrámos resultados. Tente uma rua, código postal ou localidade diferente.',
+    searchResults: 'Resultados de pesquisa',
+    useResult: 'Usar este local',
+    pickerTitle: 'Confirmar no mapa',
+    pickerHint: 'Clique no mapa para escolher a zona aproximada ou arraste o marcador para ajustar.',
+    pickerLabel: 'Mapa para escolher a localização aproximada',
+    pickerMarker: 'Localização aproximada selecionada',
+    advancedCoordinates: 'Ajuste avançado por coordenadas',
+    advancedHint: 'Opcional. A pesquisa e o mapa são a forma recomendada; estas coordenadas existem apenas como ajuste avançado.',
     latitude: 'Latitude',
     longitude: 'Longitude',
     latitudeHint: 'Entre -90 e 90',
     longitudeHint: 'Entre -180 e 180',
-    invalidCoordinates: 'Indique latitude e longitude finitas dentro dos limites permitidos.',
+    invalidCoordinates: 'Escolha um local no mapa ou indique latitude e longitude válidas.',
     save: 'Guardar localização',
     saving: 'A guardar…',
     remove: 'Remover localização',
@@ -77,9 +102,9 @@ const copy = {
   },
   en: {
     title: 'People map',
-    intro: 'View only manually provided approximate locations. The map does not use postal addresses, device geolocation or profile inferences.',
+    intro: 'View approximate locations chosen explicitly. Eutaktos never automatically copies the Contact address or uses device geolocation.',
     approximate: 'Approximate location',
-    manual: 'This location is approximate and manually provided.',
+    manual: 'The saved location is always approximate and manually confirmed.',
     loading: 'Loading approximate locations…',
     canvasLoading: 'Preparing map…',
     empty: 'No approximate map locations have been added yet.',
@@ -95,11 +120,29 @@ const copy = {
     addLocation: 'Add approximate location',
     noActivePeople: 'The active people list could not be prepared for editing.',
     person: 'Person',
+    searchTitle: 'Find an area on the map',
+    searchLabel: 'Search street, postcode, locality or address',
+    searchPlaceholder: 'E.g. High Street, Setúbal',
+    search: 'Search',
+    searching: 'Searching…',
+    searchPrivacy: 'The search is sent only after you press Search. The Contact address is never read or sent automatically.',
+    searchProvider: 'Place search uses Photon with OpenStreetMap data. Eutaktos does not store the search text or associate it with the person.',
+    searchInvalid: 'Enter at least 2 characters to search.',
+    searchError: 'This place could not be searched right now. Try again.',
+    searchEmpty: 'No results were found. Try a different street, postcode or locality.',
+    searchResults: 'Search results',
+    useResult: 'Use this place',
+    pickerTitle: 'Confirm on the map',
+    pickerHint: 'Click the map to choose the approximate area or drag the marker to adjust it.',
+    pickerLabel: 'Map for choosing an approximate location',
+    pickerMarker: 'Selected approximate location',
+    advancedCoordinates: 'Advanced coordinate adjustment',
+    advancedHint: 'Optional. Search and map selection are recommended; coordinates remain available only as an advanced adjustment.',
     latitude: 'Latitude',
     longitude: 'Longitude',
     latitudeHint: 'Between -90 and 90',
     longitudeHint: 'Between -180 and 180',
-    invalidCoordinates: 'Enter finite latitude and longitude values within the allowed limits.',
+    invalidCoordinates: 'Choose a place on the map or enter valid latitude and longitude values.',
     save: 'Save location',
     saving: 'Saving…',
     remove: 'Remove location',
@@ -123,9 +166,9 @@ const copy = {
   },
   es: {
     title: 'Mapa de personas',
-    intro: 'Consulta únicamente ubicaciones aproximadas proporcionadas manualmente. El mapa no usa direcciones postales, geolocalización del dispositivo ni inferencias del perfil.',
+    intro: 'Consulta ubicaciones aproximadas elegidas explícitamente. Eutaktos nunca copia automáticamente la dirección de Contactos ni usa la geolocalización del dispositivo.',
     approximate: 'Ubicación aproximada',
-    manual: 'Esta ubicación es aproximada y se proporciona manualmente.',
+    manual: 'La ubicación guardada siempre es aproximada y se confirma manualmente.',
     loading: 'Cargando ubicaciones aproximadas…',
     canvasLoading: 'Preparando mapa…',
     empty: 'Todavía no se han añadido ubicaciones aproximadas al mapa.',
@@ -141,11 +184,29 @@ const copy = {
     addLocation: 'Añadir ubicación aproximada',
     noActivePeople: 'No se pudo preparar la lista de personas activas para editar.',
     person: 'Persona',
+    searchTitle: 'Encontrar una zona en el mapa',
+    searchLabel: 'Buscar calle, código postal, localidad o dirección',
+    searchPlaceholder: 'Ej.: Calle Mayor, Setúbal',
+    search: 'Buscar',
+    searching: 'Buscando…',
+    searchPrivacy: 'La búsqueda solo se envía cuando pulsa Buscar. La dirección guardada en Contactos nunca se lee ni se envía automáticamente.',
+    searchProvider: 'La búsqueda de lugares usa Photon con datos OpenStreetMap. Eutaktos no guarda el texto buscado ni lo asocia a la persona.',
+    searchInvalid: 'Escriba al menos 2 caracteres para buscar.',
+    searchError: 'No se pudo buscar este lugar ahora. Inténtelo de nuevo.',
+    searchEmpty: 'No encontramos resultados. Pruebe otra calle, código postal o localidad.',
+    searchResults: 'Resultados de búsqueda',
+    useResult: 'Usar este lugar',
+    pickerTitle: 'Confirmar en el mapa',
+    pickerHint: 'Pulse en el mapa para elegir la zona aproximada o arrastre el marcador para ajustarla.',
+    pickerLabel: 'Mapa para elegir la ubicación aproximada',
+    pickerMarker: 'Ubicación aproximada seleccionada',
+    advancedCoordinates: 'Ajuste avanzado por coordenadas',
+    advancedHint: 'Opcional. La búsqueda y el mapa son la forma recomendada; las coordenadas quedan solo como ajuste avanzado.',
     latitude: 'Latitud',
     longitude: 'Longitud',
     latitudeHint: 'Entre -90 y 90',
     longitudeHint: 'Entre -180 y 180',
-    invalidCoordinates: 'Indique valores finitos de latitud y longitud dentro de los límites permitidos.',
+    invalidCoordinates: 'Elija un lugar en el mapa o indique valores válidos de latitud y longitud.',
     save: 'Guardar ubicación',
     saving: 'Guardando…',
     remove: 'Eliminar ubicación',
@@ -191,6 +252,8 @@ export function PeopleMapSection({ locale }: { locale: Locale }) {
   const requestVersionRef = useRef(0);
   const groupControllerRef = useRef<AbortController | null>(null);
   const groupRequestVersionRef = useRef(0);
+  const searchControllerRef = useRef<AbortController | null>(null);
+  const searchRequestVersionRef = useRef(0);
   const mutationVersionRef = useRef(0);
   const mutationInFlightRef = useRef(false);
   const mountedRef = useRef(true);
@@ -208,6 +271,10 @@ export function PeopleMapSection({ locale }: { locale: Locale }) {
   const [editorPersonId, setEditorPersonId] = useState<string | undefined>();
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
+  const [placeQuery, setPlaceQuery] = useState('');
+  const [placeSearchState, setPlaceSearchState] = useState<PlaceSearchState>('idle');
+  const [placeResults, setPlaceResults] = useState<readonly PeopleMapSearchResultDto[]>([]);
+  const [selectedPlaceResultId, setSelectedPlaceResultId] = useState<string | undefined>();
   const [validationError, setValidationError] = useState(false);
   const [mutation, setMutation] = useState<'idle' | 'save' | 'remove'>('idle');
   const [mutationError, setMutationError] = useState<'save' | 'remove' | null>(null);
@@ -216,6 +283,7 @@ export function PeopleMapSection({ locale }: { locale: Locale }) {
   const groupLegend = useMemo(() => peopleMapGroupLegend(points, groups), [groups, points]);
   const ungroupedCount = useMemo(() => peopleMapUngroupedCount(points, groups), [groups, points]);
   const visiblePoints = useMemo(() => filterPeopleMapPoints(points, groups, groupFilter), [groupFilter, groups, points]);
+  const draftCoordinates = useMemo(() => parseCoordinates(latitude, longitude), [latitude, longitude]);
 
   const load = useCallback(async () => {
     const version = ++requestVersionRef.current;
@@ -278,9 +346,11 @@ export function PeopleMapSection({ locale }: { locale: Locale }) {
       mountedRef.current = false;
       requestVersionRef.current += 1;
       groupRequestVersionRef.current += 1;
+      searchRequestVersionRef.current += 1;
       mutationVersionRef.current += 1;
       requestControllerRef.current?.abort();
       groupControllerRef.current?.abort();
+      searchControllerRef.current?.abort();
       controller.abort();
     };
   }, [load, loadGroups]);
@@ -324,6 +394,16 @@ export function PeopleMapSection({ locale }: { locale: Locale }) {
     }
   };
 
+  const resetPlaceSearch = () => {
+    searchRequestVersionRef.current += 1;
+    searchControllerRef.current?.abort();
+    searchControllerRef.current = null;
+    setPlaceQuery('');
+    setPlaceSearchState('idle');
+    setPlaceResults([]);
+    setSelectedPlaceResultId(undefined);
+  };
+
   const openEditor = (personId?: string) => {
     if (!canWrite || mutationInFlightRef.current) return;
     const target = personId ?? selectedPersonId;
@@ -334,15 +414,55 @@ export function PeopleMapSection({ locale }: { locale: Locale }) {
     setValidationError(false);
     setMutationError(null);
     setNotice(null);
+    resetPlaceSearch();
     setEditor('open');
     void preparePeople();
   };
 
   const closeEditor = () => {
     if (mutationInFlightRef.current) return;
+    resetPlaceSearch();
     setEditor('closed');
     setValidationError(false);
     setMutationError(null);
+  };
+
+  const updateDraftLocation = (nextLatitude: number, nextLongitude: number) => {
+    setLatitude(draftCoordinate(nextLatitude));
+    setLongitude(draftCoordinate(nextLongitude));
+    setValidationError(false);
+  };
+
+  const searchPlaces = async () => {
+    const query = placeQuery.trim().replace(/\s+/g, ' ');
+    if (query.length < 2) {
+      setPlaceSearchState('invalid');
+      setPlaceResults([]);
+      return;
+    }
+    const version = ++searchRequestVersionRef.current;
+    searchControllerRef.current?.abort();
+    const controller = new AbortController();
+    searchControllerRef.current = controller;
+    setPlaceSearchState('loading');
+    setPlaceResults([]);
+    setSelectedPlaceResultId(undefined);
+    try {
+      const result = await peopleMapApi.search(query, controller.signal);
+      if (controller.signal.aborted || version !== searchRequestVersionRef.current || !mountedRef.current) return;
+      setPlaceResults(result.results);
+      setPlaceSearchState(result.results.length ? 'ready' : 'empty');
+    } catch {
+      if (controller.signal.aborted || version !== searchRequestVersionRef.current || !mountedRef.current) return;
+      setPlaceSearchState('error');
+    } finally {
+      if (version === searchRequestVersionRef.current) searchControllerRef.current = null;
+    }
+  };
+
+  const selectPlaceResult = (result: PeopleMapSearchResultDto) => {
+    setSelectedPlaceResultId(result.id);
+    updateDraftLocation(result.latitude, result.longitude);
   };
 
   const save = async () => {
@@ -360,6 +480,7 @@ export function PeopleMapSection({ locale }: { locale: Locale }) {
     try {
       await peopleMapApi.setLocation(target, coordinates.latitude, coordinates.longitude);
       if (version !== mutationVersionRef.current || !mountedRef.current) return;
+      resetPlaceSearch();
       setEditor('closed');
       setNotice('save');
       await load();
@@ -385,6 +506,7 @@ export function PeopleMapSection({ locale }: { locale: Locale }) {
     try {
       await peopleMapApi.removeLocation(target);
       if (version !== mutationVersionRef.current || !mountedRef.current) return;
+      resetPlaceSearch();
       setEditor('closed');
       setSelectedPersonId(current => current === target ? undefined : current);
       setNotice('remove');
@@ -480,7 +602,7 @@ export function PeopleMapSection({ locale }: { locale: Locale }) {
       </> : null}
 
       {editor === 'open' ? <Card title={hasExistingLocation ? text.editLocation : text.addLocation}>
-        <Space orientation="vertical" size="middle" style={{ display: 'flex' }}>
+        <Space orientation="vertical" size="large" style={{ display: 'flex' }}>
           <Alert type="info" showIcon title={text.manual} />
           {peopleError ? <Alert type="error" showIcon title={text.noActivePeople} action={<Button size="small" onClick={() => { setPeople([]); void preparePeople(); }}>{text.retry}</Button>} /> : null}
           <label>
@@ -498,16 +620,80 @@ export function PeopleMapSection({ locale }: { locale: Locale }) {
               placeholder={text.selectPerson}
             />
           </label>
-          <Space wrap style={{ width: '100%' }}>
-            <label style={{ flex: '1 1 220px' }}>
-              <Typography.Text>{text.latitude}</Typography.Text>
-              <InputNumber aria-label={text.latitude} style={{ width: '100%', marginTop: 6 }} value={latitude === '' ? null : Number(latitude)} onChange={value => { setLatitude(draftCoordinate(value)); setValidationError(false); }} disabled={mutation !== 'idle'} min={-90} max={90} step={0.01} placeholder={text.latitudeHint} />
-            </label>
-            <label style={{ flex: '1 1 220px' }}>
-              <Typography.Text>{text.longitude}</Typography.Text>
-              <InputNumber aria-label={text.longitude} style={{ width: '100%', marginTop: 6 }} value={longitude === '' ? null : Number(longitude)} onChange={value => { setLongitude(draftCoordinate(value)); setValidationError(false); }} disabled={mutation !== 'idle'} min={-180} max={180} step={0.01} placeholder={text.longitudeHint} />
-            </label>
-          </Space>
+
+          <Card size="small" title={text.searchTitle}>
+            <Space orientation="vertical" size="middle" style={{ display: 'flex' }}>
+              <Typography.Text type="secondary">{text.searchPrivacy}</Typography.Text>
+              <Typography.Text type="secondary">{text.searchProvider}</Typography.Text>
+              <Space.Compact style={{ width: '100%' }}>
+                <Input
+                  aria-label={text.searchLabel}
+                  value={placeQuery}
+                  placeholder={text.searchPlaceholder}
+                  maxLength={200}
+                  disabled={mutation !== 'idle' || placeSearchState === 'loading'}
+                  onChange={event => { setPlaceQuery(event.target.value); if (placeSearchState !== 'loading') setPlaceSearchState('idle'); }}
+                  onPressEnter={() => void searchPlaces()}
+                />
+                <Button type="primary" loading={placeSearchState === 'loading'} disabled={mutation !== 'idle'} onClick={() => void searchPlaces()}>
+                  {placeSearchState === 'loading' ? text.searching : text.search}
+                </Button>
+              </Space.Compact>
+              {placeSearchState === 'invalid' ? <Alert type="warning" showIcon title={text.searchInvalid} /> : null}
+              {placeSearchState === 'error' ? <Alert type="error" showIcon title={text.searchError} action={<Button size="small" onClick={() => void searchPlaces()}>{text.retry}</Button>} /> : null}
+              {placeSearchState === 'empty' ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={text.searchEmpty} /> : null}
+              {placeSearchState === 'ready' ? <div aria-label={text.searchResults}>
+                <Typography.Text strong>{text.searchResults}</Typography.Text>
+                <List
+                  size="small"
+                  dataSource={[...placeResults]}
+                  renderItem={result => <List.Item key={result.id}>
+                    <Button
+                      type={selectedPlaceResultId === result.id ? 'primary' : 'default'}
+                      aria-pressed={selectedPlaceResultId === result.id}
+                      style={{ width: '100%', whiteSpace: 'normal', height: 'auto', minHeight: 40, textAlign: 'left' }}
+                      onClick={() => selectPlaceResult(result)}
+                    >
+                      {result.label}
+                    </Button>
+                  </List.Item>}
+                />
+              </div> : null}
+            </Space>
+          </Card>
+
+          <Card size="small" title={text.pickerTitle}>
+            <Space orientation="vertical" size="middle" style={{ display: 'flex' }}>
+              <Typography.Text type="secondary">{text.pickerHint}</Typography.Text>
+              <Suspense fallback={<div role="status" aria-label={text.canvasLoading}><Skeleton active paragraph={{ rows: 6 }} /></div>}>
+                <PeopleMapLocationPicker
+                  latitude={draftCoordinates?.latitude}
+                  longitude={draftCoordinates?.longitude}
+                  label={text.pickerLabel}
+                  markerLabel={text.pickerMarker}
+                  disabled={mutation !== 'idle'}
+                  onChange={updateDraftLocation}
+                />
+              </Suspense>
+            </Space>
+          </Card>
+
+          <Card size="small" title={text.advancedCoordinates}>
+            <Space orientation="vertical" size="middle" style={{ display: 'flex' }}>
+              <Typography.Text type="secondary">{text.advancedHint}</Typography.Text>
+              <Space wrap style={{ width: '100%' }}>
+                <label style={{ flex: '1 1 220px' }}>
+                  <Typography.Text>{text.latitude}</Typography.Text>
+                  <InputNumber aria-label={text.latitude} style={{ width: '100%', marginTop: 6 }} value={latitude === '' ? null : Number(latitude)} onChange={value => { setLatitude(draftCoordinate(value)); setValidationError(false); }} disabled={mutation !== 'idle'} min={-90} max={90} step={0.01} placeholder={text.latitudeHint} />
+                </label>
+                <label style={{ flex: '1 1 220px' }}>
+                  <Typography.Text>{text.longitude}</Typography.Text>
+                  <InputNumber aria-label={text.longitude} style={{ width: '100%', marginTop: 6 }} value={longitude === '' ? null : Number(longitude)} onChange={value => { setLongitude(draftCoordinate(value)); setValidationError(false); }} disabled={mutation !== 'idle'} min={-180} max={180} step={0.01} placeholder={text.longitudeHint} />
+                </label>
+              </Space>
+            </Space>
+          </Card>
+
           {validationError ? <Alert type="error" showIcon title={text.invalidCoordinates} /> : null}
           {mutationError ? <Alert type="error" showIcon title={mutationError === 'save' ? text.mutationError : text.removeError} /> : null}
           <Space wrap>

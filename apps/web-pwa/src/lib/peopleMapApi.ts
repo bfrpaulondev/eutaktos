@@ -16,6 +16,19 @@ export interface PeopleMapLocationMutationDto {
   readonly location: Readonly<{ latitude: number; longitude: number }> | null;
 }
 
+export interface PeopleMapSearchResultDto {
+  readonly id: string;
+  readonly label: string;
+  readonly latitude: number;
+  readonly longitude: number;
+}
+
+export interface PeopleMapSearchDto {
+  readonly contractVersion: 'people-map-search-v1';
+  readonly provider: 'photon-osm';
+  readonly results: readonly PeopleMapSearchResultDto[];
+}
+
 export class PeopleMapApiError extends Error {
   readonly status: number;
 
@@ -36,12 +49,17 @@ function text(value: unknown): string {
   return value;
 }
 
-function coordinate(value: unknown, minimum: number, maximum: number): number {
+function rawCoordinate(value: unknown, minimum: number, maximum: number): number {
   if (typeof value !== 'number' || !Number.isFinite(value) || value < minimum || value > maximum) {
     throw new Error('Invalid People Map API response');
   }
-  const normalized = Math.round((value + Math.sign(value || 1) * Number.EPSILON) * 100) / 100;
-  if (value !== normalized) throw new Error('Invalid People Map API response');
+  return Object.is(value, -0) ? 0 : value;
+}
+
+function coordinate(value: unknown, minimum: number, maximum: number): number {
+  const raw = rawCoordinate(value, minimum, maximum);
+  const normalized = Math.round((raw + Math.sign(raw || 1) * Number.EPSILON) * 100) / 100;
+  if (raw !== normalized) throw new Error('Invalid People Map API response');
   return Object.is(normalized, -0) ? 0 : normalized;
 }
 
@@ -58,6 +76,17 @@ function parsePoint(value: unknown): PeopleMapPointDto {
   });
 }
 
+function parseSearchResult(value: unknown): PeopleMapSearchResultDto {
+  const result = record(value);
+  if (Object.keys(result).some(key => !['id', 'label', 'latitude', 'longitude'].includes(key))) throw new Error('Invalid People Map API response');
+  return Object.freeze({
+    id: text(result.id),
+    label: text(result.label),
+    latitude: rawCoordinate(result.latitude, -90, 90),
+    longitude: rawCoordinate(result.longitude, -180, 180),
+  });
+}
+
 export function parsePeopleMap(value: unknown): PeopleMapDto {
   const root = record(value);
   if (Object.keys(root).some(key => !['contractVersion', 'points'].includes(key)) || root.contractVersion !== 'people-map-v1' || !Array.isArray(root.points)) {
@@ -66,6 +95,18 @@ export function parsePeopleMap(value: unknown): PeopleMapDto {
   return Object.freeze({
     contractVersion: 'people-map-v1',
     points: Object.freeze(root.points.map(parsePoint)),
+  });
+}
+
+export function parsePeopleMapSearch(value: unknown): PeopleMapSearchDto {
+  const root = record(value);
+  if (Object.keys(root).some(key => !['contractVersion', 'provider', 'results'].includes(key)) || root.contractVersion !== 'people-map-search-v1' || root.provider !== 'photon-osm' || !Array.isArray(root.results)) {
+    throw new Error('Invalid People Map API response');
+  }
+  return Object.freeze({
+    contractVersion: 'people-map-search-v1',
+    provider: 'photon-osm',
+    results: Object.freeze(root.results.map(parseSearchResult)),
   });
 }
 
@@ -110,6 +151,21 @@ export function createPeopleMapApi(fetcher: typeof fetch = fetch) {
       const body = await responseBody(response);
       if (!response.ok) throw new PeopleMapApiError(response.status);
       return parsePeopleMap(body);
+    },
+
+    async search(query: string, signal?: AbortSignal): Promise<PeopleMapSearchDto> {
+      const normalized = query.trim().replace(/\s+/g, ' ');
+      if (!normalized || normalized.length > 200) throw new Error('query is required');
+      const response = await fetcher('/api/people/map', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: normalized }),
+        signal,
+      });
+      const body = await responseBody(response);
+      if (!response.ok) throw new PeopleMapApiError(response.status);
+      return parsePeopleMapSearch(body);
     },
 
     async setLocation(personId: string, latitude: number, longitude: number): Promise<PeopleMapLocationMutationDto> {

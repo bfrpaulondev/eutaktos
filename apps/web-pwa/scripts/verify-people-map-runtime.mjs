@@ -92,7 +92,7 @@ async function chooseSelectOption(label, optionText) {
   })()`), `Option ${optionText} did not become available`);
 }
 
-async function setNumberInput(label, value) {
+async function setInput(label, value) {
   return await poll(async () => await evaluate(`(() => {
     const input = document.querySelector('input[aria-label=${JSON.stringify(label)}]');
     if (!input) return false;
@@ -100,9 +100,15 @@ async function setNumberInput(label, value) {
     setter?.call(input, ${JSON.stringify(value)});
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
-    input.dispatchEvent(new Event('blur', { bubbles: true }));
     return true;
   })()`), `Input ${label} did not become available`);
+}
+
+async function setNumberInput(label, value) {
+  const changed = await setInput(label, value);
+  if (!changed) return false;
+  await evaluate(`(() => { const input = document.querySelector('input[aria-label=${JSON.stringify(label)}]'); input?.dispatchEvent(new Event('blur', { bubbles: true })); return true; })()`);
+  return true;
 }
 
 try {
@@ -120,7 +126,7 @@ try {
   await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => {
     localStorage.setItem('eutaktos.preferences.v4', JSON.stringify({ paletteId: 'classic', colorMode: 'light', density: 'comfortable', locale: 'pt-PT', textSize: 'default', reducedMotion: false, reducedTransparency: false, highContrast: false }));
     const point = (personId, displayName, latitude, longitude) => ({ personId, displayName, latitude, longitude });
-    window.__mapHarness = { mode: localStorage.getItem('eutaktos-map-test-mode') ?? 'write', points: [point('person-ana', 'Ana Runtime', 38.72, -9.14), point('person-bruno', 'Bruno Runtime', 40.21, -8.41)], putCount: 0, deleteCount: 0, listCount: 0, tileRequests: [] };
+    window.__mapHarness = { mode: localStorage.getItem('eutaktos-map-test-mode') ?? 'write', points: [point('person-ana', 'Ana Runtime', 38.72, -9.14), point('person-bruno', 'Bruno Runtime', 40.21, -8.41)], putCount: 0, deleteCount: 0, listCount: 0, searchCount: 0, searchBodies: [], tileRequests: [] };
     const ok = value => new Response(JSON.stringify(value), { status: 200, headers: { 'Content-Type': 'application/json' } });
     const failure = (status, message) => new Response(JSON.stringify({ error: message }), { status, headers: { 'Content-Type': 'application/json' } });
     const caps = mode => mode === 'write' ? ['people.read', 'people.write', 'map.read', 'map.write'] : mode === 'map-write-only' ? ['people.read', 'map.read', 'map.write'] : mode === 'readonly' ? ['people.read', 'map.read'] : mode === 'no-map' ? ['people.read'] : [];
@@ -142,6 +148,12 @@ try {
         if (mode === 'forbidden' || mode === 'no-map') return failure(403, 'Forbidden');
         if (mode === 'error') return failure(503, 'Unavailable');
         return ok({ contractVersion: 'people-map-v1', points: harness.points });
+      }
+      if (url.pathname === '/api/people/map' && method === 'POST') {
+        harness.searchCount += 1;
+        const body = JSON.parse(String(init?.body ?? '{}'));
+        harness.searchBodies.push(body);
+        return ok({ contractVersion: 'people-map-search-v1', provider: 'photon-osm', results: [{ id: 'place-1', label: 'Rua Example, Setúbal, Portugal', latitude: 38.520123, longitude: -8.890456 }] });
       }
       if (url.pathname === '/api/service-groups' && method === 'GET') {
         if (mode === 'unauthenticated') return failure(401, 'Unauthorized');
@@ -218,7 +230,21 @@ try {
   if (initial.tiles.some(url => String(url).includes('Ana Runtime') || String(url).includes('person-ana') || String(url).includes('Grupo Norte'))) throw new Error('A third-party map request received Person or group identity');
 
   if (!await clickExactButton('Adicionar localização aproximada')) throw new Error('Map write entry point is missing for people.write + map.write');
+  await setInput('Pesquisar rua, código postal, localidade ou endereço', 'Rua Example, Setúbal');
+  if (!await clickExactButton('Pesquisar')) throw new Error('Explicit map place search action is missing');
+  await poll(async () => await evaluate(`window.__mapHarness.searchCount === 1 && Boolean([...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === 'Rua Example, Setúbal, Portugal'))`), 'Map place search did not return an explicit selectable result');
+  if (!await clickExactButton('Rua Example, Setúbal, Portugal')) throw new Error('Map place search result could not be selected');
+  await poll(async () => await evaluate(`(() => {
+    const lat = document.querySelector('input[aria-label="Latitude"]');
+    const lon = document.querySelector('input[aria-label="Longitude"]');
+    return lat?.value === '38.520123' && lon?.value === '-8.890456' && Boolean([...document.querySelectorAll('.leaflet-marker-icon')].find(node => node.getAttribute('title') === 'Localização aproximada selecionada'));
+  })()`), 'Search result did not position the editable map marker and advanced fallback coordinates');
+  const afterSearch = await evaluate(`({ href: location.href, stored: Object.entries(localStorage), bodies: window.__mapHarness.searchBodies, tiles: window.__mapHarness.tileRequests })`);
+  if (afterSearch.bodies.length !== 1 || JSON.stringify(afterSearch.bodies[0]) !== JSON.stringify({ query: 'Rua Example, Setúbal' })) throw new Error('Map place search sent anything beyond the explicit query body');
+  if (afterSearch.href.includes('Rua Example') || afterSearch.stored.some(([, value]) => String(value).includes('Rua Example'))) throw new Error('Map place search text leaked into URL or localStorage');
+  if (afterSearch.tiles.some(url => String(url).includes('Rua Example') || String(url).includes('Ana Runtime') || String(url).includes('person-ana'))) throw new Error('Map tile requests received search or Person identity data');
   if (!await clickExactButton('Cancelar')) throw new Error('Map editor did not allow cancellation without a write');
+
   if (!await clickExactButton('Editar localização')) throw new Error('Map edit action is missing for an existing point');
   await setNumberInput('Latitude', '38.520123');
   await setNumberInput('Longitude', '-8.890456');
@@ -264,7 +290,7 @@ try {
   if (!await clickExactButton('Tentar novamente')) throw new Error('Map error retry was not available');
   await poll(async () => await evaluate(`Boolean(document.querySelector('#main')?.textContent?.includes('Ana Runtime'))`), 'Map retry did not recover');
 
-  process.stdout.write('PX9.10/PX9.11 map runtime passed: dual capability gate, group filter/legend, 320-1440 responsive matrix, 200%/400% equivalent reflow, visual map/list equivalence, normalized edit/refetch, 401/403/error retry, double-submit and URL/storage/tile privacy.\n');
+  process.stdout.write('PX9.10/PX9.11 map runtime passed: dual capability gate, explicit place search, search privacy, click/drag picker fallback, group filter/legend, 320-1440 responsive matrix, 200%/400% equivalent reflow, visual map/list equivalence, normalized edit/refetch, 401/403/error retry, double-submit and URL/storage/tile privacy.\n');
 } finally {
   cdp?.close();
   if (browser && !browser.killed) browser.kill('SIGTERM');
