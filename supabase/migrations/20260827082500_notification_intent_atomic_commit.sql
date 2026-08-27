@@ -23,35 +23,44 @@ begin
   if btrim(coalesce(p_tenant_id, '')) = '' then
     raise exception 'invalid tenant identity' using errcode = '22023';
   end if;
-  if jsonb_typeof(p_delivery) <> 'object'
-     or p_delivery->>'tenantId' <> p_tenant_id
+  if jsonb_typeof(p_delivery) is distinct from 'object'
+     or p_delivery->>'tenantId' is distinct from p_tenant_id
      or btrim(coalesce(p_delivery->>'id', '')) = ''
      or btrim(coalesce(p_delivery->>'idempotencyKey', '')) = ''
-     or btrim(coalesce(p_delivery->>'recipientId', '')) = '' then
+     or btrim(coalesce(p_delivery->>'notificationPreferenceId', '')) = ''
+     or btrim(coalesce(p_delivery->>'recipientId', '')) = ''
+     or btrim(coalesce(p_delivery->>'channel', '')) = ''
+     or btrim(coalesce(p_delivery->>'templateKey', '')) = ''
+     or btrim(coalesce(p_delivery->>'locale', '')) = '' then
     raise exception 'invalid notification delivery' using errcode = '22023';
   end if;
-  if p_delivery->>'status' <> 'pending' then
+  if p_delivery->>'status' is distinct from 'pending' then
     raise exception 'new notification delivery must be pending' using errcode = '22023';
   end if;
-  if jsonb_typeof(p_audit) <> 'object'
-     or p_audit->>'tenantId' <> p_tenant_id
-     or p_audit->>'resourceType' <> 'notification-intent'
-     or p_audit->>'resourceId' <> p_delivery->>'id'
-     or p_audit->>'action' <> 'create' then
+  if jsonb_typeof(p_audit) is distinct from 'object'
+     or p_audit->>'tenantId' is distinct from p_tenant_id
+     or p_audit->>'resourceType' is distinct from 'notification-intent'
+     or p_audit->>'resourceId' is distinct from p_delivery->>'id'
+     or p_audit->>'action' is distinct from 'create'
+     or btrim(coalesce(p_audit->>'actorId', '')) = ''
+     or btrim(coalesce(p_audit->>'occurredAt', '')) = '' then
     raise exception 'invalid notification audit' using errcode = '22023';
   end if;
-  if jsonb_typeof(p_event) <> 'object'
-     or p_event->>'tenantId' <> p_tenant_id
-     or p_event->>'type' <> 'NotificationIntentQueued'
-     or (p_event->>'schemaVersion')::integer <> 1
-     or jsonb_typeof(p_event->'payload') <> 'object' then
+  if jsonb_typeof(p_event) is distinct from 'object'
+     or p_event->>'tenantId' is distinct from p_tenant_id
+     or p_event->>'type' is distinct from 'NotificationIntentQueued'
+     or coalesce(p_event->>'schemaVersion', '') <> '1'
+     or btrim(coalesce(p_event->>'aggregateId', '')) = ''
+     or btrim(coalesce(p_event->>'actorId', '')) = ''
+     or btrim(coalesce(p_event->>'occurredAt', '')) = ''
+     or jsonb_typeof(p_event->'payload') is distinct from 'object' then
     raise exception 'invalid notification event' using errcode = '22023';
   end if;
-  if p_event->'payload'->>'deliveryId' <> p_delivery->>'id'
-     or p_event->'payload'->>'recipientId' <> p_delivery->>'recipientId'
-     or p_event->'payload'->>'channel' <> p_delivery->>'channel'
-     or p_event->'payload'->>'templateKey' <> p_delivery->>'templateKey'
-     or p_event->'payload'->>'locale' <> p_delivery->>'locale' then
+  if p_event->'payload'->>'deliveryId' is distinct from p_delivery->>'id'
+     or p_event->'payload'->>'recipientId' is distinct from p_delivery->>'recipientId'
+     or p_event->'payload'->>'channel' is distinct from p_delivery->>'channel'
+     or p_event->'payload'->>'templateKey' is distinct from p_delivery->>'templateKey'
+     or p_event->'payload'->>'locale' is distinct from p_delivery->>'locale' then
     raise exception 'notification event payload mismatch' using errcode = '22023';
   end if;
   if (select count(*) from jsonb_object_keys(p_event->'payload')) <> 5 then
@@ -59,13 +68,14 @@ begin
   end if;
 
   if p_reminder is not null then
-    if jsonb_typeof(p_reminder) <> 'object'
-       or p_reminder->>'tenantId' <> p_tenant_id
-       or p_reminder->>'id' <> p_delivery->>'id'
-       or p_reminder->>'deliveryId' <> p_delivery->>'id'
-       or p_reminder->>'recipientId' <> p_delivery->>'recipientId'
-       or p_reminder->>'assignmentId' <> p_event->>'aggregateId'
-       or p_delivery->>'templateKey' <> 'assignment.reminder' then
+    if jsonb_typeof(p_reminder) is distinct from 'object'
+       or p_reminder->>'tenantId' is distinct from p_tenant_id
+       or p_reminder->>'id' is distinct from p_delivery->>'id'
+       or p_reminder->>'deliveryId' is distinct from p_delivery->>'id'
+       or p_reminder->>'recipientId' is distinct from p_delivery->>'recipientId'
+       or p_reminder->>'assignmentId' is distinct from p_event->>'aggregateId'
+       or btrim(coalesce(p_reminder->>'queuedAt', '')) = ''
+       or p_delivery->>'templateKey' is distinct from 'assignment.reminder' then
       raise exception 'invalid assignment reminder correlation' using errcode = '22023';
     end if;
   elsif p_delivery->>'templateKey' = 'assignment.reminder' then
@@ -83,10 +93,10 @@ begin
    limit 1;
 
   if v_existing is not null then
-    if v_existing->>'recipientId' <> p_delivery->>'recipientId'
-       or v_existing->>'channel' <> p_delivery->>'channel'
-       or v_existing->>'templateKey' <> p_delivery->>'templateKey'
-       or v_existing->>'locale' <> p_delivery->>'locale' then
+    if v_existing->>'recipientId' is distinct from p_delivery->>'recipientId'
+       or v_existing->>'channel' is distinct from p_delivery->>'channel'
+       or v_existing->>'templateKey' is distinct from p_delivery->>'templateKey'
+       or v_existing->>'locale' is distinct from p_delivery->>'locale' then
       raise exception 'notification idempotency identity mismatch' using errcode = '22023';
     end if;
     return v_existing;
@@ -112,7 +122,7 @@ begin
   insert into public.eutaktos_outbox
     (tenant_id,id,event_type,aggregate_id,actor_id,occurred_at,schema_version,correlation_id,payload)
   values
-    (p_tenant_id,p_event->>'id',p_event->>'type',p_event->>'aggregateId',p_event->>'actorId',(p_event->>'occurredAt')::timestamptz,(p_event->>'schemaVersion')::integer,nullif(p_event->>'correlationId',''),p_event->'payload');
+    (p_tenant_id,p_event->>'id',p_event->>'type',p_event->>'aggregateId',p_event->>'actorId',(p_event->>'occurredAt')::timestamptz,1,nullif(p_event->>'correlationId',''),p_event->'payload');
 
   return p_delivery;
 end;
