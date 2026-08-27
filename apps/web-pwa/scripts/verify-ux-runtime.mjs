@@ -108,11 +108,16 @@ async function visitWorkspace(path, expectedHeading, locale, expectedTitle = `Eu
 }
 
 async function clickExactButton(label) {
-  return await evaluate(`(() => {
-    const button = [...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(label)});
-    button?.click();
-    return Boolean(button);
-  })()`);
+  return await poll(
+    async () => await evaluate(`(() => {
+      const button = [...document.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === ${JSON.stringify(label)} && !node.disabled && node.getClientRects().length > 0 && getComputedStyle(node).visibility !== 'hidden');
+      if (!button) return false;
+      button.click();
+      return true;
+    })()`),
+    `O botão exato ${label} não ficou interativo`,
+    80,
+  );
 }
 
 async function openLocalizedDialog(trigger, title, closeLabel, locale) {
