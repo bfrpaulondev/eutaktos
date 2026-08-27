@@ -4,6 +4,7 @@ import { handleNetlifyApiEvent, matchNetlifyApiRoute, normalizeNetlifyApiPath } 
 describe('Netlify API adapter', () => {
   it('normalizes both public and rewritten Netlify paths', () => {
     expect(normalizeNetlifyApiPath({ path: '/api/people' })).toBe('/people');
+    expect(normalizeNetlifyApiPath({ path: '/api/people/contact-list' })).toBe('/people/contact-list');
     expect(normalizeNetlifyApiPath({ path: '/api/people/recommendations' })).toBe('/people/recommendations');
     expect(normalizeNetlifyApiPath({ path: '/api/people/assistance' })).toBe('/people/assistance');
     expect(normalizeNetlifyApiPath({ path: '/api/import/hourglass/preview' })).toBe('/import/hourglass/preview');
@@ -18,6 +19,7 @@ describe('Netlify API adapter', () => {
 
   it('matches People projections, Hourglass preview and dynamic identifiers from the path', () => {
     expect(matchNetlifyApiRoute('/people/directory')).toEqual({ key: 'people-directory', params: {} });
+    expect(matchNetlifyApiRoute('/people/contact-list')).toEqual({ key: 'people-contact-list', params: {} });
     expect(matchNetlifyApiRoute('/people/overview-evidence')).toEqual({ key: 'people-overview-evidence', params: {} });
     expect(matchNetlifyApiRoute('/people/assistance')).toEqual({ key: 'people-assistance', params: {} });
     expect(matchNetlifyApiRoute('/people/recommendations')).toEqual({ key: 'people-recommendations', params: {} });
@@ -61,6 +63,12 @@ describe('Netlify API adapter', () => {
 
   it('dispatches People assistance to the real authenticated handler instead of returning router 404', async () => {
     const result = await handleNetlifyApiEvent({ httpMethod: 'GET', path: '/api/people/assistance', headers: {} });
+    expect(result.statusCode).toBe(401);
+    expect(JSON.parse(result.body)).toEqual({ error: 'Unauthorized' });
+  });
+
+  it('dispatches People Contact List to its authenticated least-privilege handler', async () => {
+    const result = await handleNetlifyApiEvent({ httpMethod: 'GET', path: '/api/people/contact-list', headers: {} });
     expect(result.statusCode).toBe(401);
     expect(JSON.parse(result.body)).toEqual({ error: 'Unauthorized' });
   });
