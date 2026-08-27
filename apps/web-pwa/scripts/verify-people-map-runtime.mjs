@@ -70,16 +70,24 @@ async function clickExactButton(label) {
 async function chooseSelectOption(label, optionText) {
   await poll(async () => await evaluate(`(() => {
     const control = [...document.querySelectorAll('[role="combobox"]')].find(node => node.getAttribute('aria-label') === ${JSON.stringify(label)});
-    if (!control) return false;
-    control.click();
+    if (!control || control.disabled || control.getAttribute('aria-disabled') === 'true') return false;
+    const selector = control.closest('.ant-select')?.querySelector('.ant-select-selector') ?? control;
+    selector.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+    selector.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, button: 0 }));
+    selector.click();
+    control.focus();
     return true;
   })()`), `Select ${label} did not become available`);
   return await poll(async () => await evaluate(`(() => {
-    const option = [...document.querySelectorAll('[role="option"]')].find(node => (node.textContent || '').trim().includes(${JSON.stringify(optionText)}));
+    const option = [...document.querySelectorAll('.ant-select-item-option, [role="option"]')].find(node => {
+      const rect = node.getBoundingClientRect();
+      return (node.textContent || '').trim().includes(${JSON.stringify(optionText)}) && rect.width > 0 && rect.height > 0;
+    });
     if (!option) return false;
-    option.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-    option.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-    option.click();
+    const target = option.closest('.ant-select-item-option') ?? option;
+    target.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+    target.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, button: 0 }));
+    target.click();
     return true;
   })()`), `Option ${optionText} did not become available`);
 }
