@@ -1,9 +1,11 @@
 import {
+  applyManualRecommendationConstraints,
   completedAssignmentHistoryFromScheduling,
   deterministicRecommendationEvidence,
   type ActiveAssignmentEvidence,
   type AssignmentWorkloadEvidence,
-  type RecommendationCandidateEvidence,
+  type ManualConstraintCandidateEvidence,
+  type ManualRecommendationConstraint,
 } from '@eutaktos/application';
 import {
   findSlotById,
@@ -25,9 +27,10 @@ export interface MidweekRecommendationSource {
   readonly meetings: readonly Readonly<MidweekMeeting>[];
   readonly studentAssignments: readonly Readonly<StudentAssignment>[];
   readonly nonStudentAssignments: readonly Readonly<NonStudentAssignment>[];
+  readonly manualConstraints?: readonly Readonly<ManualRecommendationConstraint>[];
 }
 
-export interface RecommendationPersonEvidence extends RecommendationCandidateEvidence {
+export interface RecommendationPersonEvidence extends ManualConstraintCandidateEvidence {
   readonly displayName: string;
 }
 
@@ -102,7 +105,7 @@ function schedulingEvidence(
 }
 
 function personEvidence(
-  values: readonly RecommendationCandidateEvidence[],
+  values: readonly ManualConstraintCandidateEvidence[],
   names: ReadonlyMap<string, string>,
 ): readonly Readonly<RecommendationPersonEvidence>[] {
   return Object.freeze(values.map(value => {
@@ -115,8 +118,8 @@ function personEvidence(
 /**
  * Builds PX7 evidence only from facts already loaded for the authenticated tenant.
  * The target carries opaque resource identifiers only. Assignment type, meeting
- * date/time, people, eligibility, availability, history and workload are all
- * derived from the authorized server-side source.
+ * date/time, people, eligibility, availability, history, workload and manual
+ * exclusions are all derived from the authorized server-side source.
  */
 export function buildAuthorizedMidweekRecommendation(
   context: AccessContext,
@@ -157,12 +160,13 @@ export function buildAuthorizedMidweekRecommendation(
     activeAssignments: assignments.active,
     workloadAssignments: assignments.workload,
   });
+  const constrained = applyManualRecommendationConstraints(evidence, context.tenantId, assignmentTypeId, source.manualConstraints ?? []);
 
   const names = new Map(tenantPeople.map(person => [person.id, person.displayName] as const));
   return Object.freeze({
     contractVersion: 'people-recommendation-v1',
-    evidenceContractVersion: evidence.contractVersion,
-    inputContractVersion: evidence.inputContractVersion,
+    evidenceContractVersion: constrained.contractVersion,
+    inputContractVersion: constrained.inputContractVersion,
     target: Object.freeze({
       meetingId: meeting.id,
       slotId: slot.id,
@@ -171,7 +175,7 @@ export function buildAuthorizedMidweekRecommendation(
       startsAt: window.startsAt,
       endsAt: window.endsAt,
     }),
-    candidates: personEvidence(evidence.candidates, names),
-    excluded: personEvidence(evidence.excluded, names),
+    candidates: personEvidence(constrained.candidates, names),
+    excluded: personEvidence(constrained.excluded, names),
   });
 }
