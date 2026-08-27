@@ -101,7 +101,7 @@ export class PeopleDirectoryService {
     const changedFields: string[] = [];
     if (input.displayName !== undefined) { const next = normalizeDisplayName(input.displayName); if (next !== displayName) { displayName = next; changedFields.push('displayName'); } }
     if (input.preferredLocale !== undefined) { const next = input.preferredLocale === null ? undefined : normalizeLocale(input.preferredLocale); if (next !== preferredLocale) { preferredLocale = next; changedFields.push('preferredLocale'); } }
-    if (input.active !== undefined && input.active !== active) { if (input.active && isPersonPublicationArchived(existing)) throw new Error('Archived person requires explicit restore'); active = input.active; changedFields.push('active'); }
+    if (input.active !== undefined && input.active !== active) { if (input.active && isPersonPublicationArchived(existing)) throw new Error('active must be restored explicitly for archived person'); active = input.active; changedFields.push('active'); }
     if (input.labels !== undefined) { const next = normalizePersonLabels(input.labels); if (!labelsEqual(next, labels)) { labels = next; changedFields.push('labels'); } }
     if (input.ordinaryContact !== undefined) { const normalized = input.ordinaryContact === null ? undefined : normalizeOrdinaryContact(input.ordinaryContact); const next = normalized && Object.keys(normalized).length ? normalized : undefined; if (!ordinaryContactsEqual(next, ordinaryContact)) { ordinaryContact = next; changedFields.push('ordinaryContact'); } }
     if (changedFields.length === 0) return existing;
