@@ -1,4 +1,4 @@
-export type PeopleWorkspaceView = 'overview' | 'directory' | 'profile' | 'households' | 'groups' | 'responsibilities';
+export type PeopleWorkspaceView = 'overview' | 'directory' | 'profile' | 'map' | 'households' | 'groups' | 'responsibilities';
 
 const PROFILE_REF_PARAM = 'person';
 
@@ -29,19 +29,25 @@ export function peopleWorkspaceViewFromSearch(search: string): PeopleWorkspaceVi
 
   if (view === 'profile' && peopleWorkspaceProfileRefFromSearch(search)) return 'profile';
   if (view === 'directory') return 'directory';
+  if (view === 'map') return 'map';
   return 'overview';
 }
 
 export function peopleWorkspaceSearchForView(currentSearch: string, next: Exclude<PeopleWorkspaceView, 'profile'>): string {
   const params = new URLSearchParams(currentSearch);
   params.delete(PROFILE_REF_PARAM);
+  // Coordinates are server-owned and must never be propagated by route state.
+  params.delete('latitude');
+  params.delete('longitude');
+  params.delete('lat');
+  params.delete('lng');
 
   if (next === 'overview') {
     params.delete('area');
     params.delete('view');
-  } else if (next === 'directory') {
+  } else if (next === 'directory' || next === 'map') {
     params.delete('area');
-    params.set('view', 'directory');
+    params.set('view', next);
   } else {
     params.set('area', 'organization');
     params.set('view', next);

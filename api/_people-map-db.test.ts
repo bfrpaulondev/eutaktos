@@ -21,13 +21,15 @@ describe('PeopleMapDatabase', () => {
     expect(body).toEqual({ p_tenant_id: 'tenant-a' });
   });
 
-  it('sets only normalized coordinates with server-owned tenant and actor', async () => {
+  it('sets only normalized coordinates with server-owned tenant and actor and returns no provenance metadata', async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse([{
       changed: true, latitude: 38.72, longitude: -9.14, precision: 'approximate', source: 'manual', updated_at: '2026-08-27T20:30:00.000Z',
     }]));
     const database = new PeopleMapDatabase(config, fetcher);
     const result = await database.set({ tenantId: 'tenant-a', personId: 'person-1', actorId: 'actor-a', latitude: 38.72, longitude: -9.14, updatedAt: '2026-08-27T20:30:00.000Z' });
-    expect(result).toEqual({ changed: true, latitude: 38.72, longitude: -9.14, precision: 'approximate', source: 'manual', updatedAt: '2026-08-27T20:30:00.000Z' });
+    expect(result).toEqual({ changed: true, latitude: 38.72, longitude: -9.14 });
+    expect(JSON.stringify(result)).not.toContain('updatedAt');
+    expect(JSON.stringify(result)).not.toContain('source');
     expect(fetcher).toHaveBeenCalledWith('https://example.supabase.co/rest/v1/rpc/eutaktos_set_people_map_location', expect.objectContaining({ method: 'POST' }));
     expect(JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body))).toEqual({
       p_tenant_id: 'tenant-a', p_person_id: 'person-1', p_actor_id: 'actor-a', p_latitude: 38.72, p_longitude: -9.14, p_updated_at: '2026-08-27T20:30:00.000Z',
@@ -42,5 +44,17 @@ describe('PeopleMapDatabase', () => {
     expect(body).toEqual({ p_tenant_id: 'tenant-a', p_person_id: 'person-1', p_actor_id: 'actor-a', p_removed_at: '2026-08-27T20:31:00.000Z' });
     expect(body).not.toHaveProperty('latitude');
     expect(body).not.toHaveProperty('longitude');
+  });
+
+  it('fails closed for malformed response bodies, unexpected content types and unapproved coordinate precision', async () => {
+    const malformed = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse([{ person_id: 'person-1', display_name: 'Ana', latitude: 38.721, longitude: -9.14 }]))
+      .mockResolvedValueOnce(new Response('{}', { status: 200, headers: { 'Content-Type': 'text/plain' } }))
+      .mockResolvedValueOnce(jsonResponse([{ changed: true, latitude: 38.721, longitude: -9.14, precision: 'approximate', source: 'manual', updated_at: '2026-08-27T20:30:00.000Z' }]));
+    const database = new PeopleMapDatabase(config, malformed);
+
+    await expect(database.list('tenant-a')).rejects.toMatchObject({ status: 502 });
+    await expect(database.list('tenant-a')).rejects.toMatchObject({ status: 502 });
+    await expect(database.set({ tenantId: 'tenant-a', personId: 'person-1', actorId: 'actor-a', latitude: 38.72, longitude: -9.14, updatedAt: '2026-08-27T20:30:00.000Z' })).rejects.toMatchObject({ status: 502 });
   });
 });

@@ -1,7 +1,12 @@
-import { requireCapability, resolvePrincipal } from '../_auth';
+import { requireCapability, resolvePrincipal, type VerifiedPrincipal } from '../_auth';
 import { BadRequestError, runEndpoint } from '../_endpoint';
 import { PeopleMapDatabase, type PeopleMapPoint } from '../_people-map-db';
 import { json, methodNotAllowed, type ApiHandler } from '../_types';
+
+export function requirePeopleMapRead(principal: VerifiedPrincipal): void {
+  requireCapability(principal, 'people.read');
+  requireCapability(principal, 'map.read');
+}
 
 export function projectPeopleMap(points: readonly PeopleMapPoint[]) {
   return Object.freeze({
@@ -17,8 +22,7 @@ const handler: ApiHandler = async (request, response) => {
   await runEndpoint(request, response, async database => {
     if (Object.keys(request.query).length) throw new BadRequestError('People map does not accept query parameters');
     const principal = await resolvePrincipal(request, database);
-    requireCapability(principal, 'people.read');
-    requireCapability(principal, 'map.read');
+    requirePeopleMapRead(principal);
     const points = await new PeopleMapDatabase().list(principal.tenantId);
     json(response, 200, projectPeopleMap(points));
   });

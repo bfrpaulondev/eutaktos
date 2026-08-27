@@ -1,7 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { projectPeopleMap } from './map';
+import { type VerifiedPrincipal } from '../_auth';
+import { projectPeopleMap, requirePeopleMapRead } from './map';
+
+const principal = (capabilities: readonly string[]): VerifiedPrincipal => ({
+  tenantId: 'tenant-a', actorId: 'actor-a', sessionId: 'session-a', capabilities: capabilities as VerifiedPrincipal['capabilities'],
+});
 
 describe('People Map read projection', () => {
+  it('requires both people.read and explicit map.read before any projection', () => {
+    expect(() => requirePeopleMapRead(principal(['people.read']))).toThrow('Forbidden');
+    expect(() => requirePeopleMapRead(principal(['map.read']))).toThrow('Forbidden');
+    expect(() => requirePeopleMapRead(principal(['people.read', 'tenant.manage']))).toThrow('Forbidden');
+    expect(() => requirePeopleMapRead(principal(['people.read', 'map.read']))).not.toThrow();
+  });
+
   it('returns only opaque identity, display name and approximate coordinates in deterministic order', () => {
     const result = projectPeopleMap([
       { personId: 'person-b', displayName: 'Bruno', latitude: 40.21, longitude: -8.41 },

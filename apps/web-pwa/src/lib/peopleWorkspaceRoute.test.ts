@@ -10,6 +10,7 @@ describe('People workspace route state', () => {
   it('defaults to Overview and restores Directory from an addressable URL', () => {
     expect(peopleWorkspaceViewFromSearch('')).toBe('overview');
     expect(peopleWorkspaceViewFromSearch('?view=directory')).toBe('directory');
+    expect(peopleWorkspaceViewFromSearch('?view=map')).toBe('map');
     expect(peopleWorkspaceViewFromSearch('?view=unknown')).toBe('overview');
   });
 
@@ -29,8 +30,10 @@ describe('People workspace route state', () => {
     expect(peopleWorkspaceViewFromSearch('?area=organization&view=profile&person=person-1')).toBe('households');
   });
 
-  it('creates reversible, non-sensitive URLs for Overview and Directory', () => {
+  it('creates reversible, non-sensitive URLs for Overview, Directory and Map', () => {
     expect(peopleWorkspaceSearchForView('', 'directory')).toBe('?view=directory');
+    expect(peopleWorkspaceSearchForView('', 'map')).toBe('?view=map');
+    expect(peopleWorkspaceSearchForView('?view=map&status=active', 'directory')).toBe('?view=directory&status=active');
     expect(peopleWorkspaceSearchForView('?view=directory', 'overview')).toBe('');
     expect(peopleWorkspaceSearchForView('?foo=bar', 'directory')).toBe('?foo=bar&view=directory');
     expect(peopleWorkspaceSearchForView('?foo=bar&view=directory', 'overview')).toBe('?foo=bar');
@@ -47,6 +50,14 @@ describe('People workspace route state', () => {
     expect(() => peopleWorkspaceSearchForProfile('', 'Ana Martins')).toThrow('person profile reference is invalid');
     expect(() => peopleWorkspaceSearchForProfile('', 'ana@example.com')).toThrow('person profile reference is invalid');
     expect(() => peopleWorkspaceSearchForProfile('', '../person')).toThrow('person profile reference is invalid');
+  });
+
+  it('removes opaque person references when moving to Map', () => {
+    const map = peopleWorkspaceSearchForView('?view=profile&person=person_42&status=active&latitude=38.72&longitude=-9.14', 'map');
+    expect(map).toBe('?view=map&status=active');
+    expect(map).not.toContain('person_42');
+    expect(map).not.toContain('latitude');
+    expect(map).not.toContain('longitude');
   });
 
   it('keeps organization navigation URL-safe and returns cleanly to Directory', () => {

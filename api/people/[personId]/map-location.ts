@@ -1,9 +1,13 @@
 import { createAccessContext, createPeopleMapLocation, isPersonPublicationArchived } from '@eutaktos/domain';
-import { requireCapability, resolvePrincipal } from '../../_auth';
+import { requireCapability, resolvePrincipal, type VerifiedPrincipal } from '../../_auth';
 import { assertTrustedMutation, BadRequestError, exactKeys, requestBody, runEndpoint } from '../../_endpoint';
 import { PeopleMapDatabase } from '../../_people-map-db';
 import { PeopleSnapshotUnitOfWork } from '../../_uow';
 import { json, methodNotAllowed, queryValue, type ApiHandler } from '../../_types';
+
+export function requirePeopleMapWrite(principal: VerifiedPrincipal): void {
+  requireCapability(principal, 'map.write');
+}
 
 export function parsePeopleMapLocationBody(value: unknown): Readonly<{ latitude: number; longitude: number }> {
   const body = requestBody(value);
@@ -17,32 +21,69 @@ export function parsePeopleMapLocationBody(value: unknown): Readonly<{ latitude:
   return Object.freeze({ latitude, longitude });
 }
 
+function mapLocationMutationResponse(changed: boolean, location: Readonly<{ latitude: number; longitude: number }> | null) {
+  return Object.freeze({
+    contractVersion: 'people-map-location-v1' as const,
+    changed,
+    location: location ? Object.freeze({ latitude: location.latitude, longitude: location.longitude }) : null,
+  });
+}
+
 const handler: ApiHandler = async (request, response) => {
-  if (!['PUT', 'DELETE'].includes(request.method ?? '')) { methodNotAllowed(response, ['PUT', 'DELETE']); return; }
+  if (!['PUT', 'DELETE'].includes(request.method ?? '')) {
+    methodNotAllowed(response, ['PUT', 'DELETE']);
+    return;
+  }
+
   await runEndpoint(request, response, async database => {
+    if (Object.keys(request.query).some(key => key !== 'personId')) {
+      throw new BadRequestError('People map location does not accept query parameters');
+    }
+
     const principal = await resolvePrincipal(request, database);
-    requireCapability(principal, 'people.write');
-    requireCapability(principal, 'map.write');
+    requirePeopleMapWrite(principal);
     assertTrustedMutation(request);
 
     const personId = queryValue(request, 'personId')?.trim();
     if (!personId || personId.length > 200) throw new BadRequestError('Invalid personId');
+
     const rows = await database.entities(principal.tenantId, 'person');
-    const context = createAccessContext({ tenantId: principal.tenantId, actorId: principal.actorId, capabilities: principal.capabilities });
+    const context = createAccessContext({
+      tenantId: principal.tenantId,
+      actorId: principal.actorId,
+      capabilities: principal.capabilities,
+    });
     const people = new PeopleSnapshotUnitOfWork(principal.tenantId, rows);
     const person = people.findById(context, personId);
-    if (!person) { json(response, 404, { error: 'Person not found' }); return; }
-
-    const mapDatabase = new PeopleMapDatabase();
-    if (request.method === 'DELETE') {
-      const changed = await mapDatabase.remove({ tenantId: principal.tenantId, personId, actorId: principal.actorId, removedAt: new Date().toISOString() });
-      json(response, 200, Object.freeze({ contractVersion: 'people-map-location-v1', personId, changed, location: null }));
+    if (!person) {
+      json(response, 404, { error: 'Person not found' });
       return;
     }
 
-    if (!person.active || isPersonPublicationArchived(person)) throw new BadRequestError('Person is not publishable');
+    const mapDatabase = new PeopleMapDatabase();
+    if (request.method === 'DELETE') {
+      const changed = await mapDatabase.remove({
+        tenantId: principal.tenantId,
+        personId,
+        actorId: principal.actorId,
+        removedAt: new Date().toISOString(),
+      });
+      json(response, 200, mapLocationMutationResponse(changed, null));
+      return;
+    }
+
+    if (!person.active || isPersonPublicationArchived(person)) {
+      throw new BadRequestError('Person is not publishable');
+    }
+
     const input = parsePeopleMapLocationBody(request.body);
-    const normalized = createPeopleMapLocation({ tenantId: principal.tenantId, personId, latitude: input.latitude, longitude: input.longitude, updatedAt: new Date().toISOString() });
+    const normalized = createPeopleMapLocation({
+      tenantId: principal.tenantId,
+      personId,
+      latitude: input.latitude,
+      longitude: input.longitude,
+      updatedAt: new Date().toISOString(),
+    });
     const result = await mapDatabase.set({
       tenantId: normalized.tenantId,
       personId: normalized.personId,
@@ -51,12 +92,7 @@ const handler: ApiHandler = async (request, response) => {
       longitude: normalized.longitude,
       updatedAt: normalized.updatedAt,
     });
-    json(response, 200, Object.freeze({
-      contractVersion: 'people-map-location-v1',
-      personId,
-      changed: result.changed,
-      location: Object.freeze({ latitude: result.latitude, longitude: result.longitude, precision: result.precision, source: result.source, updatedAt: result.updatedAt }),
-    }));
+    json(response, 200, mapLocationMutationResponse(result.changed, result));
   });
 };
 
