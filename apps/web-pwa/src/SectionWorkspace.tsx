@@ -16,6 +16,7 @@ import { PeopleContactListDialog } from './PeopleContactListDialog';
 import { PeopleDirectory } from './PeopleDirectory';
 import { PeopleRecordCardsDialog } from './PeopleRecordCardsDialog';
 import { PeopleRemindersDialog } from './PeopleRemindersDialog';
+import { PeopleTransfersDialog } from './PeopleTransfersDialog';
 import { ResponsibilitiesSection } from './ResponsibilitiesSection';
 import { ServiceGroupsSection } from './ServiceGroupsSection';
 import type { Locale } from './lib/preferences';
@@ -52,9 +53,9 @@ const PersonRecommendationInsight = lazy(async () => {
 });
 
 const copy = {
-  'pt-PT': { organization: 'Organização', organizationTitle: 'Pessoas e organização', organizationSubtitle: 'Mantém perfis, agregados, grupos, responsabilidades, ausências e permissões no mesmo contexto.', overview: 'Visão geral', directory: 'Diretório', households: 'Agregados', groups: 'Grupos de serviço', responsibilities: 'Responsabilidades', tools: 'Ferramentas', reminders: 'Lembretes', archive: 'Arquivo / A não publicar', contactList: 'Lista de contactos', recordCards: 'Cartões / Registos', audit: 'Histórico de auditoria', access: 'Gerir acessos', hourglass: 'Inspecionar export Hourglass', overviewLoading: 'A carregar Pessoas…', profileLoading: 'A carregar perfil…' },
-  en: { organization: 'Organization', organizationTitle: 'People and organization', organizationSubtitle: 'Keep profiles, households, groups, responsibilities, away periods and permissions in the same context.', overview: 'Overview', directory: 'Directory', households: 'Households', groups: 'Service groups', responsibilities: 'Responsibilities', tools: 'Tools', reminders: 'Reminders', archive: 'Archive / Do not publish', contactList: 'Contact list', recordCards: 'Record cards / Reports', audit: 'Audit history', access: 'Manage access', hourglass: 'Inspect Hourglass export', overviewLoading: 'Loading People…', profileLoading: 'Loading profile…' },
-  es: { organization: 'Organización', organizationTitle: 'Personas y organización', organizationSubtitle: 'Mantén perfis, grupos familiares, grupos, responsabilidades, ausencias y permisos en el mismo contexto.', overview: 'Vista general', directory: 'Directorio', households: 'Grupos familiares', groups: 'Grupos de servicio', responsibilities: 'Responsabilidades', tools: 'Herramientas', reminders: 'Recordatorios', archive: 'Archivo / No publicar', contactList: 'Lista de contactos', recordCards: 'Tarjetas / Registros', audit: 'Historial de auditoría', access: 'Gestionar accesos', hourglass: 'Inspeccionar exportación Hourglass', overviewLoading: 'Cargando Personas…', profileLoading: 'Cargando perfil…' },
+  'pt-PT': { organization: 'Organização', organizationTitle: 'Pessoas e organização', organizationSubtitle: 'Mantém perfis, agregados, grupos, responsabilidades, ausências e permissões no mesmo contexto.', overview: 'Visão geral', directory: 'Diretório', households: 'Agregados', groups: 'Grupos de serviço', responsibilities: 'Responsabilidades', tools: 'Ferramentas', transfers: 'Transferências', reminders: 'Lembretes', archive: 'Arquivo / A não publicar', contactList: 'Lista de contactos', recordCards: 'Cartões / Registos', audit: 'Histórico de auditoria', access: 'Gerir acessos', hourglass: 'Inspecionar export Hourglass', overviewLoading: 'A carregar Pessoas…', profileLoading: 'A carregar perfil…' },
+  en: { organization: 'Organization', organizationTitle: 'People and organization', organizationSubtitle: 'Keep profiles, households, groups, responsibilities, away periods and permissions in the same context.', overview: 'Overview', directory: 'Directory', households: 'Households', groups: 'Service groups', responsibilities: 'Responsibilities', tools: 'Tools', transfers: 'Transfers', reminders: 'Reminders', archive: 'Archive / Do not publish', contactList: 'Contact list', recordCards: 'Record cards / Reports', audit: 'Audit history', access: 'Manage access', hourglass: 'Inspect Hourglass export', overviewLoading: 'Loading People…', profileLoading: 'Loading profile…' },
+  es: { organization: 'Organización', organizationTitle: 'Personas y organización', organizationSubtitle: 'Mantén perfis, grupos familiares, grupos, responsabilidades, ausencias y permisos en el mismo contexto.', overview: 'Vista general', directory: 'Directorio', households: 'Grupos familiares', groups: 'Grupos de servicio', responsibilities: 'Responsabilidades', tools: 'Herramientas', transfers: 'Transferencias', reminders: 'Recordatorios', archive: 'Archivo / No publicar', contactList: 'Lista de contactos', recordCards: 'Tarjetas / Registros', audit: 'Historial de auditoría', access: 'Gestionar accesos', hourglass: 'Inspeccionar exportación Hourglass', overviewLoading: 'Cargando Personas…', profileLoading: 'Cargando perfil…' },
 } as const;
 
 function peopleViewFromLocation(): PeopleWorkspaceView {
@@ -89,6 +90,7 @@ function OrganizationWorkspace({ locale }: { locale: Locale }) {
   const [view, setView] = useState<PeopleWorkspaceView>(peopleViewFromLocation);
   const [profileRef, setProfileRef] = useState<string | undefined>(profileRefFromLocation);
   const [createRequest, setCreateRequest] = useState(0);
+  const [transfersOpen, setTransfersOpen] = useState(false);
   const [remindersOpen, setRemindersOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [contactListOpen, setContactListOpen] = useState(false);
@@ -158,6 +160,7 @@ function OrganizationWorkspace({ locale }: { locale: Locale }) {
               trigger={['click']}
               menu={{
                 items: [
+                  { key: 'transfers', label: text.transfers },
                   { key: 'reminders', icon: <BellOutlined />, label: text.reminders },
                   { key: 'archive', label: text.archive },
                   { key: 'contact-list', label: text.contactList },
@@ -165,6 +168,7 @@ function OrganizationWorkspace({ locale }: { locale: Locale }) {
                   { key: 'hourglass', label: text.hourglass },
                 ],
                 onClick: ({ key }) => {
+                  if (key === 'transfers') setTransfersOpen(true);
                   if (key === 'reminders') setRemindersOpen(true);
                   if (key === 'archive') setArchiveOpen(true);
                   if (key === 'contact-list') setContactListOpen(true);
@@ -192,6 +196,7 @@ function OrganizationWorkspace({ locale }: { locale: Locale }) {
     {view === 'households' ? <HouseholdsSection locale={locale} /> : null}
     {view === 'groups' ? <ServiceGroupsSection locale={locale} /> : null}
     {view === 'responsibilities' ? <ResponsibilitiesSection locale={locale} /> : null}
+    <PeopleTransfersDialog locale={locale} open={transfersOpen} onClose={() => { setTransfersOpen(false); restoreToolsFocus(); }} />
     <PeopleRemindersDialog locale={locale} open={remindersOpen} onClose={() => { setRemindersOpen(false); restoreToolsFocus(); }} />
     <PeopleArchiveDialog locale={locale} open={archiveOpen} onClose={() => { setArchiveOpen(false); restoreToolsFocus(); }} />
     <PeopleContactListDialog locale={locale} open={contactListOpen} onClose={() => { setContactListOpen(false); restoreToolsFocus(); }} />
