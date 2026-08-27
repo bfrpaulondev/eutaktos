@@ -23,6 +23,7 @@ export type AuditedResourceType =
   | 'assignment-response'
   | 'notification-intent'
   | 'migration'
+  | 'people-transfer'
   | 'recommendation-constraint';
 
 export interface AuditEvent {
