@@ -12,6 +12,7 @@ export * from './notification-templates';
 export * from './notification-delivery';
 export * from './notice-acknowledgement';
 export * from './assignment-response';
+export * from './assignment-reminder';
 export * from './ics-calendar';
 export * from './cleaning';
 export * from './grounds';
