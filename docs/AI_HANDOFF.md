@@ -1,6 +1,6 @@
 # AI HANDOFF — CURRENT SOURCE OF TRUTH
 
-> Updated 2026-08-27 after the autonomous Principal People/PX integration cycle and PX10 zoom/reflow acceptance. Historical worker reports and older acceptance summaries may be stale. Always fetch current `main` first.
+> Updated 2026-08-27 after PX9.3 Labels integration. Historical worker reports and older acceptance summaries may be stale. Always fetch current `main` first.
 
 ## Mandatory reading order
 
@@ -21,19 +21,19 @@ No agent may invent a competing DTO/domain model, client-only authority or UI di
 - Canonical production: `https://eutakes.netlify.app/`
 - `https://rainbow-zuccutto-00d981.netlify.app/` is not the production acceptance target.
 - Vercel statuses are not Eutaktos acceptance evidence.
-- People/PX technical baseline after PR #353: `a29645fa4acbde6a10a32d0090f7ff571a26d2ed`.
+- Current People/PX technical baseline after PX9.3 Labels: `4d6f0cd09f4567cf4ca8870f782308c144e7345e`.
 - Earlier independently accepted People-core baseline `f013f72722c18a6df06ad7c6390be668ed239dbf` remains historical evidence, but substantial approved work has been integrated since then.
 
 ## Current product state
 
-People is no longer at the old C6-only state. The following are technically integrated on `main`:
+The following are technically integrated on `main`:
 
 - PX5 ordinary Contact profile flow, richer participation explanation/filtering and profile regression coverage;
 - PX6 complete guided Identity → Contact → Organization → Participation → Review workflow using canonical Contact/responsibility/availability contracts, authoritative refetch and partial-persistence-safe retries;
 - PX7 deterministic explainable recommendations except PX7.8 manual constraints, which remains contract-blocked;
 - PX8 operational assistance using reviewed authoritative evidence without autonomous assignment;
-- approved PX9 slices including import source selection/preview, safe recovery boundary and emergency mode;
-- PX10 automated 200%/400% desktop zoom-equivalent reflow coverage for People Directory + Person Wizard, integrated by PR #353 after full quality/browser/Netlify gates;
+- approved PX9 slices including Labels/tags management/filtering, import source selection/preview, safe recovery boundary, emergency mode and safe CSV export;
+- PX10 automated 200%/400% desktop zoom-equivalent reflow coverage for People Directory + Person Wizard;
 - PX11 Ant Design 6 migration and MUI/Emotion runtime retirement.
 
 Read `docs/PEOPLE_PRODUCT_EXPERIENCE_CURRENT_STATUS.md` for exact boundaries and remaining gaps.
@@ -46,7 +46,20 @@ Still blocked. There is no approved persistent manual-exclusion/preference contr
 
 ### Remaining PX9
 
-Transfers, labels/tags, reminders, record cards/reports, archive/do-not-publish, map/location handling, a complete configurable Contact List projection, and durable import execute/rollback still require reviewed server contracts/persistence/privacy boundaries before UI implementation. Reuse existing contracts where possible; otherwise design server authority first.
+Labels/tags are no longer a remaining gap: they are integrated through canonical People server authority and Directory UI.
+
+The remaining slices require contract-first work:
+
+- Transfers need reviewed send/receive persistence and a secure token lifecycle.
+- Reminders may reuse `NotificationIntentService` for idempotent `assignment.reminder` intents, but still need an authoritative read model/API for who needs a reminder, reason and last reminder date.
+- Record cards/reports need approved report shapes, period semantics and privacy/export rules.
+- Archive / “A não publicar” needs reason/date/audit/restore persistence beyond the existing active flag.
+- Map needs an approved location model and least-privilege capability/privacy boundary.
+- Configurable Contact List needs a dedicated safe server projection/export contract; ordinary Contact must remain excluded from the general Directory DTO.
+- Durable import execute/rollback still requires atomic transaction + migration-log + rollback architecture.
+- PDF export should follow an approved report/contact-list contract; DOCX remains product-research dependent.
+
+Do not implement these as frontend-only state or widen private DTOs merely to close master-plan checkboxes.
 
 ### Human production/accessibility acceptance
 
@@ -77,10 +90,11 @@ Do not add new MUI runtime dependencies or create a second design system.
 
 1. Preserve the current green People/PX baseline and canonical security/privacy boundaries.
 2. Reconcile stale source-of-truth checkboxes/documentation against actual integrated evidence; never reimplement completed slices because an old checkbox was not synchronized.
-3. Complete only remaining PX9 slices whose server/domain/privacy contracts can be reviewed and implemented safely.
-4. Keep PX7.8 blocked until a real manual-constraint contract exists.
-5. Leave destructive/write real-user production acceptance and real screen-reader acceptance for the documented independent acceptance pass.
-6. When only those human acceptance items remain, stop autonomous implementation rather than fabricating completion.
+3. Complete only remaining PX9 slices after their server/domain/privacy contracts are reviewed and implemented safely.
+4. For Reminders, build the authoritative reminder-needed/last-reminder read model before UI; reuse the existing notification intent path for sending rather than inventing a second delivery path.
+5. Keep PX7.8 blocked until a real manual-constraint contract exists.
+6. Leave destructive/write real-user production acceptance and real screen-reader acceptance for the documented independent acceptance pass.
+7. When only those human acceptance items remain, stop autonomous implementation rather than fabricating completion.
 
 ## Administrator AI
 

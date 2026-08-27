@@ -1,79 +1,45 @@
 # Eutaktos Product Experience — Current Inventory
 
-> Principal inventory for PX0.5/PX0.6.
+> Principal inventory refreshed on 2026-08-27 after PX9.3 Labels and full Ant Design 6/MUI retirement.
 >
-> Snapshot base: `main` `1a7974186bd5a9daa7736c17ed0b3ee1149a8aa2` (2026-08-25).
-> Active product source of truth: `docs/PRODUCT_EXPERIENCE_MASTER_PLAN.md`.
+> Current baseline: `main` `4d6f0cd09f4567cf4ca8870f782308c144e7345e`.
+> Active product source of truth: `docs/PRODUCT_EXPERIENCE_MASTER_PLAN.md` plus `docs/PEOPLE_PRODUCT_EXPERIENCE_CURRENT_STATUS.md` for the current integrated state.
 > Canonical production: `https://eutakes.netlify.app/`.
 
-This document records what already exists so Product Experience work can reuse the current technical foundation instead of rebuilding working behavior or accidentally creating a second source of truth.
+This inventory records what already exists so Product Experience work reuses current contracts instead of creating parallel models or reimplementing completed work.
 
-## 1. Active coordination
+## 1. UI foundation
 
-- Product Experience coordination: GitHub issue #268.
-- PX1 Ant foundation was integrated in PR #283.
-- PX2 task-oriented shell was integrated in PR #291.
-- People Overview first slice was integrated after principal correction in PR #289.
-- Secure administrator AI core was integrated in PR #288; AI remains advisory/read-only and PX7 remains authoritative for recommendation facts.
-- Historical pilot queues and acceptance documents are evidence only. They do not override the Product Experience master plan.
+Ant Design 6 is the authoritative runtime component system.
 
-## 2. Ant/MUI migration boundary
+- Runtime MUI/Emotion consumers have been retired.
+- `@mui/material` and Emotion runtime dependencies have been removed from the web PWA.
+- Regression coverage prevents accidental reintroduction of the retired framework.
+- New Product Experience work must use the existing Ant foundation and semantic Eutaktos tokens.
 
-Ant Design 6 is the primary component system for every newly rebuilt Product Experience surface.
-
-The current application is intentionally transitional. The Ant foundation and task-oriented shell are integrated, while legacy runtime screens continue to use MUI until their own migration slice is reviewed and accepted.
-
-### Current MUI runtime consumers identified in the frontend
-
-The indexed source inventory plus the current PX2 shell shows these migration consumers/boundaries:
-
-- `apps/web-pwa/src/App.tsx` — legacy MUI theme bridge around the incremental migration.
-- `apps/web-pwa/src/TaskShell.tsx` — Ant shell with temporary MUI content/preferences compatibility sections.
-- `apps/web-pwa/src/SectionWorkspace.tsx` — legacy workspace boundary.
-- `apps/web-pwa/src/ui/MuiCompat.tsx` — compatibility helpers.
-- `apps/web-pwa/src/theme.ts` — legacy MUI theme retained while consumers remain.
-- `apps/web-pwa/src/LogoutControl.tsx`.
-- `apps/web-pwa/src/PwaConnectionStatus.tsx`.
-- `apps/web-pwa/src/PwaUpdateRecovery.tsx`.
-- `apps/web-pwa/src/MagicLinkConfirmationPanel.tsx`.
-- `apps/web-pwa/src/AuthSignInPanel.tsx`.
-- `apps/web-pwa/src/ProductionDashboard.tsx`.
-- `apps/web-pwa/src/MidweekWorkspace.tsx`.
-- `apps/web-pwa/src/MidweekAuthoringControls.tsx`.
-- `apps/web-pwa/src/EligibilityDialog.tsx`.
-- `apps/web-pwa/src/PeopleDirectory.tsx`.
-- `apps/web-pwa/src/HouseholdsSection.tsx`.
-- `apps/web-pwa/src/ServiceGroupsSection.tsx`.
-- `apps/web-pwa/src/ResponsibilitiesSection.tsx`.
-- `apps/web-pwa/src/AwayPeriodsSection.tsx`.
-- `apps/web-pwa/src/EmergencyContactsDialog.tsx`.
-- `apps/web-pwa/src/AuditHistoryDialog.tsx`.
-- `apps/web-pwa/src/AccessManagementDialog.tsx`.
-- `apps/web-pwa/src/HourglassImportInspector.tsx`.
-- `apps/web-pwa/src/CongregationSettingsDialog.tsx`.
-
-This is a migration inventory, not permission to extend those screens with new MUI Product Experience UI.
-
-### Migration rule
-
-1. Do not add a new Product Experience screen in MUI.
-2. Do not replace working legacy behavior merely to reduce the import count.
-3. Rebuild a coherent user workflow in Ant, prove it, then retire the old consumer.
-4. `@mui/material` and Emotion are removed only after the final runtime consumer is gone and quality/browser/PWA/bundle gates pass.
-5. Avoid mixing Ant and MUI within a newly rebuilt screen except at a documented compatibility boundary.
-
-## 3. People frontend/API capability inventory
+## 2. People core and profile contracts
 
 ### People core
 
-Current `peopleApi` exposes:
+Current People API/application behavior covers:
 
 - list people;
 - create person;
 - update person;
-- fields currently exposed to the PWA: `id`, `displayName`, optional `preferredLocale`, `active`.
+- `id`, `displayName`, optional `preferredLocale`, `active`;
+- explicit normalized **labels/tags** through the canonical People contract.
 
-Important Product Experience consequence: the current People DTO does **not** expose a complete unified profile contract for ordinary phone/email/address, group, household, responsibility, availability summary or assignment history. New People 2.0 screens must not invent those fields.
+Labels are server-owned data. The Directory can manage and locally filter the authorized returned labels, with privacy and authority regression coverage. Do not create a second label store.
+
+### Ordinary Contact
+
+Dedicated per-person ordinary Contact contract:
+
+- `GET /api/people/:personId/contact`;
+- `PUT /api/people/:personId/contact` as full replacement;
+- optional phone/email/address;
+- `people.read` for read and `people.read + people.write` plus trusted same-origin mutation guard for write;
+- Contact values remain excluded from the general Directory DTO, URL, browser storage, service-worker cache and audit/event values.
 
 ### Availability / away periods
 
@@ -98,21 +64,11 @@ Missing eligibility data must never be treated as positive eligibility.
 
 ### Households
 
-Current `householdsApi` exposes:
-
-- list/get/create/update/delete;
-- `id`, `name`, `memberIds`.
-
-This behavior should be reused in the unified Organization/profile experience instead of replaced with a second household model.
+Current `householdsApi` exposes list/get/create/update/delete with `id`, `name`, `memberIds`.
 
 ### Service groups
 
-Current `serviceGroupsApi` exposes:
-
-- list/get/create/update/delete;
-- `id`, `name`, `memberIds`, optional `overseerId`, optional `assistantId`.
-
-This is sufficient to derive group membership/context after authorized reads, but the base `PersonProfileDto` itself does not include group information.
+Current `serviceGroupsApi` exposes list/get/create/update/delete with `id`, `name`, `memberIds`, optional `overseerId`, optional `assistantId`.
 
 ### Responsibilities
 
@@ -121,83 +77,93 @@ Current `responsibilitiesApi` exposes:
 - list/get assignments;
 - assign responsibility;
 - end responsibility;
-- `personId`, `responsibilityKey`, `startsAt`, optional `endsAt`.
-
-The unified person profile should compose this existing data rather than introduce a parallel responsibility store.
+- `personId`, `responsibilityKey`, `startsAt`, optional `endsAt`;
+- canonical `[startsAt, endsAt)` semantics.
 
 ### Emergency contacts
 
-Current `emergencyContactsApi` exposes per-person:
+Current `emergencyContactsApi` exposes per-person list/create/update/delete with `name`, `phone`, optional `relationship`.
 
-- list/create/update/delete;
-- `name`, `phone`, optional `relationship`.
+This remains sensitive data behind `emergency-contacts.read/write`; it must not become a default Directory or AI payload.
 
-This is sensitive data and belongs behind least-privilege capability-aware UI. It must not become a default directory payload or AI context field.
+### Assignment evidence and recommendations
 
-### Midweek meetings and assignments
+Current meeting/assignment contracts plus the PX7 server adapter provide:
 
-Current `midweekApi` exposes:
+- current and completed assignment evidence;
+- explicit eligibility, availability and conflict facts;
+- deterministic candidate ranking with reasons/warnings;
+- tenant/capability isolation;
+- human-final-decision semantics.
 
-- overview of meetings, slots, student assignments and non-student assignments;
-- meeting date/local time/timezone/state;
-- assignment state: `assigned`, `cancelled`, `completed`;
-- meeting/slot creation and editing operations;
-- assignment, replacement and cancellation operations.
+PX7.8 persistent manual exclusions/preferences remain absent and must not be invented in browser state.
 
-This supplies real current assignment evidence and completed-state data, but the frontend does not yet have a purpose-built per-person assignment-history/query contract for People Profile or recommendation UX.
+## 3. Operational assistance
 
-### Audit/access/configuration
+PX8 is implemented from authoritative operational facts, including affected assignment by absence, incomplete meeting attention, workload/rotation facts and long-interval insight. Assistance remains advisory, dismissible/navigable and does not autonomously assign.
 
-Existing frontend boundaries also cover:
+## 4. Import / recovery inventory
 
-- audit history;
-- access grants/capabilities;
-- congregation settings/timezone;
-- assignment type catalogue;
-- Hourglass import inspection.
+Implemented:
 
-Reuse these boundaries where they are authoritative. Do not duplicate authorization or audit decisions in browser-only state.
+- supported import source selection;
+- server-authoritative preview and validation;
+- duplicate/conflict analysis;
+- dry-run/recovery boundary.
 
-## 4. People target gaps that still need contracts or composition
+Not implemented intentionally:
 
-The following Product Experience requirements are not fully available from the base People DTO alone and must be solved truthfully before UI claims them:
+- durable execute/rollback, because the current architecture still lacks the required atomic transaction + migration log + persisted rollback plan. Do not expose execute/rollback routes until that architecture exists.
+
+## 5. Notification/reminder inventory
+
+`NotificationIntentService` already supports `kind: 'reminder'` for assignment notification intents and provides:
+
+- server capability enforcement via `schedule.write`;
+- server-derived tenant/actor context;
+- recipient notification preferences;
+- deterministic idempotency key per source event/recipient/channel;
+- audit and domain-event emission;
+- no duplicate intent when the idempotency key already exists.
+
+Missing for PX9.4:
+
+- an authoritative read model/repository query for **who needs a reminder**;
+- an explicit operational **reason** contract;
+- authoritative **last reminder date/status** derived from delivery history;
+- a read API consumed by the UI before the send action.
+
+The UI must not infer these from browser-local history.
+
+## 6. Remaining PX9 contracts/gaps
 
 | Target capability | Current status | Required next action |
 | --- | --- | --- |
-| Rich unified person summary | Partial | Compose authorized People + group + household + responsibilities + availability + assignment evidence, preferably through focused application/API contracts where repeated fan-out would be excessive. |
-| Ordinary contacts (phone/email/address) | Not exposed by current People DTO | Confirm existing domain/persistence capability or define a reviewed contract before building PX5 Contacts. |
-| Profile completeness | No explicit required-field contract | Define which fields are actually required before enabling PX3.4. |
-| Group count/row context | Data exists via service groups | Compose from real service-group membership; do not add fake People fields. |
-| Availability summary/next absence | Data exists per person | Build an authorized summary/query suited to directory/profile use rather than uncontrolled N+1 requests. |
-| Eligibility summary/filter | Data exists per person | Build a query/composition path appropriate for directory/profile and keep missing decision semantics explicit. |
-| Responsibility summary/filter | Data exists globally | Compose current assignments into person context. |
-| Person assignment history | Partial via midweek overview | Add/reuse a focused completed/upcoming-history query before PX5/PX7 depends on it broadly. |
-| Recent availability changes | No canonical history/event query in current PWA contract | Keep PX3.7 omitted until reliable history exists. |
-| Long-interval recommendation insight | Requires deterministic recommendation/history contract | Use PX7; do not implement ranking independently in frontend. |
-| Transfers | Not present as a complete People Product Experience contract | PX9 design/API work. |
-| Labels/tags | Not present as a complete People Product Experience contract | PX9. |
-| Reminders | Not present as a complete People Product Experience contract | PX9. |
-| Archive / do-not-publish | Not present as a complete People Product Experience contract | PX9. |
-| Record cards/reports | Not present as a complete People Product Experience contract | PX9. |
-| People map | Not present as a permissioned People Product Experience contract | PX9 with privacy/precision review. |
-| CSV/PDF export | Not part of the current base People API | PX9 with minimum-data/audit review. |
+| Transfers send/receive | No complete People transfer contract | Define tenant-safe transfer aggregate/persistence, explicit selected-person scope, secure one-time/expiring receive token lifecycle, status/history, audit and replay protections before UI. |
+| Labels/tags | **Integrated** | Reuse canonical People labels contract and Directory UI; do not create a parallel label model. |
+| Reminders | Notification send intent exists; read model missing | Build authoritative reminder-needed/reason/last-reminder read contract, then UI and send confirmation using existing notification intent path. |
+| Archive / do-not-publish | `active` flag exists but is insufficient | Define reason/date/audit/restore persistence and visibility semantics before UI. |
+| Record cards/reports | No approved report schema | Define permitted fields, year/period semantics, preview and export privacy contract. |
+| People map | No approved location model | Define precision, consent/authority, capabilities, retention and group projection before map UI. |
+| Configurable Contact List | Ordinary Contact exists but is least-privilege per-person | Define dedicated server projection/export contract; never widen general Directory DTO with contact PII for convenience. |
+| CSV export | Directory CSV exists with formula-injection protection | Reuse where sufficient; add fields only after privacy/authority review. |
+| PDF export | No approved general People report contract | Implement only against a reviewed report/contact-list projection. |
+| DOCX export | Product need not established | Defer unless user testing confirms a real need. |
 
-## 5. Recommendation and AI boundary
+## 7. Security/privacy invariants
 
-- PX7 is the deterministic source for candidate ranking/reasons.
-- Hard constraints remain explicit eligibility, away periods and conflicts.
-- Recency uses completed assignments only.
-- Same-week workload may influence ordering but cannot override hard constraints.
-- AI may explain authorized evidence and PX7 output; it must not invent or override recommendation facts.
-- Dynamic congregation data is retrieved through narrow server-side tools, never direct model database access.
+- Tenant, actor and capabilities are server-derived.
+- Do not trust frontend authority assertions.
+- Do not put PII in URL/search, browser storage, analytics, logs, audit values, domain-event values or service-worker cache.
+- Private authenticated API responses are not PWA-cached.
+- Sensitive projections use least privilege rather than widening general People DTOs.
+- Retry/double-submit/stale-response ownership must be explicit for every new async mutation surface.
+- pt-PT/en/es and WCAG 2.2 AA remain release requirements.
 
-## 6. Immediate handoff to the next wave
+## 8. Safe next engineering order
 
-Wave A foundation is now technically integrated. The next Product Experience work should therefore focus on Wave B without reopening the shell architecture:
-
-1. PX4 Directory 2.0 using real composable People/organization data.
-2. PX5 Unified Person Profile, adding backend/API contracts only where the inventory proves they are missing.
-3. PX6 Guided Add/Edit, preserving server authority and persistence.
-4. PX7 may proceed in parallel at domain/application level and later feed PX8/AI.
-
-Do not broaden into PX9 parity or general MUI retirement before the People reference workflow proves these patterns.
+1. Preserve current green People/PX baseline.
+2. Build PX9.4 authoritative reminder read model before adding reminder UI; reuse existing notification intent send path.
+3. Design remaining PX9 server/domain/privacy contracts one slice at a time, starting with the smallest independently reviewable aggregate/query.
+4. Keep PX7.8 blocked until a persistent manual-constraint model is approved.
+5. Leave real-user production writes and real screen-reader acceptance to `docs/PEOPLE_REAL_USER_PRODUCTION_E2E_PENDING.md`.
