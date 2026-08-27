@@ -1,17 +1,12 @@
-import { useState, type FormEvent } from 'react';
-import {
-  Alert,
-  Box,
-  Button,
-  CircularProgress,
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Paper,
-  Select,
-  TextField,
-} from '@mui/material';
-import { Stack, Typography } from './ui/MuiCompat';
+import Alert from 'antd/es/alert';
+import Button from 'antd/es/button';
+import Card from 'antd/es/card';
+import Input from 'antd/es/input';
+import Select from 'antd/es/select';
+import Space from 'antd/es/space';
+import Spin from 'antd/es/spin';
+import Typography from 'antd/es/typography';
+import { useRef, useState, type FormEvent } from 'react';
 import { AuthenticationApiError, authenticationApi } from './lib/authApi';
 
 type Locale = 'pt-PT' | 'en' | 'es';
@@ -65,107 +60,150 @@ function errorKind(error: unknown): Exclude<ErrorKind, null> {
   return error instanceof AuthenticationApiError && error.status >= 500 ? 'service' : 'credentials';
 }
 
+export function createAuthMutationGuard() {
+  let active = false;
+  return async <T>(mutation: () => Promise<T>): Promise<T | undefined> => {
+    if (active) return undefined;
+    active = true;
+    try {
+      return await mutation();
+    } finally {
+      active = false;
+    }
+  };
+}
+
 export function AuthSignInPanel({ onAuthenticated }: { onAuthenticated: () => void }) {
   const [locale, setLocale] = useState<Locale>(initialLocale);
   const [state, setState] = useState<PanelState>('email');
   const [email, setEmail] = useState('');
   const [token, setToken] = useState('');
   const [failure, setFailure] = useState<ErrorKind>(null);
+  const mutationGuardRef = useRef(createAuthMutationGuard());
   const text = copy[locale];
 
   const requestLink = async (event: FormEvent) => {
     event.preventDefault();
-    if (!email.trim()) return;
-    setFailure(null);
-    setState('submitting');
-    try {
-      await authenticationApi.requestOtp(email.trim());
-      setState('sent');
-    } catch (error) {
-      setFailure(errorKind(error));
-      setState('email');
-    }
+    if (!email.trim() || state === 'submitting') return;
+    await mutationGuardRef.current(async () => {
+      setFailure(null);
+      setState('submitting');
+      try {
+        await authenticationApi.requestOtp(email.trim());
+        setState('sent');
+      } catch (error) {
+        setFailure(errorKind(error));
+        setState('email');
+      }
+    });
   };
 
   const verifyCode = async (event: FormEvent) => {
     event.preventDefault();
-    if (!email.trim() || !/^\d{6}$/.test(token)) { setFailure('credentials'); return; }
-    setFailure(null);
-    setState('submitting');
-    try {
-      await authenticationApi.verifyOtp(email.trim(), token);
-      setToken('');
-      onAuthenticated();
-    } catch (error) {
-      setFailure(errorKind(error));
-      setState('email');
+    if (!email.trim() || !/^\d{6}$/.test(token) || state === 'submitting') {
+      if (state !== 'submitting') setFailure('credentials');
+      return;
     }
+    await mutationGuardRef.current(async () => {
+      setFailure(null);
+      setState('submitting');
+      try {
+        await authenticationApi.verifyOtp(email.trim(), token);
+        setToken('');
+        onAuthenticated();
+      } catch (error) {
+        setFailure(errorKind(error));
+        setState('email');
+      }
+    });
   };
 
   const failureAlert = failure
-    ? <Alert severity="error">{failure === 'service' ? text.serviceError : text.error}</Alert>
+    ? <Alert type="error" showIcon title={failure === 'service' ? text.serviceError : text.error} />
     : null;
 
-  return (
-    <Box component="main" sx={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', px: 2, py: 4, bgcolor: 'background.default', boxSizing: 'border-box' }}>
-      <Paper elevation={2} sx={{ width: '100%', maxWidth: 480, boxSizing: 'border-box', p: { xs: 2.5, sm: 4 }, borderRadius: 4 }}>
-        <Stack spacing={2.5}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', sm: 'center' }} spacing={2}>
-            <Box>
-              <Typography variant="overline" color="primary.main" fontWeight={800}>{text.eyebrow}</Typography>
-              <Typography component="h1" variant="h4" fontWeight={800}>{text.title}</Typography>
-            </Box>
-            <FormControl size="small" sx={{ minWidth: { xs: 0, sm: 118 }, width: { xs: '100%', sm: 'auto' } }}>
-              <InputLabel id="auth-language-label">{text.language}</InputLabel>
-              <Select labelId="auth-language-label" value={locale} label={text.language} onChange={event => setLocale(event.target.value as Locale)}>
-                <MenuItem value="pt-PT">Português</MenuItem>
-                <MenuItem value="en">English</MenuItem>
-                <MenuItem value="es">Español</MenuItem>
-              </Select>
-            </FormControl>
-          </Stack>
+  const codeInput = <Input
+    aria-label={text.code}
+    value={token}
+    onChange={event => setToken(event.target.value.replace(/\D/g, '').slice(0, 6))}
+    inputMode="numeric"
+    autoComplete="one-time-code"
+    pattern="[0-9]{6}"
+    maxLength={6}
+    placeholder={text.code}
+  />;
 
-          {state === 'submitting' ? (
-            <Stack role="status" aria-live="polite" spacing={1.5} alignItems="center" sx={{ py: 4 }}>
-              <CircularProgress size={28} />
-              <Typography color="text.secondary">…</Typography>
-            </Stack>
-          ) : state === 'sent' ? (
-            <Stack spacing={2}>
-              <Alert severity="info">{text.sent}</Alert>
-              {failureAlert}
-              <Box component="form" onSubmit={verifyCode} noValidate>
-                <Stack spacing={1.5}>
-                  <Typography variant="body2" color="text.secondary">{text.codeHint}</Typography>
-                  <TextField label={text.code} value={token} onChange={event => setToken(event.target.value.replace(/\D/g, '').slice(0, 6))} slotProps={{ htmlInput: { inputMode: 'numeric', autoComplete: 'one-time-code', pattern: '[0-9]{6}', maxLength: 6 } }} />
-                  <Button type="submit" variant="outlined" disabled={token.length !== 6}>{failure === 'service' ? text.retry : text.verify}</Button>
-                </Stack>
-              </Box>
-              <Button type="button" onClick={() => { setToken(''); setFailure(null); setState('email'); }}>{text.back}</Button>
-            </Stack>
-          ) : (
-            <Stack spacing={2}>
-              <Typography color="text.secondary">{text.intro}</Typography>
-              {failureAlert}
-              <Box component="form" onSubmit={requestLink} noValidate>
-                <Stack spacing={2}>
-                  <TextField type="email" label={text.email} value={email} onChange={event => setEmail(event.target.value)} slotProps={{ htmlInput: { autoComplete: 'email', inputMode: 'email', maxLength: 254 } }} required autoFocus />
-                  <Button type="submit" variant="contained" disabled={!email.trim()}>{text.send}</Button>
-                </Stack>
-              </Box>
-              <Box component="form" onSubmit={verifyCode} noValidate>
-                <Stack spacing={1.5}>
-                  <Typography variant="body2" color="text.secondary">{text.pilotHint}</Typography>
-                  <TextField label={text.code} value={token} onChange={event => setToken(event.target.value.replace(/\D/g, '').slice(0, 6))} slotProps={{ htmlInput: { inputMode: 'numeric', autoComplete: 'one-time-code', pattern: '[0-9]{6}', maxLength: 6 } }} />
-                  <Button type="submit" variant="outlined" disabled={!email.trim() || token.length !== 6}>{failure === 'service' ? text.retry : text.verify}</Button>
-                </Stack>
-              </Box>
-            </Stack>
-          )}
+  return <main style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', padding: '32px 16px', boxSizing: 'border-box' }}>
+    <Card style={{ width: '100%', maxWidth: 480 }} styles={{ body: { padding: 'clamp(20px, 5vw, 32px)' } }}>
+      <Space orientation="vertical" size="large" style={{ width: '100%' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
+          <div>
+            <Typography.Text type="secondary" strong>{text.eyebrow}</Typography.Text>
+            <Typography.Title level={2} style={{ margin: '4px 0 0' }}>{text.title}</Typography.Title>
+          </div>
+          <label style={{ minWidth: 118 }}>
+            <Typography.Text>{text.language}</Typography.Text>
+            <Select
+              aria-label={text.language}
+              value={locale}
+              style={{ width: '100%', marginTop: 6 }}
+              onChange={value => setLocale(value)}
+              options={[
+                { value: 'pt-PT', label: 'Português' },
+                { value: 'en', label: 'English' },
+                { value: 'es', label: 'Español' },
+              ]}
+            />
+          </label>
+        </div>
 
-          <Typography variant="caption" color="text.secondary">{text.privacy}</Typography>
-        </Stack>
-      </Paper>
-    </Box>
-  );
+        {state === 'submitting' ? <div role="status" aria-live="polite" style={{ minHeight: 128, display: 'grid', placeItems: 'center' }}>
+          <Spin size="large" />
+        </div> : state === 'sent' ? <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+          <Alert type="info" showIcon title={text.sent} />
+          {failureAlert}
+          <form onSubmit={verifyCode} noValidate>
+            <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+              <Typography.Text type="secondary">{text.codeHint}</Typography.Text>
+              {codeInput}
+              <Button htmlType="submit" block disabled={token.length !== 6}>{failure === 'service' ? text.retry : text.verify}</Button>
+            </Space>
+          </form>
+          <Button type="link" block onClick={() => { setToken(''); setFailure(null); setState('email'); }}>{text.back}</Button>
+        </Space> : <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+          <Typography.Text type="secondary">{text.intro}</Typography.Text>
+          {failureAlert}
+          <form onSubmit={requestLink} noValidate>
+            <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+              <label>
+                <Typography.Text>{text.email}</Typography.Text>
+                <Input
+                  aria-label={text.email}
+                  type="email"
+                  value={email}
+                  style={{ marginTop: 6 }}
+                  onChange={event => setEmail(event.target.value)}
+                  autoComplete="email"
+                  inputMode="email"
+                  maxLength={254}
+                  required
+                  autoFocus
+                />
+              </label>
+              <Button htmlType="submit" type="primary" block disabled={!email.trim()}>{text.send}</Button>
+            </Space>
+          </form>
+          <form onSubmit={verifyCode} noValidate>
+            <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+              <Typography.Text type="secondary">{text.pilotHint}</Typography.Text>
+              {codeInput}
+              <Button htmlType="submit" block disabled={!email.trim() || token.length !== 6}>{failure === 'service' ? text.retry : text.verify}</Button>
+            </Space>
+          </form>
+        </Space>}
+
+        <Typography.Text type="secondary" style={{ fontSize: 12 }}>{text.privacy}</Typography.Text>
+      </Space>
+    </Card>
+  </main>;
 }
