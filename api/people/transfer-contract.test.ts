@@ -38,6 +38,10 @@ describe('PX9 People transfer contract', () => {
     for (const forbidden of ['tenant-a', 'person-1', 'elder-secret', 'hourglass:secret-source-id', 'local-label', 'Private emergency', '999999999', 'away-1', 'eligibility']) expect(json).not.toContain(forbidden);
   });
 
+  it('rejects inactive People even when a forged client selects them directly', () => {
+    expect(() => transferPayloadFromPeople([{ ...person, active: false }])).toThrow('Inactive people cannot be transferred');
+  });
+
   it('generates a 256-bit opaque code and hashes the decoded secret consistently', async () => {
     const secret = createPeopleTransferSecret();
     expect(secret.code).toMatch(/^[A-Za-z0-9_-]{43}$/);
