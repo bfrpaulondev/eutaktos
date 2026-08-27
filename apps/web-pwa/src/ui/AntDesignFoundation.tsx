@@ -11,26 +11,15 @@ import {
   type Locale,
   type Preferences,
 } from '../lib/preferences';
-import { EUTAKTOS_PALETTES, type EutaktosPalette } from '../theme';
+import { EUTAKTOS_PALETTES, readableTextColor, type EutaktosPalette } from '../theme';
 
 const STORAGE_KEY = 'eutaktos.preferences.v4';
 const LEGACY_STORAGE_KEYS = ['eutaktos.preferences.v3', 'eutaktos.preferences.v2', 'eutaktos.preferences.v1'] as const;
 
 export type EffectiveColorMode = 'light' | 'dark';
 
-const TEXT_SIZE_PX: Record<Preferences['textSize'], number> = {
-  small: 13,
-  default: 14,
-  large: 16,
-  'extra-large': 18,
-};
-
-const TEXT_SIZE_PERCENT: Record<Preferences['textSize'], number> = {
-  small: 87.5,
-  default: 100,
-  large: 112.5,
-  'extra-large': 125,
-};
+const TEXT_SIZE_PX: Record<Preferences['textSize'], number> = { small: 13, default: 14, large: 16, 'extra-large': 18 };
+const TEXT_SIZE_PERCENT: Record<Preferences['textSize'], number> = { small: 87.5, default: 100, large: 112.5, 'extra-large': 125 };
 
 export function resolveAntDesignMode(colorMode: ColorMode, systemPrefersDark: boolean): EffectiveColorMode {
   if (colorMode === 'dark') return 'dark';
@@ -47,7 +36,9 @@ export function buildAntDesignTheme(preferences: Preferences, systemPrefersDark:
   const selected = resolveAntDesignPalette(preferences, systemPrefersDark);
   const mode = selected.mode;
   const border = preferences.highContrast ? selected.text : selected.muted;
-  const muted = preferences.highContrast ? selected.text : selected.muted;
+  const muted = preferences.highContrast
+    ? selected.text
+    : readableTextColor(selected.muted, [selected.background, selected.surface], selected.text);
 
   return {
     algorithm: mode === 'dark' ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm,
@@ -113,10 +104,7 @@ function usePreferenceBridge(): { preferences: Preferences; systemPrefersDark: b
     const refreshPreferences = () => setPreferences(readPreferences());
     const root = document.documentElement;
     const observer = new MutationObserver(refreshPreferences);
-    observer.observe(root, {
-      attributes: true,
-      attributeFilter: ['lang', 'data-palette', 'data-text-size', 'data-color-mode'],
-    });
+    observer.observe(root, { attributes: true, attributeFilter: ['lang', 'data-palette', 'data-text-size', 'data-color-mode'] });
 
     const media = window.matchMedia('(prefers-color-scheme: dark)');
     const onSystemModeChange = (event: MediaQueryListEvent) => setSystemPrefersDark(event.matches);
@@ -159,23 +147,12 @@ export function applyAntDocumentTheme(preferences: Preferences, systemPrefersDar
 
 export function AntDesignFoundation({ children }: { children: ReactNode }) {
   const { preferences, systemPrefersDark } = usePreferenceBridge();
-  const antThemeConfig = useMemo(
-    () => buildAntDesignTheme(preferences, systemPrefersDark),
-    [preferences, systemPrefersDark],
-  );
+  const antThemeConfig = useMemo(() => buildAntDesignTheme(preferences, systemPrefersDark), [preferences, systemPrefersDark]);
   const locale = useMemo(() => resolveAntDesignLocale(preferences.locale), [preferences.locale]);
 
   useEffect(() => {
     applyAntDocumentTheme(preferences, systemPrefersDark);
   }, [preferences, systemPrefersDark]);
 
-  return (
-    <ConfigProvider
-      componentSize={preferences.density === 'compact' ? 'small' : 'middle'}
-      locale={locale}
-      theme={antThemeConfig}
-    >
-      {children}
-    </ConfigProvider>
-  );
+  return <ConfigProvider componentSize={preferences.density === 'compact' ? 'small' : 'middle'} locale={locale} theme={antThemeConfig}>{children}</ConfigProvider>;
 }
