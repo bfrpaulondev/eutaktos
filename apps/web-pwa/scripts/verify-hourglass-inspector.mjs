@@ -75,6 +75,18 @@ async function uploadText(name, contents, type) {
   })()`);
 }
 
+async function chooseSource(label) {
+  const clicked = await evaluate(`(() => {
+    const node = [...document.querySelectorAll('[role="dialog"] label, [role="dialog"] .ant-segmented-item')]
+      .find(item => item.textContent?.trim() === ${JSON.stringify(label)});
+    if (!node) return false;
+    node.click();
+    return true;
+  })()`);
+  if (!clicked) throw new Error(`A origem Hourglass ${label} não foi encontrada`);
+  await wait(100);
+}
+
 try {
   server = spawn(process.execPath, [viteCli, '--host', '127.0.0.1', '--port', appPort, '--strictPort'], { stdio: 'ignore' });
   await poll(async () => (await fetch(appUrl)).ok, 'O servidor de desenvolvimento não iniciou');
@@ -98,7 +110,9 @@ try {
   if (jsonResult.storage !== storageBefore || jsonResult.body.includes('ignored@example.invalid')) throw new Error('A prévia Hourglass persistiu ou apresentou conteúdo sanitizado que deve permanecer oculto');
 
   await uploadText('invalid-hourglass.json', '{', 'application/json');
-  await poll(async () => await evaluate(`document.querySelector('[role="dialog"]')?.textContent?.includes('não corresponde a um formato Hourglass comprovado')`), 'O JSON inválido não apresentou erro seguro');
+  await poll(async () => await evaluate(`document.querySelector('[role="dialog"]')?.textContent?.includes('não corresponde ao formato escolhido')`), 'O JSON inválido não apresentou erro seguro');
+  const invalidBody = await evaluate(`document.querySelector('[role="dialog"]')?.textContent ?? ''`);
+  if (invalidBody.includes('{')) throw new Error('O erro de JSON expôs o conteúdo inválido');
 
   await evaluate(`(() => {
     const input = document.querySelector('input[type="file"]');
@@ -109,12 +123,20 @@ try {
   })()`);
   await poll(async () => await evaluate(`document.querySelector('[role="dialog"]')?.textContent?.includes('excede o limite de segurança de 5 MB')`), 'O ficheiro demasiado grande não foi recusado');
 
+  await chooseSource('Contact list CSV');
   await uploadText('hourglass-contact-list.csv', 'lastname,firstname,address_id\nExemplo,Ana,ADDR-1\n', 'text/csv');
-  await poll(async () => await evaluate(`document.querySelector('[role="dialog"]')?.textContent?.includes('Contact list CSV Hourglass') && document.querySelector('[role="dialog"]')?.textContent?.includes('não tem um ID de publicador estável comprovado')`), 'O CSV de contactos não apresentou a limitação de reconciliação');
+  await poll(async () => await evaluate(`document.querySelector('[role="dialog"]')?.textContent?.includes('Contact list CSV') && document.querySelector('[role="dialog"]')?.textContent?.includes('não tem um ID de publicador estável comprovado')`), 'O CSV de contactos não apresentou a limitação de reconciliação');
+
+  await chooseSource('Matriz CSV de privilégios');
+  await uploadText('hourglass-privileges.csv', 'lastname,firstname,middlename,suffix,fullname,Oração\nExemplo,Ana,,,Ana Exemplo,X\n', 'text/csv');
+  await poll(async () => await evaluate(`document.querySelector('[role="dialog"]')?.textContent?.includes('Matriz CSV de privilégios') && document.querySelector('[role="dialog"]')?.textContent?.includes('Nenhuma elegibilidade será criada')`), 'O CSV de privilégios não apresentou a limitação de reconciliação');
+
+  const storageAfter = await evaluate(`JSON.stringify(Object.entries(localStorage).sort())`);
+  if (storageAfter !== storageBefore) throw new Error('A inspeção Hourglass persistiu dados no armazenamento do browser');
 
   await evaluate(`[...document.querySelectorAll('[role="dialog"] button')].find(button => button.textContent?.trim() === 'Fechar')?.click()`);
   await poll(async () => await evaluate(`!document.querySelector('[role="dialog"]')`), 'O diálogo Hourglass não fechou');
-  process.stdout.write('Hourglass inspector checks passed: sanitised JSON preview, safe errors, size limit, contact-list limitation, local-only handling and close control.\n');
+  process.stdout.write('Hourglass inspector checks passed: explicit source selection, sanitised JSON preview, safe errors, size limit, CSV reconciliation limits, local-only handling and close control.\n');
 } finally {
   cdp?.close();
   if (browser && !browser.killed) browser.kill('SIGTERM');
