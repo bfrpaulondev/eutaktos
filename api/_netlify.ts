@@ -12,6 +12,7 @@ import peopleDirectoryHandler from './people/directory';
 import peopleOverviewEvidenceHandler from './people/overview-evidence';
 import peopleAssistanceHandler from './people/assistance';
 import peopleRecommendationsHandler from './people/recommendations';
+import peopleRemindersHandler from './people/reminders';
 import personHandler from './people/[personId]';
 import eligibilityHandler from './people/[personId]/eligibility';
 import availabilityHandler from './people/[personId]/availability';
@@ -56,7 +57,7 @@ export interface NetlifyApiResult {
 
 type RouteKey =
   | 'health' | 'ready' | 'session' | 'logout' | 'logout-all' | 'rotate-session' | 'auth-otp' | 'auth-verify'
-  | 'people' | 'people-directory' | 'people-overview-evidence' | 'people-assistance' | 'people-recommendations' | 'person' | 'eligibility' | 'availability' | 'ordinary-contact' | 'availability-period'
+  | 'people' | 'people-directory' | 'people-overview-evidence' | 'people-assistance' | 'people-recommendations' | 'people-reminders' | 'person' | 'eligibility' | 'availability' | 'ordinary-contact' | 'availability-period'
   | 'hourglass-preview'
   | 'households' | 'household' | 'service-groups' | 'service-group'
   | 'responsibilities' | 'responsibility' | 'end-responsibility' | 'congregation-settings' | 'audit-history'
@@ -81,6 +82,7 @@ const handlers: Readonly<Record<RouteKey, ApiHandler>> = Object.freeze({
   'people-overview-evidence': peopleOverviewEvidenceHandler,
   'people-assistance': peopleAssistanceHandler,
   'people-recommendations': peopleRecommendationsHandler,
+  'people-reminders': peopleRemindersHandler,
   person: personHandler,
   eligibility: eligibilityHandler,
   availability: availabilityHandler,
@@ -142,6 +144,7 @@ export function matchNetlifyApiRoute(path: string): RouteMatch | undefined {
     '/people/overview-evidence': 'people-overview-evidence',
     '/people/assistance': 'people-assistance',
     '/people/recommendations': 'people-recommendations',
+    '/people/reminders': 'people-reminders',
     '/import/hourglass/preview': 'hourglass-preview',
     '/households': 'households',
     '/service-groups': 'service-groups',
