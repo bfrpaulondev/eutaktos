@@ -39,12 +39,8 @@ describe('Accessibility: destructive confirmation semantics stay explicit', () =
   });
 
   it('keeps Ant danger semantics on migrated destructive actions', () => {
-    for (const component of [accessSource, emergencySource, settingsSource]) {
+    for (const component of [accessSource, emergencySource, settingsSource, responsibilitiesSource]) {
       expect(component).toMatch(/<Button\b[^>]*\bdanger(?:\s|=|>)/);
     }
-  });
-
-  it('keeps warning emphasis on the remaining MUI finish action', () => {
-    expect(responsibilitiesSource).toContain('color="warning"');
   });
 });
