@@ -35,6 +35,7 @@ export interface PersonProfileDto {
   displayName: string;
   preferredLocale?: string;
   active: boolean;
+  labels: readonly string[];
 }
 
 export interface PeopleDirectoryPort {
@@ -71,9 +72,9 @@ function metadata(request: TransportRequest): RequestMetadata {
 }
 
 /**
- * Directory responses intentionally exclude availability and eligibility. Those
- * subdomains require their own capabilities and endpoints; serializing the domain
- * aggregate directly here would leak sensitive operational data to `people.read`.
+ * Directory responses intentionally exclude availability, eligibility and contact
+ * values. Explicit administrative labels are safe directory metadata under
+ * `people.read`; they are never inferred from sensitive attributes.
  */
 export function toPersonProfileDto(person: CongregationPerson): PersonProfileDto {
   return {
@@ -81,6 +82,7 @@ export function toPersonProfileDto(person: CongregationPerson): PersonProfileDto
     displayName: person.displayName,
     ...(person.preferredLocale ? { preferredLocale: person.preferredLocale } : {}),
     active: person.active,
+    labels: person.labels ?? [],
   };
 }
 
@@ -102,6 +104,13 @@ function optionalString(body: Readonly<Record<string, unknown>>, key: string): s
   if (value === undefined) return undefined;
   if (typeof value !== 'string') throw new Error(`${key} must be a string`);
   return value;
+}
+
+function optionalStringArray(body: Readonly<Record<string, unknown>>, key: string): readonly string[] | undefined {
+  const value = body[key];
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.some(item => typeof item !== 'string')) throw new Error(`${key} must be an array of strings`);
+  return value as readonly string[];
 }
 
 function optionalNullableString(
@@ -137,15 +146,17 @@ function parseCreatePersonBody(value: unknown): CreatePersonInput {
 
 function parseUpdatePersonBody(personId: string, value: unknown): UpdatePersonProfileInput {
   const body = objectBody(value);
-  rejectUnknownKeys(body, ['displayName', 'preferredLocale', 'active']);
+  rejectUnknownKeys(body, ['displayName', 'preferredLocale', 'active', 'labels']);
   const displayName = optionalString(body, 'displayName');
   const preferredLocale = optionalNullableString(body, 'preferredLocale');
   const active = optionalBoolean(body, 'active');
+  const labels = optionalStringArray(body, 'labels');
   return {
     personId,
     ...(displayName !== undefined ? { displayName } : {}),
     ...(preferredLocale !== undefined ? { preferredLocale } : {}),
     ...(active !== undefined ? { active } : {}),
+    ...(labels !== undefined ? { labels } : {}),
   };
 }
 
@@ -157,6 +168,8 @@ function safeError(error: unknown): TransportResponse<{ error: string }> {
     message.includes('must be') ||
     message.includes('is required') ||
     message.includes('too long') ||
+    message.includes('cannot exceed') ||
+    message.includes('contains control characters') ||
     message.startsWith('Unknown request fields:')
   ) {
     return { status: 400, body: { error: message } };
