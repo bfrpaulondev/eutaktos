@@ -6,63 +6,17 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   DEFAULT_PREFERENCES,
   normalizePreferences,
+  resolvePaletteId,
   type ColorMode,
   type Locale,
   type Preferences,
 } from '../lib/preferences';
+import { EUTAKTOS_PALETTES, type EutaktosPalette } from '../theme';
 
 const STORAGE_KEY = 'eutaktos.preferences.v4';
 const LEGACY_STORAGE_KEYS = ['eutaktos.preferences.v3', 'eutaktos.preferences.v2', 'eutaktos.preferences.v1'] as const;
 
 export type EffectiveColorMode = 'light' | 'dark';
-
-interface SemanticColors {
-  canvas: string;
-  surface: string;
-  elevated: string;
-  selected: string;
-  text: string;
-  muted: string;
-  border: string;
-  primary: string;
-  primaryText: string;
-  success: string;
-  warning: string;
-  danger: string;
-  info: string;
-}
-
-const LIGHT_COLORS: SemanticColors = {
-  canvas: '#F4F7FA',
-  surface: '#FFFFFF',
-  elevated: '#FFFFFF',
-  selected: '#E7F0F7',
-  text: '#1B2733',
-  muted: '#5B6876',
-  border: '#D5DEE7',
-  primary: '#2F6F8F',
-  primaryText: '#FFFFFF',
-  success: '#2F7657',
-  warning: '#A86418',
-  danger: '#B33B4E',
-  info: '#2F6F9E',
-};
-
-const DARK_COLORS: SemanticColors = {
-  canvas: '#0F151C',
-  surface: '#18212B',
-  elevated: '#202B37',
-  selected: '#20394A',
-  text: '#F3F6F8',
-  muted: '#B8C2CC',
-  border: '#344352',
-  primary: '#7CC3E8',
-  primaryText: '#0D2532',
-  success: '#80C7A3',
-  warning: '#F0B66D',
-  danger: '#FF9BA8',
-  info: '#85C6F2',
-};
 
 const TEXT_SIZE_PX: Record<Preferences['textSize'], number> = {
   small: 13,
@@ -71,45 +25,49 @@ const TEXT_SIZE_PX: Record<Preferences['textSize'], number> = {
   'extra-large': 18,
 };
 
+const TEXT_SIZE_PERCENT: Record<Preferences['textSize'], number> = {
+  small: 87.5,
+  default: 100,
+  large: 112.5,
+  'extra-large': 125,
+};
+
 export function resolveAntDesignMode(colorMode: ColorMode, systemPrefersDark: boolean): EffectiveColorMode {
   if (colorMode === 'dark') return 'dark';
   if (colorMode === 'light') return 'light';
   return systemPrefersDark ? 'dark' : 'light';
 }
 
-function semanticColors(mode: EffectiveColorMode, highContrast: boolean): SemanticColors {
-  const base = mode === 'dark' ? DARK_COLORS : LIGHT_COLORS;
-  if (!highContrast) return base;
-  return {
-    ...base,
-    border: mode === 'dark' ? '#E7EEF3' : '#273746',
-    muted: mode === 'dark' ? '#E0E7EC' : '#40505F',
-  };
+export function resolveAntDesignPalette(preferences: Preferences, systemPrefersDark: boolean): EutaktosPalette {
+  const paletteId = resolvePaletteId(preferences.paletteId, preferences.colorMode, systemPrefersDark);
+  return EUTAKTOS_PALETTES[paletteId];
 }
 
 export function buildAntDesignTheme(preferences: Preferences, systemPrefersDark: boolean): ThemeConfig {
-  const mode = resolveAntDesignMode(preferences.colorMode, systemPrefersDark);
-  const colors = semanticColors(mode, preferences.highContrast);
+  const selected = resolveAntDesignPalette(preferences, systemPrefersDark);
+  const mode = selected.mode;
+  const border = preferences.highContrast ? selected.text : selected.muted;
+  const muted = preferences.highContrast ? selected.text : selected.muted;
 
   return {
     algorithm: mode === 'dark' ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm,
     token: {
-      colorPrimary: colors.primary,
-      colorPrimaryText: colors.primaryText,
-      colorBgBase: colors.canvas,
-      colorBgLayout: colors.canvas,
-      colorBgContainer: colors.surface,
-      colorBgElevated: colors.elevated,
-      colorPrimaryBg: colors.selected,
-      colorText: colors.text,
-      colorTextSecondary: colors.muted,
-      colorBorder: colors.border,
-      colorBorderSecondary: colors.border,
-      colorSuccess: colors.success,
-      colorWarning: colors.warning,
-      colorError: colors.danger,
-      colorInfo: colors.info,
-      colorLink: colors.primary,
+      colorPrimary: selected.primary,
+      colorPrimaryText: selected.primaryContrast,
+      colorBgBase: selected.background,
+      colorBgLayout: selected.background,
+      colorBgContainer: selected.surface,
+      colorBgElevated: selected.elevated,
+      colorPrimaryBg: selected.background,
+      colorText: selected.text,
+      colorTextSecondary: muted,
+      colorBorder: border,
+      colorBorderSecondary: border,
+      colorSuccess: selected.status.success,
+      colorWarning: selected.status.warning,
+      colorError: selected.status.error,
+      colorInfo: selected.status.info,
+      colorLink: selected.primary,
       borderRadius: 12,
       borderRadiusLG: 16,
       fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
@@ -175,6 +133,30 @@ function usePreferenceBridge(): { preferences: Preferences; systemPrefersDark: b
   return { preferences, systemPrefersDark };
 }
 
+function hexAlpha(hex: string, alpha: number): string {
+  const value = hex.replace('#', '');
+  const red = Number.parseInt(value.slice(0, 2), 16);
+  const green = Number.parseInt(value.slice(2, 4), 16);
+  const blue = Number.parseInt(value.slice(4, 6), 16);
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+}
+
+export function applyAntDocumentTheme(preferences: Preferences, systemPrefersDark: boolean): void {
+  const selected = resolveAntDesignPalette(preferences, systemPrefersDark);
+  const root = document.documentElement;
+  root.style.colorScheme = selected.mode;
+  root.style.fontSize = `${TEXT_SIZE_PERCENT[preferences.textSize]}%`;
+  root.style.setProperty('--eutaktos-focus', selected.focus);
+  root.style.setProperty('--eutaktos-background', selected.background);
+  root.style.setProperty('--eutaktos-surface', selected.surface);
+  root.style.setProperty('--eutaktos-text', selected.text);
+  document.body.style.backgroundColor = selected.background;
+  document.body.style.color = selected.text;
+  document.body.style.backgroundImage = preferences.reducedTransparency
+    ? 'none'
+    : `radial-gradient(circle at 18% -8%, ${hexAlpha(selected.primary, selected.mode === 'dark' ? 0.16 : 0.09)}, transparent 30%), radial-gradient(circle at 88% 4%, ${hexAlpha(selected.status.info, selected.mode === 'dark' ? 0.1 : 0.055)}, transparent 25%)`;
+}
+
 export function AntDesignFoundation({ children }: { children: ReactNode }) {
   const { preferences, systemPrefersDark } = usePreferenceBridge();
   const antThemeConfig = useMemo(
@@ -182,6 +164,10 @@ export function AntDesignFoundation({ children }: { children: ReactNode }) {
     [preferences, systemPrefersDark],
   );
   const locale = useMemo(() => resolveAntDesignLocale(preferences.locale), [preferences.locale]);
+
+  useEffect(() => {
+    applyAntDocumentTheme(preferences, systemPrefersDark);
+  }, [preferences, systemPrefersDark]);
 
   return (
     <ConfigProvider
