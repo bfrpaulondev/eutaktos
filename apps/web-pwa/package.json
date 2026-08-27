@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/write-build-revision.mjs",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
     "test:production-mount": "npm run build && node scripts/verify-production-mount.mjs",
