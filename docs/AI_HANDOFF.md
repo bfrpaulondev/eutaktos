@@ -1,6 +1,6 @@
 # AI HANDOFF — CURRENT SOURCE OF TRUTH
 
-> Updated 2026-08-27 after PX7.8 manual exclusions, PX9.9 authenticated Hourglass execution/rollback and PX9.12 configurable Contact List integration. Historical worker reports and older acceptance summaries may be stale. Always fetch current `main` first.
+> Updated 2026-08-27 after PX9.16 direct Record Cards PDF export and PX9.1/PX9.2 secure People Transfers integration. Historical worker reports and older acceptance summaries may be stale. Always fetch current `main` first.
 
 ## Mandatory reading order
 
@@ -21,7 +21,7 @@ No agent may invent a competing DTO/domain model, client-only authority or UI di
 - Canonical production: `https://eutakes.netlify.app/`
 - `https://rainbow-zuccutto-00d981.netlify.app/` is not the production acceptance target.
 - Vercel statuses are not Eutaktos acceptance evidence.
-- Current People/PX technical baseline: `c407c9a5db653f15f619d652eba120d94858e50f`.
+- Current People/PX technical baseline: `550ff297c7937b11ee6be69600df28afb2712ea6`.
 - Earlier independently accepted People-core baseline `f013f72722c18a6df06ad7c6390be668ed239dbf` remains historical evidence, but substantial approved work has been integrated since then.
 
 ## Current product state
@@ -32,7 +32,7 @@ Technically integrated on `main`:
 - PX6 complete guided Identity → Contact → Organization → Participation → Review workflow using canonical Contact/responsibility/availability contracts and partial-persistence-safe retries;
 - PX7 deterministic explainable recommendations including persistent explicit manual exclusions (PX7.8), while human choice remains final;
 - PX8 operational assistance from explicit reviewed facts only;
-- PX9 Labels/tags, Reminders, Archive / “A não publicar”, import source selection/preview, authenticated Hourglass prepare → confirm → execute + create-only rollback, emergency mode, configurable Contact List and safe CSV export;
+- PX9 secure send/receive Transfers, Labels/tags, Reminders, Record Cards/reports, Archive / “A não publicar”, import source selection/preview, authenticated Hourglass prepare → confirm → execute + create-only rollback, emergency mode, configurable Contact List, safe CSV export and direct Record Cards PDF export;
 - PX10 automated 200%/400% People zoom/reflow coverage plus existing responsive/theme/keyboard/privacy gates;
 - PX11 Ant Design 6 migration and MUI/Emotion runtime retirement.
 
@@ -44,17 +44,38 @@ Read `docs/PEOPLE_PRODUCT_EXPERIENCE_CURRENT_STATUS.md` for exact boundaries and
 
 PX7.8 is no longer blocked. PR #382 introduced a persistent tenant/person/assignment-type manual-exclusion contract and server-authoritative mutation/read path. Do not create a second exclusion implementation or add subjective preference/boost scoring without a separately approved product rule.
 
+### PX9 Transfers now integrated
+
+PR #387 implements the reviewed People transfer lifecycle. Do not replace it with browser-owned transfer state or predictable codes.
+
+Authoritative boundary:
+
+- sender selects explicit active People and confirms the privacy/minimum-data transfer scope;
+- transfer secret is 256-bit URL-safe random material; only its SHA-256 digest is persisted;
+- transfer expires after 72 hours and may be claimed once atomically;
+- same-destination exact claim retries recover idempotently;
+- sender may cancel a pending transfer, including recovery after an ambiguous/lost send response;
+- source People are never deleted automatically;
+- destination People receive new Person IDs;
+- transferred data is minimum-data only: display name, preferred locale and ordinary Contact;
+- emergency contacts, eligibility, availability, labels, groups, responsibilities, assignment history and external IDs are excluded;
+- tenant, actor and capabilities remain server-derived;
+- history never returns the raw transfer secret or ordinary Contact values.
+
+### PX9 Record Cards/PDF now integrated
+
+PX9.5 uses a purpose-built minimum-data report projection with annual/bounded civil-date period semantics and explicit report capability checks. PX9.16 renders direct binary PDF only from the current successful authorized preview and adds no wider DTO/PII boundary.
+
+Do not widen Directory, Contact List or private DTOs to support reports/PDF.
+
 ### Remaining PX9
 
-The following are already integrated and must not be rebuilt: Labels/tags, Reminders, Archive, Hourglass preview/execute/rollback, Contact List, Emergency mode and CSV export.
+The only unresolved PX9 product slices are:
 
-Remaining product/contract gaps:
+- **PX9.10/PX9.11 Map** — blocked because no approved Person/group geolocation model, precision policy, source-of-truth for coordinates or least-privilege map capability boundary exists. Ordinary Contact postal address is not authorization to geocode, persist or expose precise coordinates.
+- **PX9.17 DOCX** — intentionally research-deferred; not required solely for competitor parity while CSV/PDF already cover approved export needs.
 
-- **PX9.1/PX9.2 Transfers** need reviewed send/receive persistence and a secure token lifecycle. Never move People data through browser-only state, predictable codes or tenant IDs supplied by clients.
-- **PX9.5 Record cards/reports** need approved report shapes, period semantics, minimum-data projection and privacy/export rules.
-- **PX9.10/PX9.11 Map** need an approved location model plus least-privilege precision/capability boundary.
-- **PX9.16 PDF** should be implemented only against an approved report/contact-list projection rather than widening private DTOs.
-- **PX9.17 DOCX** remains product-research dependent and is not required solely for competitor parity.
+Do not invent a location model or collect/geocode new location data merely to clear a checkbox.
 
 ### Hourglass import boundary already integrated
 
@@ -103,11 +124,10 @@ Do not add new MUI runtime dependencies or create a second design system.
 
 1. Preserve the green People/PX baseline and canonical security/privacy boundaries.
 2. Reconcile stale source-of-truth checkboxes/documentation against actual integrated evidence; never reimplement completed slices because an old checkbox was not synchronized.
-3. Define/review and then implement PX9.1/PX9.2 Transfers if a secure server-owned token/persistence lifecycle can be proven.
-4. Define/review PX9.5 reports together with PX9.16 PDF so document export uses a minimum-data purpose-built projection.
-5. Keep Map blocked until a real location/privacy contract exists and keep DOCX deferred pending product need.
-6. Leave destructive/write real-user production acceptance and real screen-reader acceptance for the documented independent acceptance pass.
-7. When no safe technical work remains beyond intentionally deferred product research/human acceptance, stop autonomous implementation rather than fabricate completion.
+3. Keep PX9.10/PX9.11 Map blocked until a reviewed geolocation model, precision/privacy policy and least-privilege capability boundary exist; do not infer permission from ordinary Contact address data.
+4. Keep PX9.17 DOCX research-deferred until product evidence shows a need beyond CSV/PDF.
+5. Leave destructive/write real-user production acceptance and real screen-reader acceptance for the documented independent acceptance pass.
+6. When no safe technical work remains beyond intentionally deferred product research/human acceptance, stop autonomous implementation rather than fabricate completion.
 
 ## Administrator AI
 
