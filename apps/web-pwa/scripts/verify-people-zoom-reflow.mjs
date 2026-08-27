@@ -59,7 +59,7 @@ async function evaluate(expression) {
 }
 
 async function navigate(path, cssWidth) {
-  await cdp.send('Emulation.setDeviceMetricsOverride', { width: cssWidth, height: 900, deviceScaleFactor: 1, mobile: cssWidth <= 430 });
+  await cdp.send('Emulation.setDeviceMetricsOverride', { width: cssWidth, height: 900, deviceScaleFactor: 1, mobile: false });
   await cdp.send('Page.navigate', { url: new URL(path, appUrl).toString() });
   await poll(async () => await evaluate("document.readyState === 'complete'"), `${path} did not load at ${cssWidth}px`);
 }
@@ -146,8 +146,8 @@ try {
   })();` });
 
   // WCAG reflow equivalence: a 1280 CSS px desktop at 200% exposes roughly 640 CSS px;
-  // at 400% it exposes roughly 320 CSS px. We assert the primary People workflow at
-  // those effective viewport widths instead of relying on browser-specific zoom chrome.
+  // at 400% it exposes roughly 320 CSS px. Keep desktop emulation: browser zoom changes
+  // the effective CSS viewport, not the user agent/device mode.
   for (const scenario of [
     { label: '200% zoom equivalent', width: 640 },
     { label: '400% zoom equivalent', width: 320 },
