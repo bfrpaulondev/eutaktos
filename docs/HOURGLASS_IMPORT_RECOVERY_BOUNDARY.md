@@ -31,6 +31,17 @@ This is the supported PX9 dry-run boundary until the write architecture below ex
 
 These application primitives are not evidence that production rollback exists. The production database adapter currently exposes entity-level mutation RPCs but no single durable transaction that atomically commits the imported People changes together with a migration log and rollback plan.
 
+### Migration commit persistence foundation (2026-08-27)
+
+The required durable transaction *primitive* now exists as an internal persistence contract: `eutaktos_apply_hourglass_migration_commit` (see `supabase/migrations/20260827110000_hourglass_migration_commit_atomic.sql`) applies all supported person changes together with the migration log, complete rollback plan, audit row and outbox event in one atomic transaction, records post-commit versions for future stale/concurrent-change protection during rollback, rejects cross-tenant payloads, duplicate change identities and concurrent entity modifications, and treats an identical retry under the same migration identity as `already-applied`.
+
+This does **not** expose execute or rollback anywhere:
+
+- no authenticated execute/rollback endpoint consumes it yet;
+- the production unit-of-work binding between `MigrationWorkflowService` and this RPC still has to be implemented and reviewed;
+- rollback application using the persisted plan remains intentionally unimplemented until its own reviewed stale-protection contract exists;
+- the canonical import surface therefore remains the read-only dry-run preview documented above.
+
 ## Required production contract before PX9.9 can be completed
 
 A future implementation must provide one server-owned transaction boundary that:
