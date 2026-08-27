@@ -1,8 +1,17 @@
+import Alert from 'antd/es/alert';
+import Button from 'antd/es/button';
+import Card from 'antd/es/card';
+import Empty from 'antd/es/empty';
+import Input from 'antd/es/input';
+import Modal from 'antd/es/modal';
+import Select from 'antd/es/select';
+import Skeleton from 'antd/es/skeleton';
+import Space from 'antd/es/space';
+import Tag from 'antd/es/tag';
+import Typography from 'antd/es/typography';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Paper, TextField } from '@mui/material';
 import type { Locale } from './lib/preferences';
 import { auditHistoryApi, type AuditAction, type AuditHistoryDto, type AuditResourceType } from './lib/auditHistoryApi';
-import { Stack, Typography } from './ui/MuiCompat';
 
 const resourceTypes: readonly AuditResourceType[] = [
   'person', 'household', 'service-group', 'responsibility', 'delegation', 'congregation',
@@ -29,7 +38,8 @@ const resourceLabels: Record<Locale, Record<AuditResourceType, string>> = {
 };
 
 function formatDate(value: string, locale: Locale): string {
-  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(date) : value;
 }
 
 function resolvedTimeZone(): string {
@@ -40,12 +50,7 @@ function resolvedTimeZone(): string {
 export function auditLocalDateKey(occurredAt: string, timeZone: string): string {
   const date = new Date(occurredAt);
   if (!Number.isFinite(date.getTime())) return '';
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(date);
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date);
   const values = new Map(parts.map(part => [part.type, part.value]));
   const year = values.get('year');
   const month = values.get('month');
@@ -86,25 +91,81 @@ export function AuditHistoryDialog({ locale, open, onClose }: { locale: Locale; 
   const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(async (signal?: AbortSignal) => {
-    setLoading(true); setLoadError(false);
-    try { setEvents(await auditHistoryApi.list({ limit: 100 }, signal)); }
-    catch (reason) { if (reason instanceof DOMException && reason.name === 'AbortError') return; setLoadError(true); }
-    finally { if (!signal?.aborted) setLoading(false); }
+    setLoading(true);
+    setLoadError(false);
+    try {
+      setEvents(await auditHistoryApi.list({ limit: 100 }, signal));
+    } catch (reason) {
+      if (reason instanceof DOMException && reason.name === 'AbortError') return;
+      setLoadError(true);
+    } finally {
+      if (!signal?.aborted) setLoading(false);
+    }
   }, []);
-  useEffect(() => { if (!open) return; const controller = new AbortController(); void load(controller.signal); return () => controller.abort(); }, [load, open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const controller = new AbortController();
+    void load(controller.signal);
+    return () => controller.abort();
+  }, [load, open]);
+
   const filters = { resourceType, action, actorId, from, to };
   const filteredEvents = useMemo(() => filterAuditEvents(events, filters), [events, resourceType, action, actorId, from, to]);
   const filtersActive = Boolean(resourceType || action || actorId.trim() || from || to);
   const clearFilters = () => { setResourceType(''); setAction(''); setActorId(''); setFrom(''); setTo(''); };
 
-  return <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" aria-labelledby="audit-history-title" aria-describedby="audit-history-description">
-    <DialogTitle id="audit-history-title"><Typography variant="h5" fontWeight={760}>{text.title}</Typography><Typography id="audit-history-description" variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{text.subtitle}</Typography></DialogTitle>
-    <DialogContent><Stack spacing={2} sx={{ pt: 1 }}>
-      <Paper component="section" variant="outlined" sx={{ p: { xs: 1.5, sm: 2 }, borderRadius: 2, boxShadow: 'none', bgcolor: 'transparent' }} aria-label={text.title}><Stack spacing={1.5}><Typography variant="body2" color="text.secondary">{text.filterHint}</Typography><Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}><TextField select fullWidth label={text.resource} value={resourceType} onChange={event => setResourceType(event.target.value as AuditResourceType | '')}><MenuItem value="">{text.allResources}</MenuItem>{resourceTypes.map(value => <MenuItem key={value} value={value}>{resourceLabels[locale][value]}</MenuItem>)}</TextField><TextField select fullWidth label={text.action} value={action} onChange={event => setAction(event.target.value as AuditAction | '')}><MenuItem value="">{text.allActions}</MenuItem>{actions.map(value => <MenuItem key={value} value={value}>{actionLabels[locale][value]}</MenuItem>)}</TextField><TextField fullWidth label={text.actor} value={actorId} onChange={event => setActorId(event.target.value)} slotProps={{ htmlInput: { maxLength: 200, autoComplete: 'off' } }} /></Stack><Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}><TextField fullWidth type="date" label={text.from} value={from} onChange={event => setFrom(event.target.value)} slotProps={{ inputLabel: { shrink: true }, htmlInput: { max: to || undefined } }} /><TextField fullWidth type="date" label={text.to} value={to} onChange={event => setTo(event.target.value)} slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: from || undefined } }} />{filtersActive ? <Button onClick={clearFilters} sx={{ whiteSpace: 'nowrap' }}>{text.clear}</Button> : null}</Stack></Stack></Paper>
-      {loadError ? <Alert severity="warning" action={<Button color="inherit" size="small" disabled={loading} onClick={() => void load()}>{text.retry}</Button>}>{text.unavailable}</Alert> : null}
-      {loading ? <Stack direction="row" justifyContent="center" alignItems="center" spacing={1.5} sx={{ py: 5 }} role="status" aria-live="polite"><CircularProgress size={24} /><Typography color="text.secondary">{text.loading}</Typography></Stack> : null}
-      {!loading && !loadError ? <><Typography variant="body2" color="text.secondary" aria-live="polite">{filteredEvents.length} {text.results}</Typography>{filteredEvents.length === 0 ? <Box sx={{ py: 5, textAlign: 'center' }}><Typography color="text.secondary">{text.empty}</Typography></Box> : <Stack component="ol" spacing={0} sx={{ p: 0, m: 0, listStyle: 'none' }} aria-label={text.title}>{filteredEvents.map((item, index) => <Stack component="li" key={item.id} direction="row" spacing={1.25} sx={{ position: 'relative' }}><Box aria-hidden sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 18, pt: 2 }}><Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: 'primary.main', flex: '0 0 auto' }} />{index < filteredEvents.length - 1 ? <Box sx={{ width: 2, flex: 1, minHeight: 28, bgcolor: 'divider' }} /> : null}</Box><Paper component="article" variant="outlined" sx={{ flex: 1, mb: 1.5, p: { xs: 1.5, sm: 2 }, borderRadius: 2, boxShadow: 'none', bgcolor: 'transparent' }}><Stack spacing={1.25}><Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={1}><Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center"><Chip size="small" label={resourceLabels[locale][item.resourceType]} variant="outlined" /><Chip size="small" color="primary" label={actionLabels[locale][item.action]} /></Stack><Typography variant="body2" color="text.secondary">{formatDate(item.occurredAt, locale)}</Typography></Stack><Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}><strong>{text.resourceId}:</strong> {item.resourceId}</Typography><Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}><strong>{text.by}:</strong> {item.actorId}</Typography>{item.changedFields.length ? <Stack spacing={0.75}><Typography variant="caption" color="text.secondary">{text.changed}</Typography><Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>{item.changedFields.map(field => <Chip key={field} label={field} size="small" variant="outlined" />)}</Stack></Stack> : null}</Stack></Paper></Stack>)}</Stack>}</> : null}
-    </Stack></DialogContent>
-    <DialogActions><Button onClick={() => void load()} disabled={loading}>{text.refresh}</Button><Button onClick={onClose} disabled={loading}>{text.close}</Button></DialogActions>
-  </Dialog>;
+  const resourceOptions = [{ value: '', label: text.allResources }, ...resourceTypes.map(value => ({ value, label: resourceLabels[locale][value] }))];
+  const actionOptions = [{ value: '', label: text.allActions }, ...actions.map(value => ({ value, label: actionLabels[locale][value] }))];
+
+  return <Modal
+    open={open}
+    destroyOnHidden
+    width={860}
+    title={<div id="audit-history-title"><Typography.Title level={4} style={{ margin: 0 }}>{text.title}</Typography.Title><Typography.Text id="audit-history-description" type="secondary">{text.subtitle}</Typography.Text></div>}
+    aria-labelledby="audit-history-title"
+    aria-describedby="audit-history-description"
+    onCancel={onClose}
+    footer={[
+      <Button key="refresh" onClick={() => void load()} disabled={loading}>{text.refresh}</Button>,
+      <Button key="close" onClick={onClose}>{text.close}</Button>,
+    ]}
+  >
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+      <Card size="small" aria-label={text.title}>
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+          <Typography.Text type="secondary">{text.filterHint}</Typography.Text>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+            <label><Typography.Text>{text.resource}</Typography.Text><Select aria-label={text.resource} style={{ width: '100%', marginTop: 6 }} value={resourceType} onChange={value => setResourceType(value)} options={resourceOptions} /></label>
+            <label><Typography.Text>{text.action}</Typography.Text><Select aria-label={text.action} style={{ width: '100%', marginTop: 6 }} value={action} onChange={value => setAction(value)} options={actionOptions} /></label>
+            <label><Typography.Text>{text.actor}</Typography.Text><Input aria-label={text.actor} style={{ marginTop: 6 }} value={actorId} maxLength={200} autoComplete="off" onChange={event => setActorId(event.target.value)} /></label>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, alignItems: 'end' }}>
+            <label><Typography.Text>{text.from}</Typography.Text><Input aria-label={text.from} type="date" style={{ marginTop: 6 }} value={from} max={to || undefined} onChange={event => setFrom(event.target.value)} /></label>
+            <label><Typography.Text>{text.to}</Typography.Text><Input aria-label={text.to} type="date" style={{ marginTop: 6 }} value={to} min={from || undefined} onChange={event => setTo(event.target.value)} /></label>
+            {filtersActive ? <Button onClick={clearFilters}>{text.clear}</Button> : <span />}
+          </div>
+        </Space>
+      </Card>
+
+      {loadError ? <Alert type="warning" showIcon title={text.unavailable} action={<Button size="small" disabled={loading} onClick={() => void load()}>{text.retry}</Button>} /> : null}
+      {loading ? <div role="status" aria-live="polite" aria-label={text.loading}><Skeleton active paragraph={{ rows: 5 }} /></div> : null}
+      {!loading && !loadError ? <>
+        <Typography.Text type="secondary" aria-live="polite">{filteredEvents.length} {text.results}</Typography.Text>
+        {filteredEvents.length === 0 ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={text.empty} /> : <Space orientation="vertical" size="small" style={{ width: '100%' }} role="list" aria-label={text.title}>
+          {filteredEvents.map(item => <Card key={item.id} size="small" role="listitem">
+            <Space orientation="vertical" size="small" style={{ width: '100%' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                <Space wrap size="small"><Tag>{resourceLabels[locale][item.resourceType]}</Tag><Tag color="processing">{actionLabels[locale][item.action]}</Tag></Space>
+                <Typography.Text type="secondary">{formatDate(item.occurredAt, locale)}</Typography.Text>
+              </div>
+              <Typography.Text style={{ overflowWrap: 'anywhere' }}><strong>{text.resourceId}:</strong> {item.resourceId}</Typography.Text>
+              <Typography.Text style={{ overflowWrap: 'anywhere' }}><strong>{text.by}:</strong> {item.actorId}</Typography.Text>
+              {item.changedFields.length ? <div><Typography.Text type="secondary">{text.changed}</Typography.Text><div style={{ marginTop: 6 }}><Space wrap size="small">{item.changedFields.map(field => <Tag key={field}>{field}</Tag>)}</Space></div></div> : null}
+            </Space>
+          </Card>)}
+        </Space>}
+      </> : null}
+    </Space>
+  </Modal>;
 }
