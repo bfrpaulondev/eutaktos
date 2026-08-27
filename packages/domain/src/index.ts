@@ -1,4 +1,5 @@
 export * from './people';
+export * from './person-archive';
 export * from './organization';
 export * from './audit';
 export * from './access-control';
