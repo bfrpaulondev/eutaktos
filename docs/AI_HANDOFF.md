@@ -1,6 +1,6 @@
 # AI HANDOFF — CURRENT SOURCE OF TRUTH
 
-> Updated 2026-08-27 after PX9.16 direct Record Cards PDF export, PX9.1/PX9.2 secure People Transfers integration and the technically validated PX9.10/PX9.11 People Map PR #392. Historical worker reports and older acceptance summaries may be stale. Always fetch current `main` first.
+> Updated 2026-08-27 after PX9.16 direct Record Cards PDF export and PX9.1/PX9.2 secure People Transfers integration. Historical worker reports and older acceptance summaries may be stale. Always fetch current `main` first.
 
 ## Mandatory reading order
 
@@ -36,10 +36,6 @@ Technically integrated on `main`:
 - PX10 automated 200%/400% People zoom/reflow coverage plus existing responsive/theme/keyboard/privacy gates;
 - PX11 Ant Design 6 migration and MUI/Emotion runtime retirement.
 
-Technically ready for Principal review/integration on PR #392:
-
-- PX9.10/PX9.11 People Map, using the approved dedicated approximate manual location contract, minimum-data projection, explicit `people.read + map.read` read gate, explicit `map.write` mutation gate, local-only Leaflet overlays and equivalent accessible list. CI quality, CI browser-regression and canonical `netlify/eutakes` preview passed on implementation commit `7259c5daf3d4f835739825beed6f7f817e782ac8`.
-
 Read `docs/PEOPLE_PRODUCT_EXPERIENCE_CURRENT_STATUS.md` for exact boundaries and evidence.
 
 ## Important remaining boundaries
@@ -74,9 +70,12 @@ Do not widen Directory, Contact List or private DTOs to support reports/PDF.
 
 ### Remaining PX9
 
-The only unresolved PX9 product slice is **PX9.17 DOCX**, intentionally research-deferred and not required solely for competitor parity while CSV/PDF already cover approved export needs.
+The only unresolved PX9 product slices are:
 
-For People Map, preserve `docs/PEOPLE_MAP_CONTRACT.md`: ordinary Contact postal addresses are not authorization to geocode, persist or expose coordinates; browser/IP geolocation and automatic geocoding remain prohibited. Do not create a competing location model.
+- **PX9.10/PX9.11 Map** — blocked because no approved Person/group geolocation model, precision policy, source-of-truth for coordinates or least-privilege map capability boundary exists. Ordinary Contact postal address is not authorization to geocode, persist or expose precise coordinates.
+- **PX9.17 DOCX** — intentionally research-deferred; not required solely for competitor parity while CSV/PDF already cover approved export needs.
+
+Do not invent a location model or collect/geocode new location data merely to clear a checkbox.
 
 ### Hourglass import boundary already integrated
 
@@ -125,7 +124,7 @@ Do not add new MUI runtime dependencies or create a second design system.
 
 1. Preserve the green People/PX baseline and canonical security/privacy boundaries.
 2. Reconcile stale source-of-truth checkboxes/documentation against actual integrated evidence; never reimplement completed slices because an old checkbox was not synchronized.
-3. Preserve the reviewed PX9.10/PX9.11 Map contract and its explicit privacy/capability boundary; do not infer permission from ordinary Contact address data.
+3. Keep PX9.10/PX9.11 Map blocked until a reviewed geolocation model, precision/privacy policy and least-privilege capability boundary exist; do not infer permission from ordinary Contact address data.
 4. Keep PX9.17 DOCX research-deferred until product evidence shows a need beyond CSV/PDF.
 5. Leave destructive/write real-user production acceptance and real screen-reader acceptance for the documented independent acceptance pass.
 6. When no safe technical work remains beyond intentionally deferred product research/human acceptance, stop autonomous implementation rather than fabricate completion.

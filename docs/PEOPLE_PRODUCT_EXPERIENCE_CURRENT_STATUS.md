@@ -89,12 +89,12 @@ Technically integrated slices:
 - **PX9.13/PX9.14 Emergency mode** and emergency-contact boundary.
 - **PX9.15 CSV export** with capability checks and spreadsheet-formula injection protection.
 - **PX9.16 Direct PDF export**: browser-local direct binary PDF generation from the already-authorized PX9.5 Record Cards projection only. No new DTO or PII boundary; Unicode preserved through canvas text rendering; no report persistence; export invalidates with stale preview; double-submit and generation errors handled; pt-PT/en/es. PR #386 exact head `45033ed02aaa80cabd9eefd7bb743b5906fbba1a`; squash merge `dae654390d17cdf76545519910a375ebf3c04ff6`.
-- **PX9.10/PX9.11 People Map**: approved `people-map-v1` contract with dedicated tenant-scoped approximate manual location persistence, server-side two-decimal normalization, idempotent set/remove and a minimum-data map projection. Read requires `people.read + map.read`; mutation requires explicit `map.write`, and neither is implied by tenant administration. The Ant Design People view is addressable at `?view=map`, uses Leaflet only as a locally rendered enhancement with no Person identity in tile requests, and retains an equivalent semantic list. It has pt-PT/en/es, Map-specific 401/403/loading/empty/error/retry states, stale-response and double-submit ownership, keyboard marker selection and mobile reflow coverage. People Map implementation commit `7259c5daf3d4f835739825beed6f7f817e782ac8` passed CI quality, CI browser-regression and canonical `netlify/eutakes/deploy-preview` on PR #392; the PR remains subject to Principal review and integration. Ordinary Contact addresses, browser/IP geolocation and automatic geocoding remain prohibited.
 
 Destructive/write real-user production acceptance is **not** claimed complete; exact disposable-fixture scenarios belong in `docs/PEOPLE_REAL_USER_PRODUCTION_E2E_PENDING.md`.
 
 Remaining PX9 product/contract gaps:
 
+- **PX9.10/PX9.11 Map** — blocked. There is no approved Person/group geolocation model, coordinate source-of-truth, precision policy or least-privilege map capability boundary. Ordinary Contact postal address must not be treated as implicit authorization to geocode, persist or expose coordinates.
 - **PX9.17 DOCX** — intentionally product-research deferred. CSV and PDF cover the currently approved export needs; DOCX must not be added solely for parity.
 
 ### PX10 — quality / accessibility evidence
@@ -111,7 +111,7 @@ Still requires a human/independent acceptance agent where automation is insuffic
 
 - real screen-reader acceptance;
 - write-capable real-user production walkthrough using approved disposable/real test data;
-- final reference-quality product closeout after the explicit human checks. DOCX remains research-deferred and may not be fabricated as complete.
+- final reference-quality product closeout after the explicit human checks. Map remains blocked by an absent product/privacy contract and DOCX is research-deferred; neither may be fabricated as complete.
 
 ### PX11 — Ant Design migration / MUI retirement
 
@@ -131,7 +131,7 @@ Automated tests, sanitized browser fixtures, preview deployments and CI do **not
 
 1. Preserve the green `550ff297...` People/PX baseline and its server authority/privacy boundaries.
 2. Do not rebuild PX7.8, Transfers, Hourglass execute/rollback, Contact List, Record Cards or direct PDF because older checkboxes/text may lag integrated evidence.
-3. Preserve the approved PX9.10/PX9.11 Map contract and its least-privilege privacy boundary through Principal review and integration.
+3. Keep PX9.10/PX9.11 Map blocked until product/security explicitly approve a geolocation model, coordinate source, precision policy and least-privilege capability boundary.
 4. Keep PX9.17 DOCX deferred until product research demonstrates a need beyond CSV/PDF.
 5. Perform real-user production and real screen-reader acceptance separately; do not replace them with mocked CI.
 6. If those are the only remaining items, autonomous implementation should stop rather than invent contracts or fabricate acceptance.
