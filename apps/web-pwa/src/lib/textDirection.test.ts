@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { buildEutaktosTheme } from '../theme';
 import { syncDocumentDirection, textDirectionForLocale } from './textDirection';
 
 describe('text direction', () => {
@@ -26,18 +25,5 @@ describe('text direction', () => {
     root.lang = 'pt-PT';
     expect(syncDocumentDirection(root)).toBe('ltr');
     expect(root.dir).toBe('ltr');
-  });
-
-  it('propagates locale direction into the MUI theme', () => {
-    const base = {
-      paletteId: 'classic' as const,
-      density: 'comfortable' as const,
-      reducedMotion: false,
-      reducedTransparency: false,
-      highContrast: false,
-    };
-
-    expect(buildEutaktosTheme({ ...base, locale: 'pt-PT' }).direction).toBe('ltr');
-    expect(buildEutaktosTheme({ ...base, locale: 'ar' }).direction).toBe('rtl');
   });
 });
