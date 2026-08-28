@@ -194,13 +194,12 @@ try {
   const recovered = await evaluate(`(() => {
     const dialog = [...document.querySelectorAll('[role="dialog"]')].find(node => node.textContent?.includes('Transferências') && node.getBoundingClientRect().width > 0);
     const text = dialog?.textContent ?? '';
-    const selectedReceive = Boolean(dialog && [...dialog.querySelectorAll('.ant-segmented-item-selected')].find(node => node.textContent?.trim() === 'Receber'));
     const hasPreviewCard = Boolean(dialog && [...dialog.querySelectorAll('.ant-card')].find(node => node.textContent?.includes('Pessoa da pré-visualização')));
     return {
       text,
-      selectedReceive,
       hasPreviewCard,
       hasCodeInput: Boolean(dialog?.querySelector('input[aria-label="Código"]')),
+      hasPreviewAction: Boolean(dialog && [...dialog.querySelectorAll('button')].find(node => (node.innerText || node.textContent || '').trim() === 'Pré-visualizar')),
       hasErrorAlert: Boolean(dialog?.querySelector('.ant-alert-error')),
       previewCount: window.__transfersHarness.previewCount,
       stored: Object.values(localStorage),
@@ -210,7 +209,7 @@ try {
   if (recovered.previewCount !== 2) throw new Error(`Preview request count was not exactly two: ${JSON.stringify(recovered)}`);
   if (recovered.hasErrorAlert || recovered.text.includes('Não foi possível pré-visualizar este código.')) throw new Error(`Preview error remained after successful retry: ${JSON.stringify(recovered)}`);
   if (!recovered.hasPreviewCard || !recovered.text.includes('Pessoa da pré-visualização')) throw new Error(`Preview card or person was not visible after retry: ${JSON.stringify(recovered)}`);
-  if (!recovered.selectedReceive || !recovered.hasCodeInput) throw new Error(`Successful retry did not return to the Receive flow: ${JSON.stringify(recovered)}`);
+  if (!recovered.hasCodeInput || !recovered.hasPreviewAction) throw new Error(`Successful retry did not return to the Receive flow: ${JSON.stringify(recovered)}`);
   if (recovered.stored.some(value => String(value).includes(code)) || recovered.href.includes(code)) throw new Error('Transfer code was persisted in browser storage or URL');
 
   process.stdout.write('People Transfers runtime passed: load retry label and preview error-to-success retry restored Receive with exactly two preview calls.\n');
