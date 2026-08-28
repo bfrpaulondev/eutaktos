@@ -16,9 +16,11 @@ const copy = {
     empty: 'Sem etiquetas', edit: 'Editar etiquetas', save: 'Guardar', cancel: 'Cancelar', saving: 'A guardar…',
     readOnly: 'Pode consultar estas etiquetas, mas não tem permissão para as alterar.',
     invalid: 'Use no máximo 20 etiquetas, com até 40 caracteres cada.',
-    unauthenticated: 'A sessão terminou antes de guardar as etiquetas. Inicie sessão novamente.',
+    unauthenticated: 'A sessão terminou antes de confirmar o estado das etiquetas. Inicie sessão novamente.',
     forbidden: 'Já não tem permissão para alterar estas etiquetas.',
-    error: 'Não foi possível guardar as etiquetas. Tente novamente.', retry: 'Tentar novamente',
+    uncertain: 'Não foi possível confirmar se as etiquetas foram guardadas. Atualize o estado antes de tentar guardar novamente.',
+    refreshState: 'Atualizar estado',
+    reconciledPending: 'Estado atualizado. As alterações pretendidas ainda não estão guardadas; reveja-as antes de guardar novamente.',
   },
   en: {
     title: 'Labels',
@@ -26,9 +28,11 @@ const copy = {
     empty: 'No labels', edit: 'Edit labels', save: 'Save', cancel: 'Cancel', saving: 'Saving…',
     readOnly: 'You can view these labels, but you do not have permission to change them.',
     invalid: 'Use at most 20 labels, with up to 40 characters each.',
-    unauthenticated: 'Your session ended before the labels could be saved. Sign in again.',
+    unauthenticated: 'Your session ended before the label state could be confirmed. Sign in again.',
     forbidden: 'You no longer have permission to change these labels.',
-    error: 'Labels could not be saved. Try again.', retry: 'Try again',
+    uncertain: 'It was not possible to confirm whether the labels were saved. Refresh the state before trying to save again.',
+    refreshState: 'Refresh status',
+    reconciledPending: 'Status refreshed. Your intended changes are not saved yet; review them before saving again.',
   },
   es: {
     title: 'Etiquetas',
@@ -36,19 +40,21 @@ const copy = {
     empty: 'Sin etiquetas', edit: 'Editar etiquetas', save: 'Guardar', cancel: 'Cancelar', saving: 'Guardando…',
     readOnly: 'Puede consultar estas etiquetas, pero no tiene permiso para cambiarlas.',
     invalid: 'Use como máximo 20 etiquetas, de hasta 40 caracteres cada una.',
-    unauthenticated: 'La sesión terminó antes de guardar las etiquetas. Inicie sesión de nuevo.',
+    unauthenticated: 'La sesión terminó antes de confirmar el estado de las etiquetas. Inicie sesión de nuevo.',
     forbidden: 'Ya no tiene permiso para cambiar estas etiquetas.',
-    error: 'No se pudieron guardar las etiquetas. Inténtelo de nuevo.', retry: 'Intentar de nuevo',
+    uncertain: 'No se pudo confirmar si las etiquetas se guardaron. Actualice el estado antes de intentar guardar de nuevo.',
+    refreshState: 'Actualizar estado',
+    reconciledPending: 'Estado actualizado. Los cambios previstos aún no están guardados; revíselos antes de guardar de nuevo.',
   },
 } as const;
 
-type SaveErrorState = 'unauthenticated' | 'forbidden' | 'retryable' | null;
+type SaveErrorState = 'unauthenticated' | 'forbidden' | 'uncertain' | null;
 
 export function labelSaveErrorState(error: unknown): Exclude<SaveErrorState, null> {
   const message = error instanceof Error ? error.message : '';
   if (/\(401\)$/.test(message)) return 'unauthenticated';
   if (/\(403\)$/.test(message)) return 'forbidden';
-  return 'retryable';
+  return 'uncertain';
 }
 
 export function normalizeLabels(values: readonly string[]): readonly string[] {
@@ -72,7 +78,7 @@ export function labelsDraftValid(values: readonly string[]): boolean {
   });
 }
 
-function sameLabels(left: readonly string[], right: readonly string[]): boolean {
+export function samePersonLabels(left: readonly string[], right: readonly string[]): boolean {
   return JSON.stringify(normalizeLabels(left)) === JSON.stringify(normalizeLabels(right));
 }
 
@@ -84,11 +90,18 @@ export async function persistPersonLabels(api: PeopleApi, personId: string, desi
   const normalized = normalizeLabels(desired);
   const before = (await api.list()).find(person => person.id === personId);
   if (!before) throw new Error('Person not found during label refetch');
-  if (!sameLabels(before.labels ?? [], normalized)) await api.update(personId, { labels: normalized });
+  if (!samePersonLabels(before.labels ?? [], normalized)) await api.update(personId, { labels: normalized });
   const authoritative = (await api.list()).find(person => person.id === personId);
   const confirmed = normalizeLabels(authoritative?.labels ?? []);
-  if (!authoritative || !sameLabels(confirmed, normalized)) throw new Error('Authoritative label refetch mismatch');
+  if (!authoritative || !samePersonLabels(confirmed, normalized)) throw new Error('Authoritative label refetch mismatch');
   return confirmed;
+}
+
+/** Read-only recovery for an ambiguous save outcome. Never retries the PATCH. */
+export async function reconcilePersonLabels(api: PeopleApi, personId: string): Promise<readonly string[]> {
+  const authoritative = (await api.list()).find(person => person.id === personId);
+  if (!authoritative) throw new Error('Person not found during label reconciliation');
+  return normalizeLabels(authoritative.labels ?? []);
 }
 
 export function PersonLabelsDialog({ personId, personName, labels, locale, canWrite, open, onClose, onSaved, api = peopleApi }: {
@@ -107,6 +120,7 @@ export function PersonLabelsDialog({ personId, personName, labels, locale, canWr
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<SaveErrorState>(null);
+  const [reconciledPending, setReconciledPending] = useState(false);
   const mutationLockRef = useRef(false);
 
   useEffect(() => {
@@ -115,17 +129,19 @@ export function PersonLabelsDialog({ personId, personName, labels, locale, canWr
     setEditing(false);
     setSaving(false);
     setSaveError(null);
+    setReconciledPending(false);
   }, [open, personId, labels]);
 
   const normalized = normalizeLabels(draft);
   const valid = labelsDraftValid(draft);
-  const changed = !sameLabels(normalized, labels);
+  const changed = !samePersonLabels(normalized, labels);
 
   const save = async () => {
     if (!canWrite || !valid || !changed || mutationLockRef.current) return;
     mutationLockRef.current = true;
     setSaving(true);
     setSaveError(null);
+    setReconciledPending(false);
     try {
       const confirmed = await persistPersonLabels(api, personId, normalized);
       setDraft(confirmed);
@@ -139,12 +155,37 @@ export function PersonLabelsDialog({ personId, personName, labels, locale, canWr
     }
   };
 
+  const reconcile = async () => {
+    if (mutationLockRef.current) return;
+    mutationLockRef.current = true;
+    setSaving(true);
+    try {
+      const authoritative = await reconcilePersonLabels(api, personId);
+      if (samePersonLabels(authoritative, normalized)) {
+        setDraft(authoritative);
+        setEditing(false);
+        setSaveError(null);
+        setReconciledPending(false);
+        onSaved(authoritative);
+      } else {
+        setSaveError(null);
+        setReconciledPending(true);
+        setEditing(true);
+      }
+    } catch (error) {
+      setSaveError(labelSaveErrorState(error));
+    } finally {
+      setSaving(false);
+      mutationLockRef.current = false;
+    }
+  };
+
   const saveErrorMessage = saveError === 'unauthenticated'
     ? text.unauthenticated
     : saveError === 'forbidden'
       ? text.forbidden
-      : saveError === 'retryable'
-        ? text.error
+      : saveError === 'uncertain'
+        ? text.uncertain
         : undefined;
 
   return <Modal open={open} title={`${text.title} — ${personName}`} onCancel={saving ? undefined : onClose} footer={null} destroyOnHidden>
@@ -155,13 +196,14 @@ export function PersonLabelsDialog({ personId, personName, labels, locale, canWr
         type="error"
         showIcon
         title={saveErrorMessage}
-        action={saveError === 'retryable' ? <Button size="small" disabled={saving} onClick={() => void save()}>{text.retry}</Button> : undefined}
+        action={saveError === 'uncertain' ? <Button size="small" disabled={saving} onClick={() => void reconcile()}>{text.refreshState}</Button> : undefined}
       /> : null}
+      {reconciledPending ? <Alert type="info" showIcon title={text.reconciledPending} /> : null}
       {editing ? <>
-        <Select aria-label={text.edit} mode="tags" open={false} value={[...draft]} onChange={value => setDraft(value)} disabled={saving} tokenSeparators={[',']} style={{ width: '100%' }} placeholder={text.empty} />
+        <Select aria-label={text.edit} mode="tags" open={false} value={[...draft]} onChange={value => { setDraft(value); setReconciledPending(false); }} disabled={saving} tokenSeparators={[',']} style={{ width: '100%' }} placeholder={text.empty} />
         {!valid ? <Typography.Text type="danger" role="alert">{text.invalid}</Typography.Text> : null}
         <Space wrap>
-          <Button onClick={() => { setDraft(labels); setEditing(false); setSaveError(null); }} disabled={saving}>{text.cancel}</Button>
+          <Button onClick={() => { setDraft(labels); setEditing(false); setSaveError(null); setReconciledPending(false); }} disabled={saving}>{text.cancel}</Button>
           <Button type="primary" loading={saving} disabled={!valid || !changed} onClick={() => void save()}>{saving ? text.saving : text.save}</Button>
         </Space>
       </> : <>

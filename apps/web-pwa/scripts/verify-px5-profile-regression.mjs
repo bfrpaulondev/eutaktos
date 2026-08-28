@@ -71,12 +71,19 @@ async function pageState() {
 }
 
 async function clickText(label) {
-  return evaluate(`(() => {
+  return poll(async () => evaluate(`(() => {
     const nodes = [...document.querySelectorAll('button,[role="tab"],[role="option"]')];
-    const node = nodes.find(value => (value.innerText || value.textContent || '').trim() === ${JSON.stringify(label)});
-    node?.click();
-    return Boolean(node);
-  })()`);
+    const node = nodes.find(value => {
+      const rect = value.getBoundingClientRect();
+      return (value.innerText || value.textContent || '').trim() === ${JSON.stringify(label)}
+        && rect.width > 0
+        && rect.height > 0
+        && getComputedStyle(value).visibility !== 'hidden';
+    });
+    if (!node) return false;
+    node.click();
+    return true;
+  })()`), `Control ${label} did not become available after the authoritative render`, 40);
 }
 
 async function setInput(label, value) {

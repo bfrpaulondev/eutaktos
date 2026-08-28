@@ -4,16 +4,21 @@ import Button from 'antd/es/button';
 import Space from 'antd/es/space';
 import { authenticationApi } from './lib/authApi';
 
-function copy(): Readonly<{ action: string; failure: string }> {
-  const locale = document.documentElement.lang.toLowerCase();
-  if (locale.startsWith('es')) return { action: 'Salir', failure: 'No se pudo cerrar la sesión. Inténtalo de nuevo.' };
-  if (locale.startsWith('en')) return { action: 'Sign out', failure: 'The session could not be ended. Try again.' };
+export function logoutCopy(locale: string): Readonly<{ action: string; failure: string }> {
+  const normalized = locale.toLowerCase();
+  if (normalized.startsWith('es')) return { action: 'Salir', failure: 'No se pudo cerrar la sesión. Inténtalo de nuevo.' };
+  if (normalized.startsWith('en')) return { action: 'Sign out', failure: 'The session could not be ended. Try again.' };
   return { action: 'Sair', failure: 'Não foi possível terminar a sessão. Tenta novamente.' };
+}
+
+function currentDocumentLocale(): string {
+  return document.documentElement.lang || 'pt-PT';
 }
 
 export function LogoutControl() {
   const [submitting, setSubmitting] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [locale, setLocale] = useState(currentDocumentLocale);
 
   const logout = useCallback(async () => {
     if (submitting) return;
@@ -29,10 +34,18 @@ export function LogoutControl() {
   }, [submitting]);
 
   useEffect(() => {
+    const root = document.documentElement;
+    const observer = new MutationObserver(() => setLocale(currentDocumentLocale()));
+    observer.observe(root, { attributes: true, attributeFilter: ['lang'] });
+    setLocale(currentDocumentLocale());
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     if (window.location.pathname === '/logout') void logout();
   }, [logout]);
 
-  const text = copy();
+  const text = logoutCopy(locale);
   return (
     <Space
       direction="vertical"
