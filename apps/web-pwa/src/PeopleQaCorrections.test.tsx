@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { canMutateArchiveTarget, chooseArchivePersonId } from './PeopleArchiveDialog';
 import { sanitizeHourglassFilename } from './HourglassImportInspector';
-import { transferErrorMessage } from './PeopleTransfersDialog';
+import { transferErrorMessage, transferRecoveryLabel } from './PeopleTransfersDialog';
 import { PersonWizardIdentityStep } from './PersonWizardIdentityStep';
 import { createPersonWizardDraft } from './PersonWizardModel';
 
@@ -36,6 +36,22 @@ describe('real-user People QA corrections', () => {
     }
     expect(transferErrorMessage('pt-PT', 'load')).toBe('Não foi possível carregar as transferências.');
     expect(transferErrorMessage('pt-PT', 'preview')).toBe('Não foi possível pré-visualizar este código.');
+  });
+
+  it('uses retry for transfer load and preview recovery while ambiguous mutations require authoritative refresh', () => {
+    const expected = {
+      'pt-PT': { retry: 'Tentar novamente', refresh: 'Atualizar estado' },
+      en: { retry: 'Try again', refresh: 'Refresh status' },
+      es: { retry: 'Intentar de nuevo', refresh: 'Actualizar estado' },
+    } as const;
+
+    for (const locale of ['pt-PT', 'en', 'es'] as const) {
+      expect(transferRecoveryLabel(locale, 'load')).toBe(expected[locale].retry);
+      expect(transferRecoveryLabel(locale, 'preview')).toBe(expected[locale].retry);
+      expect(transferRecoveryLabel(locale, 'send')).toBe(expected[locale].refresh);
+      expect(transferRecoveryLabel(locale, 'cancel')).toBe(expected[locale].refresh);
+      expect(transferRecoveryLabel(locale, 'claim')).toBe(expected[locale].refresh);
+    }
   });
 
   it('marks the wizard display name as required for browser and assistive technology semantics', () => {

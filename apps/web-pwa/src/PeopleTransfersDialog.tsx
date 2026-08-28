@@ -49,6 +49,11 @@ export function transferErrorMessage(locale: Locale, context: Exclude<ErrorConte
   return text.claimError;
 }
 
+export function transferRecoveryLabel(locale: Locale, context: Exclude<ErrorContext, null>): string {
+  const text = copy[locale];
+  return context === 'load' || context === 'preview' ? text.retry : text.refreshState;
+}
+
 export function PeopleTransfersDialog({ locale, open, onClose }: { locale: Locale; open: boolean; onClose: () => void }) {
   const text = copy[locale];
   const requestVersion = useRef(0);
@@ -135,11 +140,13 @@ export function PeopleTransfersDialog({ locale, open, onClose }: { locale: Local
   };
 
   const errorMessage = transferErrorMessage(locale, errorContext ?? 'load');
-  const errorRecovery = errorContext === 'preview'
-    ? <Button size="small" onClick={() => void previewCode()}>{text.retry}</Button>
-    : errorContext
-      ? <Button size="small" onClick={() => void load()}>{text.refreshState}</Button>
-      : undefined;
+  const errorRecovery = errorContext === 'load'
+    ? <Button size="small" onClick={() => void load()}>{transferRecoveryLabel(locale, errorContext)}</Button>
+    : errorContext === 'preview'
+      ? <Button size="small" onClick={() => void previewCode()}>{transferRecoveryLabel(locale, errorContext)}</Button>
+      : errorContext
+        ? <Button size="small" onClick={() => void load()}>{transferRecoveryLabel(locale, errorContext)}</Button>
+        : undefined;
 
   const send = async () => {
     if (!selectedIds.length || sending) return;
@@ -193,6 +200,7 @@ export function PeopleTransfersDialog({ locale, open, onClose }: { locale: Local
     controllerRef.current?.abort();
     const controller = new AbortController();
     controllerRef.current = controller;
+    setState('ready');
     setPreviewing(true);
     setErrorContext(null);
     setPreview(null);

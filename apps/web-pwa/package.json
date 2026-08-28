@@ -23,6 +23,7 @@
     "test:people-directory-export-runtime": "node scripts/verify-people-directory-export-runtime.mjs",
     "test:people-labels-runtime": "node scripts/verify-people-labels-runtime.mjs",
     "test:people-labels-authority-runtime": "node scripts/verify-people-labels-authority-runtime.mjs",
+    "test:people-transfers-runtime": "node scripts/verify-people-transfers-runtime.mjs",
     "test:people-map-runtime": "node scripts/verify-people-map-runtime.mjs",
     "test:bundle-budget": "npm run build && node scripts/verify-bundle-budget.mjs",
     "test:pwa-privacy": "npm run build && node scripts/verify-pwa-privacy.mjs",
