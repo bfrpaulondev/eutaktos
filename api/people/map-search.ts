@@ -81,11 +81,17 @@ function resultLabel(properties: Readonly<Record<string, unknown>>): string | un
   return unique.length ? unique.join(', ') : undefined;
 }
 
+function resultKey(label: string): string {
+  return label.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+}
+
 export function projectPhotonResponse(value: unknown): PeopleMapSearchDto {
   const root = record(value);
   const features = root && Array.isArray(root.features) ? root.features : [];
   const results: PeopleMapSearchResult[] = [];
-  for (const featureValue of features.slice(0, MAX_RESULTS)) {
+  const seenLabels = new Set<string>();
+  for (const featureValue of features) {
+    if (results.length >= MAX_RESULTS) break;
     const feature = record(featureValue);
     const geometry = feature ? record(feature.geometry) : undefined;
     const properties = feature ? record(feature.properties) : undefined;
@@ -95,6 +101,9 @@ export function projectPhotonResponse(value: unknown): PeopleMapSearchDto {
     const latitude = finiteCoordinate(coordinates[1], -90, 90);
     const label = resultLabel(properties);
     if (latitude === undefined || longitude === undefined || !label) continue;
+    const key = resultKey(label);
+    if (seenLabels.has(key)) continue;
+    seenLabels.add(key);
     results.push(Object.freeze({
       id: `place-${results.length + 1}`,
       label,

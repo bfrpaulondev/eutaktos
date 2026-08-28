@@ -17,11 +17,13 @@ const checks = [
   { label: 'People Directory export runtime', args: ['run', 'test:people-directory-export-runtime'] },
   { label: 'PX9.3 People labels runtime', args: ['run', 'test:people-labels-runtime'] },
   { label: 'PX9.3 People labels authority runtime', args: ['run', 'test:people-labels-authority-runtime'] },
+  { label: 'People Transfers retry runtime', args: ['run', 'test:people-transfers-runtime'] },
   { label: 'PX9.10/PX9.11 People Map runtime', args: ['run', 'test:people-map-runtime'] },
   { label: 'System theme runtime', args: ['run', 'test:system-theme-runtime'] },
   { label: 'lazy-route recovery', args: ['run', 'test:lazy-recovery'] },
   { label: 'sanitized visual regression', args: ['run', 'test:visual-sanitized'] },
   { label: 'Hourglass inspector runtime', args: ['run', 'test:hourglass-inspector'] },
+  { label: 'People Archive runtime', args: ['run', 'test:people-archive-runtime'] },
 ];
 
 function runCheck({ label, args }) {
