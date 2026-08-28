@@ -14,10 +14,10 @@ describe('PersonLabelsDialog', () => {
     expect(labelsDraftValid(Array.from({ length: 21 }, (_, index) => `Label ${index}`))).toBe(false);
   });
 
-  it('classifies 401 and 403 separately from retryable save failures', () => {
+  it('classifies 401 and 403 separately from uncertain save outcomes', () => {
     expect(labelSaveErrorState(new Error('Unauthorized (401)'))).toBe('unauthenticated');
     expect(labelSaveErrorState(new Error('Forbidden (403)'))).toBe('forbidden');
-    expect(labelSaveErrorState(new Error('People API request failed (503)'))).toBe('retryable');
+    expect(labelSaveErrorState(new Error('People API request failed (503)'))).toBe('uncertain');
   });
 
   it('does not repeat PATCH when a retry observes the desired labels already persisted', async () => {
