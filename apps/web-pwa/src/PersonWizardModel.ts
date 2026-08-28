@@ -126,6 +126,11 @@ export function personWizardContactChanged(initial: PersonWizardDraft, draft: Pe
   return !sameContact(initial.contact, draft.contact);
 }
 
+export function personWizardContactNeedsPersistence(mode: PersonWizardMode, initial: PersonWizardDraft, draft: PersonWizardDraft): boolean {
+  if (mode === 'create') return Object.keys(normalizePersonWizardContact(draft.contact)).length > 0;
+  return personWizardContactChanged(initial, draft);
+}
+
 export function personWizardOrganizationChanged(initial: PersonWizardDraft, draft: PersonWizardDraft): boolean {
   return personWizardMembershipChanges(initial.householdIds, draft.householdIds).length > 0
     || personWizardMembershipChanges(initial.serviceGroupIds, draft.serviceGroupIds).length > 0
@@ -319,7 +324,7 @@ function availabilityMatches(item: AvailabilityPeriodDto, draft: PersonWizardAva
 export async function savePersonWizard(input: SavePersonWizardInput): Promise<PersonProfileDto> {
   const { mode, person, draft, initial, canReadEligibility, canWriteEligibility, apis } = input;
   const intendedCoreChanges = personWizardCoreChanges(initial, draft);
-  const contactChanged = personWizardContactChanged(initial, draft);
+  const contactNeedsPersistence = personWizardContactNeedsPersistence(mode, initial, draft);
   const householdChanges = personWizardMembershipChanges(initial.householdIds, draft.householdIds);
   const groupChanges = personWizardMembershipChanges(initial.serviceGroupIds, draft.serviceGroupIds);
   const membershipChanged = householdChanges.length > 0 || groupChanges.length > 0;
@@ -332,7 +337,7 @@ export async function savePersonWizard(input: SavePersonWizardInput): Promise<Pe
   const preferredLocale = normalizePersonWizardLocale(draft.preferredLocale);
 
   if (personWizardContactValidation(draft.contact).length > 0) throw new Error('Invalid contact values (422)');
-  if (contactChanged && (!input.canReadContact || !input.canWriteContact || !apis.contact)) throw new Error('Forbidden (403)');
+  if (contactNeedsPersistence && (!input.canReadContact || !input.canWriteContact || !apis.contact)) throw new Error('Forbidden (403)');
   if (eligibilityChanges.length > 0 && (!canReadEligibility || !canWriteEligibility)) throw new Error('Forbidden (403)');
   if ((responsibilityAdds.length > 0 || responsibilityEnds.length > 0) && (!input.canReadResponsibilities || !input.canWriteResponsibilities || !apis.responsibilities)) throw new Error('Forbidden (403)');
   if ((availabilityAdds.length > 0 || availabilityRemovals.length > 0) && (!input.canReadAvailability || !input.canWriteAvailability || !apis.availability)) throw new Error('Forbidden (403)');
@@ -357,7 +362,7 @@ export async function savePersonWizard(input: SavePersonWizardInput): Promise<Pe
   if (coreMutated) input.onMutationPersisted?.();
   const personId = saved.id;
 
-  if (contactChanged) {
+  if (contactNeedsPersistence) {
     const desiredContact = normalizePersonWizardContact(draft.contact);
     const currentContact = await apis.contact!.get(personId);
     if (!sameContact(currentContact, desiredContact)) {
@@ -451,7 +456,7 @@ export async function savePersonWizard(input: SavePersonWizardInput): Promise<Pe
     if (intendedCoreChanges.active !== undefined && authoritative.active !== saved.active) throw new Error('Authoritative People refetch mismatch');
   }
 
-  if (contactChanged) {
+  if (contactNeedsPersistence) {
     const value = await apis.contact!.get(personId);
     if (!sameContact(value, draft.contact)) throw new Error('Authoritative contact refetch mismatch');
   }
