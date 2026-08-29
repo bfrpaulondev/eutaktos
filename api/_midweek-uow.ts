@@ -25,6 +25,19 @@ import { SupabaseRestDatabase } from './_db';
 type TenantEntity = { readonly id: string; readonly tenantId: string };
 type Snapshot<T> = { readonly value: T; readonly version: number };
 type StoredPartDefinition = MidweekPartDefinition & TenantEntity;
+type HistoryState = 'assigned' | 'completed' | 'cancelled';
+
+interface PendingHistoryRecord {
+  readonly id: string;
+  readonly tenantId: string;
+  readonly assignmentId: string;
+  readonly personId: string;
+  readonly partType: string;
+  readonly meetingId: string;
+  readonly meetingDate: string;
+  readonly state: HistoryState;
+  readonly recordedAt: string;
+}
 
 interface PendingSchedulingChange {
   readonly entityType: 'midweek-meeting' | 'student-assignment' | 'non-student-assignment';
@@ -33,6 +46,7 @@ interface PendingSchedulingChange {
   readonly expectedVersion: number | null;
   readonly auditEvent: unknown;
   readonly domainEvent: unknown;
+  readonly history: readonly PendingHistoryRecord[];
 }
 
 function storedEntity<T extends TenantEntity>(row: EntityRow, tenantId: string): T {
@@ -124,6 +138,80 @@ export function meetingStartInstant(meeting: Pick<MidweekMeeting, 'date' | 'loca
   const alternatives = [candidate - 3_600_000, candidate + 3_600_000]
     .filter(value => sameLocalParts(dateTimeParts(meeting.timezone, value), year, month, day, hour, minute));
   return Math.min(candidate, ...alternatives);
+}
+
+function schedulingChangeIdentity(value: unknown): Readonly<{ id: string; occurredAt: string }> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid scheduling audit event');
+  const record = value as Readonly<Record<string, unknown>>;
+  if (typeof record.id !== 'string' || !record.id.trim() || typeof record.occurredAt !== 'string' || !Number.isFinite(Date.parse(record.occurredAt))) {
+    throw new Error('Invalid scheduling audit event identity');
+  }
+  return Object.freeze({ id: record.id, occurredAt: record.occurredAt });
+}
+
+function historyState(value: string): HistoryState {
+  if (value === 'assigned' || value === 'completed' || value === 'cancelled') return value;
+  throw new Error(`Unsupported assignment history state: ${value}`);
+}
+
+function historyForResource(
+  tenantId: string,
+  entityType: PendingSchedulingChange['entityType'],
+  value: TenantEntity,
+  meetings: ReadonlyMap<string, Snapshot<Readonly<MidweekMeeting>>>,
+  auditEvent: unknown,
+): readonly PendingHistoryRecord[] {
+  if (entityType === 'midweek-meeting') return Object.freeze([]);
+  const identity = schedulingChangeIdentity(auditEvent);
+
+  if (entityType === 'student-assignment') {
+    const assignment = value as StudentAssignment;
+    const meeting = meetings.get(assignment.meetingId)?.value;
+    if (!meeting) throw new Error('Student assignment references a missing meeting');
+    const slot = findSlotById(meeting, assignment.slotId);
+    if (!slot?.partDefinitionId) throw new Error('Student assignment references a slot without a part definition');
+    const state = historyState(String(assignment.state));
+    const rows: PendingHistoryRecord[] = [{
+      id: `history-${identity.id}-student`,
+      tenantId,
+      assignmentId: assignment.id,
+      personId: assignment.studentId,
+      partType: `student:${slot.partDefinitionId}`,
+      meetingId: meeting.id,
+      meetingDate: meeting.date,
+      state,
+      recordedAt: identity.occurredAt,
+    }];
+    if (assignment.assistantId) {
+      rows.push({
+        id: `history-${identity.id}-assistant`,
+        tenantId,
+        assignmentId: assignment.id,
+        personId: assignment.assistantId,
+        partType: `assistant:${slot.partDefinitionId}`,
+        meetingId: meeting.id,
+        meetingDate: meeting.date,
+        state,
+        recordedAt: identity.occurredAt,
+      });
+    }
+    return Object.freeze(rows.map(row => Object.freeze(row)));
+  }
+
+  const assignment = value as NonStudentAssignment;
+  const meeting = meetings.get(assignment.meetingId)?.value;
+  if (!meeting) throw new Error('Non-student assignment references a missing meeting');
+  return Object.freeze([Object.freeze({
+    id: `history-${identity.id}-assignee`,
+    tenantId,
+    assignmentId: assignment.id,
+    personId: assignment.personId,
+    partType: `role:${assignment.role}`,
+    meetingId: meeting.id,
+    meetingDate: meeting.date,
+    state: historyState(String(assignment.state)),
+    recordedAt: identity.occurredAt,
+  })]);
 }
 
 export class SchedulingRuntimeIds implements MidweekSchedulingRuntime {
@@ -299,6 +387,7 @@ export class SchedulingSnapshotUnitOfWork implements MidweekSchedulingUnitOfWork
     assertResourceTenant(context, resource.value);
     assertResourceTenant(context, change.auditEvents[0]);
     assertResourceTenant(context, change.domainEvents[0]);
+    const history = historyForResource(this.#tenantId, resource.entityType, resource.value, this.#meetings, change.auditEvents[0]);
     this.#pending = Object.freeze({
       entityType: resource.entityType,
       entityId: resource.value.id,
@@ -306,6 +395,7 @@ export class SchedulingSnapshotUnitOfWork implements MidweekSchedulingUnitOfWork
       expectedVersion: resource.version,
       auditEvent: change.auditEvents[0],
       domainEvent: change.domainEvents[0],
+      history,
     });
 
     const nextVersion = (resource.version ?? 0) + 1;
@@ -317,7 +407,7 @@ export class SchedulingSnapshotUnitOfWork implements MidweekSchedulingUnitOfWork
   async flush(database: SupabaseRestDatabase): Promise<void> {
     const pending = this.#pending;
     if (!pending) return;
-    await database.applyEntityChange({
+    await database.applySchedulingEntityChange({
       p_tenant_id: this.#tenantId,
       p_entity_type: pending.entityType,
       p_entity_id: pending.entityId,
@@ -325,6 +415,7 @@ export class SchedulingSnapshotUnitOfWork implements MidweekSchedulingUnitOfWork
       p_expected_version: pending.expectedVersion,
       p_audit: pending.auditEvent,
       p_event: pending.domainEvent,
+      p_history: pending.history,
     });
     this.#pending = undefined;
   }
