@@ -55,8 +55,13 @@ export interface ScheduleSlotViewDto {
   readonly titleKey: string;
   readonly durationMinutes: number;
   readonly partDefinitionId?: string;
+  readonly studentAssignmentId: string | null;
+  readonly studentId: string | null;
   readonly studentDisplayName: string | null;
+  readonly assistantId: string | null;
   readonly assistantDisplayName: string | null;
+  readonly nonStudentAssignmentId: string | null;
+  readonly nonStudentPersonId: string | null;
   readonly nonStudentDisplayName: string | null;
   readonly nonStudentRole: string | null;
   readonly hasConflict: boolean;
@@ -103,7 +108,7 @@ function candidateReason(value: unknown): CandidateReasonDto {
     kind: text(item.kind, 'reason kind'),
     messageKey: text(item.messageKey, 'reason messageKey'),
     params: Object.freeze(Object.fromEntries(
-      Object.entries(item.params ?? {}).filter(([, v]) => typeof v === 'string' || typeof v === 'number'),
+      Object.entries(item.params ?? {}).filter(([, value]) => typeof value === 'string' || typeof value === 'number'),
     ) as Readonly<Record<string, string | number>>),
   });
 }
@@ -112,10 +117,7 @@ function candidateConflictInfo(value: unknown): CandidateConflictInfoDto {
   const item = record(value, 'candidate conflict');
   const kind = item.kind;
   if (kind !== 'assignment-overlap' && kind !== 'unavailable') throw new Error('Invalid candidate conflict kind');
-  return Object.freeze({
-    kind,
-    sourceId: text(item.sourceId, 'conflict sourceId'),
-  });
+  return Object.freeze({ kind, sourceId: text(item.sourceId, 'conflict sourceId') });
 }
 
 function candidateProfile(value: unknown): CandidateProfileDto {
@@ -162,10 +164,15 @@ function scheduleSlotView(value: unknown): ScheduleSlotViewDto {
     titleKey: text(item.titleKey, 'titleKey'),
     durationMinutes: typeof item.durationMinutes === 'number' ? item.durationMinutes : 0,
     ...(typeof item.partDefinitionId === 'string' && item.partDefinitionId.trim() ? { partDefinitionId: item.partDefinitionId } : {}),
-    studentDisplayName: item.studentDisplayName === null ? null : text(item.studentDisplayName, 'studentDisplayName'),
-    assistantDisplayName: item.assistantDisplayName === null ? null : text(item.assistantDisplayName, 'assistantDisplayName'),
-    nonStudentDisplayName: item.nonStudentDisplayName === null ? null : text(item.nonStudentDisplayName, 'nonStudentDisplayName'),
-    nonStudentRole: item.nonStudentRole === null ? null : text(item.nonStudentRole, 'nonStudentRole'),
+    studentAssignmentId: nullableText(item.studentAssignmentId, 'studentAssignmentId'),
+    studentId: nullableText(item.studentId, 'studentId'),
+    studentDisplayName: nullableText(item.studentDisplayName, 'studentDisplayName'),
+    assistantId: nullableText(item.assistantId, 'assistantId'),
+    assistantDisplayName: nullableText(item.assistantDisplayName, 'assistantDisplayName'),
+    nonStudentAssignmentId: nullableText(item.nonStudentAssignmentId, 'nonStudentAssignmentId'),
+    nonStudentPersonId: nullableText(item.nonStudentPersonId, 'nonStudentPersonId'),
+    nonStudentDisplayName: nullableText(item.nonStudentDisplayName, 'nonStudentDisplayName'),
+    nonStudentRole: nullableText(item.nonStudentRole, 'nonStudentRole'),
     hasConflict: Boolean(item.hasConflict),
     state,
   });
@@ -226,7 +233,7 @@ export interface MidweekApi{
 export function createMidweekApi(fetcher:typeof fetch=fetch):MidweekApi{
  const requestMeeting=async(path:string,init:RequestInit):Promise<MidweekMeetingDto>=>{const response=await fetcher(path,init);const body=await readJson(response);if(!response.ok)throw safeError(response,body);return meeting(body);};
  const requestMutation=async(path:string,init:RequestInit):Promise<void>=>{const response=await fetcher(path,init);const body=await readJson(response).catch(()=>undefined);if(!response.ok)throw safeError(response,body);};
- const requestJson=async<T>(path:string,init:RequestInit,parse:(v:unknown)=>T):Promise<T>=>{const response=await fetcher(path,init);const body=await readJson(response);if(!response.ok)throw safeError(response,body);return parse(body);};
+ const requestJson=async<T>(path:string,init:RequestInit,parse:(value:unknown)=>T):Promise<T>=>{const response=await fetcher(path,init);const body=await readJson(response);if(!response.ok)throw safeError(response,body);return parse(body);};
  return{
   async overview(signal){const response=await fetchOverview(fetcher,signal);const body=await readJson(response);if(!response.ok)throw safeError(response,body);return parseMidweekOverview(body);},
   createMeeting(input){return requestMeeting('/api/midweek',mutationInit('POST',meetingPayload(input)));},
@@ -239,7 +246,7 @@ export function createMidweekApi(fetcher:typeof fetch=fetch):MidweekApi{
   replaceNonStudent(assignmentId,personId){return requestMutation(`/api/midweek/non-student-assignments/${encodeURIComponent(assignmentId)}/replace`,mutationInit('POST',{personId}));},
   cancelStudent(assignmentId){return requestMutation(`/api/midweek/student-assignments/${encodeURIComponent(assignmentId)}/cancel`,mutationInit('POST'));},
   cancelNonStudent(assignmentId){return requestMutation(`/api/midweek/non-student-assignments/${encodeURIComponent(assignmentId)}/cancel`,mutationInit('POST'));},
-  candidates(meetingId,input,signal){return requestJson(`/api/midweek/meetings/${encodeURIComponent(meetingId)}/candidates`,mutationInit('POST',input),parseCandidateQueryResult);},
+  candidates(meetingId,input,signal){return requestJson(`/api/midweek/meetings/${encodeURIComponent(meetingId)}/candidates`,{...mutationInit('POST',input),signal},parseCandidateQueryResult);},
   scheduleView(meetingId,signal){return requestJson(`/api/midweek/meetings/${encodeURIComponent(meetingId)}/schedule-view`,{method:'GET',credentials:'same-origin',headers:{Accept:'application/json'},signal},parseScheduleMeetingView);},
  };
 }
