@@ -36,7 +36,7 @@ describe('SchedulingSnapshotUnitOfWork', () => {
     expect(() => uow([{ tenant_id: tenantId, entity_type: 'midweek-meeting', entity_id: value.id, data: value, version: 1 }])).toThrow('identity');
   });
 
-  it('derives tenant from AccessContext and flushes entity, audit and event through the atomic RPC', async () => {
+  it('derives tenant from AccessContext and flushes entity, audit, event and history through one atomic RPC', async () => {
     const unit = uow();
     let counter = 0;
     const service = new MidweekSchedulingService(unit, { now: () => now, nextId: scope => `${scope}-${++counter}` });
@@ -51,8 +51,8 @@ describe('SchedulingSnapshotUnitOfWork', () => {
     const database = new SupabaseRestDatabase({ url: 'https://example.supabase.co', serviceRoleKey: 'sb_secret_test' }, fetcher);
     await unit.flush(database);
     expect(calls).toHaveLength(1);
-    expect(calls[0].url).toContain('/rest/v1/rpc/eutaktos_apply_entity_change');
-    expect(calls[0].body).toMatchObject({ p_tenant_id: tenantId, p_entity_type: 'midweek-meeting', p_entity_id: created.id, p_expected_version: null });
+    expect(calls[0].url).toContain('/rest/v1/rpc/eutaktos_apply_scheduling_entity_change');
+    expect(calls[0].body).toMatchObject({ p_tenant_id: tenantId, p_entity_type: 'midweek-meeting', p_entity_id: created.id, p_expected_version: null, p_history: [] });
     expect((calls[0].body.p_data as Record<string, unknown>).tenantId).toBe(tenantId);
     expect((calls[0].body.p_audit as Record<string, unknown>).tenantId).toBe(tenantId);
     expect((calls[0].body.p_event as Record<string, unknown>).tenantId).toBe(tenantId);
