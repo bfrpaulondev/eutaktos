@@ -4,12 +4,8 @@ import {
   type CandidateProfile,
   type CandidateRole,
   type MidweekMeeting,
-  type NonStudentAssignment,
-  type StudentAssignment,
 } from '@eutaktos/domain';
 import type { TransportRequest, TransportResponse, VerifiedPrincipal } from './people-http';
-
-// ─── DTOs ───────────────────────────────────────────────────────────────────
 
 export interface CandidateReasonDto {
   readonly kind: string;
@@ -34,11 +30,6 @@ export interface CandidateProfileDto {
   readonly daysSinceLastAssignment: number | null;
   readonly recentAssignmentCount: number;
   readonly alreadyAssignedInMeeting: boolean;
-  /**
-   * NEVER exposed as a "human rank" — only `reasons` and optional `hint`
-   * should be displayed in the UI. The score is included for telemetry/debug
-   * but the UI must not surface it as "ranking X of N".
-   */
   readonly reasons: readonly CandidateReasonDto[];
 }
 
@@ -57,8 +48,13 @@ export interface ScheduleSlotViewDto {
   readonly titleKey: string;
   readonly durationMinutes: number;
   readonly partDefinitionId?: string;
+  readonly studentAssignmentId: string | null;
+  readonly studentId: string | null;
   readonly studentDisplayName: string | null;
+  readonly assistantId: string | null;
   readonly assistantDisplayName: string | null;
+  readonly nonStudentAssignmentId: string | null;
+  readonly nonStudentPersonId: string | null;
   readonly nonStudentDisplayName: string | null;
   readonly nonStudentRole: string | null;
   readonly hasConflict: boolean;
@@ -78,8 +74,6 @@ export interface ScheduleMeetingViewDto {
   readonly vacantSlots: number;
   readonly conflictedSlots: number;
 }
-
-// ─── Helpers ───────────────────────────────────────────────────────────────
 
 function unauthorized(): TransportResponse<unknown> {
   return { status: 401, body: { error: 'Unauthorized' } };
@@ -101,13 +95,6 @@ function ok<T>(body: T): TransportResponse<T> {
   return { status: 200, body };
 }
 
-function toContext(principal: VerifiedPrincipal | undefined): Readonly<Parameters<CandidateQueryService['listCandidates']>[0]> | undefined {
-  if (!principal) return undefined;
-  // The principal's tenant/actor/capabilities are server-derived and trusted.
-  // We construct the AccessContext in the API layer (not in the transport).
-  return undefined;
-}
-
 function toCandidateDto(profile: Readonly<CandidateProfile>): CandidateProfileDto {
   return {
     personId: profile.personId,
@@ -125,17 +112,6 @@ function toCandidateDto(profile: Readonly<CandidateProfile>): CandidateProfileDt
   };
 }
 
-// ─── Transport ────────────────────────────────────────────────────────────
-
-/**
- * HTTP transport for read-only candidate queries.
- *
- * All inputs are validated. Errors return stable HTTP status codes:
- *   - 401: missing principal
- *   - 403: missing capability or cross-tenant
- *   - 400: invalid request shape
- *   - 404: meeting/slot not found
- */
 export class CandidateQueryHttpTransport {
   readonly #service: CandidateQueryService;
 
@@ -151,36 +127,32 @@ export class CandidateQueryHttpTransport {
     if (!principal) return unauthorized();
     const body = request.body;
     if (!body || typeof body !== 'object' || Array.isArray(body)) return badRequest('Request body must be an object');
-    const b = body as Readonly<Record<string, unknown>>;
+    const candidateBody = body as Readonly<Record<string, unknown>>;
 
-    const slotId = typeof b.slotId === 'string' ? b.slotId.trim() : '';
+    const slotId = typeof candidateBody.slotId === 'string' ? candidateBody.slotId.trim() : '';
     if (!slotId) return badRequest('slotId is required');
 
-    const roleRaw = typeof b.role === 'string' ? b.role.trim() : '';
+    const roleRaw = typeof candidateBody.role === 'string' ? candidateBody.role.trim() : '';
     if (roleRaw !== 'student' && roleRaw !== 'assistant' && roleRaw !== 'non-student') {
       return badRequest('role must be student, assistant or non-student');
     }
 
-    // For non-student role, `assignmentTypeId` (the role string) is required in the body.
     let assignmentTypeId: string | undefined;
     if (roleRaw === 'non-student') {
-      assignmentTypeId = typeof b.assignmentTypeId === 'string' ? b.assignmentTypeId.trim() : '';
+      assignmentTypeId = typeof candidateBody.assignmentTypeId === 'string' ? candidateBody.assignmentTypeId.trim() : '';
       if (!assignmentTypeId) return badRequest('assignmentTypeId is required for non-student role');
     }
 
-    // Optional excludePersonIds (array of strings).
     let excludePersonIds: readonly string[] | undefined;
-    if (b.excludePersonIds !== undefined) {
-      if (!Array.isArray(b.excludePersonIds)) return badRequest('excludePersonIds must be an array');
-      excludePersonIds = b.excludePersonIds.filter((v): v is string => typeof v === 'string');
+    if (candidateBody.excludePersonIds !== undefined) {
+      if (!Array.isArray(candidateBody.excludePersonIds)) return badRequest('excludePersonIds must be an array');
+      excludePersonIds = candidateBody.excludePersonIds.filter((value): value is string => typeof value === 'string');
     }
 
-    // Reject unknown fields to avoid silent parameter drift.
     const allowedKeys = new Set(['slotId', 'role', 'excludePersonIds', 'assignmentTypeId']);
-    const unknown = Object.keys(b).filter(k => !allowedKeys.has(k));
+    const unknown = Object.keys(candidateBody).filter(key => !allowedKeys.has(key));
     if (unknown.length > 0) return badRequest(`Unknown fields: ${unknown.sort().join(', ')}`);
 
-    // Construct the trusted AccessContext from the principal.
     const capabilities = new Set(principal.capabilities);
     if (!capabilities.has('schedule.read')) return forbidden();
     if (!capabilities.has('eligibility.read')) return forbidden();
@@ -226,9 +198,6 @@ export class CandidateQueryHttpTransport {
   }
 }
 
-/**
- * HTTP transport for the read-only schedule view.
- */
 export class ScheduleViewHttpTransport {
   readonly #service: ScheduleViewService;
 
@@ -272,6 +241,3 @@ export class ScheduleViewHttpTransport {
     }
   }
 }
-
-// Stub usage to keep the imported types "in use" for toolchains that warn.
-void toContext;
