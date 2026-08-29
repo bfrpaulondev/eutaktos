@@ -91,6 +91,7 @@ export function createPeopleApi(fetcher: typeof fetch = fetch): PeopleApi {
       const response = await fetcher('/api/people', {
         method: 'GET',
         credentials: 'same-origin',
+        cache: 'no-store',
         headers: { Accept: 'application/json' },
         signal,
       });
