@@ -10,6 +10,7 @@ import Space from 'antd/es/space';
 import Tag from 'antd/es/tag';
 import Typography from 'antd/es/typography';
 import { useEffect, useRef, useState } from 'react';
+import { PersonProfileLabels } from './PersonProfileLabels';
 import { assignmentTypeLabel } from './lib/assignmentTypeCatalog';
 import type { Locale } from './lib/preferences';
 import {
@@ -118,17 +119,20 @@ export function PersonRecommendationInsight({ personId, locale }: { personId: st
     return () => controller.abort();
   }, [personId, retryKey]);
 
-  return <Card aria-labelledby="person-recommendation-insight-title">
-    <Title level={4} id="person-recommendation-insight-title" style={{ marginTop: 0, marginBottom: 4 }}>{text.title}</Title>
-    <Paragraph type="secondary">{text.subtitle}</Paragraph>
+  return <Space direction="vertical" size="large" style={{ display: 'flex' }}>
+    <PersonProfileLabels personId={personId} locale={locale} />
+    <Card aria-labelledby="person-recommendation-insight-title">
+      <Title level={4} id="person-recommendation-insight-title" style={{ marginTop: 0, marginBottom: 4 }}>{text.title}</Title>
+      <Paragraph type="secondary">{text.subtitle}</Paragraph>
 
-    {state.status === 'loading' ? <div role="status" aria-live="polite" aria-label={text.loading}><Skeleton active paragraph={{ rows: 2 }} /></div> : null}
-    {state.status === 'blocked' ? <Alert type="info" showIcon icon={<LockOutlined />} message={text.blocked} /> : null}
-    {state.status === 'empty' ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={text.empty} /> : null}
-    {state.status === 'unavailable' ? <Alert type="warning" showIcon message={text.unavailable} action={<Button size="small" icon={<ReloadOutlined />} onClick={() => setRetryKey(value => value + 1)}>{text.retry}</Button>} /> : null}
-    {state.status === 'ready' ? <Space direction="vertical" size="small" style={{ width: '100%' }}>
-      {state.partial ? <Alert type="warning" showIcon message={text.partial} /> : null}
-      {state.insights.map(insight => <InsightCard key={`${insight.target.meetingId}:${insight.target.slotId}`} insight={insight} locale={locale} />)}
-    </Space> : null}
-  </Card>;
+      {state.status === 'loading' ? <div role="status" aria-live="polite" aria-label={text.loading}><Skeleton active paragraph={{ rows: 2 }} /></div> : null}
+      {state.status === 'blocked' ? <Alert type="info" showIcon icon={<LockOutlined />} message={text.blocked} /> : null}
+      {state.status === 'empty' ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={text.empty} /> : null}
+      {state.status === 'unavailable' ? <Alert type="warning" showIcon message={text.unavailable} action={<Button size="small" icon={<ReloadOutlined />} onClick={() => setRetryKey(value => value + 1)}>{text.retry}</Button>} /> : null}
+      {state.status === 'ready' ? <Space direction="vertical" size="small" style={{ width: '100%' }}>
+        {state.partial ? <Alert type="warning" showIcon message={text.partial} /> : null}
+        {state.insights.map(insight => <InsightCard key={`${insight.target.meetingId}:${insight.target.slotId}`} insight={insight} locale={locale} />)}
+      </Space> : null}
+    </Card>
+  </Space>;
 }
