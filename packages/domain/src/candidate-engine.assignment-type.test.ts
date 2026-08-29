@@ -42,7 +42,7 @@ function history(id: string, partType: string, meetingDate: string): AssignmentH
   };
 }
 
-describe('candidate recency by assignment type', () => {
+describe('candidate recency by assignment type and participant role', () => {
   it('ignores a newer assignment of another type when calculating last assignment', () => {
     const candidate = computeCandidate(person, {
       ...input,
@@ -51,7 +51,6 @@ describe('candidate recency by assignment type', () => {
         history('other-new', 'part:other', '2026-08-20'),
       ],
     });
-
     expect(candidate.lastAssignmentDate).toBe('2026-05-01');
     expect(candidate.daysSinceLastAssignment).toBe(120);
   });
@@ -65,7 +64,31 @@ describe('candidate recency by assignment type', () => {
         history('other-2', 'part:other', '2026-08-20'),
       ],
     });
-
     expect(candidate.recentAssignmentCount).toBe(1);
+  });
+
+  it('does not mix assistant history with student history for the same part', () => {
+    const candidate = computeCandidate(person, {
+      ...input,
+      role: 'student',
+      history: [
+        history('student-old', 'student:part:target', '2026-05-01'),
+        history('assistant-new', 'assistant:part:target', '2026-08-20'),
+      ],
+    });
+    expect(candidate.lastAssignmentDate).toBe('2026-05-01');
+    expect(candidate.recentAssignmentCount).toBe(0);
+  });
+
+  it('does not mix student history with assistant history for the same part', () => {
+    const candidate = computeCandidate(person, {
+      ...input,
+      role: 'assistant',
+      history: [
+        history('assistant-old', 'assistant:part:target', '2026-06-01'),
+        history('student-new', 'student:part:target', '2026-08-20'),
+      ],
+    });
+    expect(candidate.lastAssignmentDate).toBe('2026-06-01');
   });
 });
