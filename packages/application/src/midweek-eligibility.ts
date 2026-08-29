@@ -5,6 +5,8 @@ const STANDARD_ROLE_ELIGIBILITY: Readonly<Record<string, string>> = Object.freez
   'opening-prayer': 'hourglass:openprayer',
   'closing-prayer': 'hourglass:closeprayer',
   'bible-reading': 'hourglass:reading',
+  'builtin:opening-remarks': 'hourglass:mm_chairman',
+  'builtin:treasures-from-gods-word': 'hourglass:treasures',
 });
 
 export function studentEligibilityTypeId(part: Readonly<MidweekPartDefinition>): string {
@@ -15,12 +17,6 @@ export function assistantEligibilityTypeId(part: Readonly<MidweekPartDefinition>
   return part.assistantEligibilityTypeId ?? part.eligibilityTypeId ?? part.id;
 }
 
-/**
- * Resolve the explicit eligibility category for a non-student assignment.
- * When the role is itself a part-definition id, that part's configured
- * eligibility category is authoritative. Standard operational roles use
- * explicit source privilege categories imported from Hourglass.
- */
 export function nonStudentEligibilityTypeId(
   role: string,
   partDefinition?: Readonly<MidweekPartDefinition>,
