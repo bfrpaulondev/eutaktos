@@ -4,10 +4,7 @@ import type {
   PersonId,
   TenantId,
 } from './people';
-import {
-  buildEligibilityIndex,
-  checkEligibility,
-} from './eligibility-constraints';
+import { buildEligibilityIndex, checkEligibility } from './eligibility-constraints';
 import type { AssignmentHistoryRecord } from './assignment-history';
 import { assignmentCount } from './student-history-queries';
 import type { ConflictAssignment, SchedulingConflict, UnavailableInterval } from './conflict-engine';
@@ -118,17 +115,28 @@ function daysBetween(earlier: string, later: string): number {
   return Math.floor((parseDate(later) - parseDate(earlier)) / 86_400_000);
 }
 
-function completedHistoryForAssignmentType(
+/**
+ * Persisted history key. This deliberately separates the same meeting part when
+ * a person served as the student versus the assistant, and separates operational
+ * roles from student parts. Candidate recency must answer "last time in THIS
+ * function", not merely "last time in this slot".
+ */
+export function candidateHistoryPartType(role: CandidateRole, assignmentTypeId: AssignmentTypeId): string {
+  const normalized = requiredString(assignmentTypeId, 'assignmentTypeId');
+  return role === 'non-student' ? `role:${normalized}` : `${role}:${normalized}`;
+}
+
+function completedHistoryForPartType(
   history: readonly AssignmentHistoryRecord[],
   personId: PersonId,
   tenantId: TenantId,
-  assignmentTypeId: AssignmentTypeId,
+  partType: string,
 ): readonly AssignmentHistoryRecord[] {
   return history
     .filter(record =>
       record.tenantId === tenantId &&
       record.personId === personId &&
-      record.partType === assignmentTypeId &&
+      record.partType === partType &&
       record.state === 'completed',
     )
     .sort((a, b) =>
@@ -144,11 +152,7 @@ function recentWindowStart(referenceDate: string, days: number): string {
   return `${start.getUTCFullYear()}-${String(start.getUTCMonth() + 1).padStart(2, '0')}-${String(start.getUTCDate()).padStart(2, '0')}`;
 }
 
-function computeScore(input: {
-  readonly daysSinceLast: number | null;
-  readonly recentCount: number;
-  readonly alreadyInMeeting: boolean;
-}): number {
+function computeScore(input: { readonly daysSinceLast: number | null; readonly recentCount: number; readonly alreadyInMeeting: boolean }): number {
   let score = input.daysSinceLast === null
     ? 30
     : Math.round((Math.min(input.daysSinceLast, LONG_TIME_SINCE_DAYS * 2) / LONG_TIME_SINCE_DAYS) * 40);
@@ -161,10 +165,7 @@ function reason(kind: CandidateReasonKind, messageKey: string, params: Readonly<
   return Object.freeze({ kind, messageKey, params: Object.freeze({ ...params }) });
 }
 
-export function computeCandidate(
-  person: CongregationPerson,
-  input: CandidateQueryInput,
-): Readonly<CandidateProfile> {
+export function computeCandidate(person: CongregationPerson, input: CandidateQueryInput): Readonly<CandidateProfile> {
   requiredString(input.tenantId, 'tenantId');
   requiredString(input.assignmentTypeId, 'assignmentTypeId');
   requiredString(input.role, 'role');
@@ -172,9 +173,7 @@ export function computeCandidate(
   validateWindow(input.startsAt, input.endsAt);
 
   const recentWindowDays = input.recentWindowDays ?? DEFAULT_RECENT_WINDOW_DAYS;
-  if (!Number.isInteger(recentWindowDays) || recentWindowDays <= 0) {
-    throw new Error('recentWindowDays must be a positive integer');
-  }
+  if (!Number.isInteger(recentWindowDays) || recentWindowDays <= 0) throw new Error('recentWindowDays must be a positive integer');
   if (person.tenantId !== input.tenantId) throw new Error('Cross-tenant candidate access denied');
 
   const eligibilityIndex = buildEligibilityIndex([person], input.tenantId);
@@ -187,14 +186,12 @@ export function computeCandidate(
 
   const slotStart = parseInstant(input.startsAt, 'startsAt');
   const slotEnd = parseInstant(input.endsAt, 'endsAt');
-  const hasUnavailableOverlap = unavailableForPerson.some(period =>
-    overlaps(
-      slotStart,
-      slotEnd,
-      parseInstant(period.startsAt, 'unavailable.startsAt'),
-      parseInstant(period.endsAt, 'unavailable.endsAt'),
-    ),
-  );
+  const hasUnavailableOverlap = unavailableForPerson.some(period => overlaps(
+    slotStart,
+    slotEnd,
+    parseInstant(period.startsAt, 'unavailable.startsAt'),
+    parseInstant(period.endsAt, 'unavailable.endsAt'),
+  ));
   const available = !inactive && !hasUnavailableOverlap;
 
   const candidateAssignment: ConflictAssignment = Object.freeze({
@@ -211,21 +208,15 @@ export function computeCandidate(
     unavailable: unavailableForPerson,
   }).map(conflict => Object.freeze({ kind: conflict.kind, sourceId: conflict.sourceId }));
 
-  // Recency is deliberately scoped to THIS assignment type. A recent unrelated
-  // assignment must never make this role look recent or inflate this role's load.
-  const relevantHistory = completedHistoryForAssignmentType(
-    input.history,
-    person.id,
-    input.tenantId,
-    input.assignmentTypeId,
-  );
+  const historyPartType = candidateHistoryPartType(input.role, input.assignmentTypeId);
+  const relevantHistory = completedHistoryForPartType(input.history, person.id, input.tenantId, historyPartType);
   const lastRecord = relevantHistory[0];
   const lastDate = lastRecord?.meetingDate ?? null;
   const daysSince = lastDate === null ? null : daysBetween(lastDate, input.referenceDate);
   const recentCount = assignmentCount(input.history, person.id, input.tenantId, {
     from: recentWindowStart(input.referenceDate, recentWindowDays),
     to: input.referenceDate,
-    partType: input.assignmentTypeId,
+    partType: historyPartType,
   });
   const alreadyInMeeting = input.personsInSameMeeting.has(person.id);
 
@@ -239,18 +230,11 @@ export function computeCandidate(
       reasons.push(reason('no_history_for_assignment', 'midweek.candidates.reason.noHistoryForAssignment'));
     } else if (daysSince !== null) {
       const weeks = Math.floor(daysSince / 7);
-      if (weeks >= LONG_TIME_SINCE_WEEKS) {
-        reasons.push(reason('long_time_since_assignment', 'midweek.candidates.reason.longTimeSinceAssignment', { weeks }));
-      } else if (weeks <= 2) {
-        reasons.push(reason('recent_assignment_for_role', 'midweek.candidates.reason.recentAssignmentForRole', { weeks }));
-      }
+      if (weeks >= LONG_TIME_SINCE_WEEKS) reasons.push(reason('long_time_since_assignment', 'midweek.candidates.reason.longTimeSinceAssignment', { weeks }));
+      else if (weeks <= 2) reasons.push(reason('recent_assignment_for_role', 'midweek.candidates.reason.recentAssignmentForRole', { weeks }));
     }
-    if (recentCount <= LOW_RECENT_LOAD_MAX) {
-      reasons.push(reason('low_recent_assignment_load', 'midweek.candidates.reason.lowRecentAssignmentLoad', { count: recentCount }));
-    }
-    if (alreadyInMeeting) {
-      reasons.push(reason('already_assigned_in_meeting', 'midweek.candidates.reason.alreadyAssignedInMeeting'));
-    }
+    if (recentCount <= LOW_RECENT_LOAD_MAX) reasons.push(reason('low_recent_assignment_load', 'midweek.candidates.reason.lowRecentAssignmentLoad', { count: recentCount }));
+    if (alreadyInMeeting) reasons.push(reason('already_assigned_in_meeting', 'midweek.candidates.reason.alreadyAssignedInMeeting'));
     if (reasons.length === 0) reasons.push(reason('available', 'midweek.candidates.reason.available'));
   }
 
@@ -272,19 +256,14 @@ export function computeCandidate(
   });
 }
 
-export function computeCandidates(
-  input: CandidateQueryInput,
-): readonly Readonly<CandidateProfile>[] {
+export function computeCandidates(input: CandidateQueryInput): readonly Readonly<CandidateProfile>[] {
   requiredString(input.tenantId, 'tenantId');
   requiredString(input.assignmentTypeId, 'assignmentTypeId');
   requiredString(input.role, 'role');
   validateReferenceDate(input.referenceDate);
   validateWindow(input.startsAt, input.endsAt);
 
-  const results = input.people
-    .filter(person => person.tenantId === input.tenantId)
-    .map(person => computeCandidate(person, input));
-
+  const results = input.people.filter(person => person.tenantId === input.tenantId).map(person => computeCandidate(person, input));
   return Object.freeze(results.sort((left, right) => {
     const leftValid = left.eligible && left.available && left.conflicts.length === 0;
     const rightValid = right.eligible && right.available && right.conflicts.length === 0;
@@ -294,17 +273,10 @@ export function computeCandidates(
   }));
 }
 
-export function selectValidCandidates(
-  candidates: readonly Readonly<CandidateProfile>[],
-): readonly Readonly<CandidateProfile>[] {
-  return Object.freeze(candidates.filter(candidate =>
-    candidate.eligible && candidate.available && candidate.conflicts.length === 0,
-  ));
+export function selectValidCandidates(candidates: readonly Readonly<CandidateProfile>[]): readonly Readonly<CandidateProfile>[] {
+  return Object.freeze(candidates.filter(candidate => candidate.eligible && candidate.available && candidate.conflicts.length === 0));
 }
 
-export function assertCandidateTenant(
-  candidate: Readonly<CandidateProfile>,
-  tenantId: TenantId,
-): void {
+export function assertCandidateTenant(candidate: Readonly<CandidateProfile>, tenantId: TenantId): void {
   if (candidate.tenantId !== tenantId) throw new Error('Cross-tenant candidate access denied');
 }
