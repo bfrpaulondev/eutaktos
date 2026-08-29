@@ -178,6 +178,7 @@ export function createPeopleDirectoryApi(fetcher: typeof fetch = fetch) {
       const response = await fetcher('/api/people/directory', {
         method: 'GET',
         credentials: 'same-origin',
+        cache: 'no-store',
         headers: { Accept: 'application/json' },
         signal,
       });
