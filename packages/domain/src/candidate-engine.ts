@@ -53,7 +53,10 @@ export interface CandidateProfile {
 export interface CandidateQueryInput {
   readonly tenantId: TenantId;
   readonly role: CandidateRole;
+  /** Stable scheduling/history identity for this part or role. */
   readonly assignmentTypeId: AssignmentTypeId;
+  /** Explicit configured eligibility category. Defaults to assignmentTypeId. */
+  readonly eligibilityAssignmentTypeId?: AssignmentTypeId;
   readonly referenceDate: string;
   readonly startsAt: string;
   readonly endsAt: string;
@@ -90,9 +93,7 @@ function validateReferenceDate(value: string): string {
   if (!REFERENCE_DATE_RE.test(ref)) throw new Error(`referenceDate must be YYYY-MM-DD: ${value}`);
   const [year, month, day] = ref.split('-').map(Number);
   const date = new Date(Date.UTC(year, month - 1, day));
-  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
-    throw new Error(`referenceDate is not a valid calendar date: ${value}`);
-  }
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) throw new Error(`referenceDate is not a valid calendar date: ${value}`);
   return ref;
 }
 
@@ -125,16 +126,10 @@ function completedHistoryForCandidate(
   assignmentTypeId: AssignmentTypeId,
 ): readonly AssignmentHistoryRecord[] {
   const roleKey = candidateHistoryPartType(role, assignmentTypeId);
-  const base = history.filter(record =>
-    record.tenantId === tenantId && record.personId === personId && record.state === 'completed',
-  );
+  const base = history.filter(record => record.tenantId === tenantId && record.personId === personId && record.state === 'completed');
   const roleScoped = base.filter(record => record.partType === roleKey);
-  // Pre-role-key records are supported only as a migration fallback. Once a
-  // role-specific fact exists, generic legacy facts no longer influence recency.
   const selected = roleScoped.length > 0 ? roleScoped : base.filter(record => record.partType === assignmentTypeId);
-  return selected.sort((a, b) =>
-    b.meetingDate.localeCompare(a.meetingDate) || b.recordedAt.localeCompare(a.recordedAt) || b.id.localeCompare(a.id),
-  );
+  return selected.sort((a, b) => b.meetingDate.localeCompare(a.meetingDate) || b.recordedAt.localeCompare(a.recordedAt) || b.id.localeCompare(a.id));
 }
 
 function recentWindowStart(referenceDate: string, days: number): string {
@@ -144,9 +139,7 @@ function recentWindowStart(referenceDate: string, days: number): string {
 }
 
 function computeScore(input: { readonly daysSinceLast: number | null; readonly recentCount: number; readonly alreadyInMeeting: boolean }): number {
-  let score = input.daysSinceLast === null
-    ? 30
-    : Math.round((Math.min(input.daysSinceLast, LONG_TIME_SINCE_DAYS * 2) / LONG_TIME_SINCE_DAYS) * 40);
+  let score = input.daysSinceLast === null ? 30 : Math.round((Math.min(input.daysSinceLast, LONG_TIME_SINCE_DAYS * 2) / LONG_TIME_SINCE_DAYS) * 40);
   if (input.recentCount <= LOW_RECENT_LOAD_MAX) score += 20;
   if (input.alreadyInMeeting) score -= 25;
   return score;
@@ -159,6 +152,7 @@ function reason(kind: CandidateReasonKind, messageKey: string, params: Readonly<
 export function computeCandidate(person: CongregationPerson, input: CandidateQueryInput): Readonly<CandidateProfile> {
   requiredString(input.tenantId, 'tenantId');
   requiredString(input.assignmentTypeId, 'assignmentTypeId');
+  const eligibilityAssignmentTypeId = requiredString(input.eligibilityAssignmentTypeId ?? input.assignmentTypeId, 'eligibilityAssignmentTypeId');
   requiredString(input.role, 'role');
   validateReferenceDate(input.referenceDate);
   validateWindow(input.startsAt, input.endsAt);
@@ -168,7 +162,7 @@ export function computeCandidate(person: CongregationPerson, input: CandidateQue
   if (person.tenantId !== input.tenantId) throw new Error('Cross-tenant candidate access denied');
 
   const eligibilityIndex = buildEligibilityIndex([person], input.tenantId);
-  const eligible = checkEligibility(eligibilityIndex, input.tenantId, person.id, input.assignmentTypeId);
+  const eligible = checkEligibility(eligibilityIndex, input.tenantId, person.id, eligibilityAssignmentTypeId);
   const inactive = !person.active;
 
   const unavailableForPerson = input.unavailable
@@ -176,24 +170,12 @@ export function computeCandidate(person: CongregationPerson, input: CandidateQue
     : unavailableIntervalsForPerson(person, input.tenantId);
   const slotStart = parseInstant(input.startsAt, 'startsAt');
   const slotEnd = parseInstant(input.endsAt, 'endsAt');
-  const hasUnavailableOverlap = unavailableForPerson.some(period => overlaps(
-    slotStart, slotEnd, parseInstant(period.startsAt, 'unavailable.startsAt'), parseInstant(period.endsAt, 'unavailable.endsAt'),
-  ));
+  const hasUnavailableOverlap = unavailableForPerson.some(period => overlaps(slotStart, slotEnd, parseInstant(period.startsAt, 'unavailable.startsAt'), parseInstant(period.endsAt, 'unavailable.endsAt')));
   const available = !inactive && !hasUnavailableOverlap;
 
-  const candidateAssignment: ConflictAssignment = Object.freeze({
-    tenantId: input.tenantId,
-    assignmentId: `candidate:${person.id}`,
-    personId: person.id,
-    startsAt: input.startsAt,
-    endsAt: input.endsAt,
-  });
-  const conflictInfo: CandidateConflictInfo[] = detectSchedulingConflicts({
-    tenantId: input.tenantId,
-    candidate: candidateAssignment,
-    assignments: input.existingAssignments,
-    unavailable: unavailableForPerson,
-  }).map(conflict => Object.freeze({ kind: conflict.kind, sourceId: conflict.sourceId }));
+  const candidateAssignment: ConflictAssignment = Object.freeze({ tenantId: input.tenantId, assignmentId: `candidate:${person.id}`, personId: person.id, startsAt: input.startsAt, endsAt: input.endsAt });
+  const conflictInfo: CandidateConflictInfo[] = detectSchedulingConflicts({ tenantId: input.tenantId, candidate: candidateAssignment, assignments: input.existingAssignments, unavailable: unavailableForPerson })
+    .map(conflict => Object.freeze({ kind: conflict.kind, sourceId: conflict.sourceId }));
 
   const relevantHistory = completedHistoryForCandidate(input.history, person.id, input.tenantId, input.role, input.assignmentTypeId);
   const lastRecord = relevantHistory[0];
@@ -219,26 +201,17 @@ export function computeCandidate(person: CongregationPerson, input: CandidateQue
   }
 
   return Object.freeze({
-    personId: person.id,
-    displayName: person.displayName,
-    tenantId: input.tenantId,
-    role: input.role,
-    eligible,
-    available,
-    inactive,
-    conflicts: Object.freeze(conflictInfo),
-    lastAssignmentDate: lastDate,
-    daysSinceLastAssignment: daysSince,
-    recentAssignmentCount: recentCount,
-    alreadyAssignedInMeeting: alreadyInMeeting,
-    suggestionScore: computeScore({ daysSinceLast: daysSince, recentCount, alreadyInMeeting }),
-    reasons: Object.freeze(reasons),
+    personId: person.id, displayName: person.displayName, tenantId: input.tenantId, role: input.role,
+    eligible, available, inactive, conflicts: Object.freeze(conflictInfo), lastAssignmentDate: lastDate,
+    daysSinceLastAssignment: daysSince, recentAssignmentCount: recentCount, alreadyAssignedInMeeting: alreadyInMeeting,
+    suggestionScore: computeScore({ daysSinceLast: daysSince, recentCount, alreadyInMeeting }), reasons: Object.freeze(reasons),
   });
 }
 
 export function computeCandidates(input: CandidateQueryInput): readonly Readonly<CandidateProfile>[] {
   requiredString(input.tenantId, 'tenantId');
   requiredString(input.assignmentTypeId, 'assignmentTypeId');
+  if (input.eligibilityAssignmentTypeId !== undefined) requiredString(input.eligibilityAssignmentTypeId, 'eligibilityAssignmentTypeId');
   requiredString(input.role, 'role');
   validateReferenceDate(input.referenceDate);
   validateWindow(input.startsAt, input.endsAt);
