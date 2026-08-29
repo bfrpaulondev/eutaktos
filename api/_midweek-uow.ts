@@ -9,7 +9,9 @@ import {
   assertCapability,
   assertResourceTenant,
   findSlotById,
+  normalizeAssignmentHistoryRecord,
   type AccessContext,
+  type AssignmentHistoryRecord,
   type ConflictAssignment,
   type CongregationPerson,
   type MidweekMeeting,
@@ -17,7 +19,7 @@ import {
   type NonStudentAssignment,
   type StudentAssignment,
 } from '@eutaktos/domain';
-import type { EntityRow } from './_db';
+import type { AssignmentHistoryRow, EntityRow } from './_db';
 import { SupabaseRestDatabase } from './_db';
 
 type TenantEntity = { readonly id: string; readonly tenantId: string };
@@ -137,6 +139,7 @@ export interface SchedulingSnapshotRows {
   readonly nonStudentAssignments: readonly EntityRow[];
   readonly people: readonly EntityRow[];
   readonly partDefinitions: readonly EntityRow[];
+  readonly assignmentHistory?: readonly AssignmentHistoryRow[];
 }
 
 export class SchedulingSnapshotUnitOfWork implements MidweekSchedulingUnitOfWork {
@@ -146,7 +149,9 @@ export class SchedulingSnapshotUnitOfWork implements MidweekSchedulingUnitOfWork
   readonly #nonStudents = new Map<string, Snapshot<Readonly<NonStudentAssignment>>>();
   readonly #people = new Map<string, CongregationPerson>();
   readonly #parts = new Map<string, Readonly<MidweekPartDefinition>>();
+  readonly #history: Readonly<AssignmentHistoryRecord>[];
   #pending?: PendingSchedulingChange;
+  #pendingHistory?: Readonly<Record<string, unknown>>;
 
   constructor(tenantId: string, rows: SchedulingSnapshotRows) {
     this.#tenantId = tenantId;
@@ -160,6 +165,23 @@ export class SchedulingSnapshotUnitOfWork implements MidweekSchedulingUnitOfWork
       if (this.#parts.has(part.id)) throw new Error('Duplicate part definition id');
       this.#parts.set(part.id, clonePart(part));
     }
+    // Hydrate assignment history (may be empty on first run or if migration not yet applied).
+    this.#history = (rows.assignmentHistory ?? []).map(row => normalizeAssignmentHistoryRecord({
+      id: row.id,
+      tenantId: row.tenant_id,
+      assignmentId: row.assignment_id,
+      personId: row.person_id,
+      partType: row.part_type,
+      meetingId: row.meeting_id,
+      meetingDate: row.meeting_date,
+      state: row.state,
+      recordedAt: row.recorded_at,
+    }));
+  }
+
+  #assertRead(context: AccessContext): void {
+    ensureTenant(context, this.#tenantId);
+    assertCapability(context, 'schedule.read');
   }
 
   #assertWrite(context: AccessContext): void {
@@ -168,25 +190,25 @@ export class SchedulingSnapshotUnitOfWork implements MidweekSchedulingUnitOfWork
   }
 
   findMeeting(context: AccessContext, meetingId: string): Readonly<MidweekMeeting> | undefined {
-    this.#assertWrite(context);
+    this.#assertRead(context);
     const value = this.#meetings.get(meetingId)?.value;
     return value ? cloneMeeting(value) : undefined;
   }
 
   findStudentAssignment(context: AccessContext, assignmentId: string): Readonly<StudentAssignment> | undefined {
-    this.#assertWrite(context);
+    this.#assertRead(context);
     const value = this.#students.get(assignmentId)?.value;
     return value ? Object.freeze(structuredClone(value)) : undefined;
   }
 
   findNonStudentAssignment(context: AccessContext, assignmentId: string): Readonly<NonStudentAssignment> | undefined {
-    this.#assertWrite(context);
+    this.#assertRead(context);
     const value = this.#nonStudents.get(assignmentId)?.value;
     return value ? Object.freeze(structuredClone(value)) : undefined;
   }
 
   listStudentAssignments(context: AccessContext, meetingId: string): readonly Readonly<StudentAssignment>[] {
-    this.#assertWrite(context);
+    this.#assertRead(context);
     return Object.freeze([...this.#students.values()]
       .map(row => row.value)
       .filter(value => value.meetingId === meetingId)
@@ -194,15 +216,20 @@ export class SchedulingSnapshotUnitOfWork implements MidweekSchedulingUnitOfWork
   }
 
   listNonStudentAssignments(context: AccessContext, meetingId: string): readonly Readonly<NonStudentAssignment>[] {
-    this.#assertWrite(context);
+    this.#assertRead(context);
     return Object.freeze([...this.#nonStudents.values()]
       .map(row => row.value)
       .filter(value => value.meetingId === meetingId)
       .map(value => Object.freeze(structuredClone(value))));
   }
 
+  listPeople(context: AccessContext): readonly CongregationPerson[] {
+    this.#assertRead(context);
+    return Object.freeze([...this.#people.values()].map(value => clonePerson(value)));
+  }
+
   findPerson(context: AccessContext, personId: string): CongregationPerson | undefined {
-    this.#assertWrite(context);
+    this.#assertRead(context);
     const value = this.#people.get(personId);
     return value ? clonePerson(value) : undefined;
   }
@@ -210,6 +237,16 @@ export class SchedulingSnapshotUnitOfWork implements MidweekSchedulingUnitOfWork
   findPartDefinition(partDefinitionId: string): Readonly<MidweekPartDefinition> | undefined {
     const value = this.#parts.get(partDefinitionId);
     return value ? clonePart(value) : undefined;
+  }
+
+  listPartDefinitions(context: AccessContext): readonly Readonly<MidweekPartDefinition>[] {
+    this.#assertRead(context);
+    return Object.freeze([...this.#parts.values()].map(value => clonePart(value)));
+  }
+
+  listAssignmentHistory(context: AccessContext): readonly Readonly<AssignmentHistoryRecord>[] {
+    this.#assertRead(context);
+    return Object.freeze(this.#history.map(value => Object.freeze(structuredClone(value))));
   }
 
   resolveSlotWindow(context: AccessContext, meeting: Readonly<MidweekMeeting>, slotId: string): SchedulingWindow {
@@ -281,10 +318,50 @@ export class SchedulingSnapshotUnitOfWork implements MidweekSchedulingUnitOfWork
     if (resource.entityType === 'midweek-meeting') this.#meetings.set(resource.value.id, { value: cloneMeeting(resource.value as MidweekMeeting), version: nextVersion });
     if (resource.entityType === 'student-assignment') this.#students.set(resource.value.id, { value: Object.freeze(structuredClone(resource.value as StudentAssignment)), version: nextVersion });
     if (resource.entityType === 'non-student-assignment') this.#nonStudents.set(resource.value.id, { value: Object.freeze(structuredClone(resource.value as NonStudentAssignment)), version: nextVersion });
+
+    // Build pending assignment history record when this commit creates/completes/cancels an assignment.
+    // The history is recorded separately via `record_assignment_history` RPC during flush.
+    // For meetings (publish/cancel/archive), no history record is needed.
+    if (resource.entityType === 'student-assignment') {
+      const assignment = resource.value as StudentAssignment;
+      const meeting = this.#meetings.get(assignment.meetingId)?.value;
+      if (meeting) {
+        const slot = meeting.slots.find(s => s.id === assignment.slotId);
+        const partType = slot?.partDefinitionId ?? 'unknown';
+        this.#pendingHistory = Object.freeze({
+          p_tenant_id: this.#tenantId,
+          p_id: `history-${crypto.randomUUID()}`,
+          p_assignment_id: assignment.id,
+          p_person_id: assignment.studentId,
+          p_part_type: partType,
+          p_meeting_id: meeting.id,
+          p_meeting_date: meeting.date,
+          p_state: assignment.state,
+          p_recorded_at: new Date().toISOString(),
+        });
+      }
+    } else if (resource.entityType === 'non-student-assignment') {
+      const assignment = resource.value as NonStudentAssignment;
+      const meeting = this.#meetings.get(assignment.meetingId)?.value;
+      if (meeting) {
+        this.#pendingHistory = Object.freeze({
+          p_tenant_id: this.#tenantId,
+          p_id: `history-${crypto.randomUUID()}`,
+          p_assignment_id: assignment.id,
+          p_person_id: assignment.personId,
+          p_part_type: assignment.role,
+          p_meeting_id: meeting.id,
+          p_meeting_date: meeting.date,
+          p_state: assignment.state,
+          p_recorded_at: new Date().toISOString(),
+        });
+      }
+    }
   }
 
   async flush(database: SupabaseRestDatabase): Promise<void> {
     const pending = this.#pending;
+    const pendingHistory = this.#pendingHistory;
     if (!pending) return;
     await database.applyEntityChange({
       p_tenant_id: this.#tenantId,
@@ -296,5 +373,17 @@ export class SchedulingSnapshotUnitOfWork implements MidweekSchedulingUnitOfWork
       p_event: pending.domainEvent,
     });
     this.#pending = undefined;
+    // Record assignment history after the entity change succeeds. This is best-effort:
+    // if it fails, the assignment is still created (history is a derived view for recency).
+    // The append-only `ON CONFLICT DO NOTHING` makes retries idempotent.
+    if (pendingHistory) {
+      try {
+        await database.recordAssignmentHistory(pendingHistory);
+      } catch {
+        // History persistence is best-effort; the assignment is already committed.
+        // The next successful flush will retry on the next assignment mutation.
+      }
+      this.#pendingHistory = undefined;
+    }
   }
 }

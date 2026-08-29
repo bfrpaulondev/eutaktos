@@ -20,7 +20,7 @@ function uow(meetings: readonly EntityRow[] = []) {
   return new SchedulingSnapshotUnitOfWork(tenantId, { meetings, studentAssignments: [], nonStudentAssignments: [], people: [], partDefinitions: [] });
 }
 function context(tenant = tenantId) {
-  return createAccessContext({ tenantId: tenant, actorId: 'actor-1', capabilities: ['schedule.write'] });
+  return createAccessContext({ tenantId: tenant, actorId: 'actor-1', capabilities: ['schedule.read', 'schedule.write', 'eligibility.read', 'availability.read'] });
 }
 
 describe('SchedulingSnapshotUnitOfWork', () => {

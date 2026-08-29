@@ -1,8 +1,8 @@
 import { StudentAssignmentReplacementService } from '@eutaktos/application';
-import { MidweekSchedulingHttpTransport, StudentAssignmentReplacementHttpTransport, type TransportResponse } from '@eutaktos/transport';
+import { CandidateQueryHttpTransport, MidweekSchedulingHttpTransport, ScheduleViewHttpTransport, StudentAssignmentReplacementHttpTransport, type TransportResponse } from '@eutaktos/transport';
 import { requireCapability, resolvePrincipal } from '../_auth';
 import { assertTrustedMutation, runEndpoint } from '../_endpoint';
-import { loadMidweekScheduling } from '../_midweek';
+import { loadCandidateQueryService, loadMidweekScheduling, loadScheduleViewService } from '../_midweek';
 import { SchedulingRuntimeIds } from '../_midweek-uow';
 import { sendTransport, transportRequest } from '../_transport';
 import { json, methodNotAllowed, type ApiHandler } from '../_types';
@@ -18,19 +18,51 @@ const handler: ApiHandler = async (request, response) => {
   const route = segments(request.query.route);
   if (route.length === 0) { notFound(response); return; }
 
-  let allowedMethod: 'POST' | 'PUT' | 'DELETE' | undefined;
+  // Determine allowed method for each route shape.
+  let allowedMethod: 'POST' | 'PUT' | 'DELETE' | 'GET' | undefined;
   if (route[0] === 'meetings' && route.length === 2) allowedMethod = 'PUT';
   if (route[0] === 'meetings' && route.length === 3 && route[2] === 'slots') allowedMethod = 'POST';
   if (route[0] === 'meetings' && route.length === 4 && route[2] === 'slots') allowedMethod = 'DELETE';
   if (route[0] === 'meetings' && route.length === 3 && (route[2] === 'student-assignments' || route[2] === 'non-student-assignments')) allowedMethod = 'POST';
   if (route[0] === 'meetings' && route.length === 3 && (route[2] === 'publish' || route[2] === 'cancel' || route[2] === 'archive')) allowedMethod = 'POST';
+  if (route[0] === 'meetings' && route.length === 3 && route[2] === 'candidates') allowedMethod = 'POST';
+  if (route[0] === 'meetings' && route.length === 3 && route[2] === 'schedule-view') allowedMethod = 'GET';
   if (route[0] === 'student-assignments' && route.length === 3 && (route[2] === 'cancel' || route[2] === 'replace')) allowedMethod = 'POST';
   if (route[0] === 'non-student-assignments' && route.length === 3 && (route[2] === 'cancel' || route[2] === 'replace')) allowedMethod = 'POST';
   if (!allowedMethod) { notFound(response); return; }
   if (request.method !== allowedMethod) { methodNotAllowed(response, [allowedMethod]); return; }
 
+  // Read-only routes: candidates (POST with body for query parameters) and schedule-view (GET).
+  // These require only schedule.read + eligibility.read + availability.read, NOT schedule.write.
+  const isReadOnlyRoute = (route[0] === 'meetings' && route.length === 3 && (route[2] === 'candidates' || route[2] === 'schedule-view'));
+
   await runEndpoint(request, response, async database => {
     const principal = await resolvePrincipal(request, database);
+
+    if (isReadOnlyRoute) {
+      // Read-only routes: only require schedule.read.
+      requireCapability(principal, 'schedule.read');
+      const meetingId = route[1] as string;
+
+      if (route[2] === 'candidates') {
+        const { service } = await loadCandidateQueryService(database, principal);
+        const transport = new CandidateQueryHttpTransport(service);
+        const result = transport.listCandidates(transportRequest(request, principal), principal, { meetingId });
+        sendTransport(response, result);
+        return;
+      }
+      if (route[2] === 'schedule-view') {
+        const { service } = await loadScheduleViewService(database, principal);
+        const transport = new ScheduleViewHttpTransport(service);
+        const result = transport.viewMeeting(transportRequest(request, principal), principal, { meetingId });
+        sendTransport(response, result);
+        return;
+      }
+      notFound(response);
+      return;
+    }
+
+    // Write routes: require schedule.write + trusted mutation.
     requireCapability(principal, 'schedule.write');
     assertTrustedMutation(request);
     const { service, unitOfWork } = await loadMidweekScheduling(database, principal);

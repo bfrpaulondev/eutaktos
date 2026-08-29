@@ -8,6 +8,7 @@ import {
   assertResourceTenant,
   findSlotById,
   type AccessContext,
+  type AssignmentHistoryRecord,
   type AuditEvent,
   type ConflictAssignment,
   type CongregationPerson,
@@ -145,9 +146,28 @@ export class InMemoryMidweekSchedulingUnitOfWork implements MidweekSchedulingUni
     return person ? clonePerson(person) : undefined;
   }
 
+  listPeople(context: AccessContext): readonly CongregationPerson[] {
+    this.#assertWrite(context);
+    const prefix = `${context.tenantId}:`;
+    return Object.freeze(
+      [...this.#people.entries()]
+        .filter(([k]) => k.startsWith(prefix))
+        .map(([, v]) => clonePerson(v)),
+    );
+  }
+
   findPartDefinition(partDefinitionId: string): Readonly<MidweekPartDefinition> | undefined {
     const part = this.#parts.get(partDefinitionId);
     return part ? clonePart(part) : undefined;
+  }
+
+  listPartDefinitions(context: AccessContext): readonly Readonly<MidweekPartDefinition>[] {
+    this.#assertWrite(context);
+    return Object.freeze([...this.#parts.values()].map(clonePart));
+  }
+
+  listAssignmentHistory(_context: AccessContext): readonly Readonly<AssignmentHistoryRecord>[] {
+    return Object.freeze([]);
   }
 
   resolveSlotWindow(

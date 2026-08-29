@@ -1,9 +1,10 @@
-export type AppSection = 'home' | 'agenda' | 'assignments' | 'people' | 'preferences';
+export type AppSection = 'home' | 'agenda' | 'assignments' | 'schedule' | 'people' | 'preferences';
 
 export const SECTION_PATHS: Readonly<Record<AppSection, string>> = Object.freeze({
   home: '/',
   agenda: '/agenda',
   assignments: '/designacoes',
+  schedule: '/programacao',
   people: '/pessoas',
   preferences: '/preferencias',
 });
@@ -13,6 +14,8 @@ const PATH_SECTIONS: Readonly<Record<string, AppSection>> = Object.freeze({
   '/agenda': 'agenda',
   '/designacoes': 'assignments',
   '/assignments': 'assignments',
+  '/programacao': 'schedule',
+  '/schedule': 'schedule',
   '/pessoas': 'people',
   '/people': 'people',
   '/preferencias': 'preferences',

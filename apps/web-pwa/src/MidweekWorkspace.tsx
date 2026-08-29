@@ -15,30 +15,34 @@ import { authenticationApi } from './lib/authApi';
 import { peopleApi, type PersonProfileDto } from './lib/peopleApi';
 import type { Locale } from './lib/preferences';
 import { CreateMidweekMeetingControl, MidweekMeetingControls, NonStudentAssignmentControls, StudentAssignmentControls } from './MidweekAuthoringControls';
+import { MidweekScheduleView } from './MidweekScheduleView';
 
-export type MidweekWorkspaceSection = 'agenda' | 'assignments';
+export type MidweekWorkspaceSection = 'agenda' | 'assignments' | 'schedule';
 
 const copy = {
   'pt-PT': {
-    agenda: 'Agenda', assignments: 'Designações', agendaSubtitle: 'Reuniões reais guardadas para esta congregação.', assignmentsSubtitle: 'Designações reais, com o estado atual e a reunião correspondente.',
+    agenda: 'Agenda', assignments: 'Designações', schedule: 'Programação', agendaSubtitle: 'Reuniões reais guardadas para esta congregação.', assignmentsSubtitle: 'Designações reais, com o estado atual e a reunião correspondente.', scheduleSubtitle: 'Veja e organize as designações da reunião selecionada.',
     loadingAgenda: 'A carregar a agenda…', loadingAssignments: 'A carregar designações…', unavailable: 'Não foi possível carregar os dados reais.', retry: 'Tentar novamente',
     emptyAgenda: 'Ainda não existem reuniões na agenda.', emptyAssignments: 'Ainda não existem designações.', slots: 'partes', slot: 'parte',
     draft: 'Rascunho', published: 'Publicada', cancelled: 'Cancelada', archived: 'Arquivada', assigned: 'Designada', completed: 'Concluída',
     student: 'Estudante', assistant: 'Ajudante', role: 'Função', meeting: 'Reunião', noAssistant: 'Sem ajudante', realData: 'Dados reais', cancelledAssignment: 'Cancelada',
+    selectMeeting: 'Selecione uma reunião para ver a programação', openSchedule: 'Abrir programação',
   },
   en: {
-    agenda: 'Agenda', assignments: 'Assignments', agendaSubtitle: 'Real meetings stored for this congregation.', assignmentsSubtitle: 'Real assignments with their current state and related meeting.',
+    agenda: 'Agenda', assignments: 'Assignments', schedule: 'Schedule', agendaSubtitle: 'Real meetings stored for this congregation.', assignmentsSubtitle: 'Real assignments with their current state and related meeting.', scheduleSubtitle: 'View and organize the assignments of the selected meeting.',
     loadingAgenda: 'Loading agenda…', loadingAssignments: 'Loading assignments…', unavailable: 'Real data could not be loaded.', retry: 'Try again',
     emptyAgenda: 'There are no meetings in the agenda yet.', emptyAssignments: 'There are no assignments yet.', slots: 'parts', slot: 'part',
     draft: 'Draft', published: 'Published', cancelled: 'Cancelled', archived: 'Archived', assigned: 'Assigned', completed: 'Completed',
     student: 'Student', assistant: 'Assistant', role: 'Role', meeting: 'Meeting', noAssistant: 'No assistant', realData: 'Real data', cancelledAssignment: 'Cancelled',
+    selectMeeting: 'Select a meeting to view the schedule', openSchedule: 'Open schedule',
   },
   es: {
-    agenda: 'Agenda', assignments: 'Asignaciones', agendaSubtitle: 'Reuniones reales guardadas para esta congregación.', assignmentsSubtitle: 'Asignaciones reales con su estado actual y la reunión correspondiente.',
+    agenda: 'Agenda', assignments: 'Asignaciones', schedule: 'Programación', agendaSubtitle: 'Reuniones reales guardadas para esta congregación.', assignmentsSubtitle: 'Asignaciones reales con su estado actual y la reunión correspondiente.', scheduleSubtitle: 'Vea y organice las asignaciones de la reunión seleccionada.',
     loadingAgenda: 'Cargando agenda…', loadingAssignments: 'Cargando asignaciones…', unavailable: 'No se pudieron cargar los datos reales.', retry: 'Intentar de nuevo',
     emptyAgenda: 'Todavía no hay reuniones en la agenda.', emptyAssignments: 'Todavía no hay asignaciones.', slots: 'partes', slot: 'parte',
     draft: 'Borrador', published: 'Publicada', cancelled: 'Cancelada', archived: 'Archivada', assigned: 'Asignada', completed: 'Completada',
     student: 'Estudiante', assistant: 'Ayudante', role: 'Función', meeting: 'Reunión', noAssistant: 'Sin ayudante', realData: 'Datos reales', cancelledAssignment: 'Cancelada',
+    selectMeeting: 'Seleccione una reunión para ver la programación', openSchedule: 'Abrir programación',
   },
 } as const;
 
@@ -52,12 +56,13 @@ function dateLabel(meeting: MidweekMeetingDto, locale: Locale): string {
 }
 
 export function MidweekWorkspace({ locale, section }: { locale: Locale; section: MidweekWorkspaceSection }) {
-  const text = copy[locale];
+  const text = copy[locale] as { agenda: string; assignments: string; schedule: string; agendaSubtitle: string; assignmentsSubtitle: string; scheduleSubtitle: string; loadingAgenda: string; loadingAssignments: string; unavailable: string; retry: string; emptyAgenda: string; emptyAssignments: string; slots: string; slot: string; draft: string; published: string; cancelled: string; archived: string; assigned: string; completed: string; student: string; assistant: string; role: string; meeting: string; noAssistant: string; realData: string; cancelledAssignment: string; selectMeeting: string; openSchedule: string };
   const [overview, setOverview] = useState<MidweekOverviewDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [canWrite, setCanWrite] = useState(false);
   const [people, setPeople] = useState<readonly PersonProfileDto[]>([]);
+  const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
   const requestVersionRef = useRef(0);
 
   const load = async (signal?: AbortSignal) => {
@@ -94,8 +99,8 @@ export function MidweekWorkspace({ locale, section }: { locale: Locale; section:
   const refresh = async () => { await load(); };
   const meetingsById = useMemo(() => new Map((overview?.meetings ?? []).map(meeting => [meeting.id, meeting])), [overview]);
   const assignmentCount = (overview?.studentAssignments.length ?? 0) + (overview?.nonStudentAssignments.length ?? 0);
-  const title = section === 'agenda' ? text.agenda : text.assignments;
-  const subtitle = section === 'agenda' ? text.agendaSubtitle : text.assignmentsSubtitle;
+  const title = section === 'agenda' ? text.agenda : section === 'assignments' ? text.assignments : text.schedule;
+  const subtitle = section === 'agenda' ? text.agendaSubtitle : section === 'assignments' ? text.assignmentsSubtitle : text.scheduleSubtitle;
   const loadingText = section === 'agenda' ? text.loadingAgenda : text.loadingAssignments;
 
   const stateLabel = (state: string): string => {
@@ -175,6 +180,50 @@ export function MidweekWorkspace({ locale, section }: { locale: Locale; section:
           </Card>;
         })}
       </Space> : null}
+
+      {/* Schedule section: pick a meeting and open the new operational MidweekScheduleView */}
+      {section === 'schedule' ? (
+        selectedMeetingId ? (
+          <MidweekScheduleView
+            meetingId={selectedMeetingId}
+            locale={locale}
+            canWrite={canWrite}
+            onChanged={refresh}
+            onBack={() => setSelectedMeetingId(null)}
+          />
+        ) : (
+          <>
+            <Card>
+              <Typography.Paragraph type="secondary" style={{ marginBlockEnd: 0 }}>{text.selectMeeting}</Typography.Paragraph>
+            </Card>
+            {!loading && !loadError && overview && overview.meetings.length === 0 ? (
+              <Card><Empty description={text.emptyAgenda}>{canWrite ? <CreateMidweekMeetingControl locale={locale} onChanged={refresh} /> : null}</Empty></Card>
+            ) : null}
+            {!loading && !loadError && overview && overview.meetings.length > 0 ? (
+              <Row gutter={[16, 16]}>
+                {overview.meetings.map(meeting => (
+                  <Col xs={24} md={12} xl={8} key={meeting.id}>
+                    <Card style={{ height: '100%' }}>
+                      <Space orientation="vertical" size="middle" style={{ display: 'flex' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
+                          <div>
+                            <Typography.Title level={4} style={{ marginBlock: 0 }}>{dateLabel(meeting, locale)}</Typography.Title>
+                            <Typography.Text type="secondary">{meeting.timezone}</Typography.Text>
+                          </div>
+                          <Tag color={stateColor(meeting.state)}>{stateLabel(meeting.state)}</Tag>
+                        </div>
+                        <Divider style={{ marginBlock: 0 }} />
+                        <Typography.Text type="secondary">{meeting.slots.length} {meeting.slots.length === 1 ? text.slot : text.slots}</Typography.Text>
+                        <Button type="primary" onClick={() => setSelectedMeetingId(meeting.id)}>{text.openSchedule}</Button>
+                      </Space>
+                    </Card>
+                  </Col>
+                ))}
+              </Row>
+            ) : null}
+          </>
+        )
+      ) : null}
     </Space>
   </section>;
 }

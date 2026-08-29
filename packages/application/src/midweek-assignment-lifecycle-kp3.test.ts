@@ -114,7 +114,10 @@ function harness(options: {
     listNonStudentAssignments: () => storedNonStudent ? [storedNonStudent] : [],
     findPerson: (_ctx, id) => options.people?.find(candidate => candidate.id === id),
     findPartDefinition: id => id === 'student-reading' ? part() : undefined,
+    listPeople: () => [],
+    listPartDefinitions: () => [part()],
     listConflictAssignments: () => [],
+    listAssignmentHistory: () => [],
     resolveSlotWindow: () => WINDOW,
     commit: (_ctx, change) => {
       if (change.studentAssignment) storedStudent = change.studentAssignment;

@@ -75,8 +75,11 @@ function harness(options: {
     listStudentAssignments: () => [],
     listNonStudentAssignments: () => [],
     findPerson: (_ctx, personId) => personId === currentPerson.id ? currentPerson : undefined,
+    listPeople: () => [currentPerson],
     findPartDefinition: id => id === currentPart.id ? currentPart : undefined,
+    listPartDefinitions: () => [currentPart],
     listConflictAssignments: () => options.conflicts ?? [],
+    listAssignmentHistory: () => [],
     resolveSlotWindow: () => ({ startsAt: '2026-08-22T18:00:00.000Z', endsAt: '2026-08-22T18:05:00.000Z' }),
     commit: (_ctx, change) => { changes.push(change); },
   };

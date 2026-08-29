@@ -191,7 +191,10 @@ function midweekHarness() {
     listNonStudentAssignments: () => [],
     findPerson: (_ctx, id) => id === person.id ? structuredClone(person) : undefined,
     findPartDefinition: id => id === part.id ? part : undefined,
+    listPeople: () => [structuredClone(person)],
+    listPartDefinitions: () => [part],
     listConflictAssignments: () => [],
+    listAssignmentHistory: () => [],
     resolveSlotWindow: () => ({
       startsAt: '2026-08-26T18:00:00.000Z',
       endsAt: '2026-08-26T18:05:00.000Z',

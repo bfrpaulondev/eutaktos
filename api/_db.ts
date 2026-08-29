@@ -13,6 +13,31 @@ export interface SessionRow { id: string; tenant_id: string; actor_id: string; i
 export interface AccessGrantRow { tenant_id: string; id: string; subject_id: string; capability: string; granted_by: string; granted_at: string; revoked_at?: string | null }
 export interface AuditRow { tenant_id: string; id: string; resource_type: string; resource_id: string; action: string; actor_id: string; occurred_at: string; changed_fields: readonly string[] }
 export interface OutboxRow { tenant_id: string; id: string; event_type: string; aggregate_id: string; actor_id: string; occurred_at: string; schema_version: number; correlation_id?: string | null; payload: Readonly<Record<string, unknown>>; delivery_attempts: number }
+export interface AssignmentHistoryRow { tenant_id: string; id: string; assignment_id: string; person_id: string; part_type: string; meeting_id: string; meeting_date: string; state: 'assigned' | 'completed' | 'cancelled'; recorded_at: string }
+
+function parseAssignmentHistoryRow(row: unknown, tenantId: string): AssignmentHistoryRow {
+  if (!row || typeof row !== 'object' || Array.isArray(row)) throw new Error('Invalid assignment history row');
+  const r = row as Readonly<Record<string, unknown>>;
+  if (r.tenant_id !== tenantId) throw new Error('Cross-tenant assignment history access denied');
+  const state = r.state;
+  if (state !== 'assigned' && state !== 'completed' && state !== 'cancelled') {
+    throw new Error(`Invalid assignment history state: ${String(state)}`);
+  }
+  if (typeof r.id !== 'string' || typeof r.assignment_id !== 'string' || typeof r.person_id !== 'string' || typeof r.part_type !== 'string' || typeof r.meeting_id !== 'string' || typeof r.meeting_date !== 'string' || typeof r.recorded_at !== 'string') {
+    throw new Error('Invalid assignment history row shape');
+  }
+  return {
+    tenant_id: r.tenant_id,
+    id: r.id,
+    assignment_id: r.assignment_id,
+    person_id: r.person_id,
+    part_type: r.part_type,
+    meeting_id: r.meeting_id,
+    meeting_date: r.meeting_date,
+    state,
+    recorded_at: r.recorded_at,
+  };
+}
 
 function normalizeBaseUrl(value: string): string {
   const candidate = value.trim().replace(/\/+$/, '');
@@ -162,6 +187,17 @@ export class SupabaseRestDatabase {
   async createGrantChange(input: Readonly<Record<string, unknown>>): Promise<void> { await this.#request('/rest/v1/rpc/eutaktos_apply_grant_change', { method: 'POST', headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify(input) }); }
   async revokeSession(sessionId: string): Promise<void> { const params = new URLSearchParams({ id: `eq.${sessionId}`, revoked_at: 'is.null' }); await this.#request(`/rest/v1/eutaktos_sessions?${params}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify({ revoked_at: new Date().toISOString() }) }); }
   async revokeAllSessions(tenantId: string, actorId: string): Promise<void> { const params = new URLSearchParams({ tenant_id: `eq.${tenantId}`, actor_id: `eq.${actorId}`, revoked_at: 'is.null' }); await this.#request(`/rest/v1/eutaktos_sessions?${params}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify({ revoked_at: new Date().toISOString() }) }); }
+
+  async listAssignmentHistory(tenantId: string): Promise<readonly AssignmentHistoryRow[]> {
+    const value = await this.#request('/rest/v1/rpc/eutaktos_list_assignment_history', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ p_tenant_id: tenantId }) });
+    if (!Array.isArray(value)) throw new DatabaseRequestError(502);
+    return Object.freeze(value.map((row: unknown) => parseAssignmentHistoryRow(row, tenantId)));
+  }
+
+  async recordAssignmentHistory(input: Readonly<Record<string, unknown>>): Promise<void> {
+    await this.#request('/rest/v1/rpc/eutaktos_record_assignment_history', { method: 'POST', headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify(input) });
+  }
+
   async #array(path: string): Promise<readonly unknown[]> { const value = await this.#request(path); if (!Array.isArray(value)) throw new DatabaseRequestError(502); return value; }
   async #request(path: string, init: RequestInit = {}): Promise<unknown> {
     const config = this.#config; if (!config) throw new DatabaseNotConfiguredError();

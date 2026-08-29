@@ -7,6 +7,7 @@ describe('application navigation', () => {
       home: '/',
       agenda: '/agenda',
       assignments: '/designacoes',
+      schedule: '/programacao',
       people: '/pessoas',
       preferences: '/preferencias',
     });

@@ -1,4 +1,4 @@
-import { MidweekSchedulingService } from '@eutaktos/application';
+import { CandidateQueryService, MidweekSchedulingService, ScheduleViewService } from '@eutaktos/application';
 import type { MidweekMeeting, NonStudentAssignment, StudentAssignment } from '@eutaktos/domain';
 import { requireCapability, type VerifiedPrincipal } from './_auth';
 import type { EntityRow } from './_db';
@@ -124,20 +124,35 @@ function nonStudentAssignment(row: EntityRow, tenantId: string, names: ReadonlyM
 }
 
 async function schedulingRows(database: SupabaseRestDatabase, tenantId: string) {
-  const [meetings, studentAssignments, nonStudentAssignments, people, partDefinitions] = await Promise.all([
+  const [meetings, studentAssignments, nonStudentAssignments, people, partDefinitions, assignmentHistory] = await Promise.all([
     database.entities(tenantId, 'midweek-meeting'),
     database.entities(tenantId, 'student-assignment'),
     database.entities(tenantId, 'non-student-assignment'),
     database.entities(tenantId, 'person'),
     database.entities(tenantId, 'midweek-part-definition'),
+    database.listAssignmentHistory(tenantId).catch(() => []),
   ]);
-  return Object.freeze({ meetings, studentAssignments, nonStudentAssignments, people, partDefinitions });
+  return Object.freeze({ meetings, studentAssignments, nonStudentAssignments, people, partDefinitions, assignmentHistory });
 }
 
 export async function loadMidweekScheduling(database: SupabaseRestDatabase, principal: VerifiedPrincipal) {
   const rows = await schedulingRows(database, principal.tenantId);
   const unitOfWork = new SchedulingSnapshotUnitOfWork(principal.tenantId, rows);
   const service = new MidweekSchedulingService(unitOfWork, new SchedulingRuntimeIds());
+  return Object.freeze({ service, unitOfWork });
+}
+
+export async function loadCandidateQueryService(database: SupabaseRestDatabase, principal: VerifiedPrincipal) {
+  const rows = await schedulingRows(database, principal.tenantId);
+  const unitOfWork = new SchedulingSnapshotUnitOfWork(principal.tenantId, rows);
+  const service = new CandidateQueryService(unitOfWork);
+  return Object.freeze({ service, unitOfWork });
+}
+
+export async function loadScheduleViewService(database: SupabaseRestDatabase, principal: VerifiedPrincipal) {
+  const rows = await schedulingRows(database, principal.tenantId);
+  const unitOfWork = new SchedulingSnapshotUnitOfWork(principal.tenantId, rows);
+  const service = new ScheduleViewService(unitOfWork);
   return Object.freeze({ service, unitOfWork });
 }
 

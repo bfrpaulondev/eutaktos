@@ -24,6 +24,7 @@ import {
   unavailableIntervalsForPerson,
   updateMidweekMeeting,
   type AccessContext,
+  type AssignmentHistoryRecord,
   type AuditEvent,
   type ConflictAssignment,
   type CongregationPerson,
@@ -62,9 +63,16 @@ export interface MidweekSchedulingUnitOfWork {
   findNonStudentAssignment(context: AccessContext, assignmentId: string): Readonly<NonStudentAssignment> | undefined;
   listStudentAssignments(context: AccessContext, meetingId: string): readonly Readonly<StudentAssignment>[];
   listNonStudentAssignments(context: AccessContext, meetingId: string): readonly Readonly<NonStudentAssignment>[];
+  listPeople(context: AccessContext): readonly CongregationPerson[];
   findPerson(context: AccessContext, personId: string): CongregationPerson | undefined;
   findPartDefinition(partDefinitionId: string): Readonly<MidweekPartDefinition> | undefined;
+  listPartDefinitions(context: AccessContext): readonly Readonly<MidweekPartDefinition>[];
   listConflictAssignments(context: AccessContext, personIds: readonly string[]): readonly ConflictAssignment[];
+  /**
+   * Returns all assignment history records for the tenant, ordered newest-first
+   * by meetingDate. Used by the Candidate Engine for recency calculations.
+   */
+  listAssignmentHistory(context: AccessContext): readonly Readonly<AssignmentHistoryRecord>[];
   resolveSlotWindow(context: AccessContext, meeting: Readonly<MidweekMeeting>, slotId: string): SchedulingWindow;
   commit(context: AccessContext, change: MidweekSchedulingChange): void;
 }
