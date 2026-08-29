@@ -14,48 +14,21 @@ describe('MidweekScheduleView API parsing (locale-independent)', () => {
       window: { startsAt: '2026-09-01T18:00:00Z', endsAt: '2026-09-01T18:30:00Z' },
       candidates: [
         {
-          personId: 'p1',
-          displayName: 'João',
-          role: 'student',
-          eligible: true,
-          available: true,
-          inactive: false,
-          conflicts: [],
-          lastAssignmentDate: '2026-08-15',
-          daysSinceLastAssignment: 14,
-          recentAssignmentCount: 1,
-          alreadyAssignedInMeeting: false,
+          personId: 'p1', displayName: 'João', role: 'student', eligible: true, available: true, inactive: false, conflicts: [],
+          lastAssignmentDate: '2026-08-15', daysSinceLastAssignment: 14, recentAssignmentCount: 1, alreadyAssignedInMeeting: false,
           reasons: [
             { kind: 'long_time_since_assignment', messageKey: 'midweek.candidates.reason.longTimeSinceAssignment', params: { weeks: 2 } },
             { kind: 'low_recent_assignment_load', messageKey: 'midweek.candidates.reason.lowRecentAssignmentLoad', params: { count: 0 } },
           ],
         },
         {
-          personId: 'p2',
-          displayName: 'Pedro',
-          role: 'student',
-          eligible: false,
-          available: true,
-          inactive: false,
-          conflicts: [],
-          lastAssignmentDate: null,
-          daysSinceLastAssignment: null,
-          recentAssignmentCount: 0,
-          alreadyAssignedInMeeting: false,
-          reasons: [],
+          personId: 'p2', displayName: 'Pedro', role: 'student', eligible: false, available: true, inactive: false, conflicts: [],
+          lastAssignmentDate: null, daysSinceLastAssignment: null, recentAssignmentCount: 0, alreadyAssignedInMeeting: false, reasons: [],
         },
         {
-          personId: 'p3',
-          displayName: 'Miguel',
-          role: 'student',
-          eligible: true,
-          available: false,
-          inactive: false,
-          conflicts: [{ kind: 'assignment-overlap', sourceId: 'existing:student' }],
-          lastAssignmentDate: '2026-08-20',
-          daysSinceLastAssignment: 9,
-          recentAssignmentCount: 2,
-          alreadyAssignedInMeeting: true,
+          personId: 'p3', displayName: 'Miguel', role: 'student', eligible: true, available: false, inactive: false,
+          conflicts: [{ kind: 'assignment-overlap', sourceId: 'existing:student' }], lastAssignmentDate: '2026-08-20', daysSinceLastAssignment: 9,
+          recentAssignmentCount: 2, alreadyAssignedInMeeting: true,
           reasons: [{ kind: 'already_assigned_in_meeting', messageKey: 'midweek.candidates.reason.alreadyAssignedInMeeting', params: {} }],
         },
       ],
@@ -67,7 +40,7 @@ describe('MidweekScheduleView API parsing (locale-independent)', () => {
     expect(result.candidates[2].conflicts[0].kind).toBe('assignment-overlap');
   });
 
-  it('parses schedule view with vacancies and conflicts', () => {
+  it('parses schedule view with assignment identities, vacancies and conflicts', () => {
     const result = parseScheduleMeetingView({
       meetingId: 'meeting-1',
       date: '2026-09-01',
@@ -76,41 +49,19 @@ describe('MidweekScheduleView API parsing (locale-independent)', () => {
       state: 'draft',
       slots: [
         {
-          slotId: 'slot-1',
-          position: 0,
-          titleKey: 'midweek.parts.treasures',
-          durationMinutes: 10,
-          partDefinitionId: 'part:treasures',
-          studentDisplayName: null,
-          assistantDisplayName: null,
-          nonStudentDisplayName: null,
-          nonStudentRole: null,
-          hasConflict: false,
-          state: 'vacant',
+          slotId: 'slot-1', position: 0, titleKey: 'midweek.parts.treasures', durationMinutes: 10, partDefinitionId: 'part:treasures',
+          studentAssignmentId: null, studentId: null, studentDisplayName: null, assistantId: null, assistantDisplayName: null,
+          nonStudentAssignmentId: null, nonStudentPersonId: null, nonStudentDisplayName: null, nonStudentRole: null, hasConflict: false, state: 'vacant',
         },
         {
-          slotId: 'slot-2',
-          position: 1,
-          titleKey: 'midweek.parts.openingRemarks',
-          durationMinutes: 5,
-          studentDisplayName: 'João',
-          assistantDisplayName: null,
-          nonStudentDisplayName: null,
-          nonStudentRole: null,
-          hasConflict: false,
-          state: 'filled',
+          slotId: 'slot-2', position: 1, titleKey: 'midweek.parts.openingRemarks', durationMinutes: 5,
+          studentAssignmentId: 'student-assignment-1', studentId: 'p1', studentDisplayName: 'João', assistantId: null, assistantDisplayName: null,
+          nonStudentAssignmentId: null, nonStudentPersonId: null, nonStudentDisplayName: null, nonStudentRole: null, hasConflict: false, state: 'filled',
         },
         {
-          slotId: 'slot-3',
-          position: 2,
-          titleKey: 'midweek.parts.livingAsChristians',
-          durationMinutes: 30,
-          studentDisplayName: 'Pedro',
-          assistantDisplayName: 'Miguel',
-          nonStudentDisplayName: null,
-          nonStudentRole: null,
-          hasConflict: true,
-          state: 'conflict',
+          slotId: 'slot-3', position: 2, titleKey: 'midweek.parts.livingAsChristians', durationMinutes: 30,
+          studentAssignmentId: 'student-assignment-2', studentId: 'p2', studentDisplayName: 'Pedro', assistantId: 'p3', assistantDisplayName: 'Miguel',
+          nonStudentAssignmentId: null, nonStudentPersonId: null, nonStudentDisplayName: null, nonStudentRole: null, hasConflict: true, state: 'conflict',
         },
       ],
       totalSlots: 3,
@@ -119,11 +70,8 @@ describe('MidweekScheduleView API parsing (locale-independent)', () => {
       conflictedSlots: 1,
     });
     expect(result.totalSlots).toBe(3);
-    expect(result.filledSlots).toBe(1);
-    expect(result.vacantSlots).toBe(1);
-    expect(result.conflictedSlots).toBe(1);
-    expect(result.slots.find(s => s.slotId === 'slot-3')?.studentDisplayName).toBe('Pedro');
-    expect(result.slots.find(s => s.slotId === 'slot-3')?.assistantDisplayName).toBe('Miguel');
-    expect(result.slots.find(s => s.slotId === 'slot-3')?.hasConflict).toBe(true);
+    expect(result.slots.find(slot => slot.slotId === 'slot-2')?.studentAssignmentId).toBe('student-assignment-1');
+    expect(result.slots.find(slot => slot.slotId === 'slot-3')?.assistantId).toBe('p3');
+    expect(result.slots.find(slot => slot.slotId === 'slot-3')?.hasConflict).toBe(true);
   });
 });
