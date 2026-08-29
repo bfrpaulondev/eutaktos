@@ -109,7 +109,6 @@ export function meetingStartInstant(meeting: Pick<MidweekMeeting, 'date' | 'loca
   const [year, month, day] = meeting.date.split('-').map(Number);
   const [hour, minute] = meeting.localTime.split(':').map(Number);
   if (![year, month, day, hour, minute].every(Number.isInteger)) throw new Error('Invalid meeting local date/time');
-  // The domain already validates the IANA name. Constructing the formatter again makes this helper safe in isolation.
   new Intl.DateTimeFormat('en', { timeZone: meeting.timezone }).format(new Date(0));
   const localAsUtc = Date.UTC(year, month - 1, day, hour, minute, 0, 0);
   let candidate = localAsUtc;
@@ -122,7 +121,6 @@ export function meetingStartInstant(meeting: Pick<MidweekMeeting, 'date' | 'loca
   }
   const requestedMatch = sameLocalParts(dateTimeParts(meeting.timezone, candidate), year, month, day, hour, minute);
   if (!requestedMatch) throw new Error('Meeting local time does not exist in the configured timezone');
-  // During a fall-back overlap, choose the earlier instant deterministically.
   const alternatives = [candidate - 3_600_000, candidate + 3_600_000]
     .filter(value => sameLocalParts(dateTimeParts(meeting.timezone, value), year, month, day, hour, minute));
   return Math.min(candidate, ...alternatives);
@@ -151,7 +149,6 @@ export class SchedulingSnapshotUnitOfWork implements MidweekSchedulingUnitOfWork
   readonly #parts = new Map<string, Readonly<MidweekPartDefinition>>();
   readonly #history: Readonly<AssignmentHistoryRecord>[];
   #pending?: PendingSchedulingChange;
-  #pendingHistory?: Readonly<Record<string, unknown>>;
 
   constructor(tenantId: string, rows: SchedulingSnapshotRows) {
     this.#tenantId = tenantId;
@@ -165,7 +162,6 @@ export class SchedulingSnapshotUnitOfWork implements MidweekSchedulingUnitOfWork
       if (this.#parts.has(part.id)) throw new Error('Duplicate part definition id');
       this.#parts.set(part.id, clonePart(part));
     }
-    // Hydrate assignment history (may be empty on first run or if migration not yet applied).
     this.#history = (rows.assignmentHistory ?? []).map(row => normalizeAssignmentHistoryRecord({
       id: row.id,
       tenantId: row.tenant_id,
@@ -250,7 +246,7 @@ export class SchedulingSnapshotUnitOfWork implements MidweekSchedulingUnitOfWork
   }
 
   resolveSlotWindow(context: AccessContext, meeting: Readonly<MidweekMeeting>, slotId: string): SchedulingWindow {
-    this.#assertWrite(context);
+    this.#assertRead(context);
     assertResourceTenant(context, meeting);
     const slot = findSlotById(meeting, slotId);
     if (!slot) throw new Error('Slot not found');
@@ -263,7 +259,7 @@ export class SchedulingSnapshotUnitOfWork implements MidweekSchedulingUnitOfWork
   }
 
   listConflictAssignments(context: AccessContext, personIds: readonly string[]): readonly ConflictAssignment[] {
-    this.#assertWrite(context);
+    this.#assertRead(context);
     const wanted = new Set(personIds);
     const result: ConflictAssignment[] = [];
     for (const row of this.#students.values()) {
@@ -296,8 +292,6 @@ export class SchedulingSnapshotUnitOfWork implements MidweekSchedulingUnitOfWork
     for (const value of change.studentAssignments ?? []) resources.push({ entityType: 'student-assignment', value, version: this.#students.get(value.id)?.version ?? null });
     for (const value of change.nonStudentAssignments ?? []) resources.push({ entityType: 'non-student-assignment', value, version: this.#nonStudents.get(value.id)?.version ?? null });
 
-    // The current application contract emits one aggregate mutation + one audit + one event per command.
-    // Refuse a future multi-resource commit rather than degrade atomicity into sequential database calls.
     if (resources.length !== 1 || change.auditEvents.length !== 1 || change.domainEvents.length !== 1) {
       throw new Error('Scheduling runtime transaction shape is unsupported');
     }
@@ -318,50 +312,10 @@ export class SchedulingSnapshotUnitOfWork implements MidweekSchedulingUnitOfWork
     if (resource.entityType === 'midweek-meeting') this.#meetings.set(resource.value.id, { value: cloneMeeting(resource.value as MidweekMeeting), version: nextVersion });
     if (resource.entityType === 'student-assignment') this.#students.set(resource.value.id, { value: Object.freeze(structuredClone(resource.value as StudentAssignment)), version: nextVersion });
     if (resource.entityType === 'non-student-assignment') this.#nonStudents.set(resource.value.id, { value: Object.freeze(structuredClone(resource.value as NonStudentAssignment)), version: nextVersion });
-
-    // Build pending assignment history record when this commit creates/completes/cancels an assignment.
-    // The history is recorded separately via `record_assignment_history` RPC during flush.
-    // For meetings (publish/cancel/archive), no history record is needed.
-    if (resource.entityType === 'student-assignment') {
-      const assignment = resource.value as StudentAssignment;
-      const meeting = this.#meetings.get(assignment.meetingId)?.value;
-      if (meeting) {
-        const slot = meeting.slots.find(s => s.id === assignment.slotId);
-        const partType = slot?.partDefinitionId ?? 'unknown';
-        this.#pendingHistory = Object.freeze({
-          p_tenant_id: this.#tenantId,
-          p_id: `history-${crypto.randomUUID()}`,
-          p_assignment_id: assignment.id,
-          p_person_id: assignment.studentId,
-          p_part_type: partType,
-          p_meeting_id: meeting.id,
-          p_meeting_date: meeting.date,
-          p_state: assignment.state,
-          p_recorded_at: new Date().toISOString(),
-        });
-      }
-    } else if (resource.entityType === 'non-student-assignment') {
-      const assignment = resource.value as NonStudentAssignment;
-      const meeting = this.#meetings.get(assignment.meetingId)?.value;
-      if (meeting) {
-        this.#pendingHistory = Object.freeze({
-          p_tenant_id: this.#tenantId,
-          p_id: `history-${crypto.randomUUID()}`,
-          p_assignment_id: assignment.id,
-          p_person_id: assignment.personId,
-          p_part_type: assignment.role,
-          p_meeting_id: meeting.id,
-          p_meeting_date: meeting.date,
-          p_state: assignment.state,
-          p_recorded_at: new Date().toISOString(),
-        });
-      }
-    }
   }
 
   async flush(database: SupabaseRestDatabase): Promise<void> {
     const pending = this.#pending;
-    const pendingHistory = this.#pendingHistory;
     if (!pending) return;
     await database.applyEntityChange({
       p_tenant_id: this.#tenantId,
@@ -373,17 +327,5 @@ export class SchedulingSnapshotUnitOfWork implements MidweekSchedulingUnitOfWork
       p_event: pending.domainEvent,
     });
     this.#pending = undefined;
-    // Record assignment history after the entity change succeeds. This is best-effort:
-    // if it fails, the assignment is still created (history is a derived view for recency).
-    // The append-only `ON CONFLICT DO NOTHING` makes retries idempotent.
-    if (pendingHistory) {
-      try {
-        await database.recordAssignmentHistory(pendingHistory);
-      } catch {
-        // History persistence is best-effort; the assignment is already committed.
-        // The next successful flush will retry on the next assignment mutation.
-      }
-      this.#pendingHistory = undefined;
-    }
   }
 }
