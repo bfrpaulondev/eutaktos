@@ -26,14 +26,6 @@ export interface TenantDurationOverride {
   readonly durationMinutes: number;
 }
 
-/**
- * A part definition describes the program part and, when configured, the
- * explicit eligibility category that authorizes assignment to it.
- *
- * eligibilityTypeId is intentionally independent from `id`: the part id is a
- * stable scheduling/history identity, while eligibility may originate from an
- * imported explicit privilege category. No eligibility is ever inferred.
- */
 export interface MidweekPartDefinition {
   readonly id: MidweekPartId;
   readonly type: MidweekPartType;
@@ -186,18 +178,18 @@ export function filterByType(parts: readonly Readonly<MidweekPartDefinition>[], 
   return parts.filter(part => part.type === type);
 }
 
-/** Legacy section-level defaults kept for backward compatibility. */
-const LEGACY_MIDWEEK_PARTS: readonly Readonly<MidweekPartDefinition>[] = [
+/** Legacy section-level defaults remain the stable public built-in catalog. */
+const LEGACY_MIDWEEK_PARTS: readonly Readonly<MidweekPartDefinition>[] = Object.freeze([
   createMidweekPartDefinition({ id: 'builtin:opening-remarks', type: 'opening-remarks', titleKey: 'midweek.parts.openingRemarks', durationMinutes: 5, position: 1, studentNeeded: false, assistantRequirement: 'none' }),
   createMidweekPartDefinition({ id: 'builtin:treasures-from-gods-word', type: 'treasures-from-gods-word', titleKey: 'midweek.parts.treasuresFromGodsWord', durationMinutes: 10, position: 2, studentNeeded: false, assistantRequirement: 'none' }),
   createMidweekPartDefinition({ id: 'builtin:apply-yourself-to-the-ministry', type: 'apply-yourself-to-the-ministry', titleKey: 'midweek.parts.applyYourselfToTheMinistry', durationMinutes: 30, position: 3, studentNeeded: true, assistantRequirement: 'optional' }),
   createMidweekPartDefinition({ id: 'builtin:living-as-christians', type: 'living-as-christians', titleKey: 'midweek.parts.livingAsChristians', durationMinutes: 30, position: 4, studentNeeded: true, assistantRequirement: 'required' }),
-];
+]);
 
 /**
- * Detailed operational definitions aligned to the explicit Hourglass privilege
- * categories imported into Eutaktos. These mappings do not infer qualification;
- * they reference privileges explicitly present in the source data.
+ * Detailed operational definitions aligned to explicit Hourglass privilege
+ * categories. New Midweek scheduling uses this catalog directly; no spiritual
+ * qualification is inferred from demographics or history.
  */
 export const OPERATIONAL_MIDWEEK_PARTS: ReadonlyArray<Readonly<MidweekPartDefinition>> = Object.freeze([
   createMidweekPartDefinition({ id: 'midweek:treasures-talk', type: 'treasures-from-gods-word', titleKey: 'midweek.parts.treasuresTalk', durationMinutes: 10, position: 10, studentNeeded: false, assistantRequirement: 'none', eligibilityTypeId: 'hourglass:treasures' }),
@@ -212,7 +204,4 @@ export const OPERATIONAL_MIDWEEK_PARTS: ReadonlyArray<Readonly<MidweekPartDefini
   createMidweekPartDefinition({ id: 'midweek:congregation-bible-study-reader', type: 'living-as-christians', titleKey: 'midweek.parts.congregationBibleStudyReader', durationMinutes: 30, position: 32, studentNeeded: false, assistantRequirement: 'none', eligibilityTypeId: 'hourglass:cbs_reader' }),
 ]);
 
-export const BUILTIN_MIDWEEK_PARTS: ReadonlyArray<Readonly<MidweekPartDefinition>> = Object.freeze([
-  ...LEGACY_MIDWEEK_PARTS,
-  ...OPERATIONAL_MIDWEEK_PARTS,
-]);
+export const BUILTIN_MIDWEEK_PARTS: ReadonlyArray<Readonly<MidweekPartDefinition>> = LEGACY_MIDWEEK_PARTS;
