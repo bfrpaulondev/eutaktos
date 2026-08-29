@@ -53,9 +53,7 @@ export interface CandidateProfile {
 export interface CandidateQueryInput {
   readonly tenantId: TenantId;
   readonly role: CandidateRole;
-  /** Stable scheduling/history identity for this part or role. */
   readonly assignmentTypeId: AssignmentTypeId;
-  /** Explicit configured eligibility category. Defaults to assignmentTypeId. */
   readonly eligibilityAssignmentTypeId?: AssignmentTypeId;
   readonly referenceDate: string;
   readonly startsAt: string;
@@ -178,7 +176,8 @@ export function computeCandidate(person: CongregationPerson, input: CandidateQue
   if (person.tenantId !== input.tenantId) throw new Error('Cross-tenant candidate access denied');
 
   const eligibilityIndex = buildEligibilityIndex([person], input.tenantId);
-  const eligible = checkEligibility(eligibilityIndex, input.tenantId, person.id, eligibilityAssignmentTypeId);
+  const eligible = checkEligibility(eligibilityIndex, input.tenantId, person.id, eligibilityAssignmentTypeId)
+    || (eligibilityAssignmentTypeId !== input.assignmentTypeId && checkEligibility(eligibilityIndex, input.tenantId, person.id, input.assignmentTypeId));
   const inactive = !person.active;
 
   const unavailableForPerson = input.unavailable
