@@ -118,15 +118,31 @@ export function candidateHistoryPartType(role: CandidateRole, assignmentTypeId: 
   return role === 'non-student' ? `role:${normalized}` : `${role}:${normalized}`;
 }
 
+function latestHistoryFacts(history: readonly AssignmentHistoryRecord[]): readonly AssignmentHistoryRecord[] {
+  const latest = new Map<string, AssignmentHistoryRecord>();
+  for (const record of history) {
+    const key = `${record.assignmentId}\u001f${record.personId}\u001f${record.partType}`;
+    const current = latest.get(key);
+    if (!current || record.recordedAt > current.recordedAt || (record.recordedAt === current.recordedAt && record.id > current.id)) latest.set(key, record);
+  }
+  return Object.freeze([...latest.values()]);
+}
+
 function completedHistoryForCandidate(
   history: readonly AssignmentHistoryRecord[],
   personId: PersonId,
   tenantId: TenantId,
   role: CandidateRole,
   assignmentTypeId: AssignmentTypeId,
+  referenceDate: string,
 ): readonly AssignmentHistoryRecord[] {
   const roleKey = candidateHistoryPartType(role, assignmentTypeId);
-  const base = history.filter(record => record.tenantId === tenantId && record.personId === personId && record.state === 'completed');
+  const base = latestHistoryFacts(history).filter(record =>
+    record.tenantId === tenantId &&
+    record.personId === personId &&
+    record.state !== 'cancelled' &&
+    (record.state === 'completed' || (record.state === 'assigned' && record.meetingDate < referenceDate))
+  );
   const roleScoped = base.filter(record => record.partType === roleKey);
   const selected = roleScoped.length > 0 ? roleScoped : base.filter(record => record.partType === assignmentTypeId);
   return selected.sort((a, b) => b.meetingDate.localeCompare(a.meetingDate) || b.recordedAt.localeCompare(a.recordedAt) || b.id.localeCompare(a.id));
@@ -177,7 +193,7 @@ export function computeCandidate(person: CongregationPerson, input: CandidateQue
   const conflictInfo: CandidateConflictInfo[] = detectSchedulingConflicts({ tenantId: input.tenantId, candidate: candidateAssignment, assignments: input.existingAssignments, unavailable: unavailableForPerson })
     .map(conflict => Object.freeze({ kind: conflict.kind, sourceId: conflict.sourceId }));
 
-  const relevantHistory = completedHistoryForCandidate(input.history, person.id, input.tenantId, input.role, input.assignmentTypeId);
+  const relevantHistory = completedHistoryForCandidate(input.history, person.id, input.tenantId, input.role, input.assignmentTypeId, input.referenceDate);
   const lastRecord = relevantHistory[0];
   const lastDate = lastRecord?.meetingDate ?? null;
   const daysSince = lastDate === null ? null : daysBetween(lastDate, input.referenceDate);
