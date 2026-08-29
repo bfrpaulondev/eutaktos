@@ -34,9 +34,9 @@ export const BUILTIN_PARTS: readonly BuiltinPart[] = Object.freeze([
 
 /** Legacy section-level definitions are accepted only when reading older schedules. */
 const LEGACY_PARTS: readonly BuiltinPart[] = Object.freeze([
-  Object.freeze({ id: 'builtin:treasures-from-gods-word', titleKey: 'midweek.parts.treasuresFromGodsWord', durationMinutes: 10, studentNeeded: false, assistantRequirement: 'none', label: label('Tesouros da Palavra de Deus', "Treasures From God's Word", 'Tesoros de la Biblia') }),
-  Object.freeze({ id: 'builtin:apply-yourself-to-the-ministry', titleKey: 'midweek.parts.applyYourselfToTheMinistry', durationMinutes: 30, studentNeeded: true, assistantRequirement: 'optional', label: label('Empenhe-se no Ministério', 'Apply Yourself to the Field Ministry', 'Seamos mejores maestros') }),
-  Object.freeze({ id: 'builtin:living-as-christians', titleKey: 'midweek.parts.livingAsChristians', durationMinutes: 30, studentNeeded: true, assistantRequirement: 'required', label: label('Viver como Cristãos', 'Living as Christians', 'Nuestra vida cristiana') }),
+  Object.freeze({ id: 'builtin:treasures-from-gods-word', titleKey: 'midweek.parts.treasuresFromGodsWord', durationMinutes: 10, studentNeeded: false, assistantRequirement: 'none', label: label('Tesouros da Palavra de Deus', "Treasures From God's Word", 'Tesoros de la Palabra de Dios') }),
+  Object.freeze({ id: 'builtin:apply-yourself-to-the-ministry', titleKey: 'midweek.parts.applyYourselfToTheMinistry', durationMinutes: 30, studentNeeded: true, assistantRequirement: 'optional', label: label('Empenhe-se na leitura e no ensino', 'Apply Yourself to Reading and Teaching', 'Seamos mejores maestros') }),
+  Object.freeze({ id: 'builtin:living-as-christians', titleKey: 'midweek.parts.livingAsChristians', durationMinutes: 30, studentNeeded: true, assistantRequirement: 'required', label: label('A nossa vida cristã', 'Living as Christians', 'Nuestra vida cristiana') }),
 ]);
 
 export const STANDARD_NON_STUDENT_ROLES: readonly AssignmentTypeOption[] = Object.freeze([
@@ -81,6 +81,7 @@ export function slotAllowsStudentAssignment(partDefinitionId: string | undefined
 export function assignmentTypeLabel(assignmentTypeId: string, locale: Locale): string {
   return ELIGIBILITY_ASSIGNMENT_TYPES.find(option => option.id === assignmentTypeId)?.label[locale]
     ?? STANDARD_NON_STUDENT_ROLES.find(option => option.id === assignmentTypeId)?.label[locale]
+    ?? builtinPart(assignmentTypeId)?.label[locale]
     ?? assignmentTypeId;
 }
 
