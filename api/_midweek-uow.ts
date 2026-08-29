@@ -154,12 +154,18 @@ function historyState(value: string): HistoryState {
   throw new Error(`Unsupported assignment history state: ${value}`);
 }
 
+function historyRow(input: Omit<PendingHistoryRecord, 'id'> & { id: string }): PendingHistoryRecord {
+  return Object.freeze(input);
+}
+
 function historyForResource(
   tenantId: string,
   entityType: PendingSchedulingChange['entityType'],
   value: TenantEntity,
   meetings: ReadonlyMap<string, Snapshot<Readonly<MidweekMeeting>>>,
   auditEvent: unknown,
+  previousStudent?: Readonly<StudentAssignment>,
+  previousNonStudent?: Readonly<NonStudentAssignment>,
 ): readonly PendingHistoryRecord[] {
   if (entityType === 'midweek-meeting') return Object.freeze([]);
   const identity = schedulingChangeIdentity(auditEvent);
@@ -170,48 +176,57 @@ function historyForResource(
     if (!meeting) throw new Error('Student assignment references a missing meeting');
     const slot = findSlotById(meeting, assignment.slotId);
     if (!slot?.partDefinitionId) throw new Error('Student assignment references a slot without a part definition');
-    const state = historyState(String(assignment.state));
-    const rows: PendingHistoryRecord[] = [{
-      id: `history-${identity.id}-student`,
-      tenantId,
-      assignmentId: assignment.id,
-      personId: assignment.studentId,
-      partType: `student:${slot.partDefinitionId}`,
-      meetingId: meeting.id,
-      meetingDate: meeting.date,
-      state,
-      recordedAt: identity.occurredAt,
-    }];
-    if (assignment.assistantId) {
-      rows.push({
-        id: `history-${identity.id}-assistant`,
-        tenantId,
-        assignmentId: assignment.id,
-        personId: assignment.assistantId,
-        partType: `assistant:${slot.partDefinitionId}`,
-        meetingId: meeting.id,
-        meetingDate: meeting.date,
-        state,
-        recordedAt: identity.occurredAt,
-      });
+    const studentPartType = `student:${slot.partDefinitionId}`;
+    const assistantPartType = `assistant:${slot.partDefinitionId}`;
+    const rows: PendingHistoryRecord[] = [];
+
+    if (previousStudent && previousStudent.studentId !== assignment.studentId) {
+      rows.push(historyRow({
+        id: `history-${identity.id}-previous-student`, tenantId, assignmentId: assignment.id,
+        personId: previousStudent.studentId, partType: studentPartType, meetingId: meeting.id,
+        meetingDate: meeting.date, state: 'cancelled', recordedAt: identity.occurredAt,
+      }));
     }
-    return Object.freeze(rows.map(row => Object.freeze(row)));
+    if (previousStudent?.assistantId && previousStudent.assistantId !== assignment.assistantId) {
+      rows.push(historyRow({
+        id: `history-${identity.id}-previous-assistant`, tenantId, assignmentId: assignment.id,
+        personId: previousStudent.assistantId, partType: assistantPartType, meetingId: meeting.id,
+        meetingDate: meeting.date, state: 'cancelled', recordedAt: identity.occurredAt,
+      }));
+    }
+
+    rows.push(historyRow({
+      id: `history-${identity.id}-student`, tenantId, assignmentId: assignment.id,
+      personId: assignment.studentId, partType: studentPartType, meetingId: meeting.id,
+      meetingDate: meeting.date, state: historyState(String(assignment.state)), recordedAt: identity.occurredAt,
+    }));
+    if (assignment.assistantId) {
+      rows.push(historyRow({
+        id: `history-${identity.id}-assistant`, tenantId, assignmentId: assignment.id,
+        personId: assignment.assistantId, partType: assistantPartType, meetingId: meeting.id,
+        meetingDate: meeting.date, state: historyState(String(assignment.state)), recordedAt: identity.occurredAt,
+      }));
+    }
+    return Object.freeze(rows);
   }
 
   const assignment = value as NonStudentAssignment;
   const meeting = meetings.get(assignment.meetingId)?.value;
   if (!meeting) throw new Error('Non-student assignment references a missing meeting');
-  return Object.freeze([Object.freeze({
-    id: `history-${identity.id}-assignee`,
-    tenantId,
-    assignmentId: assignment.id,
-    personId: assignment.personId,
-    partType: `role:${assignment.role}`,
-    meetingId: meeting.id,
-    meetingDate: meeting.date,
-    state: historyState(String(assignment.state)),
-    recordedAt: identity.occurredAt,
-  })]);
+  const rows: PendingHistoryRecord[] = [];
+  if (previousNonStudent && (previousNonStudent.personId !== assignment.personId || previousNonStudent.role !== assignment.role)) {
+    rows.push(historyRow({
+      id: `history-${identity.id}-previous-assignee`, tenantId, assignmentId: assignment.id,
+      personId: previousNonStudent.personId, partType: `role:${previousNonStudent.role}`, meetingId: meeting.id,
+      meetingDate: meeting.date, state: 'cancelled', recordedAt: identity.occurredAt,
+    }));
+  }
+  rows.push(historyRow({
+    id: `history-${identity.id}-assignee`, tenantId, assignmentId: assignment.id,
+    personId: assignment.personId, partType: `role:${assignment.role}`, meetingId: meeting.id,
+    meetingDate: meeting.date, state: historyState(String(assignment.state)), recordedAt: identity.occurredAt,
+  }));
+  return Object.freeze(rows);
 }
 
 export class SchedulingRuntimeIds implements MidweekSchedulingRuntime {
@@ -387,7 +402,17 @@ export class SchedulingSnapshotUnitOfWork implements MidweekSchedulingUnitOfWork
     assertResourceTenant(context, resource.value);
     assertResourceTenant(context, change.auditEvents[0]);
     assertResourceTenant(context, change.domainEvents[0]);
-    const history = historyForResource(this.#tenantId, resource.entityType, resource.value, this.#meetings, change.auditEvents[0]);
+    const previousStudent = resource.entityType === 'student-assignment' ? this.#students.get(resource.value.id)?.value : undefined;
+    const previousNonStudent = resource.entityType === 'non-student-assignment' ? this.#nonStudents.get(resource.value.id)?.value : undefined;
+    const history = historyForResource(
+      this.#tenantId,
+      resource.entityType,
+      resource.value,
+      this.#meetings,
+      change.auditEvents[0],
+      previousStudent,
+      previousNonStudent,
+    );
     this.#pending = Object.freeze({
       entityType: resource.entityType,
       entityId: resource.value.id,
