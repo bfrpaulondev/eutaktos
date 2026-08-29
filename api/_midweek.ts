@@ -1,5 +1,5 @@
 import { CandidateQueryService, MidweekSchedulingService, ScheduleViewService } from '@eutaktos/application';
-import type { MidweekMeeting, NonStudentAssignment, StudentAssignment } from '@eutaktos/domain';
+import { OPERATIONAL_MIDWEEK_PARTS, type MidweekMeeting, type NonStudentAssignment, type StudentAssignment } from '@eutaktos/domain';
 import { requireCapability, type VerifiedPrincipal } from './_auth';
 import type { EntityRow } from './_db';
 import { SupabaseRestDatabase } from './_db';
@@ -13,34 +13,17 @@ export interface MidweekMeetingOverviewDto {
   readonly timezone: string;
   readonly locationId?: string;
   readonly state: MidweekMeeting['state'];
-  readonly slots: readonly {
-    readonly id: string;
-    readonly position: number;
-    readonly durationMinutes: number;
-    readonly titleKey: string;
-    readonly partDefinitionId?: string;
-  }[];
+  readonly slots: readonly { readonly id: string; readonly position: number; readonly durationMinutes: number; readonly titleKey: string; readonly partDefinitionId?: string }[];
 }
 
 export interface StudentAssignmentOverviewDto {
-  readonly id: string;
-  readonly meetingId: string;
-  readonly slotId: string;
-  readonly studentId: string;
-  readonly studentDisplayName: string;
-  readonly assistantId: string | null;
-  readonly assistantDisplayName: string | null;
-  readonly state: StudentAssignment['state'];
+  readonly id: string; readonly meetingId: string; readonly slotId: string; readonly studentId: string; readonly studentDisplayName: string;
+  readonly assistantId: string | null; readonly assistantDisplayName: string | null; readonly state: StudentAssignment['state'];
 }
 
 export interface NonStudentAssignmentOverviewDto {
-  readonly id: string;
-  readonly meetingId: string;
-  readonly slotId: string;
-  readonly personId: string;
-  readonly personDisplayName: string;
-  readonly role: string;
-  readonly state: NonStudentAssignment['state'];
+  readonly id: string; readonly meetingId: string; readonly slotId: string; readonly personId: string; readonly personDisplayName: string;
+  readonly role: string; readonly state: NonStudentAssignment['state'];
 }
 
 export interface MidweekOverviewDto {
@@ -70,23 +53,9 @@ function meetingDto(row: EntityRow, tenantId: string): MidweekMeetingOverviewDto
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('Invalid stored meeting slot');
     const slot = raw as Readonly<Record<string, unknown>>;
     if (typeof slot.position !== 'number' || !Number.isInteger(slot.position) || typeof slot.durationMinutes !== 'number' || !Number.isFinite(slot.durationMinutes)) throw new Error('Invalid stored meeting slot');
-    return Object.freeze({
-      id: stringValue(slot.id, 'slot id'),
-      position: slot.position,
-      durationMinutes: slot.durationMinutes,
-      titleKey: stringValue(slot.titleKey, 'slot title'),
-      ...(typeof slot.partDefinitionId === 'string' && slot.partDefinitionId.trim() ? { partDefinitionId: slot.partDefinitionId } : {}),
-    });
+    return Object.freeze({ id: stringValue(slot.id, 'slot id'), position: slot.position, durationMinutes: slot.durationMinutes, titleKey: stringValue(slot.titleKey, 'slot title'), ...(typeof slot.partDefinitionId === 'string' && slot.partDefinitionId.trim() ? { partDefinitionId: slot.partDefinitionId } : {}) });
   }).sort((left, right) => left.position - right.position);
-  return Object.freeze({
-    id: row.entity_id,
-    date: stringValue(data.date, 'meeting date'),
-    localTime: stringValue(data.localTime, 'meeting time'),
-    timezone: stringValue(data.timezone, 'meeting timezone'),
-    ...(typeof data.locationId === 'string' && data.locationId.trim() ? { locationId: data.locationId } : {}),
-    state,
-    slots: Object.freeze(slots),
-  });
+  return Object.freeze({ id: row.entity_id, date: stringValue(data.date, 'meeting date'), localTime: stringValue(data.localTime, 'meeting time'), timezone: stringValue(data.timezone, 'meeting timezone'), ...(typeof data.locationId === 'string' && data.locationId.trim() ? { locationId: data.locationId } : {}), state, slots: Object.freeze(slots) });
 }
 
 function studentAssignment(row: EntityRow, tenantId: string, names: ReadonlyMap<string, string>): StudentAssignmentOverviewDto {
@@ -95,16 +64,7 @@ function studentAssignment(row: EntityRow, tenantId: string, names: ReadonlyMap<
   if (state !== 'assigned' && state !== 'cancelled' && state !== 'completed') throw new Error('Invalid stored student assignment state');
   const studentId = stringValue(data.studentId, 'student id');
   const assistantId = data.assistantId === null ? null : stringValue(data.assistantId, 'assistant id');
-  return Object.freeze({
-    id: row.entity_id,
-    meetingId: stringValue(data.meetingId, 'meeting id'),
-    slotId: stringValue(data.slotId, 'slot id'),
-    studentId,
-    studentDisplayName: names.get(studentId) ?? studentId,
-    assistantId,
-    assistantDisplayName: assistantId ? (names.get(assistantId) ?? assistantId) : null,
-    state,
-  });
+  return Object.freeze({ id: row.entity_id, meetingId: stringValue(data.meetingId, 'meeting id'), slotId: stringValue(data.slotId, 'slot id'), studentId, studentDisplayName: names.get(studentId) ?? studentId, assistantId, assistantDisplayName: assistantId ? (names.get(assistantId) ?? assistantId) : null, state });
 }
 
 function nonStudentAssignment(row: EntityRow, tenantId: string, names: ReadonlyMap<string, string>): NonStudentAssignmentOverviewDto {
@@ -112,19 +72,19 @@ function nonStudentAssignment(row: EntityRow, tenantId: string, names: ReadonlyM
   const state = data.state;
   if (state !== 'assigned' && state !== 'cancelled' && state !== 'completed') throw new Error('Invalid stored non-student assignment state');
   const personId = stringValue(data.personId, 'person id');
-  return Object.freeze({
-    id: row.entity_id,
-    meetingId: stringValue(data.meetingId, 'meeting id'),
-    slotId: stringValue(data.slotId, 'slot id'),
-    personId,
-    personDisplayName: names.get(personId) ?? personId,
-    role: stringValue(data.role, 'assignment role'),
-    state,
-  });
+  return Object.freeze({ id: row.entity_id, meetingId: stringValue(data.meetingId, 'meeting id'), slotId: stringValue(data.slotId, 'slot id'), personId, personDisplayName: names.get(personId) ?? personId, role: stringValue(data.role, 'assignment role'), state });
+}
+
+function operationalPartRows(tenantId: string, stored: readonly EntityRow[]): readonly EntityRow[] {
+  const ids = new Set(stored.map(row => row.entity_id));
+  const defaults: EntityRow[] = OPERATIONAL_MIDWEEK_PARTS
+    .filter(part => !ids.has(part.id))
+    .map(part => Object.freeze({ tenant_id: tenantId, entity_type: 'midweek-part-definition', entity_id: part.id, data: Object.freeze({ id: part.id, tenantId, type: part.type, titleKey: part.titleKey, durationMinutes: part.durationMinutes, position: part.position, studentNeeded: part.studentNeeded, assistantRequirement: part.assistantRequirement, ...(part.eligibilityTypeId ? { eligibilityTypeId: part.eligibilityTypeId } : {}), ...(part.assistantEligibilityTypeId ? { assistantEligibilityTypeId: part.assistantEligibilityTypeId } : {}), tenantOverrides: part.tenantOverrides }), version: 1 }));
+  return Object.freeze([...stored, ...defaults]);
 }
 
 async function schedulingRows(database: SupabaseRestDatabase, tenantId: string) {
-  const [meetings, studentAssignments, nonStudentAssignments, people, partDefinitions, assignmentHistory] = await Promise.all([
+  const [meetings, studentAssignments, nonStudentAssignments, people, storedPartDefinitions, assignmentHistory] = await Promise.all([
     database.entities(tenantId, 'midweek-meeting'),
     database.entities(tenantId, 'student-assignment'),
     database.entities(tenantId, 'non-student-assignment'),
@@ -132,28 +92,25 @@ async function schedulingRows(database: SupabaseRestDatabase, tenantId: string) 
     database.entities(tenantId, 'midweek-part-definition'),
     database.listAssignmentHistory(tenantId).catch(() => []),
   ]);
-  return Object.freeze({ meetings, studentAssignments, nonStudentAssignments, people, partDefinitions, assignmentHistory });
+  return Object.freeze({ meetings, studentAssignments, nonStudentAssignments, people, partDefinitions: operationalPartRows(tenantId, storedPartDefinitions), assignmentHistory });
 }
 
 export async function loadMidweekScheduling(database: SupabaseRestDatabase, principal: VerifiedPrincipal) {
   const rows = await schedulingRows(database, principal.tenantId);
   const unitOfWork = new SchedulingSnapshotUnitOfWork(principal.tenantId, rows);
-  const service = new MidweekSchedulingService(unitOfWork, new SchedulingRuntimeIds());
-  return Object.freeze({ service, unitOfWork });
+  return Object.freeze({ service: new MidweekSchedulingService(unitOfWork, new SchedulingRuntimeIds()), unitOfWork });
 }
 
 export async function loadCandidateQueryService(database: SupabaseRestDatabase, principal: VerifiedPrincipal) {
   const rows = await schedulingRows(database, principal.tenantId);
   const unitOfWork = new SchedulingSnapshotUnitOfWork(principal.tenantId, rows);
-  const service = new CandidateQueryService(unitOfWork);
-  return Object.freeze({ service, unitOfWork });
+  return Object.freeze({ service: new CandidateQueryService(unitOfWork), unitOfWork });
 }
 
 export async function loadScheduleViewService(database: SupabaseRestDatabase, principal: VerifiedPrincipal) {
   const rows = await schedulingRows(database, principal.tenantId);
   const unitOfWork = new SchedulingSnapshotUnitOfWork(principal.tenantId, rows);
-  const service = new ScheduleViewService(unitOfWork);
-  return Object.freeze({ service, unitOfWork });
+  return Object.freeze({ service: new ScheduleViewService(unitOfWork), unitOfWork });
 }
 
 export async function loadMidweekOverview(database: SupabaseRestDatabase, principal: VerifiedPrincipal): Promise<Readonly<MidweekOverviewDto>> {
