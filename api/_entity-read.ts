@@ -26,16 +26,19 @@ function entityData(row: EntityRow, tenantId: string): Readonly<Record<string, u
   return data;
 }
 
-export interface PersonDto { id: string; displayName: string; preferredLocale?: string; active: boolean }
+export interface PersonDto { id: string; displayName: string; preferredLocale?: string; active: boolean; labels?: readonly string[] }
 export function personDto(row: EntityRow, tenantId: string): PersonDto {
   const data = entityData(row, tenantId);
   if (typeof data.active !== 'boolean') throw new InvalidStoredDataError('Invalid stored person');
   if (data.preferredLocale !== undefined && typeof data.preferredLocale !== 'string') throw new InvalidStoredDataError('Invalid stored person');
+  if (data.labels !== undefined && (!Array.isArray(data.labels) || !data.labels.every(item => typeof item === 'string' && item.trim().length > 0))) throw new InvalidStoredDataError('Invalid stored person');
+  const labels = data.labels === undefined ? undefined : storedStringArray(data.labels);
   return Object.freeze({
     id: storedString(data.id),
     displayName: storedString(data.displayName),
     ...(typeof data.preferredLocale === 'string' ? { preferredLocale: data.preferredLocale } : {}),
     active: data.active,
+    ...(labels?.length ? { labels } : {}),
   });
 }
 
