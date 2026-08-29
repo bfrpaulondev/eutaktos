@@ -6,7 +6,6 @@ import type {
 } from './people';
 import { buildEligibilityIndex, checkEligibility } from './eligibility-constraints';
 import type { AssignmentHistoryRecord } from './assignment-history';
-import { assignmentCount } from './student-history-queries';
 import type { ConflictAssignment, SchedulingConflict, UnavailableInterval } from './conflict-engine';
 import { detectSchedulingConflicts } from './conflict-engine';
 import { unavailableIntervalsForPerson } from './away-conflict-adapter';
@@ -98,9 +97,7 @@ function validateReferenceDate(value: string): string {
 }
 
 function validateWindow(startsAt: string, endsAt: string): void {
-  if (parseInstant(endsAt, 'endsAt') <= parseInstant(startsAt, 'startsAt')) {
-    throw new Error('Candidate window must end after it starts');
-  }
+  if (parseInstant(endsAt, 'endsAt') <= parseInstant(startsAt, 'startsAt')) throw new Error('Candidate window must end after it starts');
 }
 
 function overlaps(aStart: number, aEnd: number, bStart: number, bEnd: number): boolean {
@@ -115,35 +112,29 @@ function daysBetween(earlier: string, later: string): number {
   return Math.floor((parseDate(later) - parseDate(earlier)) / 86_400_000);
 }
 
-/**
- * Persisted history key. This deliberately separates the same meeting part when
- * a person served as the student versus the assistant, and separates operational
- * roles from student parts. Candidate recency must answer "last time in THIS
- * function", not merely "last time in this slot".
- */
 export function candidateHistoryPartType(role: CandidateRole, assignmentTypeId: AssignmentTypeId): string {
   const normalized = requiredString(assignmentTypeId, 'assignmentTypeId');
   return role === 'non-student' ? `role:${normalized}` : `${role}:${normalized}`;
 }
 
-function completedHistoryForPartType(
+function completedHistoryForCandidate(
   history: readonly AssignmentHistoryRecord[],
   personId: PersonId,
   tenantId: TenantId,
-  partType: string,
+  role: CandidateRole,
+  assignmentTypeId: AssignmentTypeId,
 ): readonly AssignmentHistoryRecord[] {
-  return history
-    .filter(record =>
-      record.tenantId === tenantId &&
-      record.personId === personId &&
-      record.partType === partType &&
-      record.state === 'completed',
-    )
-    .sort((a, b) =>
-      b.meetingDate.localeCompare(a.meetingDate) ||
-      b.recordedAt.localeCompare(a.recordedAt) ||
-      b.id.localeCompare(a.id),
-    );
+  const roleKey = candidateHistoryPartType(role, assignmentTypeId);
+  const base = history.filter(record =>
+    record.tenantId === tenantId && record.personId === personId && record.state === 'completed',
+  );
+  const roleScoped = base.filter(record => record.partType === roleKey);
+  // Pre-role-key records are supported only as a migration fallback. Once a
+  // role-specific fact exists, generic legacy facts no longer influence recency.
+  const selected = roleScoped.length > 0 ? roleScoped : base.filter(record => record.partType === assignmentTypeId);
+  return selected.sort((a, b) =>
+    b.meetingDate.localeCompare(a.meetingDate) || b.recordedAt.localeCompare(a.recordedAt) || b.id.localeCompare(a.id),
+  );
 }
 
 function recentWindowStart(referenceDate: string, days: number): string {
@@ -183,14 +174,10 @@ export function computeCandidate(person: CongregationPerson, input: CandidateQue
   const unavailableForPerson = input.unavailable
     ? input.unavailable.filter(item => item.tenantId === input.tenantId && item.personId === person.id)
     : unavailableIntervalsForPerson(person, input.tenantId);
-
   const slotStart = parseInstant(input.startsAt, 'startsAt');
   const slotEnd = parseInstant(input.endsAt, 'endsAt');
   const hasUnavailableOverlap = unavailableForPerson.some(period => overlaps(
-    slotStart,
-    slotEnd,
-    parseInstant(period.startsAt, 'unavailable.startsAt'),
-    parseInstant(period.endsAt, 'unavailable.endsAt'),
+    slotStart, slotEnd, parseInstant(period.startsAt, 'unavailable.startsAt'), parseInstant(period.endsAt, 'unavailable.endsAt'),
   ));
   const available = !inactive && !hasUnavailableOverlap;
 
@@ -208,27 +195,20 @@ export function computeCandidate(person: CongregationPerson, input: CandidateQue
     unavailable: unavailableForPerson,
   }).map(conflict => Object.freeze({ kind: conflict.kind, sourceId: conflict.sourceId }));
 
-  const historyPartType = candidateHistoryPartType(input.role, input.assignmentTypeId);
-  const relevantHistory = completedHistoryForPartType(input.history, person.id, input.tenantId, historyPartType);
+  const relevantHistory = completedHistoryForCandidate(input.history, person.id, input.tenantId, input.role, input.assignmentTypeId);
   const lastRecord = relevantHistory[0];
   const lastDate = lastRecord?.meetingDate ?? null;
   const daysSince = lastDate === null ? null : daysBetween(lastDate, input.referenceDate);
-  const recentCount = assignmentCount(input.history, person.id, input.tenantId, {
-    from: recentWindowStart(input.referenceDate, recentWindowDays),
-    to: input.referenceDate,
-    partType: historyPartType,
-  });
+  const windowStart = recentWindowStart(input.referenceDate, recentWindowDays);
+  const recentCount = relevantHistory.filter(record => record.meetingDate >= windowStart && record.meetingDate <= input.referenceDate).length;
   const alreadyInMeeting = input.personsInSameMeeting.has(person.id);
 
   const reasons: CandidateReason[] = [];
-  if (inactive) {
-    reasons.push(reason('inactive', 'midweek.candidates.reason.inactive'));
-  } else if (hasUnavailableOverlap) {
-    reasons.push(reason('unavailable_period', 'midweek.candidates.reason.unavailablePeriod'));
-  } else if (eligible) {
-    if (lastDate === null) {
-      reasons.push(reason('no_history_for_assignment', 'midweek.candidates.reason.noHistoryForAssignment'));
-    } else if (daysSince !== null) {
+  if (inactive) reasons.push(reason('inactive', 'midweek.candidates.reason.inactive'));
+  else if (hasUnavailableOverlap) reasons.push(reason('unavailable_period', 'midweek.candidates.reason.unavailablePeriod'));
+  else if (eligible) {
+    if (lastDate === null) reasons.push(reason('no_history_for_assignment', 'midweek.candidates.reason.noHistoryForAssignment'));
+    else if (daysSince !== null) {
       const weeks = Math.floor(daysSince / 7);
       if (weeks >= LONG_TIME_SINCE_WEEKS) reasons.push(reason('long_time_since_assignment', 'midweek.candidates.reason.longTimeSinceAssignment', { weeks }));
       else if (weeks <= 2) reasons.push(reason('recent_assignment_for_role', 'midweek.candidates.reason.recentAssignmentForRole', { weeks }));
@@ -262,7 +242,6 @@ export function computeCandidates(input: CandidateQueryInput): readonly Readonly
   requiredString(input.role, 'role');
   validateReferenceDate(input.referenceDate);
   validateWindow(input.startsAt, input.endsAt);
-
   const results = input.people.filter(person => person.tenantId === input.tenantId).map(person => computeCandidate(person, input));
   return Object.freeze(results.sort((left, right) => {
     const leftValid = left.eligible && left.available && left.conflicts.length === 0;
