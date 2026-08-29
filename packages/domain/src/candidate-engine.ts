@@ -119,7 +119,10 @@ export function candidateHistoryPartType(role: CandidateRole, assignmentTypeId: 
 function latestHistoryFacts(history: readonly AssignmentHistoryRecord[]): readonly AssignmentHistoryRecord[] {
   const latest = new Map<string, AssignmentHistoryRecord>();
   for (const record of history) {
-    const key = `${record.assignmentId}\u001f${record.personId}\u001f${record.partType}`;
+    // meetingDate is part of the occurrence identity for backwards-compatible
+    // imported history. Native Eutaktos assignment ids are unique, but legacy
+    // data may reuse an opaque source id on different meeting dates.
+    const key = `${record.assignmentId}\u001f${record.personId}\u001f${record.partType}\u001f${record.meetingDate}`;
     const current = latest.get(key);
     if (!current || record.recordedAt > current.recordedAt || (record.recordedAt === current.recordedAt && record.id > current.id)) latest.set(key, record);
   }
