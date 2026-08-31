@@ -107,7 +107,7 @@ export function EligibilityDialog({ personId, personName, locale, open, onClose 
 
   const assignmentOptions = [
     ...ELIGIBILITY_ASSIGNMENT_TYPES.map(option => ({ value: option.id, label: option.label[locale] })),
-    ...existingCustomIds.map(id => ({ value: id, label: id })),
+    ...existingCustomIds.map(id => ({ value: id, label: assignmentTypeLabel(id, locale) })),
     { value: CUSTOM_ASSIGNMENT_TYPE_CHOICE, label: text.customOption },
   ];
 
@@ -145,8 +145,7 @@ export function EligibilityDialog({ personId, personName, locale, open, onClose 
               const label = assignmentTypeLabel(decision.assignmentTypeId, locale);
               return <div key={decision.assignmentTypeId} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                 <div style={{ minWidth: 0 }}>
-                  <Typography.Text style={{ overflowWrap: 'anywhere' }}>{label}</Typography.Text>
-                  {label !== decision.assignmentTypeId ? <div><Typography.Text type="secondary" style={{ overflowWrap: 'anywhere', fontSize: 12 }}>{decision.assignmentTypeId}</Typography.Text></div> : null}
+                  <Typography.Text strong style={{ overflowWrap: 'anywhere' }}>{label}</Typography.Text>
                 </div>
                 <Tag color={decision.enabled ? 'success' : 'default'}>{decision.enabled ? text.enabled : text.disabled}</Tag>
               </div>;
@@ -214,7 +213,6 @@ export function EligibilityDialog({ personId, personName, locale, open, onClose 
         <Card size="small">
           <Space orientation="vertical" size="small">
             <Typography.Text strong>{assignmentTypeLabel(assignmentTypeId, locale)}</Typography.Text>
-            {assignmentTypeLabel(assignmentTypeId, locale) !== assignmentTypeId ? <Typography.Text type="secondary" style={{ overflowWrap: 'anywhere' }}>{assignmentTypeId}</Typography.Text> : null}
             <Tag color={enabled ? 'success' : 'default'}>{text.status}: {enabled ? text.enabled : text.disabled}</Tag>
           </Space>
         </Card>
