@@ -617,7 +617,10 @@ function midweekHarness(seedMeeting: Readonly<MidweekMeeting> = midweekMeeting(T
     listNonStudentAssignments: () => [],
     findPerson: () => undefined,
     findPartDefinition: () => undefined,
+    listPeople: () => [],
+    listPartDefinitions: () => [],
     listConflictAssignments: () => [],
+    listAssignmentHistory: () => [],
     resolveSlotWindow: () => ({
       startsAt: '2026-08-26T18:00:00.000Z',
       endsAt: '2026-08-26T18:05:00.000Z',

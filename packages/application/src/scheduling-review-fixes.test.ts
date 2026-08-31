@@ -64,7 +64,10 @@ describe('reviewed K42 student replacement', () => {
       listNonStudentAssignments: () => [],
       findPerson: (_context, id) => people.get(id),
       findPartDefinition: id => id === part.id ? part : undefined,
+      listPeople: () => [...people.values()],
+      listPartDefinitions: () => [part],
       listConflictAssignments: () => [{ tenantId: 'tenant-a', assignmentId: `${current.id}:student`, personId: 'student-new', startsAt: '2026-08-22T18:00:00.000Z', endsAt: '2026-08-22T18:05:00.000Z' }],
+      listAssignmentHistory: () => [],
       resolveSlotWindow: () => ({ startsAt: '2026-08-22T18:00:00.000Z', endsAt: '2026-08-22T18:05:00.000Z' }),
       commit: (_context, change) => { changes.push(change); },
     };

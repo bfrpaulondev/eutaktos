@@ -123,3 +123,7 @@ export * from './talk-outline';
 export * from './neighbor-congregations';
 export * from './public-talk-scheduling';
 export * from './public-talk-history';
+
+export * from './candidate-engine';
+export * from './conflict-report';
+export * from './suggestion-engine';

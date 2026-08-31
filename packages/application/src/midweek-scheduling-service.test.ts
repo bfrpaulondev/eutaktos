@@ -75,8 +75,11 @@ function harness(options: {
     listStudentAssignments: () => [],
     listNonStudentAssignments: () => [],
     findPerson: (_ctx, personId) => personId === currentPerson.id ? currentPerson : undefined,
+    listPeople: () => [currentPerson],
     findPartDefinition: id => id === currentPart.id ? currentPart : undefined,
+    listPartDefinitions: () => [currentPart],
     listConflictAssignments: () => options.conflicts ?? [],
+    listAssignmentHistory: () => [],
     resolveSlotWindow: () => ({ startsAt: '2026-08-22T18:00:00.000Z', endsAt: '2026-08-22T18:05:00.000Z' }),
     commit: (_ctx, change) => { changes.push(change); },
   };
@@ -133,12 +136,12 @@ describe('MidweekSchedulingService', () => {
     expect(changes).toHaveLength(0);
   });
 
-  it('replaces an assigned non-student with explicit eligibility, audit and event in one commit', () => {
+  it('replaces an assigned non-student with canonical explicit eligibility, audit and event in one commit', () => {
     const current = createNonStudentAssignment({ id: 'non-student-1', tenantId: 'tenant-a', meetingId: 'meeting-1', slotId: 'slot-1', personId: 'person-1', role: 'chairman', now });
     const eligible = person();
     eligible.id = 'person-2';
     eligible.displayName = 'Person Two';
-    eligible.eligibility = [{ assignmentTypeId: 'chairman', enabled: true, decidedBy: 'elder-1', decidedAt: now }];
+    eligible.eligibility = [{ assignmentTypeId: 'hourglass:mm_chairman', enabled: true, decidedBy: 'elder-1', decidedAt: now }];
     const { service, changes } = harness({ nonStudentAssignment: current, person: eligible });
     const replaced = service.replaceNonStudent(context(), { assignmentId: current.id, personId: eligible.id });
     expect(replaced).toMatchObject({ id: current.id, personId: 'person-2', state: 'assigned' });

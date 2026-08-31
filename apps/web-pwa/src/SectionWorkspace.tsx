@@ -236,7 +236,7 @@ function OrganizationWorkspace({ locale }: { locale: Locale }) {
 
 export function SectionWorkspace({ locale, section }: SectionWorkspaceProps) {
   if (section === 'people') return <OrganizationWorkspace locale={locale} />;
-  if (section === 'agenda' || section === 'assignments') return <MidweekWorkspace locale={locale} section={section} />;
+  if (section === 'agenda' || section === 'assignments' || section === 'schedule') return <MidweekWorkspace locale={locale} section={section} />;
 
   const content = getWorkspaceCopy(locale, section);
   return <section aria-labelledby={`section-${section}-title`}>

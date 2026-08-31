@@ -11,26 +11,20 @@ import {
 describe('EligibilityDialog decision guard', () => {
   it('requires an explicit assignment type before a decision can enter confirmation', () => {
     expect(isEligibilityDecisionSubmittable('   ', false)).toBe(false);
-    expect(isEligibilityDecisionSubmittable('builtin:apply-yourself-to-the-ministry', false)).toBe(true);
+    expect(isEligibilityDecisionSubmittable('hourglass:initcall', false)).toBe(true);
   });
-
   it('blocks an additional decision while an explicit decision is being saved', () => {
-    expect(isEligibilityDecisionSubmittable('chairman', true)).toBe(false);
+    expect(isEligibilityDecisionSubmittable('hourglass:mm_chairman', true)).toBe(false);
   });
-
-  it('uses the exact student part definition ids consumed by scheduling', () => {
+  it('uses canonical explicit privilege ids consumed by scheduling', () => {
     const ids = ELIGIBILITY_ASSIGNMENT_TYPES.map(option => option.id);
-    expect(ids).toContain('builtin:apply-yourself-to-the-ministry');
-    expect(ids).toContain('builtin:living-as-christians');
-    expect(ids).not.toContain('builtin:opening-remarks');
-    expect(ids).not.toContain('builtin:treasures-from-gods-word');
+    expect(ids).toEqual(expect.arrayContaining(['hourglass:mm_chairman','hourglass:reading','hourglass:initcall','hourglass:rv','hourglass:study','hourglass:stutalk','hourglass:hh','hourglass:treasures','hourglass:dfg','hourglass:lac','hourglass:cbs','hourglass:cbs_reader','hourglass:openprayer','hourglass:closeprayer']));
+    expect(ids.some(id => id.startsWith('builtin:'))).toBe(false);
+    expect(ids.some(id => id.startsWith('midweek:'))).toBe(false);
   });
-
-  it('keeps standard non-student roles controlled while allowing an explicit custom role', () => {
-    const ids = ELIGIBILITY_ASSIGNMENT_TYPES.map(option => option.id);
-    expect(ids).toEqual(expect.arrayContaining(['chairman', 'opening-prayer', 'closing-prayer', 'bible-reading']));
+  it('allows an explicit custom role without changing the canonical catalog', () => {
     expect(resolveAssignmentTypeChoice(CUSTOM_ASSIGNMENT_TYPE_CHOICE, '  custom-greeter  ')).toBe('custom-greeter');
-    expect(resolveAssignmentTypeChoice('chairman', 'ignored')).toBe('chairman');
+    expect(resolveAssignmentTypeChoice('hourglass:mm_chairman', 'ignored')).toBe('hourglass:mm_chairman');
   });
 });
 
@@ -53,17 +47,8 @@ describe('assignmentTypeLabel mapping and humanization', () => {
     expect(assignmentTypeLabel('hourglass:zoom_attendant', 'pt-PT')).toBe('Assistente Zoom');
     expect(assignmentTypeLabel('hourglass:cleaning', 'pt-PT')).toBe('Limpeza');
   });
-
   it('has an explicit localized entry for every Hourglass privilege key present in the export', () => {
-    const importedKeys = [
-      'attendant', 'aux_chairman', 'cbs', 'cbs_reader', 'chairman', 'chairman2', 'chairman3',
-      'cleaning', 'closeprayer', 'conductFS', 'console', 'dfg', 'fm_discussion', 'fs_assistant',
-      'hh', 'host', 'initcall', 'interpreter', 'lac', 'localneeds', 'mics', 'mm_chairman', 'none',
-      'openprayer', 'prayer', 'pt', 'pt_out', 'publicMinistry', 'reading', 'rv', 'security_attendant',
-      'stage', 'stream', 'study', 'stutalk', 'treasures', 'video', 'wm_chairman', 'wm_reader',
-      'wt_conductor', 'zoom_attendant',
-    ];
-
+    const importedKeys = ['attendant','aux_chairman','cbs','cbs_reader','chairman','chairman2','chairman3','cleaning','closeprayer','conductFS','console','dfg','fm_discussion','fs_assistant','hh','host','initcall','interpreter','lac','localneeds','mics','mm_chairman','none','openprayer','prayer','pt','pt_out','publicMinistry','reading','rv','security_attendant','stage','stream','study','stutalk','treasures','video','wm_chairman','wm_reader','wt_conductor','zoom_attendant'];
     for (const key of importedKeys) {
       const labels = KNOWN_ASSIGNMENT_TYPE_LABELS[`hourglass:${key}`];
       expect(labels, key).toBeDefined();
@@ -72,16 +57,15 @@ describe('assignmentTypeLabel mapping and humanization', () => {
       expect(labels?.es.trim(), key).not.toBe('');
     }
   });
-
-  it('translates standard and builtin assignment types', () => {
+  it('translates operational, legacy and standard assignment types', () => {
+    expect(assignmentTypeLabel('midweek:bible-reading', 'pt-PT')).toBe('Leitura da Bíblia');
+    expect(assignmentTypeLabel('midweek:initial-call', 'pt-PT')).toBe('Iniciar conversas');
     expect(assignmentTypeLabel('builtin:apply-yourself-to-the-ministry', 'pt-PT')).toBe('Empenhe-se na leitura e no ensino');
     expect(assignmentTypeLabel('builtin:living-as-christians', 'pt-PT')).toBe('A nossa vida cristã');
     expect(assignmentTypeLabel('chairman', 'pt-PT')).toBe('Presidente');
     expect(assignmentTypeLabel('opening-prayer', 'pt-PT')).toBe('Oração inicial');
     expect(assignmentTypeLabel('closing-prayer', 'pt-PT')).toBe('Oração final');
-    expect(assignmentTypeLabel('bible-reading', 'pt-PT')).toBe('Leitura da Bíblia');
   });
-
   it('humanizes unknown custom or imported identifiers by stripping technical prefixes', () => {
     expect(assignmentTypeLabel('hourglass:special_assignment', 'pt-PT')).toBe('Special Assignment');
     expect(assignmentTypeLabel('custom:sound_technician', 'en')).toBe('Sound Technician');

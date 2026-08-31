@@ -52,6 +52,7 @@ describe('Navigation: canonical paths are absolute', () => {
       home: '/',
       agenda: '/agenda',
       assignments: '/designacoes',
+      schedule: '/programacao',
       people: '/pessoas',
       preferences: '/preferencias',
     });
